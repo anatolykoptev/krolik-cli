@@ -1,6 +1,13 @@
 /**
  * @module commands/fix/strategies
  * @description All fix strategies
+ *
+ * Each strategy is organized in its own module:
+ * - lint/        - console, debugger, alert fixes
+ * - type-safety/ - @ts-ignore, @ts-nocheck, explicit any
+ * - complexity/  - nesting, long functions, complexity
+ * - srp/         - file splitting for large files
+ * - hardcoded/   - magic numbers, URLs extraction
  */
 
 import type { FixStrategy } from '../types';

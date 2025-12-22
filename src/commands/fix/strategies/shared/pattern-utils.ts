@@ -142,7 +142,7 @@ export function findMatchingPattern<T extends string>(
 /**
  * Check if message contains any of the keywords (case-insensitive)
  */
-export function containsKeyword(message: string, keywords: string[]): boolean {
+export function containsKeyword(message: string, keywords: readonly string[]): boolean {
   const lower = message.toLowerCase();
   return keywords.some((keyword) => lower.includes(keyword.toLowerCase()));
 }
