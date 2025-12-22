@@ -4,7 +4,7 @@
  */
 
 import * as prettier from 'prettier';
-import { Project, DiagnosticCategory } from 'ts-morph';
+import { Project, DiagnosticCategory, SyntaxKind } from 'ts-morph';
 
 // ============================================================================
 // PROJECT CREATION
@@ -82,6 +82,107 @@ export function getSyntaxErrors(
         message: error instanceof Error ? error.message : 'Parse error',
       },
     ];
+  }
+}
+
+// ============================================================================
+// AST CHECKS
+// ============================================================================
+
+/**
+ * Check if a line contains an actual debugger statement (not in string/regex)
+ *
+ * Uses AST to find DebuggerStatement nodes, which excludes:
+ * - 'debugger' inside strings
+ * - 'debugger' inside regex patterns
+ * - 'debugger' in comments
+ *
+ * @param content - Full file content
+ * @param lineNumber - 1-based line number to check
+ */
+export function hasDebuggerStatementAtLine(
+  content: string,
+  lineNumber: number,
+): boolean {
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile('temp.ts', content, {
+      overwrite: true,
+    });
+
+    const debuggerStatements = sourceFile.getDescendantsOfKind(
+      SyntaxKind.DebuggerStatement,
+    );
+
+    return debuggerStatements.some(
+      (stmt) => stmt.getStartLineNumber() === lineNumber,
+    );
+  } catch {
+    // Parse error - assume no debugger (safe fallback)
+    return false;
+  }
+}
+
+/**
+ * Check if a line contains an actual console call (not in string/regex)
+ *
+ * Uses AST to find CallExpression nodes where callee is console.*
+ *
+ * @param content - Full file content
+ * @param lineNumber - 1-based line number to check
+ */
+export function hasConsoleCallAtLine(
+  content: string,
+  lineNumber: number,
+): boolean {
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile('temp.ts', content, {
+      overwrite: true,
+    });
+
+    const callExpressions = sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    );
+
+    return callExpressions.some((call) => {
+      if (call.getStartLineNumber() !== lineNumber) return false;
+
+      const expr = call.getExpression();
+      const text = expr.getText();
+
+      return text.startsWith('console.');
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a line contains an actual alert call (not in string/regex)
+ */
+export function hasAlertCallAtLine(
+  content: string,
+  lineNumber: number,
+): boolean {
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile('temp.ts', content, {
+      overwrite: true,
+    });
+
+    const callExpressions = sourceFile.getDescendantsOfKind(
+      SyntaxKind.CallExpression,
+    );
+
+    return callExpressions.some((call) => {
+      if (call.getStartLineNumber() !== lineNumber) return false;
+
+      const expr = call.getExpression();
+      return expr.getText() === 'alert';
+    });
+  } catch {
+    return false;
   }
 }
 

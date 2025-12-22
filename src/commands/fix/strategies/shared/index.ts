@@ -41,6 +41,10 @@ export {
   tryFormatWithPrettier,
   validateAndFormat,
   validateAndFormatWithErrors,
+  // AST-based checks
+  hasDebuggerStatementAtLine,
+  hasConsoleCallAtLine,
+  hasAlertCallAtLine,
 } from './formatting';
 
 // Fix operations
