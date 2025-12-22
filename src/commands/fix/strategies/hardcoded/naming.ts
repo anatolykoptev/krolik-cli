@@ -3,7 +3,9 @@
  * @description Constant name generation logic
  */
 
-import { KNOWN_CONSTANTS, KEYWORD_TO_NAME } from './constants';
+import { KNOWN_CONSTANTS, KEYWORD_TO_NAME } from "./constants";
+
+const VALUE_VALUE = 300000;
 
 // ============================================================================
 // STRING UTILITIES
@@ -11,11 +13,21 @@ import { KNOWN_CONSTANTS, KEYWORD_TO_NAME } from './constants';
 
 /**
  * Convert camelCase or snake_case to SCREAMING_SNAKE_CASE
+ * Sanitizes input to only contain valid identifier characters
  */
 export function toScreamingSnake(str: string): string {
-  return str
-    .replace(/([a-z])([A-Z])/g, '$1_$2')
-    .replace(/[-\s]/g, '_')
+  // Extract only valid identifier parts (handle dot notation like "router.procedures")
+  const parts = str.split(/[.\[\]()]/);
+  const lastPart = parts.filter(Boolean).pop() || str;
+
+  // Only keep valid identifier characters
+  const sanitized = lastPart.replace(/[^a-zA-Z0-9_]/g, "");
+
+  if (!sanitized) return "VALUE";
+
+  return sanitized
+    .replace(/([a-z])([A-Z])/g, "$1_$2")
+    .replace(/[-\s]/g, "_")
     .toUpperCase();
 }
 
@@ -23,7 +35,7 @@ export function toScreamingSnake(str: string): string {
 const GENERIC_ARG_PATTERN = /^.+_arg\d+$/;
 
 /** Suffixes that already indicate the type */
-const VALUE_SUFFIXES = ['_VALUE', '_COUNT', '_SIZE'] as const;
+const VALUE_SUFFIXES = ["_VALUE", "_COUNT", "_SIZE"] as const;
 
 // ============================================================================
 // CONSTANT NAME GENERATION
@@ -62,13 +74,15 @@ export function generateConstName(
   if (astContext && !GENERIC_ARG_PATTERN.test(astContext)) {
     const upper = toScreamingSnake(astContext);
     // Avoid duplicating suffixes like "_VALUE", "_COUNT", "_SIZE"
-    const hasValueSuffix = VALUE_SUFFIXES.some((suffix) => upper.endsWith(suffix));
+    const hasValueSuffix = VALUE_SUFFIXES.some((suffix) =>
+      upper.endsWith(suffix),
+    );
     return hasValueSuffix ? upper : `${upper}_VALUE`;
   }
 
   // Priority 3: Heuristic based on value
   // Large values (>=1000) in function args are often timeouts
-  if (value >= 1000 && value <= 300000) {
+  if (value >= 1000 && value <= VALUE_VALUE) {
     return `TIMEOUT_MS_${value}`;
   }
   if (value >= 1000) {

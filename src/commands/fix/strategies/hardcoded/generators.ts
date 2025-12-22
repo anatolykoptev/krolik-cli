@@ -82,7 +82,7 @@ export async function generateNumberFix(
     }
 
     // After insertion, re-find candidates (positions have changed)
-    // Replace FIRST matching literal only (safe approach)
+    // Replace ALL matching literals (not just first)
     // IMPORTANT: Skip the literal inside the const declaration we just created!
     const updatedCandidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n) => {
       const value = n.getLiteralValue();
@@ -95,9 +95,9 @@ export async function generateNumberFix(
       );
     });
 
-    // Replace first candidate (safe, single replacement per issue)
-    if (updatedCandidates.length > 0) {
-      updatedCandidates[0]?.replaceWithText(constName);
+    // Replace ALL candidates (from last to first to preserve positions)
+    for (let i = updatedCandidates.length - 1; i >= 0; i--) {
+      updatedCandidates[i]?.replaceWithText(constName);
     }
 
     // Format with Prettier for clean output

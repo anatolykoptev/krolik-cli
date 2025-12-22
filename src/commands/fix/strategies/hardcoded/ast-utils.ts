@@ -111,10 +111,11 @@ const TYPE_DEFINITION_KINDS = new Set([
   SyntaxKind.PropertySignature,
 ]);
 
-/** SyntaxKinds that represent string contexts */
+/** SyntaxKinds that represent actual string content (not interpolations) */
 const STRING_CONTEXT_KINDS = new Set([
-  SyntaxKind.TemplateExpression,
   SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  // Note: TemplateExpression is NOT included - numbers in ${...} are valid code
 ]);
 
 /**

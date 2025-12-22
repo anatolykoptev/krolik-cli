@@ -3,7 +3,9 @@
  * @description Detection of hardcoded values (magic numbers, URLs, colors, text)
  */
 
-import type { HardcodedValue } from '../types';
+import type { HardcodedValue } from "../types";
+
+const HTTP_PORT = 80;
 
 // ============================================================================
 // PATTERNS
@@ -18,7 +20,13 @@ const PATTERNS = {
 
 const ACCEPTABLE_NUMBERS = new Set([10, 100, 1000, 24, 60, 1024, 2048]);
 
-const SKIP_FILE_PATTERNS = ['.config.', 'schema', '.test.', '.spec.', '__tests__'];
+const SKIP_FILE_PATTERNS = [
+  ".config.",
+  "schema",
+  ".test.",
+  ".spec.",
+  "__tests__",
+];
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -31,18 +39,23 @@ function shouldSkipFile(filepath: string): boolean {
   return SKIP_FILE_PATTERNS.some((pattern) => filepath.includes(pattern));
 }
 
+/** Pattern for SCREAMING_SNAKE_CASE constant declarations */
+const CONST_DECL_PATTERN = /^\s*(?:export\s+)?const\s+[A-Z][A-Z0-9_]*\s*=/;
+
 /**
  * Check if line should be skipped
  */
 function shouldSkipLine(line: string): boolean {
   const trimmed = line.trim();
   return (
-    trimmed.startsWith('//') ||
-    trimmed.startsWith('*') ||
-    line.includes('import ') ||
-    line.includes('from ') ||
-    line.includes(': number') ||
-    line.includes(': string')
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("*") ||
+    line.includes("import ") ||
+    line.includes("from ") ||
+    line.includes(": number") ||
+    line.includes(": string") ||
+    // Skip constant declarations (SCREAMING_SNAKE_CASE = value)
+    CONST_DECL_PATTERN.test(line)
   );
 }
 
@@ -53,8 +66,8 @@ function shouldSkipNumber(line: string, num: number): boolean {
   return (
     ACCEPTABLE_NUMBERS.has(num) ||
     line.includes(`[${num}]`) ||
-    line.includes('timeout') ||
-    line.includes('delay')
+    line.includes("timeout") ||
+    line.includes("delay")
   );
 }
 
@@ -63,10 +76,10 @@ function shouldSkipNumber(line: string, num: number): boolean {
  */
 function shouldSkipUrl(url: string): boolean {
   return (
-    url.includes('schema.org') ||
-    url.includes('json-schema') ||
-    url.includes('github.com') ||
-    url.includes('docs.')
+    url.includes("schema.org") ||
+    url.includes("json-schema") ||
+    url.includes("github.com") ||
+    url.includes("docs.")
   );
 }
 
@@ -79,17 +92,19 @@ function shouldSkipUrl(url: string): boolean {
  */
 function detectNumbers(line: string, lineNum: number): HardcodedValue[] {
   const values: HardcodedValue[] = [];
-  const matches = line.matchAll(PATTERNS.magicNumber);
+  // Strip trailing comments before matching
+  const codeOnly = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+  const matches = codeOnly.matchAll(PATTERNS.magicNumber);
 
   for (const match of matches) {
-    const num = parseInt(match[1] ?? '0', 10);
+    const num = parseInt(match[1] ?? "0", 10);
     if (shouldSkipNumber(line, num)) continue;
 
     values.push({
       value: num,
-      type: 'number',
+      type: "number",
       line: lineNum,
-      context: line.trim().slice(0, 80),
+      context: line.trim().slice(0, HTTP_PORT),
     });
   }
 
@@ -104,14 +119,14 @@ function detectUrls(line: string, lineNum: number): HardcodedValue[] {
   const matches = line.matchAll(PATTERNS.url);
 
   for (const match of matches) {
-    const url = match[2] ?? '';
+    const url = match[2] ?? "";
     if (shouldSkipUrl(url)) continue;
 
     values.push({
       value: url,
-      type: 'url',
+      type: "url",
       line: lineNum,
-      context: line.trim().slice(0, 80),
+      context: line.trim().slice(0, HTTP_PORT),
     });
   }
 
@@ -121,9 +136,13 @@ function detectUrls(line: string, lineNum: number): HardcodedValue[] {
 /**
  * Detect hardcoded hex colors in a line
  */
-function detectColors(line: string, lineNum: number, filepath: string): HardcodedValue[] {
+function detectColors(
+  line: string,
+  lineNum: number,
+  filepath: string,
+): HardcodedValue[] {
   // Skip tailwind config or CSS files
-  if (filepath.includes('tailwind') || filepath.endsWith('.css')) {
+  if (filepath.includes("tailwind") || filepath.endsWith(".css")) {
     return [];
   }
 
@@ -133,9 +152,9 @@ function detectColors(line: string, lineNum: number, filepath: string): Hardcode
   for (const match of matches) {
     values.push({
       value: match[0],
-      type: 'color',
+      type: "color",
       line: lineNum,
-      context: line.trim().slice(0, 80),
+      context: line.trim().slice(0, HTTP_PORT),
     });
   }
 
@@ -145,9 +164,13 @@ function detectColors(line: string, lineNum: number, filepath: string): Hardcode
 /**
  * Detect hardcoded Russian text (i18n issues)
  */
-function detectText(line: string, lineNum: number, filepath: string): HardcodedValue[] {
+function detectText(
+  line: string,
+  lineNum: number,
+  filepath: string,
+): HardcodedValue[] {
   // Skip test or story files
-  if (filepath.includes('.test.') || filepath.includes('.stories.')) {
+  if (filepath.includes(".test.") || filepath.includes(".stories.")) {
     return [];
   }
 
@@ -157,9 +180,9 @@ function detectText(line: string, lineNum: number, filepath: string): HardcodedV
   for (const match of matches) {
     values.push({
       value: match[0].slice(1, -1), // Remove quotes
-      type: 'string',
+      type: "string",
       line: lineNum,
-      context: line.trim().slice(0, 80),
+      context: line.trim().slice(0, HTTP_PORT),
     });
   }
 
@@ -169,7 +192,11 @@ function detectText(line: string, lineNum: number, filepath: string): HardcodedV
 /**
  * Process a single line for all hardcoded values
  */
-function processLine(line: string, lineNum: number, filepath: string): HardcodedValue[] {
+function processLine(
+  line: string,
+  lineNum: number,
+  filepath: string,
+): HardcodedValue[] {
   if (shouldSkipLine(line)) {
     return [];
   }
@@ -189,16 +216,19 @@ function processLine(line: string, lineNum: number, filepath: string): Hardcoded
 /**
  * Detect hardcoded values in content
  */
-export function detectHardcodedValues(content: string, filepath: string): HardcodedValue[] {
+export function detectHardcodedValues(
+  content: string,
+  filepath: string,
+): HardcodedValue[] {
   if (shouldSkipFile(filepath)) {
     return [];
   }
 
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   const values: HardcodedValue[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? '';
+    const line = lines[i] ?? "";
     values.push(...processLine(line, i + 1, filepath));
   }
 
