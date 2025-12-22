@@ -65,6 +65,23 @@ export function fixConsole(
 // ============================================================================
 
 /**
+ * Check if 'debugger' word is inside a string or regex literal
+ */
+function isDebuggerInStringOrRegex(line: string): boolean {
+  // Check if line contains regex pattern with debugger
+  if (/\/.*debugger.*\//.test(line)) {
+    return true;
+  }
+
+  // Check if debugger is inside quotes
+  if (/['"`].*debugger.*['"`]/.test(line)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Fix debugger statements (always safe to remove)
  */
 export function fixDebugger(
@@ -75,6 +92,11 @@ export function fixDebugger(
 
   const lineCtx = getLineContext(content, issue.line);
   if (!lineCtx) return null;
+
+  // Skip if debugger is inside a string or regex (like a pattern definition)
+  if (isDebuggerInStringOrRegex(lineCtx.line)) {
+    return null;
+  }
 
   // If line is just "debugger;" or "debugger", delete it
   if (DEBUGGER_LINE_PATTERNS.STANDALONE.test(lineCtx.trimmed)) {
