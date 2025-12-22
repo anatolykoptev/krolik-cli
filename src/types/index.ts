@@ -9,6 +9,7 @@ export type {
   PrismaConfig,
   TrpcConfig,
   TemplateConfig,
+  DomainConfig,
   KrolikConfig,
   RabbitConfig,
   ResolvedConfig,
@@ -34,4 +35,5 @@ export type {
   RouteProcedure,
   RouterDefinition,
   RoutesResult,
+  ContextResult,
 } from './commands';

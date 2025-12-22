@@ -68,45 +68,73 @@ krolik mcp
 
 ## Configuration
 
-Create `krolik.config.ts` in your project root:
+Create `krolik.config.ts` or `krolik.yaml` in your project root.
+
+### TypeScript Config
 
 ```typescript
 import { defineConfig } from 'krolik-cli';
 
 export default defineConfig({
-  // Project name (auto-detected from package.json)
   name: 'my-project',
-
-  // Custom paths (auto-detected for monorepos)
   paths: {
     web: 'apps/web',
     api: 'packages/api',
     db: 'packages/db',
-    components: 'apps/web/components',
   },
-
-  // Override auto-detection
   features: {
     prisma: true,
     trpc: true,
     nextjs: true,
-    monorepo: true,
   },
-
-  // Prisma configuration
   prisma: {
     schemaDir: 'packages/db/prisma/schema',
   },
-
-  // tRPC configuration
   trpc: {
     routersDir: 'packages/api/src/routers',
-    appRouter: 'packages/api/src/routers/index.ts',
   },
-
-  // Files to exclude from analysis
-  exclude: ['node_modules', 'dist', '.next', '.git'],
+  // Custom domains for context generation
+  domains: {
+    crm: {
+      keywords: ['customer', 'lead', 'contact'],
+      approach: ['Check CRM module', 'Review customer schema'],
+    },
+  },
 });
+```
+
+### YAML Config
+
+```yaml
+# krolik.yaml
+name: my-project
+
+paths:
+  web: apps/web
+  api: packages/api
+  db: packages/db
+
+features:
+  prisma: true
+  trpc: true
+  nextjs: true
+
+prisma:
+  schemaDir: packages/db/prisma/schema
+
+trpc:
+  routersDir: packages/api/src/routers
+
+# Custom domains for context generation
+domains:
+  crm:
+    keywords:
+      - customer
+      - lead
+      - contact
+    approach:
+      - Check CRM module
+      - Review customer schema
 ```
 
 ## Auto-Detection
@@ -180,16 +208,52 @@ krolik codegen docs      # Generate documentation
 
 ### `krolik mcp`
 
-Start MCP server for Claude Code integration:
+Start MCP server for Claude Code integration (stdio transport):
 
 ```bash
-krolik mcp              # Start on port 3100
-krolik mcp -p 3200      # Custom port
+krolik mcp    # Start MCP server (for Claude Code)
 ```
 
-Add to Claude Code:
+**Setup in Claude Code:**
+
 ```bash
+# Add krolik as MCP server
 claude mcp add krolik -- npx krolik mcp
+```
+
+Or add to `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "krolik": {
+      "command": "npx",
+      "args": ["krolik", "mcp"],
+      "cwd": "/path/to/your/project"
+    }
+  }
+}
+```
+
+**Available MCP Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `krolik_status` | Project diagnostics |
+| `krolik_context` | AI context generation |
+| `krolik_schema` | Prisma schema analysis |
+| `krolik_routes` | tRPC routes analysis |
+| `krolik_review` | Code review |
+| `krolik_issue` | GitHub issue parsing |
+
+### `krolik context`
+
+Generate AI-friendly context for development tasks:
+
+```bash
+krolik context --feature="booking"   # Context for booking feature
+krolik context --issue=123           # Context from GitHub issue
+krolik context --ai                  # Structured XML output for AI
 ```
 
 ## Environment Variables

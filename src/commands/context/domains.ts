@@ -6,17 +6,19 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  DOMAIN_KEYWORDS,
   DOMAIN_FILES,
   DOMAIN_APPROACHES,
-  detectDomains as baseDetectDomains,
 } from '../../config/domains';
+import { detectDomainsFromText } from '../../lib/domains';
+import type { KrolikConfig } from '../../types';
 
 /**
  * Detect domains from text content
+ * Uses config domains if available, otherwise falls back to built-in defaults
+ * If nothing matches, uses the text itself as domain name
  */
-export function detectDomains(text: string): string[] {
-  return baseDetectDomains(text);
+export function detectDomains(text: string, config?: KrolikConfig): string[] {
+  return detectDomainsFromText(text, config);
 }
 
 /**
@@ -96,7 +98,7 @@ export function getRelevantDocs(domains: string[], projectRoot: string): string[
   const docs: string[] = [];
 
   for (const domain of domains) {
-    const domainDocs = docMappings[domain] || docMappings.general;
+    const domainDocs = docMappings[domain] ?? docMappings.general ?? [];
     docs.push(...domainDocs);
   }
 

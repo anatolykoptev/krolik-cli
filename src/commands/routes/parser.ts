@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { extractInlineSchema, type InlineField } from './inline-schema';
 
 /**
  * tRPC procedure definition
@@ -13,6 +14,10 @@ export interface TrpcProcedure {
   name: string;
   type: 'query' | 'mutation' | 'subscription' | 'unknown';
   hasInput: boolean;
+  inputSchema?: string;
+  /** Detailed input fields when schema is inline z.object */
+  inputFields?: InlineField[];
+  outputSchema?: string;
   isProtected: boolean;
   description?: string;
 }
@@ -71,20 +76,81 @@ export function parseRouterFile(filePath: string): TrpcRouter | null {
  * Parse procedures with access level (protected/public/admin)
  */
 function parseProcedures(content: string, procedures: TrpcProcedure[]): void {
-  const procedureRegex =
-    /(\w+)\s*:\s*(protected|public|admin)Procedure(?:\.input\([^)]+\))?\s*\.(query|mutation|subscription)/g;
+  // Find all procedure definitions: name: (protected|public|admin)Procedure
+  const procStartRegex = /(\w+)\s*:\s*(protected|public|admin)Procedure/g;
   let match;
 
-  while ((match = procedureRegex.exec(content)) !== null) {
-    const [fullMatch, name, accessLevel, type] = match;
-    if (!name || !type) continue;
+  while ((match = procStartRegex.exec(content)) !== null) {
+    const name = match[1];
+    const accessLevel = match[2];
+    if (!name) continue;
 
-    procedures.push({
-      name,
-      type: type as TrpcProcedure['type'],
-      hasInput: fullMatch.includes('.input('),
-      isProtected: accessLevel !== 'public',
-    });
+    // Already found this procedure
+    if (procedures.find((p) => p.name === name)) continue;
+
+    // Get the text after the procedure declaration (up to next procedure or end)
+    const startPos = match.index + match[0].length;
+    const nextProcMatch = content.slice(startPos).match(/\n\s*\w+\s*:\s*(protected|public|admin)Procedure/);
+    const endPos = nextProcMatch ? startPos + nextProcMatch.index! : Math.min(startPos + 2000, content.length);
+    const procBlock = content.slice(startPos, endPos);
+
+    // Determine procedure type
+    let type: TrpcProcedure['type'] = 'unknown';
+    if (procBlock.includes('.query(')) type = 'query';
+    else if (procBlock.includes('.mutation(')) type = 'mutation';
+    else if (procBlock.includes('.subscription(')) type = 'subscription';
+
+    // Check for .input()
+    const hasInput = procBlock.includes('.input(');
+
+    // Extract input schema name and fields
+    let inputSchema: string | undefined;
+    let inputFields: InlineField[] | undefined;
+    if (hasInput) {
+      // Try to find schema name: .input(SomeSchema) or .input(z.object({...}))
+      const inputMatch = procBlock.match(/\.input\(\s*(\w+Schema|\w+Input)/);
+      if (inputMatch) {
+        inputSchema = inputMatch[1];
+      } else if (procBlock.match(/\.input\(\s*z\.object/)) {
+        inputSchema = 'inline';
+        // Extract inline schema fields for AI context
+        const inlineSchema = extractInlineSchema(procBlock);
+        if (inlineSchema && inlineSchema.fields.length > 0) {
+          inputFields = inlineSchema.fields;
+        }
+      }
+    }
+
+    // Extract output schema name
+    let outputSchema: string | undefined;
+    const hasOutput = procBlock.includes('.output(');
+    if (hasOutput) {
+      const outputMatch = procBlock.match(/\.output\(\s*(\w+Schema|\w+Output)/);
+      if (outputMatch) {
+        outputSchema = outputMatch[1];
+      } else if (procBlock.match(/\.output\(\s*z\.object/)) {
+        outputSchema = 'inline';
+      } else {
+        // Check for z.array(Schema)
+        const arrayMatch = procBlock.match(/\.output\(\s*z\.array\(\s*(\w+)/);
+        if (arrayMatch) {
+          outputSchema = `${arrayMatch[1]}[]`;
+        }
+      }
+    }
+
+    if (type !== 'unknown') {
+      const proc: TrpcProcedure = {
+        name,
+        type,
+        hasInput,
+        isProtected: accessLevel !== 'public',
+      };
+      if (inputSchema) proc.inputSchema = inputSchema;
+      if (inputFields) proc.inputFields = inputFields;
+      if (outputSchema) proc.outputSchema = outputSchema;
+      procedures.push(proc);
+    }
   }
 }
 

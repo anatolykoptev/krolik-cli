@@ -76,6 +76,22 @@ export interface TemplateConfig {
 }
 
 /**
+ * Domain configuration for context filtering
+ */
+export interface DomainConfig {
+  /** Primary keywords that get highest priority in filtering */
+  primary: string[];
+  /** Secondary keywords for broader matching */
+  secondary?: string[];
+  /** File patterns related to this domain (glob) */
+  files?: string[];
+  /** Suggested approach steps */
+  approach?: string[];
+  /** Context hints for AI */
+  hints?: Record<string, string>;
+}
+
+/**
  * Main project configuration
  */
 export interface KrolikConfig {
@@ -100,6 +116,9 @@ export interface KrolikConfig {
   /** Template paths */
   templates?: TemplateConfig;
 
+  /** Custom domain definitions for context filtering */
+  domains?: Record<string, DomainConfig>;
+
   /** Directories to exclude from analysis */
   exclude?: string[];
 
@@ -112,11 +131,13 @@ export type RabbitConfig = KrolikConfig;
 
 /**
  * Resolved configuration with all defaults applied
+ * Note: domains remains optional as it's project-specific configuration
  */
-export interface ResolvedConfig extends Required<KrolikConfig> {
+export interface ResolvedConfig extends Omit<Required<KrolikConfig>, 'domains'> {
   paths: Required<PathConfig>;
   features: Required<FeatureConfig>;
   prisma: Required<PrismaConfig>;
   trpc: Required<TrpcConfig>;
   templates: Required<TemplateConfig>;
+  domains?: Record<string, DomainConfig>;
 }

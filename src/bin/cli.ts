@@ -53,6 +53,8 @@ function createProgram(): Command {
     .command('status')
     .description('Quick project diagnostics')
     .option('--fast', 'Skip slow checks (typecheck, lint)')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
     .action(async (options: CommandOptions) => {
       const { runStatus } = await import('../commands/status');
       const ctx = await createContext(program, options);
@@ -65,7 +67,8 @@ function createProgram(): Command {
     .description('AI-assisted code review')
     .option('--pr <number>', 'Review specific PR')
     .option('--staged', 'Review staged changes only')
-    .option('-o, --output <format>', 'Output format (text, json, markdown)')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
     .action(async (options: CommandOptions) => {
       const { runReview } = await import('../commands/review');
       const ctx = await createContext(program, options);
@@ -76,6 +79,8 @@ function createProgram(): Command {
   program
     .command('schema')
     .description('Analyze Prisma schema')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
     .option('--save', 'Save to SCHEMA.md')
     .action(async (options: CommandOptions) => {
       const { runSchema } = await import('../commands/schema');
@@ -87,6 +92,8 @@ function createProgram(): Command {
   program
     .command('routes')
     .description('Analyze tRPC routes')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
     .option('--save', 'Save to ROUTES.md')
     .action(async (options: CommandOptions) => {
       const { runRoutes } = await import('../commands/routes');
@@ -99,7 +106,8 @@ function createProgram(): Command {
     .command('issue [number]')
     .description('Parse GitHub issue')
     .option('-u, --url <url>', 'Issue URL')
-    .option('-o, --output <format>', 'Output format (text, json, markdown)')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
     .action(async (number: string | undefined, options: CommandOptions) => {
       const { runIssue } = await import('../commands/issue');
       const ctx = await createContext(program, {
@@ -116,6 +124,9 @@ function createProgram(): Command {
     .option('--issue <number>', 'Context for GitHub issue')
     .option('--feature <name>', 'Context for feature')
     .option('--file <path>', 'Context for file')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
+    .option('--ai', 'Output structured XML for AI assistants (Claude, GPT)')
     .action(async (options: CommandOptions) => {
       const { runContext } = await import('../commands/context');
       const ctx = await createContext(program, options);
@@ -160,13 +171,11 @@ function createProgram(): Command {
   // MCP server command
   program
     .command('mcp')
-    .description('Start MCP server for Claude Code')
-    .option('-p, --port <port>', 'Server port', '3100')
-    .action(async (options: CommandOptions) => {
+    .description('Start MCP server for Claude Code integration (stdio transport)')
+    .action(async () => {
       const { startMCPServer } = await import('../mcp/server');
       const config = await loadConfig();
-      const port = typeof options.port === 'string' ? parseInt(options.port, 10) : 3100;
-      await startMCPServer({ config, port });
+      await startMCPServer(config);
     });
 
   // Default action (show help with logo)
