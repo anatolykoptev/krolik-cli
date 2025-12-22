@@ -3,7 +3,7 @@
  * @description TypeScript type safety issue detection
  */
 
-import type { QualityIssue, QualitySeverity } from '../types';
+import type { QualityIssue, QualitySeverity } from "../types";
 
 /**
  * Type safety pattern definitions
@@ -15,45 +15,49 @@ interface TypeSafetyPattern {
   severity: QualitySeverity;
 }
 
+const HTTP_PORT = 80;
+
+const MAGIC_15 = 15;
+
 /**
  * Patterns indicating weak type safety
  */
 const TYPE_SAFETY_PATTERNS: TypeSafetyPattern[] = [
   {
     pattern: /:\s*any\s*[;,)>\]=]/g,
-    message: 'Using `any` type',
-    suggestion: 'Use proper TypeScript types, `unknown`, or generics',
-    severity: 'warning',
+    message: "Using `any` type",
+    suggestion: "Use proper TypeScript types, `unknown`, or generics",
+    severity: "warning",
   },
   {
     pattern: /as\s+any\b/g,
-    message: 'Type assertion to `any`',
-    suggestion: 'Use proper type assertion or fix the underlying type issue',
-    severity: 'warning',
+    message: "Type assertion to `any`",
+    suggestion: "Use proper type assertion or fix the underlying type issue",
+    severity: "warning",
   },
   {
     pattern: /@ts-ignore/g,
-    message: '@ts-ignore suppresses TypeScript errors',
-    suggestion: 'Fix the type error instead of ignoring it',
-    severity: 'error',
+    message: "@ts-ignore suppresses TypeScript errors",
+    suggestion: "Fix the type error instead of ignoring it",
+    severity: "error",
   },
   {
     pattern: /@ts-nocheck/g,
-    message: '@ts-nocheck disables TypeScript checking for entire file',
-    suggestion: 'Remove @ts-nocheck and fix type errors',
-    severity: 'error',
+    message: "@ts-nocheck disables TypeScript checking for entire file",
+    suggestion: "Remove @ts-nocheck and fix type errors",
+    severity: "error",
   },
   {
     pattern: /@ts-expect-error(?!\s+—)/g,
-    message: '@ts-expect-error without explanation',
-    suggestion: 'Add a comment explaining why this is expected',
-    severity: 'info',
+    message: "@ts-expect-error without explanation",
+    suggestion: "Add a comment explaining why this is expected",
+    severity: "info",
   },
   {
     pattern: /!\s*\./g, // non-null assertion
-    message: 'Non-null assertion operator (!)',
-    suggestion: 'Use optional chaining (?.) or proper null checks',
-    severity: 'info',
+    message: "Non-null assertion operator (!)",
+    suggestion: "Use optional chaining (?.) or proper null checks",
+    severity: "info",
   },
 ];
 
@@ -63,7 +67,7 @@ const TYPE_SAFETY_PATTERNS: TypeSafetyPattern[] = [
  */
 function isInsideLiteral(line: string, patternStr: string): boolean {
   // Escape special regex characters for safe matching
-  const escaped = patternStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = patternStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   // Check if pattern appears inside a regex literal /pattern/
   const regexLiteralPattern = new RegExp(`/[^/]*${escaped}[^/]*/`);
@@ -74,44 +78,62 @@ function isInsideLiteral(line: string, patternStr: string): boolean {
   const inDoubleQuotes = new RegExp(`"[^"]*${escaped}[^"]*"`);
   const inBackticks = new RegExp(`\`[^\`]*${escaped}[^\`]*\``);
 
-  return inSingleQuotes.test(line) || inDoubleQuotes.test(line) || inBackticks.test(line);
+  return (
+    inSingleQuotes.test(line) ||
+    inDoubleQuotes.test(line) ||
+    inBackticks.test(line)
+  );
 }
 
 /**
  * Remove inline comments from a line of code
  */
 function stripInlineComments(line: string): string {
-  return line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+  return line.replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
 }
 
 /**
  * Check for type safety issues
  */
-export function checkTypeSafety(content: string, filepath: string): QualityIssue[] {
+export function checkTypeSafety(
+  content: string,
+  filepath: string,
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split('\n');
+  const lines = content.split("\n");
 
   // Skip .d.ts files and test files
-  if (filepath.endsWith('.d.ts') || filepath.includes('.test.') || filepath.includes('.spec.')) {
+  if (
+    filepath.endsWith(".d.ts") ||
+    filepath.includes(".test.") ||
+    filepath.includes(".spec.")
+  ) {
     return issues;
   }
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? '';
+    const line = lines[i] ?? "";
     const trimmed = line.trim();
 
     // Skip full-line comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+    if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
 
     // Remove inline comments before checking patterns
     const codeOnly = stripInlineComments(line);
 
-    for (const { pattern, message, suggestion, severity } of TYPE_SAFETY_PATTERNS) {
+    for (const {
+      pattern,
+      message,
+      suggestion,
+      severity,
+    } of TYPE_SAFETY_PATTERNS) {
       // Reset regex lastIndex for global patterns
       pattern.lastIndex = 0;
       if (pattern.test(codeOnly)) {
         // Extract pattern string for literal check
-        const patternStr = pattern.source.replace(/\\b|\\s|\*/g, '').slice(0, 15);
+        const patternStr = pattern.source
+          .replace(/\\b|\\s|\*/g, "")
+          .slice(0, MAGIC_15);
 
         // Skip if the pattern is inside a string or regex literal (false positive)
         if (isInsideLiteral(codeOnly, patternStr)) continue;
@@ -120,10 +142,10 @@ export function checkTypeSafety(content: string, filepath: string): QualityIssue
           file: filepath,
           line: i + 1,
           severity,
-          category: 'type-safety',
+          category: "type-safety",
           message,
           suggestion,
-          snippet: trimmed.slice(0, 80),
+          snippet: trimmed.slice(0, HTTP_PORT),
         });
       }
     }

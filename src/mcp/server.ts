@@ -17,19 +17,19 @@
  *   }
  */
 
-import { execSync } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as readline from 'node:readline';
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as readline from "node:readline";
 
-import type { ResolvedConfig } from '../types';
+import type { ResolvedConfig } from "../types";
 
 // ============================================================================
 // MCP PROTOCOL TYPES
 // ============================================================================
 
 interface MCPMessage {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id?: number | string;
   method?: string;
   params?: unknown;
@@ -41,8 +41,11 @@ interface MCPTool {
   name: string;
   description: string;
   inputSchema: {
-    type: 'object';
-    properties: Record<string, { type: string; description: string; enum?: string[] }>;
+    type: "object";
+    properties: Record<
+      string,
+      { type: string; description: string; enum?: string[] }
+    >;
     required?: string[];
   };
 }
@@ -54,100 +57,107 @@ interface MCPResource {
   mimeType: string;
 }
 
+const ERROR_CODE = 32601;
+
+const TIMEOUT_60S = 60000;
+
 // ============================================================================
 // TOOLS DEFINITIONS
 // ============================================================================
 
 const TOOLS: MCPTool[] = [
   {
-    name: 'krolik_status',
+    name: "krolik_status",
     description:
-      'Get project diagnostics: git status, typecheck, lint, TODOs. Use this to understand the current state of the project.',
+      "Get project diagnostics: git status, typecheck, lint, TODOs. Use this to understand the current state of the project.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
         fast: {
-          type: 'boolean',
-          description: 'Skip slow checks (typecheck, lint) for faster response',
+          type: "boolean",
+          description: "Skip slow checks (typecheck, lint) for faster response",
         },
       },
     },
   },
   {
-    name: 'krolik_context',
+    name: "krolik_context",
     description:
-      'Generate AI-friendly context for a specific task or feature. Returns structured XML with schema, routes, git info, and approach steps.',
+      "Generate AI-friendly context for a specific task or feature. Returns structured XML with schema, routes, git info, and approach steps.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
         feature: {
-          type: 'string',
-          description: 'The feature or task to analyze (e.g., "booking", "auth", "CRM")',
+          type: "string",
+          description:
+            'The feature or task to analyze (e.g., "booking", "auth", "CRM")',
         },
         issue: {
-          type: 'string',
-          description: 'GitHub issue number to get context for',
+          type: "string",
+          description: "GitHub issue number to get context for",
         },
       },
     },
   },
   {
-    name: 'krolik_schema',
-    description: 'Analyze Prisma database schema. Returns all models, fields, relations, and enums.',
+    name: "krolik_schema",
+    description:
+      "Analyze Prisma database schema. Returns all models, fields, relations, and enums.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
         json: {
-          type: 'boolean',
-          description: 'Return JSON format instead of markdown',
+          type: "boolean",
+          description: "Return JSON format instead of markdown",
         },
       },
     },
   },
   {
-    name: 'krolik_routes',
+    name: "krolik_routes",
     description:
-      'Analyze tRPC API routes. Returns all procedures with types, inputs, and protection status.',
+      "Analyze tRPC API routes. Returns all procedures with types, inputs, and protection status.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
         json: {
-          type: 'boolean',
-          description: 'Return JSON format instead of markdown',
+          type: "boolean",
+          description: "Return JSON format instead of markdown",
         },
       },
     },
   },
   {
-    name: 'krolik_review',
+    name: "krolik_review",
     description:
-      'Review code changes. Analyzes git diff for security issues, performance problems, and risks.',
+      "Review code changes. Analyzes git diff for security issues, performance problems, and risks.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
         staged: {
-          type: 'boolean',
-          description: 'Review only staged changes',
+          type: "boolean",
+          description: "Review only staged changes",
         },
         pr: {
-          type: 'string',
-          description: 'Review specific PR number',
+          type: "string",
+          description: "Review specific PR number",
         },
       },
     },
   },
   {
-    name: 'krolik_issue',
-    description: 'Parse a GitHub issue and extract context: checklist, mentioned files, priority.',
+    name: "krolik_issue",
+    description:
+      "Parse a GitHub issue and extract context: checklist, mentioned files, priority.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       properties: {
         number: {
-          type: 'string',
-          description: 'GitHub issue number',
+          type: "string",
+          description: "GitHub issue number",
         },
       },
-      required: ['number'],
+      required: ["number"],
     },
   },
 ];
@@ -159,30 +169,31 @@ const TOOLS: MCPTool[] = [
 function getResources(projectRoot: string): MCPResource[] {
   const resources: MCPResource[] = [];
 
-  if (fs.existsSync(path.join(projectRoot, 'CLAUDE.md'))) {
+  if (fs.existsSync(path.join(projectRoot, "CLAUDE.md"))) {
     resources.push({
-      uri: 'krolik://project/claude-md',
-      name: 'Project Rules (CLAUDE.md)',
-      description: 'Instructions and rules for AI agents working on this project',
-      mimeType: 'text/markdown',
+      uri: "krolik://project/claude-md",
+      name: "Project Rules (CLAUDE.md)",
+      description:
+        "Instructions and rules for AI agents working on this project",
+      mimeType: "text/markdown",
     });
   }
 
-  if (fs.existsSync(path.join(projectRoot, 'README.md'))) {
+  if (fs.existsSync(path.join(projectRoot, "README.md"))) {
     resources.push({
-      uri: 'krolik://project/readme',
-      name: 'README',
-      description: 'Project documentation and setup instructions',
-      mimeType: 'text/markdown',
+      uri: "krolik://project/readme",
+      name: "README",
+      description: "Project documentation and setup instructions",
+      mimeType: "text/markdown",
     });
   }
 
-  if (fs.existsSync(path.join(projectRoot, 'package.json'))) {
+  if (fs.existsSync(path.join(projectRoot, "package.json"))) {
     resources.push({
-      uri: 'krolik://project/package-json',
-      name: 'Package.json',
-      description: 'Project dependencies and scripts',
-      mimeType: 'application/json',
+      uri: "krolik://project/package-json",
+      name: "Package.json",
+      description: "Project dependencies and scripts",
+      mimeType: "application/json",
     });
   }
 
@@ -197,49 +208,53 @@ function runKrolik(args: string, projectRoot: string, timeout = 30000): string {
   try {
     const output = execSync(`npx krolik ${args}`, {
       cwd: projectRoot,
-      encoding: 'utf-8',
+      encoding: "utf-8",
       timeout,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ["pipe", "pipe", "pipe"],
     });
     return output;
   } catch (error: unknown) {
     const err = error as { stdout?: string; stderr?: string; message?: string };
-    return err.stdout || err.stderr || err.message || 'Unknown error';
+    return err.stdout || err.stderr || err.message || "Unknown error";
   }
 }
 
-function runTool(name: string, args: Record<string, unknown>, projectRoot: string): string {
+function runTool(
+  name: string,
+  args: Record<string, unknown>,
+  projectRoot: string,
+): string {
   switch (name) {
-    case 'krolik_status': {
-      const flags = args.fast ? '--fast' : '';
+    case "krolik_status": {
+      const flags = args.fast ? "--fast" : "";
       return runKrolik(`status ${flags}`, projectRoot);
     }
 
-    case 'krolik_context': {
-      let flags = '--ai';
+    case "krolik_context": {
+      let flags = "--ai";
       if (args.feature) flags += ` --feature="${args.feature}"`;
       if (args.issue) flags += ` --issue=${args.issue}`;
       return runKrolik(`context ${flags}`, projectRoot);
     }
 
-    case 'krolik_schema': {
-      const flags = args.json ? '--json' : '';
+    case "krolik_schema": {
+      const flags = args.json ? "--json" : "";
       return runKrolik(`schema ${flags}`, projectRoot);
     }
 
-    case 'krolik_routes': {
-      const flags = args.json ? '--json' : '';
+    case "krolik_routes": {
+      const flags = args.json ? "--json" : "";
       return runKrolik(`routes ${flags}`, projectRoot);
     }
 
-    case 'krolik_review': {
-      let flags = '';
-      if (args.staged) flags += ' --staged';
+    case "krolik_review": {
+      let flags = "";
+      if (args.staged) flags += " --staged";
       if (args.pr) flags += ` --pr=${args.pr}`;
-      return runKrolik(`review ${flags}`, projectRoot, 60000);
+      return runKrolik(`review ${flags}`, projectRoot, TIMEOUT_60S);
     }
 
-    case 'krolik_issue': {
+    case "krolik_issue": {
       return runKrolik(`issue ${args.number}`, projectRoot);
     }
 
@@ -252,28 +267,40 @@ function runTool(name: string, args: Record<string, unknown>, projectRoot: strin
 // RESOURCE IMPLEMENTATIONS
 // ============================================================================
 
-function getResource(uri: string, projectRoot: string): { content: string; mimeType: string } | null {
+function getResource(
+  uri: string,
+  projectRoot: string,
+): { content: string; mimeType: string } | null {
   switch (uri) {
-    case 'krolik://project/claude-md': {
-      const filePath = path.join(projectRoot, 'CLAUDE.md');
+    case "krolik://project/claude-md": {
+      const filePath = path.join(projectRoot, "CLAUDE.md");
       if (fs.existsSync(filePath)) {
-        return { content: fs.readFileSync(filePath, 'utf-8'), mimeType: 'text/markdown' };
+        return {
+          content: fs.readFileSync(filePath, "utf-8"),
+          mimeType: "text/markdown",
+        };
       }
       return null;
     }
 
-    case 'krolik://project/readme': {
-      const filePath = path.join(projectRoot, 'README.md');
+    case "krolik://project/readme": {
+      const filePath = path.join(projectRoot, "README.md");
       if (fs.existsSync(filePath)) {
-        return { content: fs.readFileSync(filePath, 'utf-8'), mimeType: 'text/markdown' };
+        return {
+          content: fs.readFileSync(filePath, "utf-8"),
+          mimeType: "text/markdown",
+        };
       }
       return null;
     }
 
-    case 'krolik://project/package-json': {
-      const filePath = path.join(projectRoot, 'package.json');
+    case "krolik://project/package-json": {
+      const filePath = path.join(projectRoot, "package.json");
       if (fs.existsSync(filePath)) {
-        return { content: fs.readFileSync(filePath, 'utf-8'), mimeType: 'application/json' };
+        return {
+          content: fs.readFileSync(filePath, "utf-8"),
+          mimeType: "application/json",
+        };
       }
       return null;
     }
@@ -296,7 +323,7 @@ export class MCPServer {
 
   handleRequest(message: MCPMessage): MCPMessage {
     const response: MCPMessage = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
     };
     if (message.id !== undefined) {
       response.id = message.id;
@@ -304,51 +331,66 @@ export class MCPServer {
 
     try {
       switch (message.method) {
-        case 'initialize':
+        case "initialize":
           response.result = {
-            protocolVersion: '2024-11-05',
-            serverInfo: { name: 'krolik', version: '1.0.0' },
+            protocolVersion: "2024-11-05",
+            serverInfo: { name: "krolik", version: "1.0.0" },
             capabilities: { tools: {}, resources: {} },
           };
           break;
 
-        case 'tools/list':
+        case "tools/list":
           response.result = { tools: TOOLS };
           break;
 
-        case 'tools/call': {
-          const params = message.params as { name: string; arguments?: Record<string, unknown> };
+        case "tools/call": {
+          const params = message.params as {
+            name: string;
+            arguments?: Record<string, unknown>;
+          };
           const args = params.arguments || {};
           const result = runTool(params.name, args, this.projectRoot);
-          response.result = { content: [{ type: 'text', text: result }] };
+          response.result = { content: [{ type: "text", text: result }] };
           break;
         }
 
-        case 'resources/list':
+        case "resources/list":
           response.result = { resources: getResources(this.projectRoot) };
           break;
 
-        case 'resources/read': {
+        case "resources/read": {
           const params = message.params as { uri: string };
           const resource = getResource(params.uri, this.projectRoot);
           if (!resource) {
             throw new Error(`Resource not found: ${params.uri}`);
           }
           response.result = {
-            contents: [{ uri: params.uri, mimeType: resource.mimeType, text: resource.content }],
+            contents: [
+              {
+                uri: params.uri,
+                mimeType: resource.mimeType,
+                text: resource.content,
+              },
+            ],
           };
           break;
         }
 
-        case 'notifications/initialized':
+        case "notifications/initialized":
           return response;
 
         default:
-          response.error = { code: -32601, message: `Method not found: ${message.method}` };
+          response.error = {
+            code: -ERROR_CODE,
+            message: `Method not found: ${message.method}`,
+          };
       }
     } catch (error: unknown) {
       const err = error as { message?: string };
-      response.error = { code: -32603, message: err.message || 'Unknown error' };
+      response.error = {
+        code: -ERROR_CODE,
+        message: err.message || "Unknown error",
+      };
     }
 
     return response;
@@ -361,18 +403,18 @@ export class MCPServer {
       terminal: false,
     });
 
-    let buffer = '';
+    let buffer = "";
 
-    rl.on('line', (line) => {
+    rl.on("line", (line) => {
       buffer += line;
 
       try {
         const message = JSON.parse(buffer) as MCPMessage;
-        buffer = '';
+        buffer = "";
 
         const response = this.handleRequest(message);
 
-        if (message.method?.startsWith('notifications/')) {
+        if (message.method?.startsWith("notifications/")) {
           return;
         }
 
@@ -386,13 +428,15 @@ export class MCPServer {
       }
     });
 
-    rl.on('close', () => {
+    rl.on("close", () => {
       process.exit(0);
     });
   }
 }
 
-export async function startMCPServer(config: ResolvedConfig): Promise<MCPServer> {
+export async function startMCPServer(
+  config: ResolvedConfig,
+): Promise<MCPServer> {
   const server = new MCPServer(config);
   await server.start();
   return server;

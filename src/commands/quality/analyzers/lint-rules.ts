@@ -3,7 +3,7 @@
  * @description Universal lint rules (no-console, no-debugger, max-nesting, etc.)
  */
 
-import type { QualityIssue, QualitySeverity } from '../types';
+import type { QualityIssue, QualitySeverity } from "../types";
 
 // ============================================================================
 // RULE DEFINITIONS
@@ -15,64 +15,67 @@ interface LintRule {
   message: string;
   suggestion: string;
   severity: QualitySeverity;
-  category: 'lint';
+  category: "lint";
   /** Skip in certain file types */
   skipInFiles?: string[];
 }
+
+const MAX_VALUE = 4;
 
 /**
  * Universal lint rules
  */
 const LINT_RULES: LintRule[] = [
   {
-    id: 'no-console',
+    id: "no-console",
     pattern: /\bconsole\.(log|info|warn|error|debug|trace)\s*\(/g,
-    message: 'Unexpected console statement',
-    suggestion: 'Remove console statement or use a proper logging library',
-    severity: 'warning',
-    category: 'lint',
-    skipInFiles: ['.test.', '.spec.', 'cli.ts', 'logger.'],
+    message: "Unexpected console statement",
+    suggestion: "Remove console statement or use a proper logging library",
+    severity: "warning",
+    category: "lint",
+    skipInFiles: [".test.", ".spec.", "cli.ts", "logger."],
   },
   {
-    id: 'no-debugger',
+    id: "no-debugger",
     pattern: /\bdebugger\b/g,
-    message: 'Unexpected debugger statement',
-    suggestion: 'Remove debugger statement before committing',
-    severity: 'error',
-    category: 'lint',
+    message: "Unexpected debugger statement",
+    suggestion: "Remove debugger statement before committing",
+    severity: "error",
+    category: "lint",
   },
   {
-    id: 'no-alert',
+    id: "no-alert",
     pattern: /\b(alert|confirm|prompt)\s*\(/g,
-    message: 'Unexpected native dialog',
-    suggestion: 'Use a modal component instead of native browser dialogs',
-    severity: 'warning',
-    category: 'lint',
-    skipInFiles: ['.test.', '.spec.'],
+    message: "Unexpected native dialog",
+    suggestion: "Use a modal component instead of native browser dialogs",
+    severity: "warning",
+    category: "lint",
+    skipInFiles: [".test.", ".spec."],
   },
   {
-    id: 'no-eval',
+    id: "no-eval",
     pattern: /\beval\s*\(/g,
-    message: 'eval() is a security risk',
-    suggestion: 'Avoid eval() - use safer alternatives like JSON.parse() or Function constructor',
-    severity: 'error',
-    category: 'lint',
+    message: "eval() is a security risk",
+    suggestion:
+      "Avoid eval() - use safer alternatives like JSON.parse() or Function constructor",
+    severity: "error",
+    category: "lint",
   },
   {
-    id: 'no-var',
+    id: "no-var",
     pattern: /\bvar\s+\w+/g,
-    message: 'Unexpected var declaration',
-    suggestion: 'Use const or let instead of var',
-    severity: 'info',
-    category: 'lint',
+    message: "Unexpected var declaration",
+    suggestion: "Use const or let instead of var",
+    severity: "info",
+    category: "lint",
   },
   {
-    id: 'no-todo-comments',
+    id: "no-todo-comments",
     pattern: /\/\/\s*(TODO|FIXME|HACK|XXX|BUG):/gi,
-    message: 'Unresolved TODO/FIXME comment',
-    suggestion: 'Address or create a ticket for this TODO',
-    severity: 'info',
-    category: 'lint',
+    message: "Unresolved TODO/FIXME comment",
+    suggestion: "Address or create a ticket for this TODO",
+    severity: "info",
+    category: "lint",
   },
 ];
 
@@ -86,10 +89,10 @@ const LINT_RULES: LintRule[] = [
 function calculateNestingDepth(lines: string[], lineIndex: number): number {
   let depth = 0;
   for (let i = 0; i <= lineIndex; i++) {
-    const line = lines[i] ?? '';
+    const line = lines[i] ?? "";
     for (const char of line) {
-      if (char === '{' || char === '(') depth++;
-      if (char === '}' || char === ')') depth--;
+      if (char === "{" || char === "(") depth++;
+      if (char === "}" || char === ")") depth--;
     }
   }
   return depth;
@@ -101,20 +104,20 @@ function calculateNestingDepth(lines: string[], lineIndex: number): number {
 function checkNestingDepth(
   content: string,
   filepath: string,
-  maxDepth: number = 4,
+  maxDepth: number = MAX_VALUE,
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   let currentDepth = 0;
   let reported = new Set<number>();
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? '';
+    const line = lines[i] ?? "";
 
     // Count braces in line
     for (const char of line) {
-      if (char === '{') currentDepth++;
-      if (char === '}') currentDepth--;
+      if (char === "{") currentDepth++;
+      if (char === "}") currentDepth--;
     }
 
     // Report excessive depth (once per function)
@@ -122,10 +125,11 @@ function checkNestingDepth(
       issues.push({
         file: filepath,
         line: i + 1,
-        severity: currentDepth > maxDepth + 2 ? 'error' : 'warning',
-        category: 'complexity',
+        severity: currentDepth > maxDepth + 2 ? "error" : "warning",
+        category: "complexity",
         message: `Excessive nesting depth: ${currentDepth} (max: ${maxDepth})`,
-        suggestion: 'Extract nested logic into separate functions or use early returns',
+        suggestion:
+          "Extract nested logic into separate functions or use early returns",
         snippet: line.trim().slice(0, 60),
       });
       reported.add(Math.floor(i / 10));
@@ -152,7 +156,7 @@ function shouldSkipForRule(filepath: string, rule: LintRule): boolean {
  */
 function isInsideComment(line: string, matchIndex: number): boolean {
   const beforeMatch = line.slice(0, matchIndex);
-  return beforeMatch.includes('//') || beforeMatch.includes('/*');
+  return beforeMatch.includes("//") || beforeMatch.includes("/*");
 }
 
 /**
@@ -160,16 +164,16 @@ function isInsideComment(line: string, matchIndex: number): boolean {
  */
 function isInsideString(line: string, matchIndex: number): boolean {
   let inString = false;
-  let stringChar = '';
+  let stringChar = "";
 
   for (let i = 0; i < matchIndex; i++) {
     const char = line[i];
     const prevChar = line[i - 1];
 
-    if (!inString && (char === '"' || char === "'" || char === '`')) {
+    if (!inString && (char === '"' || char === "'" || char === "`")) {
       inString = true;
       stringChar = char;
-    } else if (inString && char === stringChar && prevChar !== '\\') {
+    } else if (inString && char === stringChar && prevChar !== "\\") {
       inString = false;
     }
   }
@@ -182,14 +186,14 @@ function isInsideString(line: string, matchIndex: number): boolean {
  */
 function checkLintRules(content: string, filepath: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split('\n');
+  const lines = content.split("\n");
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? '';
+    const line = lines[i] ?? "";
     const trimmed = line.trim();
 
     // Skip full-line comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+    if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
 
     for (const rule of LINT_RULES) {
       if (shouldSkipForRule(filepath, rule)) continue;
@@ -207,7 +211,7 @@ function checkLintRules(content: string, filepath: string): QualityIssue[] {
           file: filepath,
           line: i + 1,
           severity: rule.severity,
-          category: 'lint' as any, // Will be added to QualityCategory
+          category: "lint" as any, // Will be added to QualityCategory
           message: rule.message,
           suggestion: rule.suggestion,
           snippet: trimmed.slice(0, 60),
@@ -243,7 +247,7 @@ export function checkLintRules_all(
   issues.push(...checkLintRules(content, filepath));
 
   // Nesting depth
-  const maxDepth = options.maxNestingDepth ?? 4;
+  const maxDepth = options.maxNestingDepth ?? MAX_VALUE;
   issues.push(...checkNestingDepth(content, filepath, maxDepth));
 
   return issues;

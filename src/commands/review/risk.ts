@@ -3,35 +3,53 @@
  * @description Risk assessment for code changes
  */
 
-import type { FileChange, ReviewIssue } from '../../types';
+import type { FileChange, ReviewIssue } from "../../types";
 
-export type RiskLevel = 'low' | 'medium' | 'high';
+export type RiskLevel = "low" | "medium" | "high";
+
+const HTTP_INTERNAL_SERVER_ERROR = 500;
 
 /**
  * Assess overall risk level based on changes and issues
  */
-export function assessRisk(files: FileChange[], issues: ReviewIssue[]): RiskLevel {
+export function assessRisk(
+  files: FileChange[],
+  issues: ReviewIssue[],
+): RiskLevel {
   // High risk indicators
-  const hasSecurityErrors = issues.some((i) => i.category === 'security' && i.severity === 'error');
-  const modifiesAuth = files.some((f) => f.path.includes('auth') || f.path.includes('Auth'));
-  const modifiesDB = files.some((f) => f.path.includes('prisma') || f.path.includes('migration'));
-  const totalChanges = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
-  const largeChange = totalChanges > 500;
+  const hasSecurityErrors = issues.some(
+    (i) => i.category === "security" && i.severity === "error",
+  );
+  const modifiesAuth = files.some(
+    (f) => f.path.includes("auth") || f.path.includes("Auth"),
+  );
+  const modifiesDB = files.some(
+    (f) => f.path.includes("prisma") || f.path.includes("migration"),
+  );
+  const totalChanges = files.reduce(
+    (sum, f) => sum + f.additions + f.deletions,
+    0,
+  );
+  const largeChange = totalChanges > HTTP_INTERNAL_SERVER_ERROR;
 
-  if (hasSecurityErrors) return 'high';
-  if (modifiesAuth && modifiesDB) return 'high';
-  if (modifiesDB && largeChange) return 'high';
+  if (hasSecurityErrors) return "high";
+  if (modifiesAuth && modifiesDB) return "high";
+  if (modifiesDB && largeChange) return "high";
 
   // Medium risk indicators
-  const hasErrors = issues.some((i) => i.severity === 'error');
-  const modifiesAPI = files.some((f) => f.path.includes('router') || f.path.includes('api/'));
-  const modifiesCore = files.some((f) => f.path.includes('lib/') || f.path.includes('middleware'));
+  const hasErrors = issues.some((i) => i.severity === "error");
+  const modifiesAPI = files.some(
+    (f) => f.path.includes("router") || f.path.includes("api/"),
+  );
+  const modifiesCore = files.some(
+    (f) => f.path.includes("lib/") || f.path.includes("middleware"),
+  );
 
-  if (hasErrors) return 'medium';
-  if (modifiesAPI || modifiesCore) return 'medium';
-  if (largeChange) return 'medium';
+  if (hasErrors) return "medium";
+  if (modifiesAPI || modifiesCore) return "medium";
+  if (largeChange) return "medium";
 
-  return 'low';
+  return "low";
 }
 
 /**
@@ -39,12 +57,19 @@ export function assessRisk(files: FileChange[], issues: ReviewIssue[]): RiskLeve
  */
 export function needsTests(files: FileChange[]): boolean {
   const hasNewCode = files.some(
-    (f) => f.status === 'added' && (f.path.endsWith('.ts') || f.path.endsWith('.tsx')),
+    (f) =>
+      f.status === "added" &&
+      (f.path.endsWith(".ts") || f.path.endsWith(".tsx")),
   );
   const modifiesLogic = files.some(
-    (f) => f.path.includes('router') || f.path.includes('lib/') || f.path.includes('hooks/'),
+    (f) =>
+      f.path.includes("router") ||
+      f.path.includes("lib/") ||
+      f.path.includes("hooks/"),
   );
-  const hasTestChanges = files.some((f) => f.path.includes('test') || f.path.includes('spec'));
+  const hasTestChanges = files.some(
+    (f) => f.path.includes("test") || f.path.includes("spec"),
+  );
 
   return (hasNewCode || modifiesLogic) && !hasTestChanges;
 }
@@ -53,9 +78,15 @@ export function needsTests(files: FileChange[]): boolean {
  * Check if documentation is required for changes
  */
 export function needsDocs(files: FileChange[]): boolean {
-  const modifiesAPI = files.some((f) => f.path.includes('router') || f.path.includes('api/'));
-  const modifiesPublic = files.some((f) => f.path.includes('app/') && !f.path.includes('admin'));
-  const hasDocChanges = files.some((f) => f.path.endsWith('.md') || f.path.includes('docs/'));
+  const modifiesAPI = files.some(
+    (f) => f.path.includes("router") || f.path.includes("api/"),
+  );
+  const modifiesPublic = files.some(
+    (f) => f.path.includes("app/") && !f.path.includes("admin"),
+  );
+  const hasDocChanges = files.some(
+    (f) => f.path.endsWith(".md") || f.path.includes("docs/"),
+  );
 
   return (modifiesAPI || modifiesPublic) && !hasDocChanges;
 }
@@ -65,18 +96,18 @@ export function needsDocs(files: FileChange[]): boolean {
  */
 export function detectAffectedFeatures(files: FileChange[]): string[] {
   const featureMappings: Record<string, string[]> = {
-    'Booking System': ['booking', 'Booking', 'reservation'],
-    Reviews: ['review', 'Review', 'rating', 'Rating'],
-    Favorites: ['favorite', 'Favorite', 'useFavorites'],
-    Authentication: ['auth', 'Auth', 'session', 'login', 'logout'],
-    Places: ['place', 'Place', 'PlaceCard', 'PlaceDetails'],
-    Maps: ['Map', 'map', 'Yandex', 'geolocation'],
-    'Admin Panel': ['admin', 'Admin'],
-    'Business Dashboard': ['business', 'Business'],
-    API: ['trpc', 'router', 'procedure', 'api/'],
-    Database: ['prisma', 'Prisma', 'schema', 'migration'],
-    'UI Components': ['components/', 'ui/', 'Button', 'Modal', 'Card'],
-    Tests: ['test', 'spec', '__tests__', 'vitest'],
+    "Booking System": ["booking", "Booking", "reservation"],
+    Reviews: ["review", "Review", "rating", "Rating"],
+    Favorites: ["favorite", "Favorite", "useFavorites"],
+    Authentication: ["auth", "Auth", "session", "login", "logout"],
+    Places: ["place", "Place", "PlaceCard", "PlaceDetails"],
+    Maps: ["Map", "map", "Yandex", "geolocation"],
+    "Admin Panel": ["admin", "Admin"],
+    "Business Dashboard": ["business", "Business"],
+    API: ["trpc", "router", "procedure", "api/"],
+    Database: ["prisma", "Prisma", "schema", "migration"],
+    "UI Components": ["components/", "ui/", "Button", "Modal", "Card"],
+    Tests: ["test", "spec", "__tests__", "vitest"],
   };
 
   const features = new Set<string>();

@@ -8,8 +8,22 @@
  * - File splitting (SRP)
  */
 
-import { Project, SourceFile, SyntaxKind, FunctionDeclaration, Node, VariableStatement, ArrowFunction, FunctionExpression, IfStatement, Block, Statement } from 'ts-morph';
-import * as path from 'node:path';
+import {
+  Project,
+  SourceFile,
+  SyntaxKind,
+  FunctionDeclaration,
+  Node,
+  VariableStatement,
+  ArrowFunction,
+  FunctionExpression,
+  IfStatement,
+  Block,
+  Statement,
+} from "ts-morph";
+import * as path from "node:path";
+
+const MAX_LENGTH = 3;
 
 // ============================================================================
 // PROJECT INITIALIZATION
@@ -32,7 +46,11 @@ export function createProject(tsConfigPath?: string): Project {
 /**
  * Create a source file from content
  */
-export function createSourceFile(project: Project, filePath: string, content: string): SourceFile {
+export function createSourceFile(
+  project: Project,
+  filePath: string,
+  content: string,
+): SourceFile {
   return project.createSourceFile(filePath, content, { overwrite: true });
 }
 
@@ -71,9 +89,9 @@ export function extractFunction(
     const project = createProject();
     const sourceFile = createSourceFile(project, filePath, content);
 
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const extractedLines = lines.slice(options.startLine - 1, options.endLine);
-    const extractedCode = extractedLines.join('\n');
+    const extractedCode = extractedLines.join("\n");
 
     // Find variables used in the block
     const usedVars = findUsedVariables(extractedCode);
@@ -86,47 +104,49 @@ export function extractFunction(
     const modifiedVars = findModifiedVariables(extractedCode, declaredVars);
 
     // Build the new function
-    const paramList = params.length > 0 ? params.join(', ') : '';
-    const asyncKeyword = options.isAsync ? 'async ' : '';
+    const paramList = params.length > 0 ? params.join(", ") : "";
+    const asyncKeyword = options.isAsync ? "async " : "";
 
     // Determine return statement
-    let returnStatement = '';
+    let returnStatement = "";
     if (modifiedVars.length === 1) {
       returnStatement = `\n  return ${modifiedVars[0]};`;
     } else if (modifiedVars.length > 1) {
-      returnStatement = `\n  return { ${modifiedVars.join(', ')} };`;
+      returnStatement = `\n  return { ${modifiedVars.join(", ")} };`;
     }
 
-    const indentedCode = extractedLines.map((line) => '  ' + line.trimStart()).join('\n');
+    const indentedCode = extractedLines
+      .map((line) => "  " + line.trimStart())
+      .join("\n");
 
     const newFunction = `${asyncKeyword}function ${options.functionName}(${paramList}) {\n${indentedCode}${returnStatement}\n}`;
 
     // Create the function call
     let functionCall: string;
-    const awaitKeyword = options.isAsync ? 'await ' : '';
+    const awaitKeyword = options.isAsync ? "await " : "";
 
     if (modifiedVars.length === 0) {
       functionCall = `${awaitKeyword}${options.functionName}(${paramList});`;
     } else if (modifiedVars.length === 1) {
       functionCall = `const ${modifiedVars[0]} = ${awaitKeyword}${options.functionName}(${paramList});`;
     } else {
-      functionCall = `const { ${modifiedVars.join(', ')} } = ${awaitKeyword}${options.functionName}(${paramList});`;
+      functionCall = `const { ${modifiedVars.join(", ")} } = ${awaitKeyword}${options.functionName}(${paramList});`;
     }
 
     // Replace the extracted lines with function call
     const newLines = [
       ...lines.slice(0, options.startLine - 1),
-      '  ' + functionCall, // Indent to match context
+      "  " + functionCall, // Indent to match context
       ...lines.slice(options.endLine),
     ];
 
     // Insert the new function at the end of file (before last line if it's empty)
     const insertIndex = newLines.length - 1;
-    newLines.splice(insertIndex, 0, '', newFunction);
+    newLines.splice(insertIndex, 0, "", newFunction);
 
     return {
       success: true,
-      newContent: newLines.join('\n'),
+      newContent: newLines.join("\n"),
       extractedFunction: newFunction,
     };
   } catch (error) {
@@ -206,15 +226,17 @@ export function reduceNesting(
           const thenStatements = thenBlock.getStatements();
 
           // Only transform if there's significant code inside
-          if (thenStatements.length >= 3) {
+          if (thenStatements.length >= MAX_LENGTH) {
             const condition = ifStmt.getExpression().getText();
             const invertedCondition = invertCondition(condition);
 
             // Get the inner code
-            const innerCode = thenStatements.map((s) => s.getText()).join('\n');
+            const innerCode = thenStatements.map((s) => s.getText()).join("\n");
 
             // Replace with early return + inner code
-            ifStmt.replaceWithText(`if (${invertedCondition}) return;\n\n${innerCode}`);
+            ifStmt.replaceWithText(
+              `if (${invertedCondition}) return;\n\n${innerCode}`,
+            );
             changesCount++;
           }
         }
@@ -222,18 +244,26 @@ export function reduceNesting(
         // Pattern 2: if-else where else is just return
         if (elseBlock && Node.isBlock(elseBlock)) {
           const elseStatements = elseBlock.getStatements();
-          if (elseStatements.length === 1 && elseStatements[0]?.getText().startsWith('return')) {
+          if (
+            elseStatements.length === 1 &&
+            elseStatements[0]?.getText().startsWith("return")
+          ) {
             const condition = ifStmt.getExpression().getText();
             const invertedCondition = invertCondition(condition);
             const returnStmt = elseStatements[0].getText();
 
             // Get then block code
             const thenCode = Node.isBlock(thenBlock)
-              ? thenBlock.getStatements().map((s) => s.getText()).join('\n')
+              ? thenBlock
+                  .getStatements()
+                  .map((s) => s.getText())
+                  .join("\n")
               : thenBlock.getText();
 
             // Replace with early return + then code
-            ifStmt.replaceWithText(`if (${invertedCondition}) ${returnStmt}\n\n${thenCode}`);
+            ifStmt.replaceWithText(
+              `if (${invertedCondition}) ${returnStmt}\n\n${thenCode}`,
+            );
             changesCount++;
           }
         }
@@ -247,7 +277,7 @@ export function reduceNesting(
     }
 
     if (changesCount === 0) {
-      return { success: false, error: 'No patterns found to reduce nesting' };
+      return { success: false, error: "No patterns found to reduce nesting" };
     }
 
     return {
@@ -368,10 +398,12 @@ function reduceLoopNesting(body: Block): number {
 
     const condition = ifStmt.getExpression().getText();
     const invertedCondition = invertCondition(condition);
-    const innerCode = thenStatements.map((s) => s.getText()).join('\n');
+    const innerCode = thenStatements.map((s) => s.getText()).join("\n");
 
     // Replace with early continue + inner code
-    ifStmt.replaceWithText(`if (${invertedCondition}) continue;\n\n${innerCode}`);
+    ifStmt.replaceWithText(
+      `if (${invertedCondition}) continue;\n\n${innerCode}`,
+    );
     changes++;
   }
 
@@ -426,7 +458,7 @@ export function splitFile(
       const decl = declarations[0];
       if (!decl) continue;
 
-      let groupName = 'utils';
+      let groupName = "utils";
 
       if (config.groupFn) {
         groupName = config.groupFn(name, decl);
@@ -445,10 +477,12 @@ export function splitFile(
 
       // Get the full declaration text with export
       const parent = decl.getParent();
-      let declText = '';
+      let declText = "";
 
       if (Node.isVariableDeclaration(decl)) {
-        const varStmt = decl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
+        const varStmt = decl.getFirstAncestorByKind(
+          SyntaxKind.VariableStatement,
+        );
         if (varStmt) {
           declText = varStmt.getText();
         }
@@ -457,8 +491,8 @@ export function splitFile(
       }
 
       // Ensure it has export
-      if (!declText.startsWith('export')) {
-        declText = 'export ' + declText;
+      if (!declText.startsWith("export")) {
+        declText = "export " + declText;
       }
 
       groupContents.get(groupName)!.push(declText);
@@ -466,7 +500,7 @@ export function splitFile(
 
     // Don't split if only 1-2 groups
     if (groups.size < 2) {
-      return { success: false, error: 'File cannot be meaningfully split' };
+      return { success: false, error: "File cannot be meaningfully split" };
     }
 
     // Generate files
@@ -474,24 +508,25 @@ export function splitFile(
     const dir = path.dirname(filePath);
     const files: Array<{ path: string; content: string }> = [];
 
-    const importsText = Array.from(imports).join('\n');
+    const importsText = Array.from(imports).join("\n");
     const reExports: string[] = [];
 
     for (const [groupName, contents] of groupContents) {
-      const newFileName = groupName === 'index' ? 'index.ts' : `${baseName}.${groupName}.ts`;
+      const newFileName =
+        groupName === "index" ? "index.ts" : `${baseName}.${groupName}.ts`;
       const newFilePath = path.join(dir, newFileName);
 
-      const fileContent = `${importsText}\n\n${contents.join('\n\n')}\n`;
+      const fileContent = `${importsText}\n\n${contents.join("\n\n")}\n`;
       files.push({ path: newFilePath, content: fileContent });
 
-      if (groupName !== 'index') {
+      if (groupName !== "index") {
         reExports.push(`export * from './${baseName}.${groupName}';`);
       }
     }
 
     // Create index file with re-exports
-    const indexPath = path.join(dir, 'index.ts');
-    const indexContent = `/**\n * @module ${baseName}\n * Re-exports from split modules\n */\n\n${reExports.join('\n')}\n`;
+    const indexPath = path.join(dir, "index.ts");
+    const indexContent = `/**\n * @module ${baseName}\n * Re-exports from split modules\n */\n\n${reExports.join("\n")}\n`;
     files.push({ path: indexPath, content: indexContent });
 
     return { success: true, files };
@@ -541,8 +576,10 @@ function findDeclaredVariables(code: string): string[] {
     while ((match = pattern.exec(code)) !== null) {
       if (match[1]) {
         // Simple or destructured
-        const names = match[1].split(',').map((n) => n.trim().split(':')[0]?.trim());
-        vars.push(...names.filter(Boolean) as string[]);
+        const names = match[1]
+          .split(",")
+          .map((n) => n.trim().split(":")[0]?.trim());
+        vars.push(...(names.filter(Boolean) as string[]));
       }
     }
   }
@@ -558,7 +595,7 @@ function findModifiedVariables(code: string, declaredVars: string[]): string[] {
 
   for (const v of declaredVars) {
     // Check if used after declaration (simplified check)
-    const assignPattern = new RegExp(`\\b${v}\\s*=(?!=)`, 'g');
+    const assignPattern = new RegExp(`\\b${v}\\s*=(?!=)`, "g");
     if (assignPattern.test(code)) {
       modified.push(v);
     }
@@ -572,19 +609,19 @@ function findModifiedVariables(code: string, declaredVars: string[]): string[] {
  */
 function invertCondition(condition: string): string {
   // Already negated
-  if (condition.startsWith('!') && !condition.startsWith('!=')) {
+  if (condition.startsWith("!") && !condition.startsWith("!=")) {
     return condition.slice(1);
   }
 
   // Comparison operators
-  if (condition.includes('===')) return condition.replace('===', '!==');
-  if (condition.includes('!==')) return condition.replace('!==', '===');
-  if (condition.includes('==')) return condition.replace('==', '!=');
-  if (condition.includes('!=')) return condition.replace('!=', '==');
-  if (condition.includes('>=')) return condition.replace('>=', '<');
-  if (condition.includes('<=')) return condition.replace('<=', '>');
-  if (condition.includes('>')) return condition.replace('>', '<=');
-  if (condition.includes('<')) return condition.replace('<', '>=');
+  if (condition.includes("===")) return condition.replace("===", "!==");
+  if (condition.includes("!==")) return condition.replace("!==", "===");
+  if (condition.includes("==")) return condition.replace("==", "!=");
+  if (condition.includes("!=")) return condition.replace("!=", "==");
+  if (condition.includes(">=")) return condition.replace(">=", "<");
+  if (condition.includes("<=")) return condition.replace("<=", ">");
+  if (condition.includes(">")) return condition.replace(">", "<=");
+  if (condition.includes("<")) return condition.replace("<", ">=");
 
   // Simple negation
   return `!(${condition})`;
@@ -594,7 +631,11 @@ function invertCondition(condition: string): string {
  * Get function body
  */
 function getBody(func: Node): Block | undefined {
-  if (Node.isFunctionDeclaration(func) || Node.isMethodDeclaration(func) || Node.isFunctionExpression(func)) {
+  if (
+    Node.isFunctionDeclaration(func) ||
+    Node.isMethodDeclaration(func) ||
+    Node.isFunctionExpression(func)
+  ) {
     return func.getBody() as Block | undefined;
   }
   if (Node.isArrowFunction(func)) {
@@ -609,41 +650,54 @@ function getBody(func: Node): Block | undefined {
  */
 function getGroupByType(node: Node): string {
   if (Node.isTypeAliasDeclaration(node) || Node.isInterfaceDeclaration(node)) {
-    return 'types';
+    return "types";
   }
   if (Node.isFunctionDeclaration(node)) {
-    return 'functions';
+    return "functions";
   }
   if (Node.isVariableDeclaration(node)) {
     const init = node.getInitializer();
-    if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
-      return 'functions';
+    if (
+      init &&
+      (Node.isArrowFunction(init) || Node.isFunctionExpression(init))
+    ) {
+      return "functions";
     }
     // Check if it's all caps (constant)
     const name = node.getName();
     if (name === name.toUpperCase()) {
-      return 'constants';
+      return "constants";
     }
   }
   if (Node.isClassDeclaration(node)) {
-    return 'classes';
+    return "classes";
   }
-  return 'utils';
+  return "utils";
 }
 
 /**
  * Group by prefix
  */
 function getGroupByPrefix(name: string): string {
-  const prefixes = ['handle', 'create', 'get', 'set', 'is', 'has', 'format', 'parse', 'validate'];
+  const prefixes = [
+    "handle",
+    "create",
+    "get",
+    "set",
+    "is",
+    "has",
+    "format",
+    "parse",
+    "validate",
+  ];
 
   for (const prefix of prefixes) {
     if (name.toLowerCase().startsWith(prefix)) {
-      return prefix + 's'; // handlers, creators, getters, etc.
+      return prefix + "s"; // handlers, creators, getters, etc.
     }
   }
 
-  return 'utils';
+  return "utils";
 }
 
 /**
@@ -651,13 +705,54 @@ function getGroupByPrefix(name: string): string {
  */
 function isKeyword(name: string): boolean {
   const keywords = new Set([
-    'break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete',
-    'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof',
-    'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var',
-    'void', 'while', 'with', 'class', 'const', 'enum', 'export', 'extends',
-    'import', 'super', 'implements', 'interface', 'let', 'package', 'private',
-    'protected', 'public', 'static', 'yield', 'await', 'async', 'true', 'false',
-    'null', 'undefined',
+    "break",
+    "case",
+    "catch",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "in",
+    "instanceof",
+    "new",
+    "return",
+    "switch",
+    "this",
+    "throw",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "class",
+    "const",
+    "enum",
+    "export",
+    "extends",
+    "import",
+    "super",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "yield",
+    "await",
+    "async",
+    "true",
+    "false",
+    "null",
+    "undefined",
   ]);
   return keywords.has(name);
 }
@@ -667,11 +762,38 @@ function isKeyword(name: string): boolean {
  */
 function isGlobal(name: string): boolean {
   const globals = new Set([
-    'console', 'Math', 'Date', 'JSON', 'Array', 'Object', 'String', 'Number',
-    'Boolean', 'Error', 'Promise', 'Map', 'Set', 'RegExp', 'Symbol', 'Buffer',
-    'process', 'require', 'module', 'exports', '__dirname', '__filename',
-    'window', 'document', 'global', 'setTimeout', 'setInterval', 'clearTimeout',
-    'clearInterval', 'fetch', 'URL', 'URLSearchParams',
+    "console",
+    "Math",
+    "Date",
+    "JSON",
+    "Array",
+    "Object",
+    "String",
+    "Number",
+    "Boolean",
+    "Error",
+    "Promise",
+    "Map",
+    "Set",
+    "RegExp",
+    "Symbol",
+    "Buffer",
+    "process",
+    "require",
+    "module",
+    "exports",
+    "__dirname",
+    "__filename",
+    "window",
+    "document",
+    "global",
+    "setTimeout",
+    "setInterval",
+    "clearTimeout",
+    "clearInterval",
+    "fetch",
+    "URL",
+    "URLSearchParams",
   ]);
   return globals.has(name);
 }

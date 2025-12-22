@@ -9,20 +9,27 @@
  *   krolik quality --category=srp       # Filter by category
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { glob } from 'glob';
-import type { CommandContext } from '../../types';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { glob } from "glob";
+import type { CommandContext } from "../../types";
 import type {
   QualityReport,
   FileAnalysis,
   QualityIssue,
   QualityOptions,
   RecommendationItem,
-} from './types';
-import { analyzeFile } from './analyzers';
-import { checkRecommendations, type RecommendationResult } from './recommendations';
-import { formatText, formatAI } from './formatters';
+} from "./types";
+import { analyzeFile } from "./analyzers";
+import {
+  checkRecommendations,
+  type RecommendationResult,
+} from "./recommendations";
+import { formatText, formatAI } from "./formatters";
+
+const SLICE_ARG1_VALUE = 15;
+
+const DEFAULT_PAGE_SIZE = 20;
 
 // ============================================================================
 // TYPES
@@ -56,18 +63,23 @@ export async function analyzeQuality(
     : projectRoot;
 
   // Find all TypeScript/JavaScript files
-  const patterns = ['**/*.ts', '**/*.tsx'];
+  const patterns = ["**/*.ts", "**/*.tsx"];
   const ignore = [
-    '**/node_modules/**',
-    '**/dist/**',
-    '**/.next/**',
-    '**/coverage/**',
-    '**/*.d.ts',
-    '**/generated/**',
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/coverage/**",
+    "**/*.d.ts",
+    "**/generated/**",
   ];
 
   if (!options.includeTests) {
-    ignore.push('**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/__tests__/**');
+    ignore.push(
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/__tests__/**",
+    );
   }
 
   const files = await glob(patterns, {
@@ -87,7 +99,7 @@ export async function analyzeQuality(
       analyses.push(analysis);
       allIssues.push(...analysis.issues);
       // Store content for AI context - key by both absolute and relative paths
-      const content = fs.readFileSync(file, 'utf-8');
+      const content = fs.readFileSync(file, "utf-8");
       fileContents.set(analysis.path, content);
       fileContents.set(analysis.relativePath, content);
     } catch {
@@ -98,27 +110,40 @@ export async function analyzeQuality(
   // Filter issues by category/severity if specified
   let filteredIssues = allIssues;
   if (options.category) {
-    filteredIssues = filteredIssues.filter(i => i.category === options.category);
+    filteredIssues = filteredIssues.filter(
+      (i) => i.category === options.category,
+    );
   }
   if (options.severity) {
-    filteredIssues = filteredIssues.filter(i => i.severity === options.severity);
+    filteredIssues = filteredIssues.filter(
+      (i) => i.severity === options.severity,
+    );
   }
 
   // Calculate summary
   const summary = {
-    errors: filteredIssues.filter(i => i.severity === 'error').length,
-    warnings: filteredIssues.filter(i => i.severity === 'warning').length,
-    infos: filteredIssues.filter(i => i.severity === 'info').length,
+    errors: filteredIssues.filter((i) => i.severity === "error").length,
+    warnings: filteredIssues.filter((i) => i.severity === "warning").length,
+    infos: filteredIssues.filter((i) => i.severity === "info").length,
     byCategory: {
-      srp: filteredIssues.filter(i => i.category === 'srp').length,
-      hardcoded: filteredIssues.filter(i => i.category === 'hardcoded').length,
-      complexity: filteredIssues.filter(i => i.category === 'complexity').length,
-      'mixed-concerns': filteredIssues.filter(i => i.category === 'mixed-concerns').length,
-      size: filteredIssues.filter(i => i.category === 'size').length,
-      documentation: filteredIssues.filter(i => i.category === 'documentation').length,
-      'type-safety': filteredIssues.filter(i => i.category === 'type-safety').length,
-      'circular-dep': filteredIssues.filter(i => i.category === 'circular-dep').length,
-      lint: filteredIssues.filter(i => i.category === 'lint').length,
+      srp: filteredIssues.filter((i) => i.category === "srp").length,
+      hardcoded: filteredIssues.filter((i) => i.category === "hardcoded")
+        .length,
+      complexity: filteredIssues.filter((i) => i.category === "complexity")
+        .length,
+      "mixed-concerns": filteredIssues.filter(
+        (i) => i.category === "mixed-concerns",
+      ).length,
+      size: filteredIssues.filter((i) => i.category === "size").length,
+      documentation: filteredIssues.filter(
+        (i) => i.category === "documentation",
+      ).length,
+      "type-safety": filteredIssues.filter((i) => i.category === "type-safety")
+        .length,
+      "circular-dep": filteredIssues.filter(
+        (i) => i.category === "circular-dep",
+      ).length,
+      lint: filteredIssues.filter((i) => i.category === "lint").length,
     },
   };
 
@@ -128,18 +153,22 @@ export async function analyzeQuality(
       const order = { error: 0, warning: 1, info: 2 };
       return order[a.severity] - order[b.severity];
     })
-    .slice(0, 20);
+    .slice(0, DEFAULT_PAGE_SIZE);
 
   // Find files that need refactoring
-  const needsRefactoring: QualityReport['needsRefactoring'] = [];
+  const needsRefactoring: QualityReport["needsRefactoring"] = [];
 
   for (const analysis of analyses) {
-    const fileIssues = analysis.issues.filter(i => i.severity !== 'info');
+    const fileIssues = analysis.issues.filter((i) => i.severity !== "info");
     if (fileIssues.length >= 2) {
       needsRefactoring.push({
         file: analysis.relativePath,
-        reason: fileIssues.map(i => i.category).join(', '),
-        suggestions: [...new Set(fileIssues.map(i => i.suggestion).filter(Boolean) as string[])],
+        reason: fileIssues.map((i) => i.category).join(", "),
+        suggestions: [
+          ...new Set(
+            fileIssues.map((i) => i.suggestion).filter(Boolean) as string[],
+          ),
+        ],
       });
     }
   }
@@ -150,13 +179,16 @@ export async function analyzeQuality(
   // Run recommendation checks
   const allRecommendations: RecommendationResult[] = [];
   for (const analysis of analyses) {
-    const content = fs.readFileSync(analysis.path, 'utf-8');
+    const content = fs.readFileSync(analysis.path, "utf-8");
     const recs = checkRecommendations(content, analysis);
     allRecommendations.push(...recs);
   }
 
   // Aggregate recommendations by id with counts
-  const recCounts = new Map<string, { rec: RecommendationResult; count: number }>();
+  const recCounts = new Map<
+    string,
+    { rec: RecommendationResult; count: number }
+  >();
   for (const rec of allRecommendations) {
     const existing = recCounts.get(rec.recommendation.id);
     if (existing) {
@@ -170,12 +202,18 @@ export async function analyzeQuality(
   const recommendations: RecommendationItem[] = [...recCounts.values()]
     .sort((a, b) => {
       // Sort by severity first, then by count
-      const severityOrder = { 'best-practice': 0, recommendation: 1, suggestion: 2 };
-      const sevDiff = severityOrder[a.rec.recommendation.severity] - severityOrder[b.rec.recommendation.severity];
+      const severityOrder = {
+        "best-practice": 0,
+        recommendation: 1,
+        suggestion: 2,
+      };
+      const sevDiff =
+        severityOrder[a.rec.recommendation.severity] -
+        severityOrder[b.rec.recommendation.severity];
       if (sevDiff !== 0) return sevDiff;
       return b.count - a.count;
     })
-    .slice(0, 15)
+    .slice(0, SLICE_ARG1_VALUE)
     .map(({ rec, count }) => ({
       id: rec.recommendation.id,
       title: rec.recommendation.title,
@@ -210,17 +248,22 @@ export async function analyzeQuality(
 /**
  * Run quality command
  */
-export async function runQuality(ctx: CommandContext & { options: QualityOptions }): Promise<void> {
+export async function runQuality(
+  ctx: CommandContext & { options: QualityOptions },
+): Promise<void> {
   const { config, options } = ctx;
 
-  const { report, fileContents } = await analyzeQuality(config.projectRoot, options);
+  const { report, fileContents } = await analyzeQuality(
+    config.projectRoot,
+    options,
+  );
 
-  if (options.format === 'json') {
+  if (options.format === "json") {
     console.log(JSON.stringify(report, null, 2));
     return;
   }
 
-  if (options.format === 'ai') {
+  if (options.format === "ai") {
     // Pass file contents for AI context extraction
     console.log(formatAI(report, fileContents));
     return;
@@ -230,4 +273,4 @@ export async function runQuality(ctx: CommandContext & { options: QualityOptions
 }
 
 // Re-export types
-export { DEFAULT_THRESHOLDS } from './types';
+export { DEFAULT_THRESHOLDS } from "./types";

@@ -9,7 +9,7 @@
  * 4. Commit current state (if needed)
  */
 
-import { execSync } from 'node:child_process';
+import { execSync } from "node:child_process";
 
 export interface GitBackupResult {
   success: boolean;
@@ -18,14 +18,16 @@ export interface GitBackupResult {
   error?: string;
 }
 
+const SLICE_ARG1_VALUE = 15;
+
 /**
  * Check if directory is a git repository
  */
 export function isGitRepo(cwd: string): boolean {
   try {
-    execSync('git rev-parse --is-inside-work-tree', {
+    execSync("git rev-parse --is-inside-work-tree", {
       cwd,
-      stdio: 'pipe',
+      stdio: "pipe",
     });
     return true;
   } catch {
@@ -38,9 +40,9 @@ export function isGitRepo(cwd: string): boolean {
  */
 export function hasUncommittedChanges(cwd: string): boolean {
   try {
-    const status = execSync('git status --porcelain', {
+    const status = execSync("git status --porcelain", {
       cwd,
-      encoding: 'utf-8',
+      encoding: "utf-8",
     });
     return status.trim().length > 0;
   } catch {
@@ -53,9 +55,9 @@ export function hasUncommittedChanges(cwd: string): boolean {
  */
 export function getCurrentBranch(cwd: string): string | null {
   try {
-    return execSync('git branch --show-current', {
+    return execSync("git branch --show-current", {
       cwd,
-      encoding: 'utf-8',
+      encoding: "utf-8",
     }).trim();
   } catch {
     return null;
@@ -67,10 +69,11 @@ export function getCurrentBranch(cwd: string): string | null {
  */
 function generateBackupBranchName(): string {
   const now = new Date();
-  const timestamp = now.toISOString()
-    .replace(/[-:]/g, '')
-    .replace('T', '-')
-    .slice(0, 15);
+  const timestamp = now
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace("T", "-")
+    .slice(0, SLICE_ARG1_VALUE);
   return `backup/pre-fix-${timestamp}`;
 }
 
@@ -88,7 +91,7 @@ export function createBackupBranch(cwd: string): GitBackupResult {
     return {
       success: false,
       hadUncommittedChanges: false,
-      error: 'Not a git repository',
+      error: "Not a git repository",
     };
   }
 
@@ -99,7 +102,7 @@ export function createBackupBranch(cwd: string): GitBackupResult {
     // Create backup branch from current HEAD (doesn't switch branches)
     execSync(`git branch ${branchName}`, {
       cwd,
-      stdio: 'pipe',
+      stdio: "pipe",
     });
 
     return {
@@ -123,7 +126,7 @@ export function deleteBackupBranch(cwd: string, branchName: string): boolean {
   try {
     execSync(`git branch -D ${branchName}`, {
       cwd,
-      stdio: 'pipe',
+      stdio: "pipe",
     });
     return true;
   } catch {
@@ -139,7 +142,7 @@ export function restoreFromBackup(cwd: string, branchName: string): boolean {
     // Reset to backup branch state
     execSync(`git checkout ${branchName} -- .`, {
       cwd,
-      stdio: 'pipe',
+      stdio: "pipe",
     });
     return true;
   } catch {

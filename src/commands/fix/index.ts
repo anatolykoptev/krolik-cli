@@ -11,14 +11,16 @@
  *   krolik fix --yes                # Auto-confirm all fixes
  */
 
-import chalk from 'chalk';
-import type { CommandContext } from '../../types';
-import type { FixOptions, FixResult, FixOperation } from './types';
-import { getFixDifficulty } from './types';
-import { analyzeQuality } from '../quality';
-import { findStrategyDetailed } from './strategies';
-import { applyFix } from './applier';
-import { createBackupBranch, isGitRepo } from './git-backup';
+import chalk from "chalk";
+import type { CommandContext } from "../../types";
+import type { FixOptions, FixResult, FixOperation } from "./types";
+import { getFixDifficulty } from "./types";
+import { analyzeQuality } from "../quality";
+import { findStrategyDetailed } from "./strategies";
+import { applyFix } from "./applier";
+import { createBackupBranch, isGitRepo } from "./git-backup";
+
+const MAX_PAGE_SIZE = 50;
 
 // ============================================================================
 // TYPES
@@ -29,17 +31,17 @@ export type { FixOptions, FixResult, FixOperation };
 interface FixPlan {
   file: string;
   fixes: Array<{
-    issue: import('../quality/types').QualityIssue;
+    issue: import("../quality/types").QualityIssue;
     operation: FixOperation;
-    difficulty: 'trivial' | 'safe' | 'risky';
+    difficulty: "trivial" | "safe" | "risky";
   }>;
 }
 
 interface SkipStats {
-  noStrategy: number;      // No strategy for this category
-  noContent: number;       // File content not available
-  contextSkipped: number;  // Skipped by context (CLI output, etc)
-  noFix: number;           // Strategy couldn't generate fix
+  noStrategy: number; // No strategy for this category
+  noContent: number; // File content not available
+  contextSkipped: number; // Skipped by context (CLI output, etc)
+  noFix: number; // Strategy couldn't generate fix
   categories: Map<string, number>;
 }
 
@@ -58,11 +60,14 @@ async function generateFixPlan(
   if (options.path) qualityOptions.path = options.path;
   if (options.category) qualityOptions.category = options.category;
 
-  const { report, fileContents } = await analyzeQuality(projectRoot, qualityOptions);
+  const { report, fileContents } = await analyzeQuality(
+    projectRoot,
+    qualityOptions,
+  );
 
   // Collect ALL issues from all files, not just topIssues (which is limited to 20)
   // Apply category filter if specified (since files[] contains all issues)
-  const allIssues: import('../quality/types').QualityIssue[] = [];
+  const allIssues: import("../quality/types").QualityIssue[] = [];
   for (const fileAnalysis of report.files) {
     for (const issue of fileAnalysis.issues) {
       if (options.category && issue.category !== options.category) {
@@ -88,12 +93,12 @@ async function generateFixPlan(
 
     // Filter by difficulty if trivialOnly
     const difficulty = getFixDifficulty(issue);
-    if (options.trivialOnly && difficulty !== 'trivial') {
+    if (options.trivialOnly && difficulty !== "trivial") {
       continue;
     }
 
     // Get file content
-    const content = fileContents.get(issue.file) || '';
+    const content = fileContents.get(issue.file) || "";
     if (!content) {
       skipStats.noContent++;
       continue;
@@ -102,12 +107,12 @@ async function generateFixPlan(
     // Find strategy for this issue
     const strategyResult = findStrategyDetailed(issue, content);
 
-    if (strategyResult.status === 'no-strategy') {
+    if (strategyResult.status === "no-strategy") {
       skipStats.noStrategy++;
       continue;
     }
 
-    if (strategyResult.status === 'context-skipped') {
+    if (strategyResult.status === "context-skipped") {
       skipStats.contextSkipped++;
       continue;
     }
@@ -135,17 +140,19 @@ async function generateFixPlan(
   let allPlans = [...plans.values()];
   if (options.limit) {
     let count = 0;
-    allPlans = allPlans.map((plan) => {
-      const remaining = options.limit! - count;
-      if (remaining <= 0) {
-        return { ...plan, fixes: [] };
-      }
-      count += plan.fixes.length;
-      if (plan.fixes.length > remaining) {
-        return { ...plan, fixes: plan.fixes.slice(0, remaining) };
-      }
-      return plan;
-    }).filter((plan) => plan.fixes.length > 0);
+    allPlans = allPlans
+      .map((plan) => {
+        const remaining = options.limit! - count;
+        if (remaining <= 0) {
+          return { ...plan, fixes: [] };
+        }
+        count += plan.fixes.length;
+        if (plan.fixes.length > remaining) {
+          return { ...plan, fixes: plan.fixes.slice(0, remaining) };
+        }
+        return plan;
+      })
+      .filter((plan) => plan.fixes.length > 0);
   }
 
   return { plans: allPlans, skipStats, totalIssues: allIssues.length };
@@ -170,70 +177,94 @@ function formatPlan(
   for (const plan of plans) {
     if (plan.fixes.length === 0) continue;
 
-    lines.push('');
+    lines.push("");
     lines.push(chalk.cyan(`📁 ${plan.file}`));
 
     for (const { issue, operation, difficulty } of plan.fixes) {
       totalFixes++;
-      const diffIcon = difficulty === 'trivial' ? '✅' : difficulty === 'safe' ? '🔶' : '⚠️';
+      const diffIcon =
+        difficulty === "trivial" ? "✅" : difficulty === "safe" ? "🔶" : "⚠️";
       const action = chalk.yellow(operation.action);
-      const line = issue.line ? `:${issue.line}` : '';
+      const line = issue.line ? `:${issue.line}` : "";
 
       lines.push(`  ${diffIcon} ${action} ${line}`);
       lines.push(`     ${chalk.dim(issue.message)}`);
 
-      if (operation.oldCode && operation.action !== 'insert-before') {
-        const preview = operation.oldCode.slice(0, 50).replace(/\n/g, '↵');
-        lines.push(`     ${chalk.red('- ' + preview)}${operation.oldCode.length > 50 ? '...' : ''}`);
+      if (operation.oldCode && operation.action !== "insert-before") {
+        const preview = operation.oldCode
+          .slice(0, MAX_PAGE_SIZE)
+          .replace(/\n/g, "↵");
+        lines.push(
+          `     ${chalk.red("- " + preview)}${operation.oldCode.length > MAX_PAGE_SIZE ? "..." : ""}`,
+        );
       }
 
-      if (operation.newCode && operation.action !== 'delete-line') {
-        const preview = operation.newCode.slice(0, 50).replace(/\n/g, '↵');
-        lines.push(`     ${chalk.green('+ ' + preview)}${operation.newCode.length > 50 ? '...' : ''}`);
+      if (operation.newCode && operation.action !== "delete-line") {
+        const preview = operation.newCode
+          .slice(0, MAX_PAGE_SIZE)
+          .replace(/\n/g, "↵");
+        lines.push(
+          `     ${chalk.green("+ " + preview)}${operation.newCode.length > MAX_PAGE_SIZE ? "..." : ""}`,
+        );
       }
     }
   }
 
   if (totalFixes === 0) {
-    lines.push('');
-    lines.push(chalk.green('✨ No auto-fixable issues found!'));
+    lines.push("");
+    lines.push(chalk.green("✨ No auto-fixable issues found!"));
 
     // Show why issues were skipped
     if (totalIssues > 0) {
-      lines.push('');
+      lines.push("");
       lines.push(chalk.dim(`Analyzed ${totalIssues} issues:`));
 
       if (skipStats.noStrategy > 0) {
-        lines.push(chalk.dim(`  • ${skipStats.noStrategy} have no fix strategy (size, hardcoded, etc)`));
+        lines.push(
+          chalk.dim(
+            `  • ${skipStats.noStrategy} have no fix strategy (size, hardcoded, etc)`,
+          ),
+        );
       }
       if (skipStats.noFix > 0) {
-        lines.push(chalk.dim(`  • ${skipStats.noFix} could not generate fix (complex patterns)`));
+        lines.push(
+          chalk.dim(
+            `  • ${skipStats.noFix} could not generate fix (complex patterns)`,
+          ),
+        );
       }
       if (skipStats.contextSkipped > 0) {
-        lines.push(chalk.dim(`  • ${skipStats.contextSkipped} skipped by context (CLI output, tests)`));
+        lines.push(
+          chalk.dim(
+            `  • ${skipStats.contextSkipped} skipped by context (CLI output, tests)`,
+          ),
+        );
       }
 
       // Show by category
       const cats = [...skipStats.categories.entries()];
       if (cats.length > 0) {
-        lines.push('');
-        lines.push(chalk.dim('By category:'));
+        lines.push("");
+        lines.push(chalk.dim("By category:"));
         for (const [cat, count] of cats) {
-          const fixable = cat === 'lint' ? '(partially fixable)' : '(manual fix needed)';
+          const fixable =
+            cat === "lint" ? "(partially fixable)" : "(manual fix needed)";
           lines.push(chalk.dim(`  • ${cat}: ${count} ${fixable}`));
         }
       }
     }
   } else {
-    lines.push('');
-    lines.push(chalk.bold(`Total: ${totalFixes} fixes in ${plans.length} files`));
+    lines.push("");
+    lines.push(
+      chalk.bold(`Total: ${totalFixes} fixes in ${plans.length} files`),
+    );
 
     if (options.dryRun) {
-      lines.push(chalk.yellow('(dry run - no changes made)'));
+      lines.push(chalk.yellow("(dry run - no changes made)"));
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -244,18 +275,22 @@ function formatResults(results: FixResult[]): string {
   const successful = results.filter((r) => r.success);
   const failed = results.filter((r) => !r.success);
 
-  lines.push('');
-  lines.push(chalk.bold('Fix Results:'));
+  lines.push("");
+  lines.push(chalk.bold("Fix Results:"));
   lines.push(chalk.green(`  ✅ ${successful.length} fixes applied`));
 
   if (failed.length > 0) {
     lines.push(chalk.red(`  ❌ ${failed.length} fixes failed`));
     for (const result of failed) {
-      lines.push(chalk.red(`     ${result.issue.file}:${result.issue.line} - ${result.error}`));
+      lines.push(
+        chalk.red(
+          `     ${result.issue.file}:${result.issue.line} - ${result.error}`,
+        ),
+      );
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // ============================================================================
@@ -265,13 +300,18 @@ function formatResults(results: FixResult[]): string {
 /**
  * Run fix command
  */
-export async function runFix(ctx: CommandContext & { options: FixOptions }): Promise<void> {
+export async function runFix(
+  ctx: CommandContext & { options: FixOptions },
+): Promise<void> {
   const { config, logger, options } = ctx;
 
-  logger.info('Analyzing code quality...');
+  logger.info("Analyzing code quality...");
 
   // Generate fix plan
-  const { plans, skipStats, totalIssues } = await generateFixPlan(config.projectRoot, options);
+  const { plans, skipStats, totalIssues } = await generateFixPlan(
+    config.projectRoot,
+    options,
+  );
 
   // Show plan
   console.log(formatPlan(plans, skipStats, totalIssues, options));
@@ -282,7 +322,10 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
   }
 
   // Count total fixes
-  const totalFixes = plans.reduce((sum: number, p: FixPlan) => sum + p.fixes.length, 0);
+  const totalFixes = plans.reduce(
+    (sum: number, p: FixPlan) => sum + p.fixes.length,
+    0,
+  );
 
   if (totalFixes === 0) {
     return;
@@ -290,14 +333,16 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
 
   // Confirm unless --yes
   if (!options.yes) {
-    console.log('');
-    console.log(chalk.yellow('⚠️  This will modify your files.'));
-    console.log(chalk.dim('Use --dry-run to preview changes without applying.'));
-    console.log(chalk.dim('Use --yes to skip this confirmation.'));
-    console.log('');
+    console.log("");
+    console.log(chalk.yellow("⚠️  This will modify your files."));
+    console.log(
+      chalk.dim("Use --dry-run to preview changes without applying."),
+    );
+    console.log(chalk.dim("Use --yes to skip this confirmation."));
+    console.log("");
 
     // In CLI we'd use readline, but for now just require --yes
-    logger.warn('Pass --yes to apply fixes');
+    logger.warn("Pass --yes to apply fixes");
     return;
   }
 
@@ -305,30 +350,34 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
   let backupBranchName: string | undefined;
 
   if (isGitRepo(config.projectRoot)) {
-    logger.info('Creating git backup branch...');
+    logger.info("Creating git backup branch...");
     const backupResult = createBackupBranch(config.projectRoot);
 
     if (backupResult.success) {
       backupBranchName = backupResult.branchName;
       console.log(chalk.green(`✅ Backup branch created: ${backupBranchName}`));
       if (backupResult.hadUncommittedChanges) {
-        console.log(chalk.dim('   (uncommitted changes saved to backup)'));
+        console.log(chalk.dim("   (uncommitted changes saved to backup)"));
       }
     } else {
-      console.log(chalk.yellow(`⚠️  Could not create backup: ${backupResult.error}`));
-      console.log(chalk.dim('   Proceeding without git backup...'));
+      console.log(
+        chalk.yellow(`⚠️  Could not create backup: ${backupResult.error}`),
+      );
+      console.log(chalk.dim("   Proceeding without git backup..."));
     }
   } else {
-    console.log(chalk.dim('Not a git repo - skipping backup'));
+    console.log(chalk.dim("Not a git repo - skipping backup"));
   }
 
   // Apply fixes
-  logger.info('Applying fixes...');
+  logger.info("Applying fixes...");
   const results: FixResult[] = [];
 
   for (const plan of plans) {
     for (const { issue, operation } of plan.fixes) {
-      const result = applyFix(operation, issue, { backup: options.backup ?? false });
+      const result = applyFix(operation, issue, {
+        backup: options.backup ?? false,
+      });
       results.push(result);
 
       if (result.success) {
@@ -345,10 +394,14 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
   // Show backup info
   const failed = results.filter((r) => !r.success);
   if (backupBranchName) {
-    console.log('');
+    console.log("");
     if (failed.length > 0) {
-      console.log(chalk.yellow(`💾 Backup available: git checkout ${backupBranchName}`));
-      console.log(chalk.dim('   To restore: git checkout ' + backupBranchName + ' -- .'));
+      console.log(
+        chalk.yellow(`💾 Backup available: git checkout ${backupBranchName}`),
+      );
+      console.log(
+        chalk.dim("   To restore: git checkout " + backupBranchName + " -- ."),
+      );
     } else {
       console.log(chalk.dim(`💾 Backup branch: ${backupBranchName}`));
       console.log(chalk.dim(`   To delete: git branch -D ${backupBranchName}`));
@@ -357,6 +410,6 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
 }
 
 // Re-export types
-export { getFixDifficulty } from './types';
-export { findStrategy } from './strategies';
-export { applyFix, applyFixes, createBackup, rollbackFix } from './applier';
+export { getFixDifficulty } from "./types";
+export { findStrategy } from "./strategies";
+export { applyFix, applyFixes, createBackup, rollbackFix } from "./applier";

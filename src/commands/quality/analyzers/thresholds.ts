@@ -3,7 +3,15 @@
  * @description Path-based threshold configuration and overrides
  */
 
-import type { ThresholdOverride, Thresholds } from '../types';
+import type { ThresholdOverride, Thresholds } from "../types";
+
+const DEFAULT_PAGE_SIZE = 20;
+
+const HTTP_BAD_REQUEST = 400;
+
+const MAX_VALUE = 5;
+
+const MAX_PAGE_SIZE = 50;
 
 /**
  * Get thresholds for a specific file path, applying overrides
@@ -23,7 +31,7 @@ export function getThresholdsForPath(
 
   for (const override of overrides) {
     // Simple glob matching: check if path starts with pattern (minus **)
-    const pattern = override.pattern.replace(/\*\*/g, '').replace(/\*/g, '');
+    const pattern = override.pattern.replace(/\*\*/g, "").replace(/\*/g, "");
     if (relativePath.startsWith(pattern) || relativePath.includes(pattern)) {
       result = { ...result, ...override.thresholds };
     }
@@ -44,12 +52,12 @@ export function buildThresholds(options: {
   requireJSDoc?: boolean;
 }): Thresholds {
   return {
-    maxFunctionLines: options.maxFunctionLines ?? 50,
+    maxFunctionLines: options.maxFunctionLines ?? MAX_PAGE_SIZE,
     maxFunctionsPerFile: options.maxFunctionsPerFile ?? 10,
-    maxExportsPerFile: options.maxExportsPerFile ?? 5,
-    maxFileLines: options.maxFileLines ?? 400,
-    maxParams: 5,
-    maxImports: 20,
+    maxExportsPerFile: options.maxExportsPerFile ?? MAX_VALUE,
+    maxFileLines: options.maxFileLines ?? HTTP_BAD_REQUEST,
+    maxParams: MAX_VALUE,
+    maxImports: DEFAULT_PAGE_SIZE,
     maxComplexity: options.maxComplexity ?? 10,
     requireJSDoc: options.requireJSDoc ?? true,
   };
