@@ -7,6 +7,7 @@ import type { FixStrategy } from '../types';
 import { lintStrategy } from './lint';
 import { typeSafetyStrategy } from './type-safety';
 import { complexityStrategy } from './complexity';
+import { srpStrategy } from './srp';
 
 /**
  * All available fix strategies
@@ -15,6 +16,7 @@ export const ALL_STRATEGIES: FixStrategy[] = [
   lintStrategy,
   typeSafetyStrategy,
   complexityStrategy,
+  srpStrategy,
 ];
 
 /**
@@ -71,3 +73,4 @@ export function findStrategyDetailed(
 export { lintStrategy } from './lint';
 export { typeSafetyStrategy } from './type-safety';
 export { complexityStrategy } from './complexity';
+export { srpStrategy } from './srp';

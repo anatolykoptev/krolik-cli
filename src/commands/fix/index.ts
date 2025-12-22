@@ -190,7 +190,10 @@ function formatPlan(
       lines.push(chalk.dim(`Analyzed ${totalIssues} issues:`));
 
       if (skipStats.noStrategy > 0) {
-        lines.push(chalk.dim(`  • ${skipStats.noStrategy} need AST parsing (complexity, nesting)`));
+        lines.push(chalk.dim(`  • ${skipStats.noStrategy} have no fix strategy (size, hardcoded, etc)`));
+      }
+      if (skipStats.noFix > 0) {
+        lines.push(chalk.dim(`  • ${skipStats.noFix} could not generate fix (complex patterns)`));
       }
       if (skipStats.contextSkipped > 0) {
         lines.push(chalk.dim(`  • ${skipStats.contextSkipped} skipped by context (CLI output, tests)`));

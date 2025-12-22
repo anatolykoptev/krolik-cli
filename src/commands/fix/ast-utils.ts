@@ -1,0 +1,556 @@
+/**
+ * @module commands/fix/ast-utils
+ * @description AST utilities using ts-morph for safe code transformations
+ *
+ * Uses TypeScript Compiler API (via ts-morph) for:
+ * - Function extraction
+ * - Nesting reduction (early returns)
+ * - File splitting (SRP)
+ */
+
+import { Project, SourceFile, SyntaxKind, FunctionDeclaration, Node, VariableStatement, ArrowFunction, FunctionExpression, IfStatement, Block, Statement } from 'ts-morph';
+import * as path from 'node:path';
+
+// ============================================================================
+// PROJECT INITIALIZATION
+// ============================================================================
+
+/**
+ * Create a ts-morph project for code manipulation
+ */
+export function createProject(tsConfigPath?: string): Project {
+  return new Project({
+    tsConfigFilePath: tsConfigPath,
+    skipAddingFilesFromTsConfig: true,
+    compilerOptions: {
+      allowJs: true,
+      checkJs: false,
+    },
+  });
+}
+
+/**
+ * Create a source file from content
+ */
+export function createSourceFile(project: Project, filePath: string, content: string): SourceFile {
+  return project.createSourceFile(filePath, content, { overwrite: true });
+}
+
+// ============================================================================
+// FUNCTION EXTRACTION
+// ============================================================================
+
+export interface ExtractFunctionOptions {
+  startLine: number;
+  endLine: number;
+  functionName: string;
+  isAsync?: boolean;
+}
+
+export interface ExtractFunctionResult {
+  success: boolean;
+  newContent?: string;
+  error?: string;
+  extractedFunction?: string;
+}
+
+/**
+ * Extract a block of code into a new function
+ *
+ * Analyzes:
+ * - Variables used (become parameters)
+ * - Variables modified (become return values)
+ * - Async context
+ */
+export function extractFunction(
+  content: string,
+  filePath: string,
+  options: ExtractFunctionOptions,
+): ExtractFunctionResult {
+  try {
+    const project = createProject();
+    const sourceFile = createSourceFile(project, filePath, content);
+
+    const lines = content.split('\n');
+    const extractedLines = lines.slice(options.startLine - 1, options.endLine);
+    const extractedCode = extractedLines.join('\n');
+
+    // Find variables used in the block
+    const usedVars = findUsedVariables(extractedCode);
+    const declaredVars = findDeclaredVariables(extractedCode);
+
+    // Parameters are used but not declared in the block
+    const params = usedVars.filter((v) => !declaredVars.includes(v));
+
+    // Find what's returned/assigned
+    const modifiedVars = findModifiedVariables(extractedCode, declaredVars);
+
+    // Build the new function
+    const paramList = params.length > 0 ? params.join(', ') : '';
+    const asyncKeyword = options.isAsync ? 'async ' : '';
+
+    // Determine return statement
+    let returnStatement = '';
+    if (modifiedVars.length === 1) {
+      returnStatement = `\n  return ${modifiedVars[0]};`;
+    } else if (modifiedVars.length > 1) {
+      returnStatement = `\n  return { ${modifiedVars.join(', ')} };`;
+    }
+
+    const indentedCode = extractedLines.map((line) => '  ' + line.trimStart()).join('\n');
+
+    const newFunction = `${asyncKeyword}function ${options.functionName}(${paramList}) {\n${indentedCode}${returnStatement}\n}`;
+
+    // Create the function call
+    let functionCall: string;
+    const awaitKeyword = options.isAsync ? 'await ' : '';
+
+    if (modifiedVars.length === 0) {
+      functionCall = `${awaitKeyword}${options.functionName}(${paramList});`;
+    } else if (modifiedVars.length === 1) {
+      functionCall = `const ${modifiedVars[0]} = ${awaitKeyword}${options.functionName}(${paramList});`;
+    } else {
+      functionCall = `const { ${modifiedVars.join(', ')} } = ${awaitKeyword}${options.functionName}(${paramList});`;
+    }
+
+    // Replace the extracted lines with function call
+    const newLines = [
+      ...lines.slice(0, options.startLine - 1),
+      '  ' + functionCall, // Indent to match context
+      ...lines.slice(options.endLine),
+    ];
+
+    // Insert the new function at the end of file (before last line if it's empty)
+    const insertIndex = newLines.length - 1;
+    newLines.splice(insertIndex, 0, '', newFunction);
+
+    return {
+      success: true,
+      newContent: newLines.join('\n'),
+      extractedFunction: newFunction,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+// ============================================================================
+// NESTING REDUCTION (EARLY RETURNS)
+// ============================================================================
+
+export interface ReduceNestingResult {
+  success: boolean;
+  newContent?: string;
+  changesCount?: number;
+  error?: string;
+}
+
+/**
+ * Reduce nesting by converting if-else to early returns
+ *
+ * Transforms:
+ *   if (condition) {
+ *     // lots of code
+ *   }
+ *
+ * To:
+ *   if (!condition) return;
+ *   // lots of code
+ */
+export function reduceNesting(
+  content: string,
+  filePath: string,
+  targetLine?: number,
+): ReduceNestingResult {
+  try {
+    const project = createProject();
+    const sourceFile = createSourceFile(project, filePath, content);
+
+    let changesCount = 0;
+
+    // Find all functions
+    const functions = [
+      ...sourceFile.getFunctions(),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.ArrowFunction),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.FunctionExpression),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration),
+    ];
+
+    for (const func of functions) {
+      const body = getBody(func);
+      if (!body) continue;
+
+      // Skip if we're targeting a specific line and this function isn't there
+      if (targetLine !== undefined) {
+        const startLine = func.getStartLineNumber();
+        const endLine = func.getEndLineNumber();
+        if (targetLine < startLine || targetLine > endLine) continue;
+      }
+
+      const statements = body.getStatements();
+
+      // Look for if statements that can be inverted
+      for (let i = statements.length - 1; i >= 0; i--) {
+        const stmt = statements[i];
+        if (!stmt || !Node.isIfStatement(stmt)) continue;
+
+        const ifStmt = stmt as IfStatement;
+        const thenBlock = ifStmt.getThenStatement();
+        const elseBlock = ifStmt.getElseStatement();
+
+        // Pattern 1: if with no else, where the if is wrapping most of the function
+        if (!elseBlock && Node.isBlock(thenBlock)) {
+          const thenStatements = thenBlock.getStatements();
+
+          // Only transform if there's significant code inside
+          if (thenStatements.length >= 3) {
+            const condition = ifStmt.getExpression().getText();
+            const invertedCondition = invertCondition(condition);
+
+            // Get the inner code
+            const innerCode = thenStatements.map((s) => s.getText()).join('\n');
+
+            // Replace with early return + inner code
+            ifStmt.replaceWithText(`if (${invertedCondition}) return;\n\n${innerCode}`);
+            changesCount++;
+          }
+        }
+
+        // Pattern 2: if-else where else is just return
+        if (elseBlock && Node.isBlock(elseBlock)) {
+          const elseStatements = elseBlock.getStatements();
+          if (elseStatements.length === 1 && elseStatements[0]?.getText().startsWith('return')) {
+            const condition = ifStmt.getExpression().getText();
+            const invertedCondition = invertCondition(condition);
+            const returnStmt = elseStatements[0].getText();
+
+            // Get then block code
+            const thenCode = Node.isBlock(thenBlock)
+              ? thenBlock.getStatements().map((s) => s.getText()).join('\n')
+              : thenBlock.getText();
+
+            // Replace with early return + then code
+            ifStmt.replaceWithText(`if (${invertedCondition}) ${returnStmt}\n\n${thenCode}`);
+            changesCount++;
+          }
+        }
+      }
+    }
+
+    if (changesCount === 0) {
+      return { success: false, error: 'No patterns found to reduce nesting' };
+    }
+
+    return {
+      success: true,
+      newContent: sourceFile.getFullText(),
+      changesCount,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+// ============================================================================
+// FILE SPLITTING (SRP)
+// ============================================================================
+
+export interface SplitFileResult {
+  success: boolean;
+  files?: Array<{ path: string; content: string }>;
+  error?: string;
+}
+
+export interface SplitConfig {
+  /** Group exports by type (functions, types, constants) */
+  byType?: boolean;
+  /** Group exports by prefix (handle*, create*, etc) */
+  byPrefix?: boolean;
+  /** Custom grouping function */
+  groupFn?: (name: string, node: Node) => string;
+}
+
+/**
+ * Split a file with too many exports into multiple files
+ */
+export function splitFile(
+  content: string,
+  filePath: string,
+  config: SplitConfig = { byType: true },
+): SplitFileResult {
+  try {
+    const project = createProject();
+    const sourceFile = createSourceFile(project, filePath, content);
+
+    const groups = new Map<string, string[]>();
+    const groupContents = new Map<string, string[]>();
+    const imports = new Set<string>();
+
+    // Collect imports
+    for (const imp of sourceFile.getImportDeclarations()) {
+      imports.add(imp.getText());
+    }
+
+    // Group exported items
+    const exportedDeclarations = sourceFile.getExportedDeclarations();
+
+    for (const [name, declarations] of exportedDeclarations) {
+      if (declarations.length === 0) continue;
+      const decl = declarations[0];
+      if (!decl) continue;
+
+      let groupName = 'utils';
+
+      if (config.groupFn) {
+        groupName = config.groupFn(name, decl);
+      } else if (config.byType) {
+        groupName = getGroupByType(decl);
+      } else if (config.byPrefix) {
+        groupName = getGroupByPrefix(name);
+      }
+
+      if (!groups.has(groupName)) {
+        groups.set(groupName, []);
+        groupContents.set(groupName, []);
+      }
+
+      groups.get(groupName)!.push(name);
+
+      // Get the full declaration text with export
+      const parent = decl.getParent();
+      let declText = '';
+
+      if (Node.isVariableDeclaration(decl)) {
+        const varStmt = decl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
+        if (varStmt) {
+          declText = varStmt.getText();
+        }
+      } else {
+        declText = parent?.getText() || decl.getText();
+      }
+
+      // Ensure it has export
+      if (!declText.startsWith('export')) {
+        declText = 'export ' + declText;
+      }
+
+      groupContents.get(groupName)!.push(declText);
+    }
+
+    // Don't split if only 1-2 groups
+    if (groups.size < 2) {
+      return { success: false, error: 'File cannot be meaningfully split' };
+    }
+
+    // Generate files
+    const baseName = path.basename(filePath, path.extname(filePath));
+    const dir = path.dirname(filePath);
+    const files: Array<{ path: string; content: string }> = [];
+
+    const importsText = Array.from(imports).join('\n');
+    const reExports: string[] = [];
+
+    for (const [groupName, contents] of groupContents) {
+      const newFileName = groupName === 'index' ? 'index.ts' : `${baseName}.${groupName}.ts`;
+      const newFilePath = path.join(dir, newFileName);
+
+      const fileContent = `${importsText}\n\n${contents.join('\n\n')}\n`;
+      files.push({ path: newFilePath, content: fileContent });
+
+      if (groupName !== 'index') {
+        reExports.push(`export * from './${baseName}.${groupName}';`);
+      }
+    }
+
+    // Create index file with re-exports
+    const indexPath = path.join(dir, 'index.ts');
+    const indexContent = `/**\n * @module ${baseName}\n * Re-exports from split modules\n */\n\n${reExports.join('\n')}\n`;
+    files.push({ path: indexPath, content: indexContent });
+
+    return { success: true, files };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Find variables used in code (simplified - checks for identifiers)
+ */
+function findUsedVariables(code: string): string[] {
+  const vars = new Set<string>();
+  const identifierPattern = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g;
+
+  let match;
+  while ((match = identifierPattern.exec(code)) !== null) {
+    const name = match[1];
+    // Skip keywords and common globals
+    if (name && !isKeyword(name) && !isGlobal(name)) {
+      vars.add(name);
+    }
+  }
+
+  return Array.from(vars);
+}
+
+/**
+ * Find variables declared in code
+ */
+function findDeclaredVariables(code: string): string[] {
+  const vars: string[] = [];
+  const patterns = [
+    /(?:const|let|var)\s+(\w+)/g,
+    /(?:const|let|var)\s+\{([^}]+)\}/g, // destructuring
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(code)) !== null) {
+      if (match[1]) {
+        // Simple or destructured
+        const names = match[1].split(',').map((n) => n.trim().split(':')[0]?.trim());
+        vars.push(...names.filter(Boolean) as string[]);
+      }
+    }
+  }
+
+  return vars;
+}
+
+/**
+ * Find variables that are modified/assigned
+ */
+function findModifiedVariables(code: string, declaredVars: string[]): string[] {
+  const modified: string[] = [];
+
+  for (const v of declaredVars) {
+    // Check if used after declaration (simplified check)
+    const assignPattern = new RegExp(`\\b${v}\\s*=(?!=)`, 'g');
+    if (assignPattern.test(code)) {
+      modified.push(v);
+    }
+  }
+
+  return modified;
+}
+
+/**
+ * Invert a condition for early return
+ */
+function invertCondition(condition: string): string {
+  // Already negated
+  if (condition.startsWith('!') && !condition.startsWith('!=')) {
+    return condition.slice(1);
+  }
+
+  // Comparison operators
+  if (condition.includes('===')) return condition.replace('===', '!==');
+  if (condition.includes('!==')) return condition.replace('!==', '===');
+  if (condition.includes('==')) return condition.replace('==', '!=');
+  if (condition.includes('!=')) return condition.replace('!=', '==');
+  if (condition.includes('>=')) return condition.replace('>=', '<');
+  if (condition.includes('<=')) return condition.replace('<=', '>');
+  if (condition.includes('>')) return condition.replace('>', '<=');
+  if (condition.includes('<')) return condition.replace('<', '>=');
+
+  // Simple negation
+  return `!(${condition})`;
+}
+
+/**
+ * Get function body
+ */
+function getBody(func: Node): Block | undefined {
+  if (Node.isFunctionDeclaration(func) || Node.isMethodDeclaration(func) || Node.isFunctionExpression(func)) {
+    return func.getBody() as Block | undefined;
+  }
+  if (Node.isArrowFunction(func)) {
+    const body = func.getBody();
+    return Node.isBlock(body) ? body : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Group by type (functions, types, constants)
+ */
+function getGroupByType(node: Node): string {
+  if (Node.isTypeAliasDeclaration(node) || Node.isInterfaceDeclaration(node)) {
+    return 'types';
+  }
+  if (Node.isFunctionDeclaration(node)) {
+    return 'functions';
+  }
+  if (Node.isVariableDeclaration(node)) {
+    const init = node.getInitializer();
+    if (init && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+      return 'functions';
+    }
+    // Check if it's all caps (constant)
+    const name = node.getName();
+    if (name === name.toUpperCase()) {
+      return 'constants';
+    }
+  }
+  if (Node.isClassDeclaration(node)) {
+    return 'classes';
+  }
+  return 'utils';
+}
+
+/**
+ * Group by prefix
+ */
+function getGroupByPrefix(name: string): string {
+  const prefixes = ['handle', 'create', 'get', 'set', 'is', 'has', 'format', 'parse', 'validate'];
+
+  for (const prefix of prefixes) {
+    if (name.toLowerCase().startsWith(prefix)) {
+      return prefix + 's'; // handlers, creators, getters, etc.
+    }
+  }
+
+  return 'utils';
+}
+
+/**
+ * Check if identifier is a JS keyword
+ */
+function isKeyword(name: string): boolean {
+  const keywords = new Set([
+    'break', 'case', 'catch', 'continue', 'debugger', 'default', 'delete',
+    'do', 'else', 'finally', 'for', 'function', 'if', 'in', 'instanceof',
+    'new', 'return', 'switch', 'this', 'throw', 'try', 'typeof', 'var',
+    'void', 'while', 'with', 'class', 'const', 'enum', 'export', 'extends',
+    'import', 'super', 'implements', 'interface', 'let', 'package', 'private',
+    'protected', 'public', 'static', 'yield', 'await', 'async', 'true', 'false',
+    'null', 'undefined',
+  ]);
+  return keywords.has(name);
+}
+
+/**
+ * Check if identifier is a global
+ */
+function isGlobal(name: string): boolean {
+  const globals = new Set([
+    'console', 'Math', 'Date', 'JSON', 'Array', 'Object', 'String', 'Number',
+    'Boolean', 'Error', 'Promise', 'Map', 'Set', 'RegExp', 'Symbol', 'Buffer',
+    'process', 'require', 'module', 'exports', '__dirname', '__filename',
+    'window', 'document', 'global', 'setTimeout', 'setInterval', 'clearTimeout',
+    'clearInterval', 'fetch', 'URL', 'URLSearchParams',
+  ]);
+  return globals.has(name);
+}
