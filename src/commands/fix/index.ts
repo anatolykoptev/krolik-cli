@@ -112,8 +112,8 @@ async function generateFixPlan(
       continue;
     }
 
-    // Generate fix operation
-    const operation = strategyResult.strategy.generateFix(issue, content);
+    // Generate fix operation (async to support formatting)
+    const operation = await strategyResult.strategy.generateFix(issue, content);
     if (!operation) {
       skipStats.noFix++;
       continue;

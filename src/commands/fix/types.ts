@@ -54,8 +54,8 @@ export interface FixStrategy {
   categories: QualityCategory[];
   /** Check if this strategy can fix the issue */
   canFix(issue: QualityIssue, content: string): boolean;
-  /** Generate fix operation */
-  generateFix(issue: QualityIssue, content: string): FixOperation | null;
+  /** Generate fix operation (async to support formatting) */
+  generateFix(issue: QualityIssue, content: string): Promise<FixOperation | null> | FixOperation | null;
 }
 
 /**

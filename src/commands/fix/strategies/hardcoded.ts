@@ -13,8 +13,31 @@
  */
 
 import { Project, SyntaxKind, SourceFile, NumericLiteral } from 'ts-morph';
+import * as prettier from 'prettier';
 import type { QualityIssue } from '../../quality/types';
 import type { FixOperation, FixStrategy } from '../types';
+
+// ============================================================================
+// FORMATTING
+// ============================================================================
+
+/**
+ * Format code with Prettier using project config or sensible defaults
+ */
+async function formatWithPrettier(code: string, filepath: string): Promise<string> {
+  try {
+    // Try to resolve config from project
+    const config = await prettier.resolveConfig(filepath);
+
+    return await prettier.format(code, {
+      ...config,
+      filepath, // Let prettier infer parser from extension
+    });
+  } catch {
+    // If formatting fails, return original code
+    return code;
+  }
+}
 
 // ============================================================================
 // PATTERNS
@@ -34,6 +57,71 @@ const ALLOWED_NUMBERS = new Set([
   24, 60, 365,   // Time units
   1024, 2048,    // Binary sizes
 ]);
+
+// ============================================================================
+// KNOWN CONSTANTS MAPPING
+// ============================================================================
+
+/**
+ * Well-known values that have standard names
+ * Priority 0 - highest priority in generateConstName
+ */
+const KNOWN_CONSTANTS: Record<number, string> = {
+  // HTTP Status Codes - 2xx Success
+  200: 'HTTP_OK',
+  201: 'HTTP_CREATED',
+  204: 'HTTP_NO_CONTENT',
+
+  // HTTP Status Codes - 3xx Redirection
+  301: 'HTTP_MOVED_PERMANENTLY',
+  302: 'HTTP_FOUND',
+  304: 'HTTP_NOT_MODIFIED',
+
+  // HTTP Status Codes - 4xx Client Errors
+  400: 'HTTP_BAD_REQUEST',
+  401: 'HTTP_UNAUTHORIZED',
+  403: 'HTTP_FORBIDDEN',
+  404: 'HTTP_NOT_FOUND',
+  405: 'HTTP_METHOD_NOT_ALLOWED',
+  409: 'HTTP_CONFLICT',
+  422: 'HTTP_UNPROCESSABLE_ENTITY',
+  429: 'HTTP_TOO_MANY_REQUESTS',
+
+  // HTTP Status Codes - 5xx Server Errors
+  500: 'HTTP_INTERNAL_SERVER_ERROR',
+  502: 'HTTP_BAD_GATEWAY',
+  503: 'HTTP_SERVICE_UNAVAILABLE',
+  504: 'HTTP_GATEWAY_TIMEOUT',
+
+  // Note: Log levels (0-5) intentionally omitted - too ambiguous
+  // (could be array indices, enum values, etc.)
+
+  // Common Ports
+  80: 'HTTP_PORT',
+  443: 'HTTPS_PORT',
+  3000: 'DEV_PORT',
+  3001: 'DEV_PORT_ALT',
+  5432: 'POSTGRES_PORT',
+  6379: 'REDIS_PORT',
+  8080: 'PROXY_PORT',
+  8443: 'HTTPS_ALT_PORT',
+  27017: 'MONGODB_PORT',
+
+  // Common Timeouts (ms)
+  5000: 'TIMEOUT_5S',
+  10000: 'TIMEOUT_10S',
+  30000: 'TIMEOUT_30S',
+  60000: 'TIMEOUT_60S',
+
+  // File sizes (bytes)
+  1048576: 'ONE_MEGABYTE',
+  5242880: 'FIVE_MEGABYTES',
+  10485760: 'TEN_MEGABYTES',
+
+  // Pagination
+  20: 'DEFAULT_PAGE_SIZE',
+  50: 'MAX_PAGE_SIZE',
+};
 
 // ============================================================================
 // CONSTANT NAME GENERATION
@@ -143,8 +231,20 @@ function extractASTContext(node: NumericLiteral): string | null {
 
 /**
  * Generate a meaningful constant name from context
+ *
+ * Priority order:
+ * 0. Known constants (HTTP codes, log levels, ports)
+ * 1. Keyword matching from snippet/message
+ * 2. AST context (property/variable names)
+ * 3. Heuristic based on value
  */
 function generateConstName(value: number, context: string, astContext: string | null): string {
+  // Priority 0: Known constants (HTTP codes, log levels, ports, etc.)
+  const knownName = KNOWN_CONSTANTS[value];
+  if (knownName) {
+    return knownName;
+  }
+
   const lower = context.toLowerCase();
 
   // Priority 1: Keyword matching from snippet/message (most semantic)
@@ -375,7 +475,7 @@ export const hardcodedStrategy: FixStrategy = {
     return false;
   },
 
-  generateFix(issue: QualityIssue, content: string): FixOperation | null {
+  async generateFix(issue: QualityIssue, content: string): Promise<FixOperation | null> {
     const { message, file, snippet } = issue;
 
     if (FIXABLE_PATTERNS.NUMBER.test(message)) {
@@ -402,12 +502,12 @@ export const hardcodedStrategy: FixStrategy = {
  * - Skips numbers in const object literals (intentional mappings)
  * - Smart filtering of false positives
  */
-function generateNumberFixAST(
+async function generateNumberFixAST(
   content: string,
   file: string,
   message: string,
   snippet: string | undefined,
-): FixOperation | null {
+): Promise<FixOperation | null> {
   // Extract the target value
   const match = message.match(/(\d+)/);
   if (!match) return null;
@@ -477,13 +577,16 @@ function generateNumberFixAST(
 
     const newContent = sourceFile.getFullText();
 
+    // Format with Prettier for clean output
+    const formattedContent = await formatWithPrettier(newContent, file);
+
     return {
       action: 'replace-range',
       file,
       line: 1,
       endLine: content.split('\n').length,
       oldCode: content,
-      newCode: newContent,
+      newCode: formattedContent,
     };
   } catch {
     // AST parsing failed - skip this fix
@@ -494,11 +597,11 @@ function generateNumberFixAST(
 /**
  * Extract URL into a named constant
  */
-function generateUrlFix(
+async function generateUrlFix(
   content: string,
   file: string,
   snippet: string | undefined,
-): FixOperation | null {
+): Promise<FixOperation | null> {
   if (!snippet) return null;
 
   const urlMatch = snippet.match(/(["'`])(https?:\/\/[^"'`\s]+)\1/);
@@ -551,13 +654,16 @@ function generateUrlFix(
       }
     }
 
+    // Format with Prettier for clean output
+    const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
+
     return {
       action: 'replace-range',
       file,
       line: 1,
       endLine: content.split('\n').length,
       oldCode: content,
-      newCode: sourceFile.getFullText(),
+      newCode: formattedContent,
     };
   } catch {
     return null;
