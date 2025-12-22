@@ -16,7 +16,7 @@ import {
   isInsideConstDeclaration,
   extractASTContext,
 } from './ast-utils';
-import { formatWithPrettier, createReplaceOperation } from './formatters';
+import { formatWithPrettier, createFullFileReplace } from '../shared';
 
 // ============================================================================
 // NUMBER FIX GENERATOR
@@ -103,7 +103,7 @@ export async function generateNumberFix(
     // Format with Prettier for clean output
     const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
 
-    return createReplaceOperation(file, content, formattedContent);
+    return createFullFileReplace(file, content, formattedContent);
   } catch {
     // AST parsing failed - skip this fix
     return null;
@@ -174,7 +174,7 @@ export async function generateUrlFix(
     // Format with Prettier for clean output
     const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
 
-    return createReplaceOperation(file, content, formattedContent);
+    return createFullFileReplace(file, content, formattedContent);
   } catch {
     return null;
   }
