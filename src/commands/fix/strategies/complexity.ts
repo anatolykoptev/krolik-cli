@@ -11,6 +11,7 @@
 import type { QualityIssue } from '../../quality/types';
 import type { FixOperation, FixStrategy } from '../types';
 import { reduceNesting, extractFunction } from '../ast-utils';
+import { findRefactorings, detectIfChain, generateLookupMap } from '../refactorings';
 
 // ============================================================================
 // COMPLEXITY PATTERNS
@@ -41,12 +42,12 @@ export const complexityStrategy: FixStrategy = {
       return true;
     }
 
-    // We can attempt to fix complexity by early returns (reduces branches)
+    // We can attempt to fix complexity with smart refactorings
     if (FIXABLE_PATTERNS.COMPLEXITY.test(message)) {
       const match = message.match(/has\s+complexity\s+(\d+)/i);
       const complexity = match ? parseInt(match[1] || '0', 10) : 0;
-      // Only try to fix moderate complexity (not extreme - 101 is too much)
-      return complexity >= 10 && complexity <= 50;
+      // Now we can handle higher complexity with if-chain→map and other refactorings
+      return complexity >= 10 && complexity <= 120;
     }
 
     // Long functions can be partially fixed with extraction
@@ -111,29 +112,67 @@ function generateNestingFix(
 }
 
 /**
- * Fix high complexity - try early returns first
+ * Fix high complexity - try multiple strategies
  */
 function generateComplexityFix(
   content: string,
   file: string,
   targetLine?: number,
 ): FixOperation | null {
-  // Try reducing nesting first (often reduces complexity)
-  const nestingResult = reduceNesting(content, file, targetLine);
+  const lines = content.split('\n');
 
+  // 1. Try if-chain to map conversion (very effective for complexity)
+  if (targetLine) {
+    const chain = detectIfChain(content, targetLine);
+    if (chain && chain.conditions.length >= 4) {
+      const originalCode = lines.slice(chain.startLine - 1, chain.endLine).join('\n');
+      const newCode = generateLookupMap(chain);
+
+      return {
+        action: 'replace-range',
+        file,
+        line: chain.startLine,
+        endLine: chain.endLine,
+        oldCode: originalCode,
+        newCode,  // Just the replacement map code
+      };
+    }
+  }
+
+  // 2. Try reducing nesting with early returns
+  const nestingResult = reduceNesting(content, file, targetLine);
   if (nestingResult.success && nestingResult.newContent) {
     return {
       action: 'replace-range',
       file,
       line: 1,
-      endLine: content.split('\n').length,
+      endLine: lines.length,
       oldCode: content,
       newCode: nestingResult.newContent,
     };
   }
 
-  // If nesting reduction didn't help, we can't safely auto-fix
-  // Complex refactoring needs human guidance
+  // 3. Try finding any applicable refactorings
+  if (targetLine) {
+    const funcEnd = findFunctionEnd(lines, targetLine);
+    if (funcEnd) {
+      const refactorings = findRefactorings(content, targetLine, funcEnd);
+      if (refactorings.length > 0) {
+        // Apply the first refactoring
+        const ref = refactorings[0]!;
+
+        return {
+          action: 'replace-range',
+          file,
+          line: ref.startLine,
+          endLine: ref.endLine,
+          oldCode: ref.originalCode,
+          newCode: ref.newCode,  // Just the replacement, not full file
+        };
+      }
+    }
+  }
+
   return null;
 }
 
@@ -289,28 +328,48 @@ function findExtractionRange(
 }
 
 /**
+ * Keyword to function name mapping
+ * Used to generate meaningful names from code content
+ */
+const FUNCTION_NAME_MAP: Record<string, string> = {
+  valid: 'validateInput',
+  error: 'handleError',
+  catch: 'handleError',
+  fetch: 'fetchData',
+  request: 'fetchData',
+  transform: 'transformData',
+  map: 'transformData',
+  filter: 'filterItems',
+  sort: 'sortItems',
+  render: 'renderContent',
+  component: 'renderContent',
+  init: 'initialize',
+  setup: 'initialize',
+  clean: 'cleanup',
+  dispose: 'cleanup',
+  config: 'processConfig',
+  option: 'processConfig',
+  format: 'formatOutput',
+  parse: 'parseInput',
+  check: 'checkCondition',
+  update: 'updateState',
+  create: 'createItem',
+  delete: 'removeItem',
+  remove: 'removeItem',
+};
+
+/**
  * Generate a meaningful function name from block content
  */
 function generateFunctionName(content: string): string {
   const trimmed = content.toLowerCase();
 
-  // Try to infer purpose from content
-  if (trimmed.includes('valid')) return 'validateInput';
-  if (trimmed.includes('error') || trimmed.includes('catch')) return 'handleError';
-  if (trimmed.includes('fetch') || trimmed.includes('request')) return 'fetchData';
-  if (trimmed.includes('transform') || trimmed.includes('map')) return 'transformData';
-  if (trimmed.includes('filter')) return 'filterItems';
-  if (trimmed.includes('sort')) return 'sortItems';
-  if (trimmed.includes('render') || trimmed.includes('component')) return 'renderContent';
-  if (trimmed.includes('init') || trimmed.includes('setup')) return 'initialize';
-  if (trimmed.includes('clean') || trimmed.includes('dispose')) return 'cleanup';
-  if (trimmed.includes('config') || trimmed.includes('option')) return 'processConfig';
-  if (trimmed.includes('format')) return 'formatOutput';
-  if (trimmed.includes('parse')) return 'parseInput';
-  if (trimmed.includes('check')) return 'checkCondition';
-  if (trimmed.includes('update')) return 'updateState';
-  if (trimmed.includes('create')) return 'createItem';
-  if (trimmed.includes('delete') || trimmed.includes('remove')) return 'removeItem';
+  // Use lookup map instead of if-chain
+  for (const [keyword, funcName] of Object.entries(FUNCTION_NAME_MAP)) {
+    if (trimmed.includes(keyword)) {
+      return funcName;
+    }
+  }
 
   return 'processBlock';
 }
