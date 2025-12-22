@@ -1,0 +1,218 @@
+/**
+ * @module commands/fix/strategies/hardcoded/generators
+ * @description Fix generators for hardcoded values using AST
+ */
+
+import { SyntaxKind } from 'ts-morph';
+import * as prettier from 'prettier';
+import type { FixOperation } from '../../types';
+import { ALLOWED_NUMBERS } from './constants';
+import { extractASTContext, generateConstName } from './naming';
+import {
+  createProject,
+  findInsertionPoint,
+  isInsideTypeDefinition,
+  isInsideString,
+  isInsideConstObjectLiteral,
+  isInsideConstDeclaration,
+} from './ast-utils';
+
+// ============================================================================
+// FORMATTING
+// ============================================================================
+
+/**
+ * Format code with Prettier using project config or sensible defaults
+ */
+async function formatWithPrettier(code: string, filepath: string): Promise<string> {
+  try {
+    // Try to resolve config from project
+    const config = await prettier.resolveConfig(filepath);
+
+    return await prettier.format(code, {
+      ...config,
+      filepath, // Let prettier infer parser from extension
+    });
+  } catch {
+    // If formatting fails, return original code
+    return code;
+  }
+}
+
+// ============================================================================
+// NUMBER FIX GENERATOR
+// ============================================================================
+
+/**
+ * Extract magic number into a named constant using AST
+ *
+ * Features:
+ * - Uses AST context for better constant names
+ * - Skips numbers in const object literals (intentional mappings)
+ * - Smart filtering of false positives
+ * - Prettier formatting for clean output
+ */
+export async function generateNumberFix(
+  content: string,
+  file: string,
+  message: string,
+  snippet: string | undefined,
+): Promise<FixOperation | null> {
+  // Extract the target value
+  const match = message.match(/(\d+)/);
+  if (!match) return null;
+  const targetValue = parseInt(match[1] || '0', 10);
+
+  // Skip allowed numbers
+  if (ALLOWED_NUMBERS.has(targetValue)) return null;
+
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile('temp.ts', content);
+
+    // Find ALL numeric literals with this value that are safe to replace
+    const candidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n) => {
+      const value = n.getLiteralValue();
+      return (
+        value === targetValue &&
+        !isInsideTypeDefinition(n) &&
+        !isInsideString(n) &&
+        !isInsideConstObjectLiteral(n)
+      );
+    });
+
+    if (candidates.length === 0) return null;
+
+    // Extract AST context from first candidate for better naming
+    const astContext = extractASTContext(candidates[0]!);
+
+    // Generate constant name from context
+    const context = snippet || message;
+    const constName = generateConstName(targetValue, context, astContext);
+
+    // Check if constant already exists
+    const existingConst = sourceFile
+      .getVariableDeclarations()
+      .find((v) => v.getName() === constName);
+
+    if (!existingConst) {
+      // Find insertion point and add constant
+      const insertPos = findInsertionPoint(sourceFile);
+      const constDecl = `\nconst ${constName} = ${targetValue};\n`;
+      sourceFile.insertText(insertPos, constDecl);
+    }
+
+    // After insertion, re-find candidates (positions have changed)
+    // Replace FIRST matching literal only (safe approach)
+    // IMPORTANT: Skip the literal inside the const declaration we just created!
+    const updatedCandidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n) => {
+      const value = n.getLiteralValue();
+      return (
+        value === targetValue &&
+        !isInsideTypeDefinition(n) &&
+        !isInsideString(n) &&
+        !isInsideConstObjectLiteral(n) &&
+        !isInsideConstDeclaration(n, constName)
+      );
+    });
+
+    // Replace first candidate (safe, single replacement per issue)
+    if (updatedCandidates.length > 0) {
+      updatedCandidates[0]?.replaceWithText(constName);
+    }
+
+    const newContent = sourceFile.getFullText();
+
+    // Format with Prettier for clean output
+    const formattedContent = await formatWithPrettier(newContent, file);
+
+    return {
+      action: 'replace-range',
+      file,
+      line: 1,
+      endLine: content.split('\n').length,
+      oldCode: content,
+      newCode: formattedContent,
+    };
+  } catch {
+    // AST parsing failed - skip this fix
+    return null;
+  }
+}
+
+// ============================================================================
+// URL FIX GENERATOR
+// ============================================================================
+
+/**
+ * Extract URL into a named constant
+ */
+export async function generateUrlFix(
+  content: string,
+  file: string,
+  snippet: string | undefined,
+): Promise<FixOperation | null> {
+  if (!snippet) return null;
+
+  const urlMatch = snippet.match(/(["'`])(https?:\/\/[^"'`\s]+)\1/);
+  if (!urlMatch) return null;
+
+  const url = urlMatch[2] || '';
+  const quote = urlMatch[1] || '"';
+
+  // Generate constant name from URL
+  let constName = 'API_URL';
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '').replace(/\./g, '_').toUpperCase();
+
+    // Add path hint if meaningful
+    const pathParts = parsed.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0 && pathParts[0] !== 'api') {
+      constName = `${host}_${pathParts[0]!.toUpperCase()}_URL`;
+    } else {
+      constName = `${host}_URL`;
+    }
+  } catch {
+    // Keep default
+  }
+
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile('temp.ts', content);
+
+    // Check if constant exists
+    const existingConst = sourceFile
+      .getVariableDeclarations()
+      .find((v) => v.getName() === constName);
+
+    if (!existingConst) {
+      const insertPos = findInsertionPoint(sourceFile);
+      const constDecl = `\nconst ${constName} = ${quote}${url}${quote};\n`;
+      sourceFile.insertText(insertPos, constDecl);
+    }
+
+    // Find and replace the URL string
+    const stringLiterals = sourceFile.getDescendantsOfKind(SyntaxKind.StringLiteral);
+    for (const literal of stringLiterals) {
+      if (literal.getLiteralValue() === url) {
+        literal.replaceWithText(constName);
+        break;
+      }
+    }
+
+    // Format with Prettier for clean output
+    const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
+
+    return {
+      action: 'replace-range',
+      file,
+      line: 1,
+      endLine: content.split('\n').length,
+      oldCode: content,
+      newCode: formattedContent,
+    };
+  } catch {
+    return null;
+  }
+}
