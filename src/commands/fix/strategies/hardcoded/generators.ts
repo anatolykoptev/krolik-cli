@@ -4,10 +4,9 @@
  */
 
 import { SyntaxKind } from 'ts-morph';
-import * as prettier from 'prettier';
 import type { FixOperation } from '../../types';
 import { ALLOWED_NUMBERS } from './constants';
-import { extractASTContext, generateConstName } from './naming';
+import { generateConstName } from './naming';
 import {
   createProject,
   findInsertionPoint,
@@ -15,29 +14,9 @@ import {
   isInsideString,
   isInsideConstObjectLiteral,
   isInsideConstDeclaration,
+  extractASTContext,
 } from './ast-utils';
-
-// ============================================================================
-// FORMATTING
-// ============================================================================
-
-/**
- * Format code with Prettier using project config or sensible defaults
- */
-async function formatWithPrettier(code: string, filepath: string): Promise<string> {
-  try {
-    // Try to resolve config from project
-    const config = await prettier.resolveConfig(filepath);
-
-    return await prettier.format(code, {
-      ...config,
-      filepath, // Let prettier infer parser from extension
-    });
-  } catch {
-    // If formatting fails, return original code
-    return code;
-  }
-}
+import { formatWithPrettier, createReplaceOperation } from './formatters';
 
 // ============================================================================
 // NUMBER FIX GENERATOR
@@ -121,19 +100,10 @@ export async function generateNumberFix(
       updatedCandidates[0]?.replaceWithText(constName);
     }
 
-    const newContent = sourceFile.getFullText();
-
     // Format with Prettier for clean output
-    const formattedContent = await formatWithPrettier(newContent, file);
+    const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
 
-    return {
-      action: 'replace-range',
-      file,
-      line: 1,
-      endLine: content.split('\n').length,
-      oldCode: content,
-      newCode: formattedContent,
-    };
+    return createReplaceOperation(file, content, formattedContent);
   } catch {
     // AST parsing failed - skip this fix
     return null;
@@ -204,14 +174,7 @@ export async function generateUrlFix(
     // Format with Prettier for clean output
     const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
 
-    return {
-      action: 'replace-range',
-      file,
-      line: 1,
-      endLine: content.split('\n').length,
-      oldCode: content,
-      newCode: formattedContent,
-    };
+    return createReplaceOperation(file, content, formattedContent);
   } catch {
     return null;
   }

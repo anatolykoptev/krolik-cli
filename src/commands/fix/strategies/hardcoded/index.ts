@@ -70,5 +70,6 @@ export const hardcodedStrategy: FixStrategy = {
 
 // Re-export for external use
 export { KNOWN_CONSTANTS, ALLOWED_NUMBERS, KEYWORD_TO_NAME } from './constants';
-export { generateConstName, extractASTContext } from './naming';
+export { generateConstName } from './naming';
+export { extractASTContext } from './ast-utils';
 export { generateNumberFix, generateUrlFix } from './generators';

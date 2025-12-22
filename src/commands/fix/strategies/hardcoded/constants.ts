@@ -7,12 +7,13 @@
 // PATTERNS
 // ============================================================================
 
+/** Regex patterns to detect fixable hardcoded values in issue messages */
 export const FIXABLE_PATTERNS = {
   NUMBER: /hardcoded\s+number:\s*(\d+)/i,
   URL: /hardcoded\s+url:\s*(https?:\/\/[^\s]+)/i,
   COLOR: /hardcoded\s+color/i,
   TEXT: /hardcoded\s+string/i,
-};
+} as const;
 
 // Numbers that are typically intentional, not magic
 export const ALLOWED_NUMBERS = new Set([
@@ -26,22 +27,17 @@ export const ALLOWED_NUMBERS = new Set([
 // KNOWN CONSTANTS MAPPING
 // ============================================================================
 
-/**
- * Well-known values that have standard names
- * Priority 0 - highest priority in generateConstName
- */
-export const KNOWN_CONSTANTS: Record<number, string> = {
-  // HTTP Status Codes - 2xx Success
+/** HTTP Status Codes - organized by category */
+const HTTP_STATUS_CODES = {
+  // 2xx Success
   200: 'HTTP_OK',
   201: 'HTTP_CREATED',
   204: 'HTTP_NO_CONTENT',
-
-  // HTTP Status Codes - 3xx Redirection
+  // 3xx Redirection
   301: 'HTTP_MOVED_PERMANENTLY',
   302: 'HTTP_FOUND',
   304: 'HTTP_NOT_MODIFIED',
-
-  // HTTP Status Codes - 4xx Client Errors
+  // 4xx Client Errors
   400: 'HTTP_BAD_REQUEST',
   401: 'HTTP_UNAUTHORIZED',
   403: 'HTTP_FORBIDDEN',
@@ -50,17 +46,15 @@ export const KNOWN_CONSTANTS: Record<number, string> = {
   409: 'HTTP_CONFLICT',
   422: 'HTTP_UNPROCESSABLE_ENTITY',
   429: 'HTTP_TOO_MANY_REQUESTS',
-
-  // HTTP Status Codes - 5xx Server Errors
+  // 5xx Server Errors
   500: 'HTTP_INTERNAL_SERVER_ERROR',
   502: 'HTTP_BAD_GATEWAY',
   503: 'HTTP_SERVICE_UNAVAILABLE',
   504: 'HTTP_GATEWAY_TIMEOUT',
+} as const;
 
-  // Note: Log levels (0-5) intentionally omitted - too ambiguous
-  // (could be array indices, enum values, etc.)
-
-  // Common Ports
+/** Common network ports */
+const NETWORK_PORTS = {
   80: 'HTTP_PORT',
   443: 'HTTPS_PORT',
   3000: 'DEV_PORT',
@@ -70,21 +64,42 @@ export const KNOWN_CONSTANTS: Record<number, string> = {
   8080: 'PROXY_PORT',
   8443: 'HTTPS_ALT_PORT',
   27017: 'MONGODB_PORT',
+} as const;
 
-  // Common Timeouts (ms)
+/** Common timeout values in milliseconds */
+const TIMEOUTS = {
   5000: 'TIMEOUT_5S',
   10000: 'TIMEOUT_10S',
   30000: 'TIMEOUT_30S',
   60000: 'TIMEOUT_60S',
+} as const;
 
-  // File sizes (bytes)
+/** File sizes in bytes */
+const FILE_SIZES = {
   1048576: 'ONE_MEGABYTE',
   5242880: 'FIVE_MEGABYTES',
   10485760: 'TEN_MEGABYTES',
+} as const;
 
-  // Pagination
+/** Pagination defaults */
+const PAGINATION = {
   20: 'DEFAULT_PAGE_SIZE',
   50: 'MAX_PAGE_SIZE',
+} as const;
+
+/**
+ * Well-known values that have standard names
+ * Priority 0 - highest priority in generateConstName
+ *
+ * Note: Log levels (0-5) intentionally omitted - too ambiguous
+ * (could be array indices, enum values, etc.)
+ */
+export const KNOWN_CONSTANTS: Record<number, string> = {
+  ...HTTP_STATUS_CODES,
+  ...NETWORK_PORTS,
+  ...TIMEOUTS,
+  ...FILE_SIZES,
+  ...PAGINATION,
 };
 
 // ============================================================================
@@ -92,9 +107,10 @@ export const KNOWN_CONSTANTS: Record<number, string> = {
 // ============================================================================
 
 /**
- * Keywords that suggest specific constant names
+ * Keywords in context that suggest specific constant names
+ * Used for Priority 1 matching in generateConstName
  */
-export const KEYWORD_TO_NAME: Record<string, string> = {
+export const KEYWORD_TO_NAME = {
   // Time-related
   timeout: 'TIMEOUT_MS',
   delay: 'DELAY_MS',
@@ -125,4 +141,4 @@ export const KEYWORD_TO_NAME: Record<string, string> = {
   // Status codes
   status: 'STATUS_CODE',
   code: 'ERROR_CODE',
-};
+} as const satisfies Record<string, string>;

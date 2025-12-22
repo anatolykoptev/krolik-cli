@@ -1,9 +1,8 @@
 /**
  * @module commands/fix/strategies/hardcoded/naming
- * @description Constant name generation from AST context
+ * @description Constant name generation logic
  */
 
-import { SyntaxKind, NumericLiteral } from 'ts-morph';
 import { KNOWN_CONSTANTS, KEYWORD_TO_NAME } from './constants';
 
 // ============================================================================
@@ -20,65 +19,11 @@ export function toScreamingSnake(str: string): string {
     .toUpperCase();
 }
 
-// ============================================================================
-// AST CONTEXT EXTRACTION
-// ============================================================================
+/** Pattern for generic arg names like "fn_arg0" */
+const GENERIC_ARG_PATTERN = /^.+_arg\d+$/;
 
-/**
- * Extract context from AST node for better constant naming
- */
-export function extractASTContext(node: NumericLiteral): string | null {
-  const parent = node.getParent();
-  if (!parent) return null;
-
-  // Case 1: Property assignment - `{ foo: 42 }` → extract "foo"
-  if (parent.getKind() === SyntaxKind.PropertyAssignment) {
-    const propAssign = parent.asKind(SyntaxKind.PropertyAssignment);
-    if (propAssign) {
-      return propAssign.getName();
-    }
-  }
-
-  // Case 2: Variable declaration - `const foo = 42` → extract "foo"
-  if (parent.getKind() === SyntaxKind.VariableDeclaration) {
-    const varDecl = parent.asKind(SyntaxKind.VariableDeclaration);
-    if (varDecl) {
-      return varDecl.getName();
-    }
-  }
-
-  // Case 3: Function argument - look for parameter name
-  if (parent.getKind() === SyntaxKind.CallExpression) {
-    const call = parent.asKind(SyntaxKind.CallExpression);
-    if (call) {
-      const args = call.getArguments();
-      const argIndex = args.findIndex((arg) => arg === node);
-      // Try to get function signature for param names (complex, skip for now)
-      const funcName = call.getExpression().getText();
-      if (funcName && argIndex >= 0) {
-        return `${funcName}_arg${argIndex}`;
-      }
-    }
-  }
-
-  // Case 4: Binary expression - `x > 42` → extract "x" comparison
-  if (parent.getKind() === SyntaxKind.BinaryExpression) {
-    const binary = parent.asKind(SyntaxKind.BinaryExpression);
-    if (binary) {
-      const left = binary.getLeft();
-      if (left.getKind() === SyntaxKind.Identifier) {
-        return left.getText();
-      }
-    }
-  }
-
-  // Case 5: Array element - skip, no good context
-  if (parent.getKind() === SyntaxKind.ArrayLiteralExpression) {
-    return null;
-  }
-
-  return null;
-}
+/** Suffixes that already indicate the type */
+const VALUE_SUFFIXES = ['_VALUE', '_COUNT', '_SIZE'] as const;
 
 // ============================================================================
 // CONSTANT NAME GENERATION
@@ -114,16 +59,11 @@ export function generateConstName(
   }
 
   // Priority 2: AST context (if no keyword match)
-  if (astContext) {
-    // Skip generic names like "runKrolik_arg2"
-    if (!/^.+_arg\d+$/.test(astContext)) {
-      const upper = toScreamingSnake(astContext);
-      // Avoid duplicating "VALUE" suffix
-      if (upper.endsWith('_VALUE') || upper.endsWith('_COUNT') || upper.endsWith('_SIZE')) {
-        return upper;
-      }
-      return `${upper}_VALUE`;
-    }
+  if (astContext && !GENERIC_ARG_PATTERN.test(astContext)) {
+    const upper = toScreamingSnake(astContext);
+    // Avoid duplicating suffixes like "_VALUE", "_COUNT", "_SIZE"
+    const hasValueSuffix = VALUE_SUFFIXES.some((suffix) => upper.endsWith(suffix));
+    return hasValueSuffix ? upper : `${upper}_VALUE`;
   }
 
   // Priority 3: Heuristic based on value
