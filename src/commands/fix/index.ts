@@ -119,14 +119,16 @@ async function generateFixPlan(
       continue;
     }
 
-    // Add to plan
+    // Add to plan - ONE fix per file only to avoid conflicts
+    // When fix replaces entire file content, multiple fixes on same file
+    // would conflict because each is based on original content
     let plan = plans.get(issue.file);
     if (!plan) {
       plan = { file: issue.file, fixes: [] };
       plans.set(issue.file, plan);
+      plan.fixes.push({ issue, operation, difficulty });
     }
-
-    plan.fixes.push({ issue, operation, difficulty });
+    // Skip additional fixes for this file - user needs to run fix again
   }
 
   // Apply limit if specified
