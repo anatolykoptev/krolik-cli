@@ -238,6 +238,12 @@ export function reduceNesting(
           }
         }
       }
+
+      // Pattern 3: for/while loops with guard if at start
+      changesCount += reduceLoopNesting(body);
+
+      // Pattern 4: nested ifs that can be combined with &&
+      changesCount += combineNestedIfs(body);
     }
 
     if (changesCount === 0) {
@@ -255,6 +261,121 @@ export function reduceNesting(
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * Combine nested ifs into single if with &&
+ *
+ * Transforms:
+ *   if (a) {
+ *     if (b) {
+ *       // code
+ *     }
+ *   }
+ *
+ * To:
+ *   if (a && b) {
+ *     // code
+ *   }
+ */
+function combineNestedIfs(body: Block): number {
+  let changes = 0;
+  const statements = body.getStatements();
+
+  for (const stmt of statements) {
+    if (!Node.isIfStatement(stmt)) continue;
+
+    const outerIf = stmt as IfStatement;
+    const outerThen = outerIf.getThenStatement();
+    const outerElse = outerIf.getElseStatement();
+
+    // Must have no else clause
+    if (outerElse) continue;
+    if (!Node.isBlock(outerThen)) continue;
+
+    const innerStatements = outerThen.getStatements();
+    // Must have exactly one statement which is an if
+    if (innerStatements.length !== 1) continue;
+
+    const innerStmt = innerStatements[0];
+    if (!innerStmt || !Node.isIfStatement(innerStmt)) continue;
+
+    const innerIf = innerStmt as IfStatement;
+    const innerElse = innerIf.getElseStatement();
+
+    // Inner if must also have no else
+    if (innerElse) continue;
+
+    const outerCond = outerIf.getExpression().getText();
+    const innerCond = innerIf.getExpression().getText();
+    const innerBody = innerIf.getThenStatement().getText();
+
+    // Combine conditions with &&
+    const combinedCond = `(${outerCond}) && (${innerCond})`;
+    outerIf.replaceWithText(`if (${combinedCond}) ${innerBody}`);
+    changes++;
+  }
+
+  return changes;
+}
+
+/**
+ * Reduce nesting in loops by converting guard ifs to early continue
+ *
+ * Transforms:
+ *   for (x of arr) {
+ *     if (condition) {
+ *       // lots of code
+ *     }
+ *   }
+ *
+ * To:
+ *   for (x of arr) {
+ *     if (!condition) continue;
+ *     // lots of code
+ *   }
+ */
+function reduceLoopNesting(body: Block): number {
+  let changes = 0;
+
+  // Find for and while statements
+  const loops = [
+    ...body.getDescendantsOfKind(SyntaxKind.ForStatement),
+    ...body.getDescendantsOfKind(SyntaxKind.ForOfStatement),
+    ...body.getDescendantsOfKind(SyntaxKind.ForInStatement),
+    ...body.getDescendantsOfKind(SyntaxKind.WhileStatement),
+  ];
+
+  for (const loop of loops) {
+    const loopBody = loop.getStatement();
+    if (!Node.isBlock(loopBody)) continue;
+
+    const statements = loopBody.getStatements();
+    if (statements.length !== 1) continue;
+
+    const firstStmt = statements[0];
+    if (!firstStmt || !Node.isIfStatement(firstStmt)) continue;
+
+    const ifStmt = firstStmt as IfStatement;
+    const thenBlock = ifStmt.getThenStatement();
+    const elseBlock = ifStmt.getElseStatement();
+
+    // Only if there's no else and then has multiple statements
+    if (elseBlock || !Node.isBlock(thenBlock)) continue;
+
+    const thenStatements = thenBlock.getStatements();
+    if (thenStatements.length < 2) continue;
+
+    const condition = ifStmt.getExpression().getText();
+    const invertedCondition = invertCondition(condition);
+    const innerCode = thenStatements.map((s) => s.getText()).join('\n');
+
+    // Replace with early continue + inner code
+    ifStmt.replaceWithText(`if (${invertedCondition}) continue;\n\n${innerCode}`);
+    changes++;
+  }
+
+  return changes;
 }
 
 // ============================================================================
