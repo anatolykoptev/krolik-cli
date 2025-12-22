@@ -1,0 +1,86 @@
+{
+  "name": "ai-rabbit-toolkit",
+  "version": "1.0.0",
+  "description": "AI Rabbit — fast AI-assisted development toolkit for TypeScript projects",
+  "keywords": [
+    "cli",
+    "ai",
+    "developer-tools",
+    "typescript",
+    "code-review",
+    "prisma",
+    "trpc",
+    "nextjs"
+  ],
+  "author": "Anatoly Koptev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anatolykoptev/ai-rabbit-toolkit.git"
+  },
+  "homepage": "https://github.com/anatolykoptev/ai-rabbit-toolkit#readme",
+  "bugs": {
+    "url": "https://github.com/anatolykoptev/ai-rabbit-toolkit/issues"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "rabbit": "./dist/bin/cli.js",
+    "ai-rabbit": "./dist/bin/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/bin/cli.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "pnpm build",
+    "release": "pnpm build && changeset publish"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "cosmiconfig": "^9.0.0",
+    "ora": "^8.2.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@changesets/cli": "^2.29.5",
+    "@types/node": "^22.15.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@10.0.0"
+}

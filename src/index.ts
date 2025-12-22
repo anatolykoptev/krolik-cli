@@ -1,0 +1,48 @@
+/**
+ * @module ai-rabbit-toolkit
+ * @description AI Rabbit — fast AI-assisted development toolkit
+ *
+ * @example
+ * ```typescript
+ * import { defineConfig } from 'ai-rabbit-toolkit';
+ *
+ * export default defineConfig({
+ *   name: 'my-project',
+ *   paths: {
+ *     web: 'apps/web',
+ *     api: 'packages/api',
+ *   },
+ * });
+ * ```
+ */
+
+// Configuration
+export { defineConfig, loadConfig, getConfig } from './config';
+
+// Types
+export type {
+  RabbitConfig,
+  ResolvedConfig,
+  PathConfig,
+  FeatureConfig,
+  PrismaConfig,
+  TrpcConfig,
+  TemplateConfig,
+} from './types';
+
+// Command types
+export type {
+  CommandContext,
+  CommandResult,
+  StatusResult,
+  ReviewResult,
+  SchemaResult,
+  RoutesResult,
+  Logger,
+} from './types';
+
+// Library utilities (for advanced usage)
+export { createLogger } from './lib/logger';
+export { exec, tryExec, execLines } from './lib/shell';
+export { findFiles, readFile, writeFile } from './lib/fs';
+export { isGitRepo, getCurrentBranch, getStatus } from './lib/git';
