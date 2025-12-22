@@ -5,6 +5,11 @@
  * Uses ts-morph for safe code transformations:
  * - Magic numbers → Named constants
  * - URLs → Config constants
+ *
+ * Smart features:
+ * - Extracts context from AST (property names, variable names)
+ * - Skips numbers in const object literals (intentional mappings)
+ * - Generates meaningful constant names from context
  */
 
 import { Project, SyntaxKind, SourceFile, NumericLiteral } from 'ts-morph';
@@ -34,11 +39,18 @@ const ALLOWED_NUMBERS = new Set([
 // CONSTANT NAME GENERATION
 // ============================================================================
 
-const CONTEXT_TO_NAME: Record<string, string> = {
+/**
+ * Keywords that suggest specific constant names
+ */
+const KEYWORD_TO_NAME: Record<string, string> = {
+  // Time-related
   timeout: 'TIMEOUT_MS',
   delay: 'DELAY_MS',
   interval: 'INTERVAL_MS',
   duration: 'DURATION_MS',
+  debounce: 'DEBOUNCE_MS',
+  throttle: 'THROTTLE_MS',
+  // Size-related
   width: 'DEFAULT_WIDTH',
   height: 'DEFAULT_HEIGHT',
   size: 'MAX_SIZE',
@@ -46,30 +58,124 @@ const CONTEXT_TO_NAME: Record<string, string> = {
   limit: 'MAX_LIMIT',
   max: 'MAX_VALUE',
   min: 'MIN_VALUE',
+  // Count-related
   count: 'DEFAULT_COUNT',
   total: 'TOTAL_COUNT',
   page: 'PAGE_SIZE',
   retry: 'MAX_RETRIES',
   attempt: 'MAX_ATTEMPTS',
+  // Position
   index: 'DEFAULT_INDEX',
   offset: 'DEFAULT_OFFSET',
+  // Network
   port: 'DEFAULT_PORT',
   threshold: 'THRESHOLD',
+  // Status codes
+  status: 'STATUS_CODE',
+  code: 'ERROR_CODE',
 };
 
-function generateConstName(value: number, context: string): string {
+/**
+ * Convert camelCase or snake_case to SCREAMING_SNAKE_CASE
+ */
+function toScreamingSnake(str: string): string {
+  return str
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/[-\s]/g, '_')
+    .toUpperCase();
+}
+
+/**
+ * Extract context from AST node for better constant naming
+ */
+function extractASTContext(node: NumericLiteral): string | null {
+  const parent = node.getParent();
+  if (!parent) return null;
+
+  // Case 1: Property assignment - `{ foo: 42 }` → extract "foo"
+  if (parent.getKind() === SyntaxKind.PropertyAssignment) {
+    const propAssign = parent.asKind(SyntaxKind.PropertyAssignment);
+    if (propAssign) {
+      return propAssign.getName();
+    }
+  }
+
+  // Case 2: Variable declaration - `const foo = 42` → extract "foo"
+  if (parent.getKind() === SyntaxKind.VariableDeclaration) {
+    const varDecl = parent.asKind(SyntaxKind.VariableDeclaration);
+    if (varDecl) {
+      return varDecl.getName();
+    }
+  }
+
+  // Case 3: Function argument - look for parameter name
+  if (parent.getKind() === SyntaxKind.CallExpression) {
+    const call = parent.asKind(SyntaxKind.CallExpression);
+    if (call) {
+      const args = call.getArguments();
+      const argIndex = args.findIndex(arg => arg === node);
+      // Try to get function signature for param names (complex, skip for now)
+      const funcName = call.getExpression().getText();
+      if (funcName && argIndex >= 0) {
+        return `${funcName}_arg${argIndex}`;
+      }
+    }
+  }
+
+  // Case 4: Binary expression - `x > 42` → extract "x" comparison
+  if (parent.getKind() === SyntaxKind.BinaryExpression) {
+    const binary = parent.asKind(SyntaxKind.BinaryExpression);
+    if (binary) {
+      const left = binary.getLeft();
+      if (left.getKind() === SyntaxKind.Identifier) {
+        return left.getText();
+      }
+    }
+  }
+
+  // Case 5: Array element - skip, no good context
+  if (parent.getKind() === SyntaxKind.ArrayLiteralExpression) {
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Generate a meaningful constant name from context
+ */
+function generateConstName(value: number, context: string, astContext: string | null): string {
   const lower = context.toLowerCase();
 
-  for (const [keyword, name] of Object.entries(CONTEXT_TO_NAME)) {
+  // Priority 1: Keyword matching from snippet/message (most semantic)
+  for (const [keyword, name] of Object.entries(KEYWORD_TO_NAME)) {
     if (lower.includes(keyword)) {
       return name;
     }
   }
 
-  // Fallback with value hint
+  // Priority 2: AST context (if no keyword match)
+  if (astContext) {
+    // Skip generic names like "runKrolik_arg2"
+    if (!/^.+_arg\d+$/.test(astContext)) {
+      const upper = toScreamingSnake(astContext);
+      // Avoid duplicating "VALUE" suffix
+      if (upper.endsWith('_VALUE') || upper.endsWith('_COUNT') || upper.endsWith('_SIZE')) {
+        return upper;
+      }
+      return `${upper}_VALUE`;
+    }
+  }
+
+  // Priority 3: Heuristic based on value
+  // Large values (>=1000) in function args are often timeouts
+  if (value >= 1000 && value <= 300000) {
+    return `TIMEOUT_MS_${value}`;
+  }
   if (value >= 1000) {
     return `LARGE_VALUE_${value}`;
   }
+
   return `MAGIC_${value}`;
 }
 
@@ -162,6 +268,50 @@ function isInsideString(node: NumericLiteral): boolean {
 }
 
 /**
+ * Check if a numeric literal is inside a const object literal (mapping/lookup)
+ * Examples: `const LOG_LEVELS = { error: 3 }` - these are intentional
+ */
+function isInsideConstObjectLiteral(node: NumericLiteral): boolean {
+  let parent = node.getParent();
+  let foundObjectLiteral = false;
+
+  while (parent) {
+    const kind = parent.getKind();
+
+    // Track if we're inside an object literal
+    if (kind === SyntaxKind.ObjectLiteralExpression) {
+      foundObjectLiteral = true;
+    }
+
+    // If we find a const variable declaration containing an object literal
+    if (kind === SyntaxKind.VariableDeclaration && foundObjectLiteral) {
+      const varDecl = parent.asKind(SyntaxKind.VariableDeclaration);
+      if (varDecl) {
+        // Check if it's a SCREAMING_SNAKE_CASE or PascalCase const (likely a mapping)
+        const name = varDecl.getName();
+        if (name === name.toUpperCase() || /^[A-Z][a-zA-Z]*$/.test(name)) {
+          return true;
+        }
+      }
+    }
+
+    // If we hit a VariableStatement with const keyword and object literal
+    if (kind === SyntaxKind.VariableStatement && foundObjectLiteral) {
+      const varStmt = parent.asKind(SyntaxKind.VariableStatement);
+      if (varStmt) {
+        const declList = varStmt.getDeclarationList();
+        if (declList.getFlags() & 2 /* ConstKeyword */) {
+          return true;
+        }
+      }
+    }
+
+    parent = parent.getParent();
+  }
+  return false;
+}
+
+/**
  * Check if a numeric literal is inside a const declaration with given name
  * (to avoid replacing the value in `const FOO = 42;` with `const FOO = FOO;`)
  */
@@ -179,6 +329,18 @@ function isInsideConstDeclaration(node: NumericLiteral, constName: string): bool
   return false;
 }
 
+/**
+ * Check if number looks like a timestamp or date component
+ */
+function looksLikeTimestamp(value: number): boolean {
+  // Unix timestamp range (roughly 2000-2050)
+  if (value > 946684800000 && value < 2524608000000) return true;
+  // Year values
+  if (value >= 1970 && value <= 2100) return true;
+  // Month/day values in date context handled by ALLOWED_NUMBERS
+  return false;
+}
+
 // ============================================================================
 // STRATEGY
 // ============================================================================
@@ -192,8 +354,17 @@ export const hardcodedStrategy: FixStrategy = {
     if (FIXABLE_PATTERNS.NUMBER.test(message)) {
       const match = message.match(/(\d+)/);
       const value = match ? parseInt(match[1] || '0', 10) : 0;
+
       // Skip commonly acceptable numbers
-      return !ALLOWED_NUMBERS.has(value);
+      if (ALLOWED_NUMBERS.has(value)) return false;
+
+      // Skip timestamps
+      if (looksLikeTimestamp(value)) return false;
+
+      // We CAN fix status codes - they should be constants
+      // We CAN fix port numbers - they should be config
+
+      return true;
     }
 
     if (FIXABLE_PATTERNS.URL.test(message)) {
@@ -226,7 +397,10 @@ export const hardcodedStrategy: FixStrategy = {
 /**
  * Extract magic number into a named constant using AST
  *
- * Key fix: Don't rely on line numbers after insertion - search by value only
+ * Improvements:
+ * - Uses AST context for better constant names
+ * - Skips numbers in const object literals (intentional mappings)
+ * - Smart filtering of false positives
  */
 function generateNumberFixAST(
   content: string,
@@ -254,15 +428,19 @@ function generateNumberFixAST(
         return (
           value === targetValue &&
           !isInsideTypeDefinition(n) &&
-          !isInsideString(n)
+          !isInsideString(n) &&
+          !isInsideConstObjectLiteral(n) // NEW: Skip const object mappings
         );
       });
 
     if (candidates.length === 0) return null;
 
+    // Extract AST context from first candidate for better naming
+    const astContext = extractASTContext(candidates[0]!);
+
     // Generate constant name from context
     const context = snippet || message;
-    const constName = generateConstName(targetValue, context);
+    const constName = generateConstName(targetValue, context, astContext);
 
     // Check if constant already exists
     const existingConst = sourceFile
@@ -287,6 +465,7 @@ function generateNumberFixAST(
           value === targetValue &&
           !isInsideTypeDefinition(n) &&
           !isInsideString(n) &&
+          !isInsideConstObjectLiteral(n) &&
           !isInsideConstDeclaration(n, constName)
         );
       });
@@ -332,8 +511,18 @@ function generateUrlFix(
   let constName = 'API_URL';
   try {
     const parsed = new URL(url);
-    const host = parsed.hostname.replace(/\./g, '_').toUpperCase();
-    constName = `${host}_URL`;
+    const host = parsed.hostname
+      .replace(/^www\./, '')
+      .replace(/\./g, '_')
+      .toUpperCase();
+
+    // Add path hint if meaningful
+    const pathParts = parsed.pathname.split('/').filter(Boolean);
+    if (pathParts.length > 0 && pathParts[0] !== 'api') {
+      constName = `${host}_${pathParts[0]!.toUpperCase()}_URL`;
+    } else {
+      constName = `${host}_URL`;
+    }
   } catch {
     // Keep default
   }
