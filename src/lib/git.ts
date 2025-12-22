@@ -182,3 +182,82 @@ export function getStagedDiff(filepath?: string, cwd?: string): string {
   const result = tryExec(`git diff --cached ${fileArg}`, shellOpts(cwd));
   return result.success ? result.output : '';
 }
+
+/**
+ * Get full diff content between refs or for working directory
+ */
+export function getDiff(options?: {
+  base?: string;
+  head?: string;
+  staged?: boolean;
+  cwd?: string;
+}): string {
+  const { base, head, staged, cwd } = options ?? {};
+
+  let cmd: string;
+  if (staged) {
+    cmd = 'git diff --cached';
+  } else if (base && head) {
+    cmd = `git diff ${base}...${head}`;
+  } else if (base) {
+    cmd = `git diff ${base}`;
+  } else {
+    cmd = 'git diff';
+  }
+
+  const result = tryExec(cmd, shellOpts(cwd));
+  return result.success ? result.output : '';
+}
+
+/**
+ * Get list of staged files with their status
+ */
+export function getStagedFiles(cwd?: string): Array<{ path: string; status: string }> {
+  const result = tryExec('git diff --cached --name-status', shellOpts(cwd));
+  if (!result.success || !result.output) return [];
+
+  return result.output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [status, ...pathParts] = line.split('\t');
+      return {
+        status: status ?? 'M',
+        path: pathParts.join('\t'),
+      };
+    });
+}
+
+/**
+ * Get list of changed files (unstaged)
+ */
+export function getChangedFiles(cwd?: string): string[] {
+  const result = tryExec('git diff --name-only', shellOpts(cwd));
+  if (!result.success || !result.output) return [];
+  return result.output.split('\n').filter(Boolean);
+}
+
+/**
+ * Get files changed between two refs
+ */
+export function getChangedFilesBetween(base: string, head: string, cwd?: string): string[] {
+  const result = tryExec(`git diff --name-only ${base}...${head}`, shellOpts(cwd));
+  if (!result.success || !result.output) return [];
+  return result.output.split('\n').filter(Boolean);
+}
+
+/**
+ * Get the merge base between two refs
+ */
+export function getMergeBase(ref1: string, ref2: string, cwd?: string): string | null {
+  const result = tryExec(`git merge-base ${ref1} ${ref2}`, shellOpts(cwd));
+  return result.success ? result.output : null;
+}
+
+/**
+ * Check if a ref exists
+ */
+export function refExists(ref: string, cwd?: string): boolean {
+  const result = tryExec(`git rev-parse --verify ${ref}`, shellOpts(cwd));
+  return result.success;
+}

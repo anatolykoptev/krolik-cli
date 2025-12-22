@@ -6,3 +6,13 @@
 export { loadConfig, getConfig, clearConfigCache, defineConfig, findProjectRoot } from './loader';
 export { createDefaultConfig, DEFAULT_PATHS, DEFAULT_FEATURES, DEFAULT_EXCLUDE, DEFAULT_EXTENSIONS } from './defaults';
 export { detectAll, detectFeatures, detectPaths, detectPrisma, detectTrpc, detectProjectName } from './detect';
+
+// Domain utilities
+export {
+  DOMAIN_KEYWORDS,
+  DOMAIN_FILES,
+  DOMAIN_APPROACHES,
+  detectDomains,
+  getRelatedFiles,
+  getApproaches,
+} from './domains';

@@ -38,5 +38,24 @@ export {
   getDiffStats,
   getFileDiff,
   getStagedDiff,
+  getDiff,
+  getStagedFiles,
+  getChangedFiles,
+  getChangedFilesBetween,
+  getMergeBase,
+  refExists,
 } from './git';
 export type { GitStatus, GitCommit, GitAheadBehind } from './git';
+
+// GitHub
+export {
+  isGhAvailable,
+  isGhAuthenticated,
+  getRepoInfo,
+  getIssue,
+  getPR,
+  getCurrentPR,
+  listIssues,
+  listPRs,
+} from './github';
+export type { GitHubIssue, GitHubPR } from './github';

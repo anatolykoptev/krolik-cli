@@ -1,0 +1,108 @@
+/**
+ * @module commands/context/domains
+ * @description Domain detection and file resolution for context
+ */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import {
+  DOMAIN_KEYWORDS,
+  DOMAIN_FILES,
+  DOMAIN_APPROACHES,
+  detectDomains as baseDetectDomains,
+} from '../../config/domains';
+
+/**
+ * Detect domains from text content
+ */
+export function detectDomains(text: string): string[] {
+  return baseDetectDomains(text);
+}
+
+/**
+ * Find related files for detected domains
+ */
+export function findRelatedFiles(domains: string[], projectRoot: string): string[] {
+  const files: string[] = [];
+
+  for (const domain of domains) {
+    const patterns = DOMAIN_FILES[domain] || [];
+    for (const pattern of patterns) {
+      // Convert glob pattern to check
+      const basePath = pattern.replace(/\*\*?\/?\*?\.?[a-z]*$/i, '');
+      const fullPath = path.join(projectRoot, basePath);
+
+      if (fs.existsSync(fullPath)) {
+        files.push(basePath);
+      }
+    }
+  }
+
+  return [...new Set(files)];
+}
+
+/**
+ * Get suggested approaches for domains
+ */
+export function getApproaches(domains: string[]): string[] {
+  const approaches: string[] = ['1. Read relevant CLAUDE.md files for project rules'];
+
+  for (const domain of domains) {
+    const domainApproaches = DOMAIN_APPROACHES[domain] || [];
+    for (const approach of domainApproaches) {
+      if (!approaches.includes(approach)) {
+        approaches.push(approach);
+      }
+    }
+  }
+
+  approaches.push(`${approaches.length + 1}. Run \`pnpm typecheck && pnpm lint\` before committing`);
+
+  return approaches;
+}
+
+/**
+ * Generate a checklist for the task
+ */
+export function generateChecklist(domains: string[]): string[] {
+  const checklist: string[] = [
+    '[ ] Read CLAUDE.md for project rules',
+    '[ ] Check existing components before creating new ones',
+    '[ ] Follow existing patterns in the codebase',
+    '[ ] Run typecheck before committing',
+    '[ ] Run lint before committing',
+  ];
+
+  const datadomains = ['booking', 'events', 'crm', 'places', 'users'];
+  if (domains.some((d) => datadomains.includes(d))) {
+    checklist.push('[ ] Update Prisma schema if needed');
+    checklist.push('[ ] Add/update tRPC router methods');
+    checklist.push('[ ] Add/update Zod schemas');
+  }
+
+  return checklist;
+}
+
+/**
+ * Get relevant documentation files
+ */
+export function getRelevantDocs(domains: string[], projectRoot: string): string[] {
+  const docMappings: Record<string, string[]> = {
+    booking: ['docs/BOOKING_SYSTEM.md', 'CLAUDE.md'],
+    events: ['docs/TICKETING_SYSTEM.md', 'CLAUDE.md'],
+    general: ['CLAUDE.md'],
+  };
+
+  const docs: string[] = [];
+
+  for (const domain of domains) {
+    const domainDocs = docMappings[domain] || docMappings.general;
+    docs.push(...domainDocs);
+  }
+
+  // Filter to existing files
+  return [...new Set(docs)].filter((doc) => {
+    const fullPath = path.join(projectRoot, doc);
+    return fs.existsSync(fullPath);
+  });
+}

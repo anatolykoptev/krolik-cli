@@ -221,3 +221,82 @@ export interface RoutesResult {
   queries: number;
   mutations: number;
 }
+
+/**
+ * Context command result
+ */
+export interface ContextResult {
+  /** Task description or issue title */
+  task: string;
+  /** Detected domains */
+  domains: string[];
+  /** Related files found */
+  relatedFiles: string[];
+  /** Suggested implementation approach */
+  approach: string[];
+  /** GitHub issue if provided */
+  issue?: {
+    number: number;
+    title: string;
+    body: string;
+    labels: string[];
+  };
+}
+
+/**
+ * Issue parsing result
+ */
+export interface IssueResult {
+  number: number;
+  title: string;
+  description: string;
+  checklist: ChecklistItem[];
+  labels: string[];
+  domains: string[];
+}
+
+/**
+ * Checklist item from issue
+ */
+export interface ChecklistItem {
+  text: string;
+  checked: boolean;
+  subtasks?: ChecklistItem[];
+}
+
+/**
+ * Security audit result
+ */
+export interface SecurityResult {
+  vulnerabilities: SecurityVulnerability[];
+  codeIssues: SecurityCodeIssue[];
+  summary: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
+
+/**
+ * Security vulnerability from npm audit
+ */
+export interface SecurityVulnerability {
+  package: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  title: string;
+  path: string;
+  fixAvailable: boolean;
+}
+
+/**
+ * Security issue in code
+ */
+export interface SecurityCodeIssue {
+  file: string;
+  line: number;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  pattern: string;
+  message: string;
+  suggestion?: string;
+}
