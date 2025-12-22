@@ -1,7 +1,7 @@
 {
-  "name": "ai-rabbit-toolkit",
+  "name": "krolik-cli",
   "version": "1.0.0",
-  "description": "AI Rabbit — fast AI-assisted development toolkit for TypeScript projects",
+  "description": "KROLIK — fast AI-assisted development toolkit for TypeScript projects",
   "keywords": [
     "cli",
     "ai",
@@ -10,17 +10,18 @@
     "code-review",
     "prisma",
     "trpc",
-    "nextjs"
+    "nextjs",
+    "krolik"
   ],
   "author": "Anatoly Koptev",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anatolykoptev/ai-rabbit-toolkit.git"
+    "url": "https://github.com/anatolykoptev/krolik-cli.git"
   },
-  "homepage": "https://github.com/anatolykoptev/ai-rabbit-toolkit#readme",
+  "homepage": "https://github.com/anatolykoptev/krolik-cli#readme",
   "bugs": {
-    "url": "https://github.com/anatolykoptev/ai-rabbit-toolkit/issues"
+    "url": "https://github.com/anatolykoptev/krolik-cli/issues"
   },
   "type": "module",
   "exports": {
@@ -36,8 +37,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "rabbit": "./dist/bin/cli.js",
-    "ai-rabbit": "./dist/bin/cli.js"
+    "krolik": "./dist/bin/cli.js"
   },
   "files": [
     "dist",

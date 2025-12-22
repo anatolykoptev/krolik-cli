@@ -1,10 +1,10 @@
 /**
- * @module ai-rabbit-toolkit
- * @description AI Rabbit — fast AI-assisted development toolkit
+ * @module krolik-cli
+ * @description KROLIK — fast AI-assisted development toolkit
  *
  * @example
  * ```typescript
- * import { defineConfig } from 'ai-rabbit-toolkit';
+ * import { defineConfig } from 'krolik-cli';
  *
  * export default defineConfig({
  *   name: 'my-project',
@@ -21,6 +21,7 @@ export { defineConfig, loadConfig, getConfig } from './config';
 
 // Types
 export type {
+  KrolikConfig,
   RabbitConfig,
   ResolvedConfig,
   PathConfig,

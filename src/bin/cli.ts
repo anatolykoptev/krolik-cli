@@ -1,6 +1,6 @@
 /**
  * @module bin/cli
- * @description AI Rabbit CLI entry point
+ * @description KROLIK CLI entry point
  */
 
 import { Command } from 'commander';
@@ -14,10 +14,9 @@ const VERSION = '1.0.0';
  * ASCII art logo
  */
 const LOGO = `
-${chalk.cyan('╔══════════════════════════════════════════════════════════════╗')}
-${chalk.cyan('║')}  ${chalk.bold.white('🐰 AI RABBIT TOOLKIT')} ${chalk.dim(`v${VERSION}`)}                            ${chalk.cyan('║')}
-${chalk.cyan('║')}  ${chalk.dim('Fast AI-assisted development for TypeScript projects')}       ${chalk.cyan('║')}
-${chalk.cyan('╚══════════════════════════════════════════════════════════════╝')}
+${chalk.green('   (\\(\\ ')}
+${chalk.green('   (-.-) ')}  ${chalk.bold.white('KROLIK CLI')} ${chalk.dim(`v${VERSION}`)}
+${chalk.green('   o_(")(")')} ${chalk.dim('Fast AI-assisted development toolkit')}
 `;
 
 /** Command options type */
@@ -40,8 +39,8 @@ function createProgram(): Command {
   const program = new Command();
 
   program
-    .name('rabbit')
-    .description('AI Rabbit — fast AI-assisted development toolkit')
+    .name('krolik')
+    .description('KROLIK — fast AI-assisted development toolkit')
     .version(VERSION, '-V, --version', 'Output version number')
     .option('-c, --config <path>', 'Path to config file')
     .option('--project-root <path>', 'Project root directory')
@@ -150,7 +149,7 @@ function createProgram(): Command {
   // Init command
   program
     .command('init')
-    .description('Initialize rabbit.config.ts')
+    .description('Initialize krolik.config.ts')
     .option('--force', 'Overwrite existing config')
     .action(async (options: CommandOptions) => {
       const { runInit } = await import('../commands/init');

@@ -13,7 +13,7 @@ interface InitOptions {
   typescript?: boolean;
 }
 
-const CONFIG_TEMPLATE = `import { defineConfig } from 'ai-rabbit-toolkit';
+const CONFIG_TEMPLATE = `import { defineConfig } from 'krolik-cli';
 
 export default defineConfig({
   // Project name (auto-detected from package.json if not specified)
@@ -53,9 +53,9 @@ export default defineConfig({
 export async function runInit(context: CommandContext & { options: InitOptions }): Promise<void> {
   const { logger, config, options } = context;
 
-  logger.section('Initialize Rabbit Config');
+  logger.section('Initialize Krolik Config');
 
-  const configPath = join(config.projectRoot, 'rabbit.config.ts');
+  const configPath = join(config.projectRoot, 'krolik.config.ts');
 
   try {
     writeFileSync(configPath, CONFIG_TEMPLATE, { flag: options.force ? 'w' : 'wx' });

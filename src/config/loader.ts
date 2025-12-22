@@ -5,14 +5,14 @@
 
 import * as path from 'node:path';
 import { cosmiconfig } from 'cosmiconfig';
-import type { RabbitConfig, ResolvedConfig } from '../types';
+import type { KrolikConfig, ResolvedConfig } from '../types';
 import { createDefaultConfig } from './defaults';
 import { detectAll } from './detect';
 
 /**
  * Config file names to search for
  */
-const CONFIG_MODULE_NAME = 'rabbit';
+const CONFIG_MODULE_NAME = 'krolik';
 
 /**
  * Cached config instance
@@ -45,17 +45,17 @@ export function findProjectRoot(startDir: string = process.cwd()): string {
 /**
  * Load config from file using cosmiconfig
  */
-async function loadConfigFile(projectRoot: string): Promise<RabbitConfig | null> {
+async function loadConfigFile(projectRoot: string): Promise<KrolikConfig | null> {
   const explorer = cosmiconfig(CONFIG_MODULE_NAME, {
     searchPlaces: [
-      'rabbit.config.ts',
-      'rabbit.config.js',
-      'rabbit.config.mjs',
-      'rabbit.config.json',
-      '.rabbitrc',
-      '.rabbitrc.json',
-      '.rabbitrc.js',
-      '.rabbitrc.ts',
+      'krolik.config.ts',
+      'krolik.config.js',
+      'krolik.config.mjs',
+      'krolik.config.json',
+      '.krolikrc',
+      '.krolikrc.json',
+      '.krolikrc.js',
+      '.krolikrc.ts',
     ],
   });
 
@@ -71,7 +71,7 @@ async function loadConfigFile(projectRoot: string): Promise<RabbitConfig | null>
  * Merge user config with defaults and auto-detected values
  */
 function resolveConfig(
-  userConfig: RabbitConfig | null,
+  userConfig: KrolikConfig | null,
   detected: ReturnType<typeof detectAll>,
   projectRoot: string,
 ): ResolvedConfig {
@@ -171,6 +171,6 @@ export function clearConfigCache(): void {
 /**
  * Helper to define config with type checking
  */
-export function defineConfig(config: RabbitConfig): RabbitConfig {
+export function defineConfig(config: KrolikConfig): KrolikConfig {
   return config;
 }

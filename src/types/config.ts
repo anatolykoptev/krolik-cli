@@ -78,7 +78,7 @@ export interface TemplateConfig {
 /**
  * Main project configuration
  */
-export interface RabbitConfig {
+export interface KrolikConfig {
   /** Project name (for display purposes) */
   name?: string;
 
@@ -107,10 +107,13 @@ export interface RabbitConfig {
   extensions?: string[];
 }
 
+/** @deprecated Use KrolikConfig instead */
+export type RabbitConfig = KrolikConfig;
+
 /**
  * Resolved configuration with all defaults applied
  */
-export interface ResolvedConfig extends Required<RabbitConfig> {
+export interface ResolvedConfig extends Required<KrolikConfig> {
   paths: Required<PathConfig>;
   features: Required<FeatureConfig>;
   prisma: Required<PrismaConfig>;

@@ -1,7 +1,7 @@
-# AI Rabbit Toolkit — Development Rules
+# KROLIK CLI — Development Rules
 
 > Universal CLI toolkit for AI-assisted development.
-> **Version:** 1.0.0 | **Node:** >=20.0.0 | **CLI:** `rabbit`
+> **Version:** 1.0.0 | **Node:** >=20.0.0 | **CLI:** `krolik`
 
 ---
 
@@ -9,7 +9,7 @@
 
 **Purpose:** Универсальный CLI для AI-assisted разработки. Работает с любым TypeScript/JavaScript проектом.
 
-**Name:** AI Rabbit — быстрый как кролик, умный как AI.
+**Name:** KROLIK — быстрый как кролик, умный как AI.
 
 **Key Features:**
 - Project diagnostics (`status`)
@@ -55,9 +55,9 @@ src/commands/codegen/
 ### 3. No Hardcoded Values
 
 All paths and settings come from:
-1. **Config file** (`rabbit.config.ts`)
+1. **Config file** (`krolik.config.ts`)
 2. **CLI arguments** (`--project-root`)
-3. **Environment variables** (`RABBIT_*`)
+3. **Environment variables** (`KROLIK_*`)
 
 ```typescript
 // ❌ Bad
@@ -111,7 +111,7 @@ function parseSchema(content: string): SchemaModel[] {
 ## File Structure
 
 ```
-ai-rabbit-toolkit/
+krolik-cli/
 ├── bin/
 │   └── cli.ts              # Entry point with shebang
 ├── src/
@@ -285,8 +285,8 @@ try {
 
 ```typescript
 command
-  .name('rabbit')
-  .description('AI Rabbit — fast AI-assisted development toolkit')
+  .name('krolik')
+  .description('KROLIK — fast AI-assisted development toolkit')
   .version('1.0.0')
   .option('-c, --config <path>', 'Config file path')
   .option('--json', 'Output as JSON')
@@ -297,10 +297,10 @@ command
 
 ## Config File Format
 
-`rabbit.config.ts` in project root:
+`krolik.config.ts` in project root:
 
 ```typescript
-import { defineConfig } from 'ai-rabbit-toolkit';
+import { defineConfig } from 'krolik-cli';
 
 export default defineConfig({
   // Project name (for display)

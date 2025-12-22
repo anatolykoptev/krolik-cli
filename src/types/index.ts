@@ -9,6 +9,7 @@ export type {
   PrismaConfig,
   TrpcConfig,
   TemplateConfig,
+  KrolikConfig,
   RabbitConfig,
   ResolvedConfig,
 } from './config';

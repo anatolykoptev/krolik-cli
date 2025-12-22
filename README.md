@@ -1,4 +1,10 @@
-# AI Rabbit Toolkit
+# KROLIK CLI
+
+```
+   (\(\
+   (-.-)
+   o_(")(")
+```
 
 Fast AI-assisted development toolkit for TypeScript projects.
 
@@ -18,54 +24,54 @@ Fast AI-assisted development toolkit for TypeScript projects.
 
 ```bash
 # Global install
-npm install -g ai-rabbit-toolkit
+npm install -g krolik-cli
 
 # Or as a dev dependency
-pnpm add -D ai-rabbit-toolkit
+pnpm add -D krolik-cli
 ```
 
 ## Quick Start
 
 ```bash
 # Initialize config
-rabbit init
+krolik init
 
 # Quick project status
-rabbit status
+krolik status
 
 # Status without slow checks
-rabbit status --fast
+krolik status --fast
 
 # Review current branch changes
-rabbit review
+krolik review
 
 # Analyze Prisma schema
-rabbit schema --save
+krolik schema --save
 
 # Analyze tRPC routes
-rabbit routes --save
+krolik routes --save
 
 # Parse GitHub issue
-rabbit issue 123
+krolik issue 123
 
 # Generate code
-rabbit codegen hooks
-rabbit codegen schemas
-rabbit codegen tests
+krolik codegen hooks
+krolik codegen schemas
+krolik codegen tests
 
 # Security audit
-rabbit security
+krolik security
 
 # Start MCP server
-rabbit mcp
+krolik mcp
 ```
 
 ## Configuration
 
-Create `rabbit.config.ts` in your project root:
+Create `krolik.config.ts` in your project root:
 
 ```typescript
-import { defineConfig } from 'ai-rabbit-toolkit';
+import { defineConfig } from 'krolik-cli';
 
 export default defineConfig({
   // Project name (auto-detected from package.json)
@@ -105,7 +111,7 @@ export default defineConfig({
 
 ## Auto-Detection
 
-Rabbit automatically detects:
+Krolik automatically detects:
 
 - **Monorepo** — pnpm-workspace.yaml, npm/yarn workspaces
 - **Prisma** — @prisma/client dependency, schema location
@@ -115,7 +121,7 @@ Rabbit automatically detects:
 
 ## Commands
 
-### `rabbit status`
+### `krolik status`
 
 Quick project diagnostics:
 - Git status (branch, uncommitted changes)
@@ -124,80 +130,80 @@ Quick project diagnostics:
 - TODO count
 
 ```bash
-rabbit status           # Full check
-rabbit status --fast    # Skip typecheck and lint
-rabbit status --json    # JSON output
+krolik status           # Full check
+krolik status --fast    # Skip typecheck and lint
+krolik status --json    # JSON output
 ```
 
-### `rabbit review`
+### `krolik review`
 
 AI-assisted code review:
 
 ```bash
-rabbit review               # Current branch vs main
-rabbit review --staged      # Staged changes only
-rabbit review --pr 123      # Specific PR
-rabbit review -o markdown   # Markdown output
+krolik review               # Current branch vs main
+krolik review --staged      # Staged changes only
+krolik review --pr 123      # Specific PR
+krolik review -o markdown   # Markdown output
 ```
 
-### `rabbit schema`
+### `krolik schema`
 
 Prisma schema analysis:
 
 ```bash
-rabbit schema           # Print to stdout
-rabbit schema --save    # Save to SCHEMA.md
-rabbit schema --json    # JSON output
+krolik schema           # Print to stdout
+krolik schema --save    # Save to SCHEMA.md
+krolik schema --json    # JSON output
 ```
 
-### `rabbit routes`
+### `krolik routes`
 
 tRPC routes analysis:
 
 ```bash
-rabbit routes           # Print to stdout
-rabbit routes --save    # Save to ROUTES.md
-rabbit routes --json    # JSON output
+krolik routes           # Print to stdout
+krolik routes --save    # Save to ROUTES.md
+krolik routes --json    # JSON output
 ```
 
-### `rabbit codegen <target>`
+### `krolik codegen <target>`
 
 Code generation:
 
 ```bash
-rabbit codegen hooks     # Generate React hooks
-rabbit codegen schemas   # Generate Zod schemas
-rabbit codegen tests     # Generate test files
-rabbit codegen barrels   # Generate index.ts exports
-rabbit codegen docs      # Generate documentation
+krolik codegen hooks     # Generate React hooks
+krolik codegen schemas   # Generate Zod schemas
+krolik codegen tests     # Generate test files
+krolik codegen barrels   # Generate index.ts exports
+krolik codegen docs      # Generate documentation
 ```
 
-### `rabbit mcp`
+### `krolik mcp`
 
 Start MCP server for Claude Code integration:
 
 ```bash
-rabbit mcp              # Start on port 3100
-rabbit mcp -p 3200      # Custom port
+krolik mcp              # Start on port 3100
+krolik mcp -p 3200      # Custom port
 ```
 
 Add to Claude Code:
 ```bash
-claude mcp add rabbit -- npx rabbit mcp
+claude mcp add krolik -- npx krolik mcp
 ```
 
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `RABBIT_CONFIG` | Config file path | Auto-detected |
-| `RABBIT_PROJECT_ROOT` | Project root | Current directory |
-| `RABBIT_LOG_LEVEL` | Log level (debug/info/warn/error) | info |
+| `KROLIK_CONFIG` | Config file path | Auto-detected |
+| `KROLIK_PROJECT_ROOT` | Project root | Current directory |
+| `KROLIK_LOG_LEVEL` | Log level (debug/info/warn/error) | info |
 
 ## Programmatic Usage
 
 ```typescript
-import { loadConfig, createLogger, runStatus } from 'ai-rabbit-toolkit';
+import { loadConfig, createLogger, runStatus } from 'krolik-cli';
 
 async function main() {
   const config = await loadConfig();
