@@ -8,10 +8,19 @@
  * - Block extraction for long functions
  */
 
-import type { QualityIssue } from '../../quality/types';
-import type { FixOperation, FixStrategy } from '../types';
-import { reduceNesting, extractFunction } from '../ast-utils';
-import { findRefactorings, detectIfChain, generateLookupMap } from '../refactorings';
+import type { QualityIssue } from "../../quality/types";
+import type { FixOperation, FixStrategy } from "../types";
+import { reduceNesting, extractFunction, createProject, createSourceFile } from "../ast-utils";
+import {
+  findRefactorings,
+  detectIfChain,
+  generateLookupMap,
+} from "../refactorings";
+import * as prettier from "prettier";
+
+const MAX_SIZE = 5;
+
+const MAX_LENGTH = 4;
 
 // ============================================================================
 // COMPLEXITY PATTERNS
@@ -32,7 +41,7 @@ const FIXABLE_PATTERNS = {
  * Complexity fix strategy using AST transformations
  */
 export const complexityStrategy: FixStrategy = {
-  categories: ['complexity'],
+  categories: ["complexity"],
 
   canFix(issue: QualityIssue, _content: string): boolean {
     const { message } = issue;
@@ -45,7 +54,7 @@ export const complexityStrategy: FixStrategy = {
     // We can attempt to fix complexity with smart refactorings
     if (FIXABLE_PATTERNS.COMPLEXITY.test(message)) {
       const match = message.match(/has\s+complexity\s+(\d+)/i);
-      const complexity = match ? parseInt(match[1] || '0', 10) : 0;
+      const complexity = match ? parseInt(match[1] || "0", 10) : 0;
       // Now we can handle higher complexity with if-chain→map and other refactorings
       return complexity >= 10 && complexity <= 120;
     }
@@ -53,7 +62,7 @@ export const complexityStrategy: FixStrategy = {
     // Long functions can be partially fixed with extraction
     if (FIXABLE_PATTERNS.LONG_FUNCTION.test(message)) {
       const match = message.match(/(\d+)\s*lines/i);
-      const lines = match ? parseInt(match[1] || '0', 10) : 0;
+      const lines = match ? parseInt(match[1] || "0", 10) : 0;
       // Only try to fix moderately long functions
       return lines >= 50 && lines <= 200;
     }
@@ -61,27 +70,74 @@ export const complexityStrategy: FixStrategy = {
     return false;
   },
 
-  generateFix(issue: QualityIssue, content: string): FixOperation | null {
+  async generateFix(issue: QualityIssue, content: string): Promise<FixOperation | null> {
     const { message, line, file } = issue;
+    if (!file) return null;
 
-    // Nesting depth issues -> apply early returns
-    if (FIXABLE_PATTERNS.NESTING.test(message)) {
-      return generateNestingFix(content, file, line);
+    try {
+      let result: FixOperation | null = null;
+
+      // Nesting depth issues -> apply early returns
+      if (FIXABLE_PATTERNS.NESTING.test(message)) {
+        result = generateNestingFix(content, file, line);
+      }
+      // Complexity issues -> try early returns first
+      else if (FIXABLE_PATTERNS.COMPLEXITY.test(message)) {
+        result = generateComplexityFix(content, file, line);
+      }
+      // Long function -> suggest extraction points
+      else if (FIXABLE_PATTERNS.LONG_FUNCTION.test(message)) {
+        result = generateLongFunctionFix(content, file, line);
+      }
+
+      if (!result) return null;
+
+      // Validate and format the result
+      const validated = await validateAndFormat(result.newCode, file);
+      if (!validated) return null;
+
+      return {
+        ...result,
+        newCode: validated,
+      };
+    } catch {
+      // AST transformation failed - skip this fix
+      return null;
     }
-
-    // Complexity issues -> try early returns first
-    if (FIXABLE_PATTERNS.COMPLEXITY.test(message)) {
-      return generateComplexityFix(content, file, line);
-    }
-
-    // Long function -> suggest extraction points
-    if (FIXABLE_PATTERNS.LONG_FUNCTION.test(message)) {
-      return generateLongFunctionFix(content, file, line);
-    }
-
-    return null;
   },
 };
+
+// ============================================================================
+// VALIDATION & FORMATTING
+// ============================================================================
+
+/**
+ * Validate syntax and format with Prettier
+ * Returns null if code is invalid
+ */
+async function validateAndFormat(code: string, filepath: string): Promise<string | null> {
+  try {
+    // 1. Validate syntax with ts-morph
+    const project = createProject();
+    const sourceFile = createSourceFile(project, filepath, code);
+    const diagnostics = sourceFile.getPreEmitDiagnostics();
+
+    // Check for syntax errors (not type errors)
+    const syntaxErrors = diagnostics.filter(d => d.getCategory() === 1); // 1 = Error
+    if (syntaxErrors.length > 0) {
+      return null; // Invalid syntax - reject
+    }
+
+    // 2. Format with Prettier
+    const config = await prettier.resolveConfig(filepath);
+    return await prettier.format(code, {
+      ...config,
+      filepath,
+    });
+  } catch {
+    return null; // Parsing failed - reject
+  }
+}
 
 // ============================================================================
 // FIX GENERATORS
@@ -102,10 +158,10 @@ function generateNestingFix(
   }
 
   return {
-    action: 'replace-range',
+    action: "replace-range",
     file,
     line: 1,
-    endLine: content.split('\n').length,
+    endLine: content.split("\n").length,
     oldCode: content,
     newCode: result.newContent,
   };
@@ -119,22 +175,24 @@ function generateComplexityFix(
   file: string,
   targetLine?: number,
 ): FixOperation | null {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
 
   // 1. Try if-chain to map conversion (very effective for complexity)
   if (targetLine) {
     const chain = detectIfChain(content, targetLine);
-    if (chain && chain.conditions.length >= 4) {
-      const originalCode = lines.slice(chain.startLine - 1, chain.endLine).join('\n');
+    if (chain && chain.conditions.length >= MAX_LENGTH) {
+      const originalCode = lines
+        .slice(chain.startLine - 1, chain.endLine)
+        .join("\n");
       const newCode = generateLookupMap(chain);
 
       return {
-        action: 'replace-range',
+        action: "replace-range",
         file,
         line: chain.startLine,
         endLine: chain.endLine,
         oldCode: originalCode,
-        newCode,  // Just the replacement map code
+        newCode, // Just the replacement map code
       };
     }
   }
@@ -143,7 +201,7 @@ function generateComplexityFix(
   const nestingResult = reduceNesting(content, file, targetLine);
   if (nestingResult.success && nestingResult.newContent) {
     return {
-      action: 'replace-range',
+      action: "replace-range",
       file,
       line: 1,
       endLine: lines.length,
@@ -162,12 +220,12 @@ function generateComplexityFix(
         const ref = refactorings[0]!;
 
         return {
-          action: 'replace-range',
+          action: "replace-range",
           file,
           line: ref.startLine,
           endLine: ref.endLine,
           oldCode: ref.originalCode,
-          newCode: ref.newCode,  // Just the replacement, not full file
+          newCode: ref.newCode, // Just the replacement, not full file
         };
       }
     }
@@ -186,7 +244,7 @@ function generateLongFunctionFix(
 ): FixOperation | null {
   if (!startLine) return null;
 
-  const lines = content.split('\n');
+  const lines = content.split("\n");
 
   // Find function boundaries
   const functionEnd = findFunctionEnd(lines, startLine);
@@ -197,11 +255,13 @@ function generateLongFunctionFix(
   if (!extractionRange) return null;
 
   // Determine if async
-  const funcLine = lines[startLine - 1] || '';
-  const isAsync = funcLine.includes('async');
+  const funcLine = lines[startLine - 1] || "";
+  const isAsync = funcLine.includes("async");
 
   // Generate a meaningful name based on content
-  const blockContent = lines.slice(extractionRange.start - 1, extractionRange.end).join('\n');
+  const blockContent = lines
+    .slice(extractionRange.start - 1, extractionRange.end)
+    .join("\n");
   const functionName = generateFunctionName(blockContent);
 
   const result = extractFunction(content, file, {
@@ -216,7 +276,7 @@ function generateLongFunctionFix(
   }
 
   return {
-    action: 'replace-range',
+    action: "replace-range",
     file,
     line: 1,
     endLine: lines.length,
@@ -238,14 +298,14 @@ function findFunctionEnd(lines: string[], startLine: number): number | null {
   let started = false;
 
   for (let i = startLine - 1; i < lines.length; i++) {
-    const line = lines[i] || '';
+    const line = lines[i] || "";
 
     for (const char of line) {
-      if (char === '{') {
+      if (char === "{") {
         braceCount++;
         started = true;
       }
-      if (char === '}') {
+      if (char === "}") {
         braceCount--;
       }
     }
@@ -272,7 +332,7 @@ function findExtractionRange(
   let inFunction = false;
 
   for (let i = funcStart; i < funcEnd - 1; i++) {
-    const line = lines[i] || '';
+    const line = lines[i] || "";
     const trimmed = line.trim();
 
     // Skip the function declaration line
@@ -280,8 +340,8 @@ function findExtractionRange(
 
     // Track braces
     for (const char of line) {
-      if (char === '{') braceCount++;
-      if (char === '}') braceCount--;
+      if (char === "{") braceCount++;
+      if (char === "}") braceCount--;
     }
 
     // Skip if we're inside nested structures at start
@@ -294,20 +354,20 @@ function findExtractionRange(
       inFunction &&
       braceCount === 2 && // One level inside the function
       blockStart === null &&
-      (trimmed.startsWith('if (') ||
-        trimmed.startsWith('for (') ||
-        trimmed.startsWith('while (') ||
-        trimmed.startsWith('try {') ||
-        trimmed.includes('// ===')) // Comment separator
+      (trimmed.startsWith("if (") ||
+        trimmed.startsWith("for (") ||
+        trimmed.startsWith("while (") ||
+        trimmed.startsWith("try {") ||
+        trimmed.includes("// ===")) // Comment separator
     ) {
       blockStart = i + 1;
     }
 
     // Block ends when we return to function-level depth
-    if (blockStart !== null && braceCount === 1 && trimmed.includes('}')) {
+    if (blockStart !== null && braceCount === 1 && trimmed.includes("}")) {
       const blockSize = i + 1 - blockStart;
       // Only extract if the block is significant (5+ lines)
-      if (blockSize >= 5) {
+      if (blockSize >= MAX_SIZE) {
         return { start: blockStart, end: i + 1 };
       }
       blockStart = null;
@@ -316,8 +376,8 @@ function findExtractionRange(
 
   // Fallback: extract middle third of the function
   const funcLength = funcEnd - funcStart;
-  if (funcLength > 30) {
-    const thirdLength = Math.floor(funcLength / 3);
+  if (funcLength > MAX_LENGTH) {
+    const thirdLength = Math.floor(funcLength / MAX_LENGTH);
     return {
       start: funcStart + thirdLength,
       end: funcStart + thirdLength * 2,
@@ -332,30 +392,30 @@ function findExtractionRange(
  * Used to generate meaningful names from code content
  */
 const FUNCTION_NAME_MAP: Record<string, string> = {
-  valid: 'validateInput',
-  error: 'handleError',
-  catch: 'handleError',
-  fetch: 'fetchData',
-  request: 'fetchData',
-  transform: 'transformData',
-  map: 'transformData',
-  filter: 'filterItems',
-  sort: 'sortItems',
-  render: 'renderContent',
-  component: 'renderContent',
-  init: 'initialize',
-  setup: 'initialize',
-  clean: 'cleanup',
-  dispose: 'cleanup',
-  config: 'processConfig',
-  option: 'processConfig',
-  format: 'formatOutput',
-  parse: 'parseInput',
-  check: 'checkCondition',
-  update: 'updateState',
-  create: 'createItem',
-  delete: 'removeItem',
-  remove: 'removeItem',
+  valid: "validateInput",
+  error: "handleError",
+  catch: "handleError",
+  fetch: "fetchData",
+  request: "fetchData",
+  transform: "transformData",
+  map: "transformData",
+  filter: "filterItems",
+  sort: "sortItems",
+  render: "renderContent",
+  component: "renderContent",
+  init: "initialize",
+  setup: "initialize",
+  clean: "cleanup",
+  dispose: "cleanup",
+  config: "processConfig",
+  option: "processConfig",
+  format: "formatOutput",
+  parse: "parseInput",
+  check: "checkCondition",
+  update: "updateState",
+  create: "createItem",
+  delete: "removeItem",
+  remove: "removeItem",
 };
 
 /**
@@ -371,5 +431,5 @@ function generateFunctionName(content: string): string {
     }
   }
 
-  return 'processBlock';
+  return "processBlock";
 }
