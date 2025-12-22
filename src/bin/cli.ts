@@ -26,8 +26,10 @@ interface CommandOptions {
 
 /** Helper to create command context */
 async function createContext(program: Command, options: CommandOptions) {
-  const config = await loadConfig();
   const globalOpts = program.opts();
+  // Support --project-root and --cwd (alias) options
+  const projectRoot = globalOpts.projectRoot || globalOpts.cwd || process.env.KROLIK_PROJECT_ROOT;
+  const config = await loadConfig({ projectRoot });
   const logger = createLogger({ level: globalOpts.verbose ? 'debug' : 'info' });
   return { config, logger, options: { ...globalOpts, ...options } };
 }
@@ -44,6 +46,7 @@ function createProgram(): Command {
     .version(VERSION, '-V, --version', 'Output version number')
     .option('-c, --config <path>', 'Path to config file')
     .option('--project-root <path>', 'Project root directory')
+    .option('--cwd <path>', 'Project root directory (alias for --project-root)')
     .option('--json', 'Output as JSON')
     .option('-v, --verbose', 'Verbose output')
     .option('--no-color', 'Disable colored output');
@@ -127,6 +130,10 @@ function createProgram(): Command {
     .option('-j, --json', 'Output as JSON')
     .option('--markdown', 'Output as markdown')
     .option('--ai', 'Output structured XML for AI assistants (Claude, GPT)')
+    .option('--include-code', 'Include Zod schemas and example code snippets')
+    .option('--domain-history', 'Include git history filtered by domain files')
+    .option('--show-deps', 'Show domain dependencies from package.json')
+    .option('--full', 'Enable all enrichment options (--include-code --domain-history --show-deps)')
     .action(async (options: CommandOptions) => {
       const { runContext } = await import('../commands/context');
       const ctx = await createContext(program, options);
@@ -155,6 +162,61 @@ function createProgram(): Command {
       const { runSecurity } = await import('../commands/security');
       const ctx = await createContext(program, options);
       await runSecurity(ctx);
+    });
+
+  // Quality command
+  program
+    .command('quality')
+    .alias('lint')
+    .description('Analyze code quality: SRP, complexity, type-safety, documentation')
+    .option('--path <path>', 'Path to analyze (default: project root)')
+    .option('--include-tests', 'Include test files in analysis')
+    .option('--max-function-lines <n>', 'Max lines per function (default: 50)', parseInt)
+    .option('--max-functions <n>', 'Max functions per file (default: 10)', parseInt)
+    .option('--max-exports <n>', 'Max exports per file (default: 5)', parseInt)
+    .option('--max-lines <n>', 'Max lines per file (default: 400)', parseInt)
+    .option('--max-complexity <n>', 'Max cyclomatic complexity per function (default: 10)', parseInt)
+    .option('--no-jsdoc', 'Disable JSDoc requirement for exported functions')
+    .option('--category <cat>', 'Filter by category: srp, hardcoded, complexity, mixed-concerns, size, documentation, type-safety, lint')
+    .option('--severity <sev>', 'Filter by severity: error, warning, info')
+    .option('--issues-only', 'Show only issues, no stats')
+    .option('-j, --json', 'Output as JSON')
+    .option('--ai', 'Output as AI-friendly XML')
+    .action(async (options: CommandOptions) => {
+      const { runQuality } = await import('../commands/quality');
+      const ctx = await createContext(program, {
+        ...options,
+        format: options.json ? 'json' : options.ai ? 'ai' : 'text',
+        maxFunctionLines: options.maxFunctionLines,
+        maxFunctionsPerFile: options.maxFunctions,
+        maxExportsPerFile: options.maxExports,
+        maxFileLines: options.maxLines,
+        maxComplexity: options.maxComplexity,
+        requireJSDoc: options.jsdoc !== false,
+        issuesOnly: options.issuesOnly,
+      });
+      await runQuality(ctx);
+    });
+
+  // Fix command (autofixer)
+  program
+    .command('fix')
+    .description('Auto-fix code quality issues')
+    .option('--path <path>', 'Path to fix (default: project root)')
+    .option('--category <cat>', 'Only fix specific category: lint, type-safety, complexity')
+    .option('--dry-run', 'Show what would be fixed without applying')
+    .option('--trivial', 'Only fix trivial issues (console, debugger)')
+    .option('--yes', 'Auto-confirm all fixes')
+    .option('--backup', 'Create backup before fixing')
+    .option('--limit <n>', 'Max fixes to apply', parseInt)
+    .action(async (options: CommandOptions) => {
+      const { runFix } = await import('../commands/fix');
+      const ctx = await createContext(program, {
+        ...options,
+        dryRun: options.dryRun,
+        trivialOnly: options.trivial,
+      });
+      await runFix(ctx);
     });
 
   // Init command
