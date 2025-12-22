@@ -34,17 +34,45 @@ export function analyzeSchema(schemaDir: string): SchemaOutput {
 }
 
 /**
+ * Find prisma schema directory
+ */
+function findSchemaDir(projectRoot: string, configSchemaDir?: string): string | null {
+  // Check config-specified path first
+  if (configSchemaDir) {
+    const configPath = path.isAbsolute(configSchemaDir)
+      ? configSchemaDir
+      : path.join(projectRoot, configSchemaDir);
+    if (fs.existsSync(configPath)) return configPath;
+  }
+
+  // Common prisma locations
+  const candidates = [
+    'packages/db/prisma',     // Monorepo
+    'prisma',                 // Standard
+    'src/prisma',             // Some projects
+    'db/prisma',              // Alternative
+  ];
+
+  for (const candidate of candidates) {
+    const fullPath = path.join(projectRoot, candidate);
+    if (fs.existsSync(fullPath)) return fullPath;
+  }
+
+  return null;
+}
+
+/**
  * Run schema command
  */
 export async function runSchema(ctx: CommandContext & { options: SchemaOptions }): Promise<void> {
   const { config, logger, options } = ctx;
 
-  // Determine schema directory
-  const schemaDir = config.prisma?.schemaDir
-    ?? path.join(config.projectRoot, 'packages/db/prisma');
+  // Find schema directory
+  const schemaDir = findSchemaDir(config.projectRoot, config.prisma?.schemaDir);
 
-  if (!fs.existsSync(schemaDir)) {
-    logger.error(`Prisma schema directory not found: ${schemaDir}`);
+  if (!schemaDir) {
+    logger.error('Prisma schema directory not found');
+    logger.info('Checked: prisma, packages/db/prisma, src/prisma, db/prisma');
     return;
   }
 

@@ -34,7 +34,7 @@ export const DEFAULT_FEATURES: Required<FeatureConfig> = {
  * Default Prisma configuration
  */
 export const DEFAULT_PRISMA: Required<PrismaConfig> = {
-  schemaDir: 'prisma/schema.prisma',
+  schemaDir: 'prisma',
   migrationsDir: 'prisma/migrations',
 };
 
