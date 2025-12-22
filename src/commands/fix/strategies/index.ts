@@ -8,6 +8,7 @@ import { lintStrategy } from './lint';
 import { typeSafetyStrategy } from './type-safety';
 import { complexityStrategy } from './complexity';
 import { srpStrategy } from './srp';
+import { hardcodedStrategy } from './hardcoded';
 
 /**
  * All available fix strategies
@@ -17,6 +18,7 @@ export const ALL_STRATEGIES: FixStrategy[] = [
   typeSafetyStrategy,
   complexityStrategy,
   srpStrategy,
+  hardcodedStrategy,
 ];
 
 /**
@@ -74,3 +76,4 @@ export { lintStrategy } from './lint';
 export { typeSafetyStrategy } from './type-safety';
 export { complexityStrategy } from './complexity';
 export { srpStrategy } from './srp';
+export { hardcodedStrategy } from './hardcoded';

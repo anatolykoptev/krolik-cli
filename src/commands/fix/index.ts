@@ -60,6 +60,18 @@ async function generateFixPlan(
 
   const { report, fileContents } = await analyzeQuality(projectRoot, qualityOptions);
 
+  // Collect ALL issues from all files, not just topIssues (which is limited to 20)
+  // Apply category filter if specified (since files[] contains all issues)
+  const allIssues: import('../quality/types').QualityIssue[] = [];
+  for (const fileAnalysis of report.files) {
+    for (const issue of fileAnalysis.issues) {
+      if (options.category && issue.category !== options.category) {
+        continue;
+      }
+      allIssues.push(issue);
+    }
+  }
+
   const plans: Map<string, FixPlan> = new Map();
   const skipStats: SkipStats = {
     noStrategy: 0,
@@ -69,7 +81,7 @@ async function generateFixPlan(
     categories: new Map(),
   };
 
-  for (const issue of report.topIssues) {
+  for (const issue of allIssues) {
     // Track category
     const cat = issue.category;
     skipStats.categories.set(cat, (skipStats.categories.get(cat) || 0) + 1);
@@ -134,7 +146,7 @@ async function generateFixPlan(
     }).filter((plan) => plan.fixes.length > 0);
   }
 
-  return { plans: allPlans, skipStats, totalIssues: report.topIssues.length };
+  return { plans: allPlans, skipStats, totalIssues: allIssues.length };
 }
 
 // ============================================================================
