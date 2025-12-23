@@ -252,3 +252,201 @@ export function printSummary(result: RefineResult, logger: Logger): void {
     logger.info(`Run with --dry-run to preview or --apply to execute`);
   }
 }
+
+// ============================================================================
+// ENHANCED OUTPUT (with context, arch health, standards)
+// ============================================================================
+
+/**
+ * Print full enhanced analysis
+ */
+export function printEnhancedAnalysis(result: RefineResult, logger: Logger): void {
+  // Print basic analysis first
+  printRefineAnalysis(result, logger);
+
+  // Print project context
+  if (result.context) {
+    printProjectContext(result, logger);
+  }
+
+  // Print architecture health
+  if (result.archHealth) {
+    printArchHealth(result, logger);
+  }
+
+  // Print standards compliance
+  if (result.standards) {
+    printStandards(result, logger);
+  }
+
+  // Print AI navigation
+  if (result.aiNavigation) {
+    printAiNavigation(result, logger);
+  }
+}
+
+/**
+ * Print project context section
+ */
+function printProjectContext(result: RefineResult, logger: Logger): void {
+  const ctx = result.context!;
+
+  logger.section('Project Context');
+
+  logger.info(`Type:      ${getProjectTypeLabel(ctx.type)}`);
+  logger.info(`Name:      ${ctx.name}`);
+  logger.info(`Framework: ${ctx.techStack.framework || 'none'}`);
+  logger.info(`Runtime:   ${ctx.techStack.runtime}`);
+  logger.info(`Language:  ${ctx.techStack.language}`);
+
+  if (ctx.techStack.database.length > 0) {
+    logger.info(`Database:  ${ctx.techStack.database.join(', ')}`);
+  }
+
+  if (ctx.techStack.stateManagement.length > 0) {
+    logger.info(`State:     ${ctx.techStack.stateManagement.join(', ')}`);
+  }
+
+  if (ctx.techStack.testing.length > 0) {
+    logger.info(`Testing:   ${ctx.techStack.testing.join(', ')}`);
+  }
+
+  if (ctx.importAlias) {
+    logger.info(`Alias:     ${ctx.importAlias}/`);
+  }
+
+  logger.info('');
+}
+
+function getProjectTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    cli: '🖥️  CLI Tool',
+    'web-app': '🌐 Web Application',
+    api: '⚡ API Service',
+    library: '📚 Library',
+    monorepo: '🏗️  Monorepo',
+    mobile: '📱 Mobile App',
+    unknown: '❓ Unknown',
+  };
+  return labels[type] || type;
+}
+
+/**
+ * Print architecture health section
+ */
+function printArchHealth(result: RefineResult, logger: Logger): void {
+  const health = result.archHealth!;
+
+  logger.section('Architecture Health');
+
+  const healthBar = createProgressBar(health.score);
+  const healthIcon = health.score >= 80 ? '✅' : health.score >= 50 ? '⚠️' : '❌';
+
+  logger.info(`Score: ${healthBar} ${health.score}% ${healthIcon}`);
+  logger.info('');
+
+  // Dependency graph
+  if (Object.keys(health.dependencyGraph).length > 0) {
+    logger.info('Dependencies:');
+    for (const [ns, deps] of Object.entries(health.dependencyGraph)) {
+      if (deps.length > 0) {
+        logger.info(`  ${ns} → ${deps.join(', ')}`);
+      } else {
+        logger.info(`  ${ns} (no dependencies)`);
+      }
+    }
+    logger.info('');
+  }
+
+  // Violations
+  if (health.violations.length > 0) {
+    logger.info('Violations:');
+    for (const v of health.violations) {
+      const icon = v.severity === 'error' ? '❌' : v.severity === 'warning' ? '⚠️' : 'ℹ️';
+      logger.info(`  ${icon} ${v.message}`);
+      logger.info(`     Fix: ${v.fix}`);
+    }
+    logger.info('');
+  } else {
+    logger.success('No architecture violations found!');
+    logger.info('');
+  }
+}
+
+/**
+ * Print standards compliance section
+ */
+function printStandards(result: RefineResult, logger: Logger): void {
+  const standards = result.standards!;
+
+  logger.section('Standards Compliance');
+
+  const bar = createProgressBar(standards.score);
+  const icon = standards.score >= 80 ? '✅' : standards.score >= 50 ? '⚠️' : '❌';
+
+  logger.info(`Overall: ${bar} ${standards.score}% ${icon}`);
+  logger.info('');
+
+  // Category scores
+  logger.info('Categories:');
+  logger.info(`  Structure:     ${createMiniBar(standards.categories.structure)} ${standards.categories.structure}%`);
+  logger.info(`  Naming:        ${createMiniBar(standards.categories.naming)} ${standards.categories.naming}%`);
+  logger.info(`  Dependencies:  ${createMiniBar(standards.categories.dependencies)} ${standards.categories.dependencies}%`);
+  logger.info(`  Documentation: ${createMiniBar(standards.categories.documentation)} ${standards.categories.documentation}%`);
+  logger.info('');
+
+  // Failed checks
+  const failed = standards.checks.filter(c => !c.passed);
+  if (failed.length > 0) {
+    logger.info('Issues:');
+    for (const check of failed) {
+      const fixable = check.autoFixable ? ' [auto-fixable]' : '';
+      logger.info(`  ○ ${check.name}${fixable}`);
+      logger.info(`    ${check.details}`);
+    }
+    logger.info('');
+  }
+}
+
+function createMiniBar(percent: number): string {
+  const filled = Math.round(percent / 10);
+  const empty = 10 - filled;
+  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+}
+
+/**
+ * Print AI navigation hints
+ */
+function printAiNavigation(result: RefineResult, logger: Logger): void {
+  const nav = result.aiNavigation!;
+
+  logger.section('AI Navigation Guide');
+
+  logger.info('Where to add new code:');
+  logger.info(`  Server logic:   ${nav.addNewCode.serverLogic}`);
+  logger.info(`  Client hook:    ${nav.addNewCode.clientHook}`);
+  logger.info(`  Utility:        ${nav.addNewCode.utility}`);
+  logger.info(`  Constant:       ${nav.addNewCode.constant}`);
+  logger.info(`  Integration:    ${nav.addNewCode.integration}`);
+  logger.info(`  Component:      ${nav.addNewCode.component}`);
+  logger.info(`  API route:      ${nav.addNewCode.apiRoute}`);
+  logger.info(`  Test:           ${nav.addNewCode.test}`);
+  logger.info('');
+
+  logger.info('Import conventions:');
+  logger.info(`  Absolute imports: ${nav.importConventions.absoluteImports ? 'Yes' : 'No'}`);
+  if (nav.importConventions.alias) {
+    logger.info(`  Alias: ${nav.importConventions.alias}/`);
+  }
+  logger.info(`  Barrel exports: ${nav.importConventions.barrelExports ? 'Yes' : 'No'}`);
+  logger.info('');
+
+  logger.info('Naming conventions:');
+  logger.info(`  Files:      ${nav.namingConventions.files}`);
+  logger.info(`  Components: ${nav.namingConventions.components}`);
+  logger.info(`  Hooks:      ${nav.namingConventions.hooks}`);
+  logger.info(`  Utilities:  ${nav.namingConventions.utilities}`);
+  logger.info(`  Constants:  ${nav.namingConventions.constants}`);
+  logger.info(`  Types:      ${nav.namingConventions.types}`);
+  logger.info('');
+}

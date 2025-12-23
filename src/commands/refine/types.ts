@@ -94,8 +94,193 @@ export interface MigrationPlan {
   };
 }
 
+// ============================================================================
+// PROJECT CONTEXT
+// ============================================================================
+
 /**
- * Full analysis result
+ * Detected project type
+ */
+export type ProjectType =
+  | 'cli'           // Command-line tool
+  | 'web-app'       // Next.js/React web application
+  | 'api'           // Backend API service
+  | 'library'       // Reusable library/package
+  | 'monorepo'      // Multi-package workspace
+  | 'mobile'        // React Native/Expo app
+  | 'unknown';
+
+/**
+ * Tech stack detection
+ */
+export interface TechStack {
+  framework: string | null;     // next, express, fastify, etc.
+  runtime: string;              // node, bun, deno
+  language: 'typescript' | 'javascript';
+  ui: string | null;            // react, vue, svelte, etc.
+  stateManagement: string[];    // zustand, redux, jotai, etc.
+  database: string[];           // prisma, drizzle, mongoose, etc.
+  testing: string[];            // vitest, jest, playwright, etc.
+  styling: string[];            // tailwind, styled-components, etc.
+}
+
+/**
+ * Project entry points for AI navigation
+ */
+export interface EntryPoints {
+  /** Main entry file */
+  main: string | null;
+  /** API routes directory */
+  apiRoutes: string | null;
+  /** Pages/app directory */
+  pages: string | null;
+  /** Components directory */
+  components: string | null;
+  /** Configuration files */
+  configs: string[];
+  /** Test directories */
+  tests: string[];
+}
+
+/**
+ * Project context for AI understanding
+ */
+export interface ProjectContext {
+  type: ProjectType;
+  name: string;
+  techStack: TechStack;
+  entryPoints: EntryPoints;
+  /** Import alias (e.g., "@/", "~/") */
+  importAlias: string | null;
+  /** Source directory (e.g., "src", "app") */
+  srcDir: string | null;
+}
+
+// ============================================================================
+// ARCHITECTURE HEALTH
+// ============================================================================
+
+/**
+ * Dependency violation types
+ */
+export type ViolationType =
+  | 'circular'              // Circular dependency
+  | 'layer-violation'       // Lower layer importing higher layer
+  | 'cross-domain'          // Domain A importing Domain B internals
+  | 'ui-in-core'            // UI code in core layer
+  | 'business-in-ui';       // Business logic in UI layer
+
+/**
+ * Single architecture violation
+ */
+export interface ArchViolation {
+  type: ViolationType;
+  severity: 'error' | 'warning' | 'info';
+  from: string;
+  to: string;
+  message: string;
+  fix: string;
+}
+
+/**
+ * Architecture health metrics
+ */
+export interface ArchHealth {
+  /** Overall health score (0-100) */
+  score: number;
+  /** Violations found */
+  violations: ArchViolation[];
+  /** Dependency graph (namespace -> dependencies) */
+  dependencyGraph: Record<string, string[]>;
+  /** Layer compliance (namespace -> layer) */
+  layerCompliance: Record<string, {
+    expected: string;
+    actual: string;
+    compliant: boolean;
+  }>;
+}
+
+// ============================================================================
+// STANDARDS COMPLIANCE
+// ============================================================================
+
+/**
+ * Standard check result
+ */
+export interface StandardCheck {
+  name: string;
+  description: string;
+  passed: boolean;
+  details: string;
+  autoFixable: boolean;
+}
+
+/**
+ * Standards compliance report
+ */
+export interface StandardsCompliance {
+  /** Overall compliance percentage */
+  score: number;
+  /** Individual checks */
+  checks: StandardCheck[];
+  /** Categories summary */
+  categories: {
+    structure: number;      // File/folder organization
+    naming: number;         // Naming conventions
+    dependencies: number;   // Dependency management
+    documentation: number;  // README, JSDoc, comments
+  };
+}
+
+// ============================================================================
+// AI NAVIGATION
+// ============================================================================
+
+/**
+ * Quick navigation hints for AI
+ */
+export interface AiNavigation {
+  /** Where to add new code by type */
+  addNewCode: {
+    serverLogic: string;
+    clientHook: string;
+    utility: string;
+    constant: string;
+    integration: string;
+    component: string;
+    apiRoute: string;
+    test: string;
+  };
+  /** Common file patterns */
+  filePatterns: {
+    pattern: string;
+    meaning: string;
+    example: string;
+  }[];
+  /** Import conventions */
+  importConventions: {
+    absoluteImports: boolean;
+    alias: string | null;
+    barrelExports: boolean;
+    preferredOrder: string[];
+  };
+  /** Naming conventions */
+  namingConventions: {
+    files: string;          // kebab-case, camelCase, PascalCase
+    components: string;
+    hooks: string;
+    utilities: string;
+    constants: string;
+    types: string;
+  };
+}
+
+// ============================================================================
+// FULL RESULT
+// ============================================================================
+
+/**
+ * Full analysis result (enhanced)
  */
 export interface RefineResult {
   /** Project root directory */
@@ -112,6 +297,17 @@ export interface RefineResult {
   plan: MigrationPlan;
   /** Timestamp of analysis */
   timestamp: string;
+
+  // ===== ENHANCED FIELDS =====
+
+  /** Project context for AI */
+  context?: ProjectContext;
+  /** Architecture health analysis */
+  archHealth?: ArchHealth;
+  /** Standards compliance report */
+  standards?: StandardsCompliance;
+  /** AI navigation hints */
+  aiNavigation?: AiNavigation;
 }
 
 // ============================================================================

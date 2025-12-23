@@ -18,8 +18,11 @@ import type { RefineOptions, RefineResult } from './types';
 import { analyzeStructure } from './analyzer';
 import { applyMigration, previewMigration } from './migrator';
 import { writeAiConfig } from './generator';
+import { detectProjectContext, generateAiNavigation } from './context';
+import { analyzeArchHealth, checkStandards } from './standards';
 import {
   printRefineAnalysis,
+  printEnhancedAnalysis,
   printSummary,
   formatJson,
   formatMarkdown,
@@ -41,13 +44,21 @@ export async function runRefine(
   // Analyze structure
   const result = analyzeStructure(projectRoot, options.libPath);
 
+  // Enhance with context, arch health, and standards (always for verbose/full)
+  if (options.verbose) {
+    enhanceResult(result, projectRoot);
+  }
+
   // Handle output formats
   if (options.json) {
+    // For JSON, always include full analysis
+    enhanceResult(result, projectRoot);
     console.log(formatJson(result));
     return;
   }
 
   if (options.markdown) {
+    enhanceResult(result, projectRoot);
     console.log(formatMarkdown(result));
     return;
   }
@@ -108,9 +119,27 @@ export async function runRefine(
 
   // Default: show analysis
   if (options.verbose) {
-    printRefineAnalysis(result, logger);
+    printEnhancedAnalysis(result, logger);
   } else {
     printSummary(result, logger);
+  }
+}
+
+/**
+ * Enhance result with full context, arch health, and standards
+ */
+function enhanceResult(result: RefineResult, projectRoot: string): void {
+  // Skip if already enhanced
+  if (result.context) return;
+
+  // Detect project context
+  result.context = detectProjectContext(projectRoot);
+
+  // Analyze architecture health (only if lib dir exists)
+  if (result.libDir) {
+    result.archHealth = analyzeArchHealth(result.directories, result.libDir);
+    result.standards = checkStandards(projectRoot, result.directories, result.context);
+    result.aiNavigation = generateAiNavigation(projectRoot, result.context, result.libDir);
   }
 }
 
