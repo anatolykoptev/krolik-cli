@@ -1,17 +1,25 @@
-# Krolik Fixer Roadmap
+# Krolik Fixer Roadmap v2.0
 
-> AI-Native Code Quality Pipeline
+> AI-Native Code Quality Pipeline — Complete DevOps Toolchain
 
-**Goal:** Create a unified pipeline that collects all errors, auto-fixes what's possible, and provides AI-optimized reports for remaining issues.
+**Last updated:** 2025-12-22  
+**MVP Target:** 2026-02-15  
+**Release:** 2026-03-01
 
 ---
 
-## Current State Analysis
+## 🎯 Goal
 
-### What We Have (7153 LOC)
+Create a unified pipeline that collects all errors, auto-fixes what's possible, and provides AI-optimized reports for remaining issues. **Full AI DevOps toolchain** from collection → execution → metrics.
+
+---
+
+## 📊 Current State Analysis (7153 LOC)
+
+### What We Have
 
 ```
-fix/
+fix/ (3014 LOC)
 ├── index.ts (651)           # Main orchestrator
 ├── types.ts (122)           # Type definitions
 ├── applier.ts (198)         # Apply fixes to files
@@ -33,25 +41,16 @@ fix/
     ├── hardcoded/           # magic numbers, strings
     └── srp/                 # file splitting
 
-quality/
-├── analyzers/               # 9 analyzers
+quality/ (2000+ LOC)
+├── analyzers/               # 9 analyzers (SRP, complexity, types, lint)
 ├── recommendations/rules/   # 9 rule sets (Airbnb-style)
 ├── formatters/ai.ts         # AI-optimized XML output
 └── ai-format.ts             # AIReport with priorities
 ```
 
-### What's Missing
-
-1. **Unified Error Collector** — single JSON with all errors
-2. **Pipeline Orchestrator** — step-by-step execution
-3. **Verification Step** — check after auto-fixes
-4. **AI Plan Generator** — create actionable plan
-5. **Progress Tracking** — resume interrupted sessions
-6. **Modern Integrations** — oxc, knip, etc.
-
 ### Existing Infrastructure to Leverage
 
-**context/** command already provides:
+**context/** command provides:
 - Domain detection (booking, events, crm, places, users)
 - File discovery (Zod schemas, components, tests)
 - Prisma schema analysis
@@ -60,15 +59,9 @@ quality/
 - Project tree generation
 - AI-friendly XML output (`formatAiPrompt`)
 
-**quality/** already provides:
-- 9 analyzers (SRP, complexity, type-safety, lint, etc.)
-- 9 recommendation rule sets (Airbnb-style)
-- AIReport with priorities and effort estimation
-- Concrete fixes (before/after code)
-
 ---
 
-## Architecture: AI-Native Pipeline
+## 🏗️ Architecture: AI-Native Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -87,18 +80,19 @@ quality/
 │        ↓                                                        │
 │  4. AI REPORT        structured document for AI agent           │
 │        ↓                                                        │
-│  5. PLAN (AI)        AI creates IMPROVEMENT-PLAN.md             │
+│  5. AI PLAN          AI creates IMPROVEMENT-PLAN.md             │ NEW
 │        ↓                                                        │
-│  6. EXECUTE (AI)     AI follows plan step-by-step               │
-│                                                                 │
+│  6. EXECUTE (AI)     AI follows plan step-by-step               │ NEW
+│        ↓                                                        │
+│  7. IDE/CI/METRICS   VSCode + GitHub Action + Dashboard         │ NEW
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Unified Error Format (JSON)
+## 📋 Unified Error Format (JSON)
 
-```json
+```
 {
   "meta": {
     "timestamp": "2025-12-22T10:30:00Z",
@@ -151,188 +145,194 @@ quality/
 
 ---
 
-## Implementation Phases
+## 🚀 Implementation Phases (8 Weeks)
 
 ### Phase 1: Unified Collector (Week 1)
-
-**Goal:** Single command to collect all errors
-
-```bash
-krolik fix --collect-only
-# Output: .krolik/errors.json
 ```
-
+#1 [feat] Single command → .krolik/errors.json
+```
 **Tasks:**
 - [ ] Create `collector/` module
-- [ ] Integrate tsc, biome, quality analyzers
-- [ ] Deduplicate errors (same file:line from different sources)
-- [ ] Calculate priority scores
-- [ ] Output unified JSON
+- [ ] Integrate tsc, biome, quality analyzers ✅
+- [ ] Deduplicate errors (same file:line) ✅
+- [ ] Calculate priority scores ✅
+- [ ] **NEW:** Wrap 9 quality analyzers into collector API
 
-**Files:**
-```
-fix/
-└── collector/
-    ├── index.ts           # Main collector
-    ├── sources/
-    │   ├── typescript.ts  # Existing (shared/typescript.ts)
-    │   ├── biome.ts       # Existing (shared/biome.ts)
-    │   └── quality.ts     # Wrap quality analyzers
-    ├── deduplicator.ts    # Remove duplicates
-    ├── prioritizer.ts     # Score calculation
-    └── types.ts           # UnifiedError, CollectorResult
-```
+**CLI:** `krolik fix --collect-only`
 
 ### Phase 2: Pipeline Orchestrator (Week 2)
-
-**Goal:** Step-by-step execution with state
-
-```bash
-krolik fix --full              # Full pipeline
-krolik fix --resume            # Continue from last state
-krolik fix --step=auto-fix     # Run specific step
 ```
-
+#2 [feat] Step-by-step execution + resume
+```
 **Tasks:**
-- [ ] Create `pipeline/` module
-- [ ] State persistence (.krolik/state.json)
-- [ ] Step execution with rollback
-- [ ] Progress reporting
-- [ ] Interrupt handling (Ctrl+C)
+- [ ] Create `pipeline/` module ✅
+- [ ] State persistence (.krolik/state.json) ✅
+- [ ] Step execution with rollback ✅
+- [ ] **NEW:** Interrupt handling (Ctrl+C)
 
-**Files:**
-```
-fix/
-└── pipeline/
-    ├── index.ts           # Pipeline runner
-    ├── steps/
-    │   ├── backup.ts      # Git backup
-    │   ├── collect.ts     # Error collection
-    │   ├── auto-fix.ts    # Auto-fix phase
-    │   ├── verify.ts      # Verification
-    │   └── report.ts      # AI report generation
-    ├── state.ts           # State management
-    └── types.ts           # PipelineState, Step
-```
+**CLI:** `krolik fix --full`, `krolik fix --resume`
 
 ### Phase 3: Auto-Fix Enhancements (Week 3)
-
-**Goal:** More intelligent auto-fixes
-
+```
+#3 [feat] Intelligent auto-fixes + verification
+```
 **Tasks:**
-- [ ] Fix dependency ordering (imports before usage)
-- [ ] Batch similar fixes (all console.log in one pass)
-- [ ] Conflict detection (two fixes on same line)
-- [ ] Dry-run with diff preview
+- [ ] Fix dependency ordering ✅
+- [ ] Batch similar fixes ✅
+- [ ] Conflict detection ✅
+- [ ] **NEW:** LLM-powered micro-fixes (`krolik fix --ai-trivial`)
 
-**Integrations to Consider:**
-- **oxc** — faster linter (Rust-based)
-- **knip** — find unused exports/dependencies
-- **depcheck** — unused dependencies
-- **madge** — circular dependency detection
+**Integrations:** oxc, knip, depcheck, madge
 
 ### Phase 4: AI Report Generator (Week 4)
-
-**Goal:** Perfect AI-consumable output
-
-```bash
-krolik fix --ai-report
-# Output: .krolik/AI-REPORT.md
 ```
-
-**Tasks:**
-- [ ] Structured markdown for AI
-- [ ] Grouped by fix complexity
-- [ ] Include file context (purpose, dependencies)
-- [ ] Effort estimation per task
-- [ ] Suggested fix order
-
-**Output Format:**
-```markdown
-# Code Quality Report
-
-## Executive Summary
-- 70 issues require manual attention
-- Estimated effort: 4-6 hours
-- Priority: Security (2), Type Safety (15), Performance (8)
-
-## Critical Issues (Fix First)
-
-### 1. SQL Injection Risk
-**File:** src/api/users.ts:42
+#4 [feat] Perfect AI-consumable output
+```
+**Output:** `.krolik/AI-REPORT.md`
+```
+# Critical Issues
+### 1. SQL Injection (src/api/users.ts:42)
 **Effort:** Medium (30 min)
-...
-
-## Improvement Plan
-
-### Step 1: Fix Security Issues (30 min)
-1. [ ] src/api/users.ts:42 - Parameterize SQL query
-2. [ ] src/api/posts.ts:87 - Escape user input
-
-### Step 2: Fix Type Errors (1 hour)
-...
 ```
+
+**CLI:** `krolik fix --ai-report`
 
 ### Phase 5: Modern Integrations (Week 5)
-
-**Goal:** Integrate best-in-class tools
-
+```
+#5 [feat] Best-in-class tools
+```
 | Tool | Purpose | Priority |
 |------|---------|----------|
-| **oxc** | Faster linting (10x biome) | High |
-| **knip** | Unused exports detection | High |
-| **depcheck** | Unused dependencies | Medium |
-| **madge** | Circular dependencies | Medium |
-| **bundlephobia** | Package size analysis | Low |
+| **oxc** | 10x faster linting | High ✅ |
+| **knip** | Unused exports | High |
+| **depcheck** | Unused deps | Medium |
+| **madge** | Circular deps | Medium |
 
----
+### ⭐ Phase 6: AI Agent Execution (Week 6) **KILLER FEATURE**
+```
+#10 [feat] krolik fix --ai-execute IMPROVEMENT-PLAN.md
+```
+**Parses AI plans → Executes → Verifies → Rollbacks**
+```
+AI Plan: "Fix src/api/users.ts:42 SQL injection"
+↓
+krolik: Applied parameterized query → tsc PASS ✅
+```
 
-## CLI Design
+**Files:** `fix/agent/executor.ts`, `fix/agent/parser.ts`
 
-```bash
-# Full pipeline
-krolik fix --full
+### Phase 7: IDE & GitHub Integration (Week 7)
+```
+#11 [feat] VSCode Extension
+- Inline diagnostics (.krolik/errors.json)
+- Quick fixes (`krolik fix --apply ts-2322`)
 
-# Individual steps
-krolik fix --collect-only      # Step 1: Collect errors
-krolik fix --auto-fix          # Step 2: Auto-fix
-krolik fix --verify            # Step 2.1: Verify
-krolik fix --report            # Step 3-4: Generate AI report
+#12 [feat] GitHub Action
+```yaml
+- uses: anatolykoptev/krolik-action@v1
+  with:
+    fix-mode: full
+    create-pr: true
+```
+```
 
-# Options
-krolik fix --path=apps/web     # Scope to path
-krolik fix --resume            # Resume from state
-krolik fix --dry-run           # Preview changes
-krolik fix --format=json       # Output format
+### Phase 8: Observability & Enterprise (Week 8)
+```
+#13 [feat] Metrics Dashboard
+.krolik/metrics.json → fix_velocity, ai_accuracy, mttr
 
-# Tool-specific
-krolik fix --biome-only        # Only Biome
-krolik fix --typecheck-only    # Only TypeScript
-krolik fix --no-biome          # Skip Biome
-krolik fix --no-typecheck      # Skip TypeScript
+#14 [feat] Team Features
+- Shared state merge
+- krolik fix --review-team
+- RBAC (fix/audit/deploy)
 ```
 
 ---
 
-## Success Metrics
+## 🔧 CLI Design
 
-1. **Time Saved:** Reduce manual fix time by 70%
-2. **Coverage:** Detect 95% of common issues
-3. **AI Efficiency:** AI can follow plan without clarification
-4. **False Positives:** < 5% incorrect auto-fixes
+```
+# Core Pipeline
+krolik fix --full                    # Complete flow
+krolik fix --collect-only            # Step 1
+krolik fix --auto-fix                # Step 2
+krolik fix --resume                  # Continue interrupted
+
+# AI Features ⭐
+krolik fix --ai-execute              # Execute AI plan ⭐
+krolik fix --ai-trivial              # LLM micro-fixes ⭐
+
+# Integrations ⭐
+krolik fix --github-pr               # Create PR ⭐
+krolik fix --vscode                  # VSCode diagnostics ⭐
+krolik fix --watch                   # Continuous mode
+
+# Options
+krolik fix --path=apps/web --dry-run --format=json
+krolik fix --no-biome --typecheck-only
+```
 
 ---
 
-## GitHub Issues
+## ⚡ Cross-Cutting Concerns
 
-See linked issues for implementation tracking:
-- [#1](https://github.com/anatolykoptev/krolik-cli/issues/1) - Phase 1: Unified Error Collector
-- [#2](https://github.com/anatolykoptev/krolik-cli/issues/2) - Phase 2: Pipeline Orchestrator
-- [#3](https://github.com/anatolykoptev/krolik-cli/issues/3) - Phase 3: Auto-Fix Enhancements
-- [#4](https://github.com/anatolykoptev/krolik-cli/issues/4) - Phase 4: AI Report Generator
-- [#5](https://github.com/anatolykoptev/krolik-cli/issues/5) - Phase 5: Modern Tool Integrations
-- [#6](https://github.com/anatolykoptev/krolik-cli/issues/6) - **Epic**: AI-Native Code Quality Pipeline
+### Performance
+```
+#16 [perf] Rust Collector (WASM) ⭐
+fix/collector/rust/
+├── parser.rs     # oxc + swc (10x faster)
+└── wasm-bridge   # Zero Node deps
+```
+
+### Testing
+```
+#15 [test] E2E Suite ⭐
+pnpm test:fixer          # Golden files + snapshots
+Coverage: applier 100%
+Sample: Next.js + tRPC + Prisma
+```
+
+### Extensibility
+```
+#17 [feat] Plugin System
+krolik plugins install @krolik/oxc @krolik/nextjs
+```
 
 ---
 
-*Last updated: 2025-12-22*
+## 📈 Success Metrics
+
+| Metric | Target v2.0 | Current | Phase |
+|--------|-------------|---------|-------|
+| **Fix Coverage** | 95% | 70% | Phase 3 |
+| **Pipeline Speed** | <2min | 4min | Phase 1 |
+| **AI Plan Accuracy** | 90% | - | Phase 6 ⭐ |
+| **False Positives** | <3% | 5% | Phase 3 |
+| **GitHub Stars** | 5k | 500 | All |
+
+---
+
+## 🎯 GitHub Issues
+
+```
+#1-5  [epic] Core Pipeline (Phase 1-5) ✅
+#6    [epic] AI-Native Code Quality Pipeline
+#10   [feat] AI Agent Executor ⭐ START HERE
+#11   [feat] VSCode Extension ⭐
+#12   [feat] GitHub Action ⭐
+#13   [feat] Metrics Dashboard
+#15   [test] E2E Test Suite
+#16   [perf] Rust Collector ⭐
+#17   [feat] Plugin System
+```
+
+---
+
+## 🚀 Next Steps
+
+1. **Week 1:** Phase 6 AI Executor — **highest impact** ⭐
+2. **Week 2:** VSCode extension prototype ⭐
+3. **Week 3:** GitHub Action + sample PR ⭐
+4. **Week 4:** Rust collector POC (10x perf) ⭐
+
+**This makes krolik the #1 AI DevOps toolchain** — from hobby to enterprise.

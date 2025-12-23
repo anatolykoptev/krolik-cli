@@ -482,11 +482,9 @@ function analyzeFileNaming(projectRoot: string): { isConsistent: boolean; domina
 function checkDependencyStandards(projectRoot: string): StandardCheck[] {
   const checks: StandardCheck[] = [];
 
-  // Check: Has lockfile
-  const hasLock = fs.existsSync(path.join(projectRoot, 'pnpm-lock.yaml')) ||
-                  fs.existsSync(path.join(projectRoot, 'package-lock.json')) ||
-                  fs.existsSync(path.join(projectRoot, 'yarn.lock')) ||
-                  fs.existsSync(path.join(projectRoot, 'bun.lockb'));
+  // Check: Has lockfile (also check monorepo root)
+  const monorepoRoot = findMonorepoRoot(projectRoot);
+  const hasLock = hasLockfile(projectRoot) || (monorepoRoot !== null && hasLockfile(monorepoRoot));
   checks.push({
     name: 'Dependencies: lockfile present',
     description: 'Project has package manager lockfile',
@@ -520,12 +518,14 @@ function checkDependencyStandards(projectRoot: string): StandardCheck[] {
 
 function checkDocumentationStandards(
   projectRoot: string,
-  directories: DirectoryInfo[],
+  _directories: DirectoryInfo[],
 ): StandardCheck[] {
   const checks: StandardCheck[] = [];
+  const monorepoRoot = findMonorepoRoot(projectRoot);
 
-  // Check: Has README
-  const hasReadme = fs.existsSync(path.join(projectRoot, 'README.md'));
+  // Check: Has README (also check monorepo root)
+  const hasReadme = fs.existsSync(path.join(projectRoot, 'README.md')) ||
+                    (monorepoRoot !== null && fs.existsSync(path.join(monorepoRoot, 'README.md')));
   checks.push({
     name: 'Documentation: README exists',
     description: 'Project has README.md',
@@ -534,9 +534,10 @@ function checkDocumentationStandards(
     autoFixable: true,
   });
 
-  // Check: Has CLAUDE.md or AI instructions
+  // Check: Has CLAUDE.md or AI instructions (also check monorepo root)
   const hasClaudeMd = fs.existsSync(path.join(projectRoot, 'CLAUDE.md')) ||
-                      fs.existsSync(path.join(projectRoot, '.claude'));
+                      fs.existsSync(path.join(projectRoot, '.claude')) ||
+                      (monorepoRoot !== null && fs.existsSync(path.join(monorepoRoot, 'CLAUDE.md')));
   checks.push({
     name: 'Documentation: AI instructions',
     description: 'Project has CLAUDE.md or AI-specific instructions',
@@ -582,6 +583,44 @@ function checkTsDocCoverage(projectRoot: string): boolean {
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+/**
+ * Find monorepo root by looking for pnpm-workspace.yaml or apps/packages folders
+ */
+function findMonorepoRoot(projectRoot: string): string | null {
+  let current = projectRoot;
+  const maxLevels = 5;
+
+  for (let i = 0; i < maxLevels; i++) {
+    const parent = path.dirname(current);
+    if (parent === current) break; // Reached filesystem root
+
+    // Check for monorepo indicators
+    if (
+      fs.existsSync(path.join(parent, 'pnpm-workspace.yaml')) ||
+      fs.existsSync(path.join(parent, 'lerna.json')) ||
+      (fs.existsSync(path.join(parent, 'apps')) && fs.existsSync(path.join(parent, 'packages')))
+    ) {
+      return parent;
+    }
+
+    current = parent;
+  }
+
+  return null;
+}
+
+/**
+ * Check if lockfile exists in directory
+ */
+function hasLockfile(dir: string): boolean {
+  return (
+    fs.existsSync(path.join(dir, 'pnpm-lock.yaml')) ||
+    fs.existsSync(path.join(dir, 'package-lock.json')) ||
+    fs.existsSync(path.join(dir, 'yarn.lock')) ||
+    fs.existsSync(path.join(dir, 'bun.lockb'))
+  );
+}
 
 function readPackageJson(projectRoot: string): {
   dependencies?: Record<string, string>;
