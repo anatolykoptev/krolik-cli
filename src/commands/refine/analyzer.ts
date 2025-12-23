@@ -22,31 +22,63 @@ import type {
  */
 export const NAMESPACE_KEYWORDS: Record<NamespaceCategory, string[]> = {
   core: [
+    // Namespace itself
+    'core',
+    // Web app core
     'auth', 'session', 'user', 'config', 'routes', 'router', 'trpc',
     'middleware', 'api', 'server', 'client', 'context', 'providers',
     'constants', 'env', 'i18n', 'locale', 'theme', 'settings',
+    // CLI core
+    'cli', 'commands', 'bin', 'shell', 'process', 'logger', 'log',
+    'git', 'github', 'vcs', 'fs', 'filesystem', 'io',
   ],
   domain: [
+    // Namespace itself
+    'domain',
+    // Web app domain
     'booking', 'event', 'place', 'venue', 'ticket', 'order', 'payment',
     'review', 'rating', 'customer', 'crm', 'calendar', 'schedule',
     'business', 'admin', 'dashboard', 'panel', 'notification', 'dal',
     'stores', 'state', 'data',
+    // CLI domain
+    'analysis', 'analyzer', 'checker', 'linter', 'quality', 'metrics',
   ],
   integrations: [
+    // Namespace itself
+    'integrations', 'integration',
+    // External services
     'storage', 'upload', 'email', 'sms', 'push', 'analytics', 'tracking',
     'stripe', 'yookassa', 'paypal', 'twilio', 'sendgrid', 'firebase',
     's3', 'cloudinary', 'maps', 'google', 'facebook', 'oauth', 'external',
+    // CLI integrations
+    'mcp', 'lsp', 'ai', 'llm', 'openai', 'anthropic',
   ],
   ui: [
+    // Namespace itself
+    'ui',
+    // Web UI
     'hooks', 'components', 'layout', 'modal', 'dialog', 'form',
     'button', 'input', 'table', 'card', 'icon', 'animation', 'motion',
+    // CLI UI (terminal output)
+    'output', 'printer', 'terminal', 'console', 'chalk', 'colors',
   ],
   utils: [
-    'utils', 'helpers', 'common', 'shared', 'tools', 'format',
+    // Namespace itself
+    'utils', 'util',
+    // General utilities
+    'helpers', 'common', 'shared', 'tools',
     'date', 'string', 'array', 'object', 'validation', 'sanitize',
+    // Code utilities
+    'ast', 'parser', 'lexer', 'tokenizer', 'transformer', 'visitor',
+    'formatters', 'format', 'formatting', 'text', 'markdown',
+    'discovery', 'finder', 'glob', 'pattern', 'search',
+    'timing', 'perf', 'measure', 'benchmark',
   ],
   seo: [
-    'seo', 'metadata', 'schema', 'jsonld', 'opengraph', 'sitemap',
+    // Namespace itself
+    'seo',
+    // SEO patterns
+    'metadata', 'schema', 'jsonld', 'opengraph', 'sitemap',
     'robots', 'indexnow', 'structured-data',
   ],
   unknown: [],
@@ -151,17 +183,55 @@ export function isNamespaced(name: string): boolean {
 /**
  * Detect namespace category from name and subdirectories
  */
+/**
+ * Category detection priority for subdirectory matching
+ * More specific patterns first to prevent "formatters" matching "form" in ui
+ */
+const CATEGORY_PRIORITY: NamespaceCategory[] = [
+  'utils',        // Most specific patterns (ast, formatters, discovery)
+  'seo',          // Specific domain
+  'integrations', // External services
+  'domain',       // Business logic
+  'core',         // Core infrastructure
+  'ui',           // UI (has short keywords like "form")
+];
+
+/**
+ * Check if a name matches any keyword in a category
+ */
+function matchesCategory(name: string, category: NamespaceCategory): boolean {
+  const keywords = NAMESPACE_KEYWORDS[category];
+  return keywords.some(keyword =>
+    name === keyword ||
+    name.startsWith(keyword + '-') ||
+    name.startsWith(keyword + '_') ||
+    name.includes(keyword)
+  );
+}
+
 export function detectCategory(name: string, subdirs: string[]): NamespaceCategory {
   const lowerName = name.toLowerCase().replace(/^@/, '');
-  const allNames = [lowerName, ...subdirs.map(s => s.toLowerCase().replace(/^@/, ''))];
+  const lowerSubdirs = subdirs.map(s => s.toLowerCase().replace(/^@/, ''));
 
-  for (const [category, keywords] of Object.entries(NAMESPACE_KEYWORDS)) {
-    if (category === 'unknown') continue;
+  // Priority 1: Check if directory name exactly matches a namespace name
+  // This ensures @core → core, @seo → seo, etc.
+  for (const category of ['core', 'domain', 'integrations', 'ui', 'utils', 'seo'] as NamespaceCategory[]) {
+    if (lowerName === category) {
+      return category;
+    }
+  }
 
-    for (const keyword of keywords) {
-      if (allNames.some(n => n.includes(keyword))) {
-        return category as NamespaceCategory;
-      }
+  // Priority 2: Check directory name against all category keywords
+  for (const category of CATEGORY_PRIORITY) {
+    if (matchesCategory(lowerName, category)) {
+      return category;
+    }
+  }
+
+  // Priority 3: Check subdirectory names (fallback)
+  for (const category of CATEGORY_PRIORITY) {
+    if (lowerSubdirs.some(subdir => matchesCategory(subdir, category))) {
+      return category;
     }
   }
 
@@ -218,10 +288,9 @@ export function analyzeDirectory(dir: string, libDir: string): DirectoryInfo {
   }
 
   // Suggest namespace if not already namespaced
-  let suggestedNamespace: string | undefined;
-  if (!namespaced && category !== 'unknown') {
-    suggestedNamespace = `@${category}/@${name}`;
-  }
+  const suggestedNamespace = !namespaced && category !== 'unknown'
+    ? `@${category}/@${name}`
+    : null;
 
   return {
     name,
@@ -230,8 +299,8 @@ export function analyzeDirectory(dir: string, libDir: string): DirectoryInfo {
     subdirs,
     category,
     isNamespaced: namespaced,
-    suggestedNamespace,
-    modules: Object.keys(modules).length > 0 ? modules : undefined,
+    ...(suggestedNamespace ? { suggestedNamespace } : {}),
+    ...(Object.keys(modules).length > 0 ? { modules } : {}),
   };
 }
 
@@ -248,7 +317,7 @@ export function calculateScore(directories: DirectoryInfo[]): number {
 /**
  * Generate migration plan from analysis
  */
-export function generateMigrationPlan(directories: DirectoryInfo[], libDir: string): MigrationPlan {
+export function generateMigrationPlan(directories: DirectoryInfo[], _libDir: string): MigrationPlan {
   const moves: MigrationPlan['moves'] = [];
   const importUpdates: MigrationPlan['importUpdates'] = [];
 
