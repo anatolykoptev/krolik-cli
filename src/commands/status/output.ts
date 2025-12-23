@@ -4,16 +4,12 @@
  */
 
 import type { Logger, StatusResult } from "../../types";
+import { formatDuration } from "../../lib/timing";
 
 const MAX_PAGE_SIZE = 50;
 
-/**
- * Format duration in human-readable form
- */
-export function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
+// Re-export for backwards compatibility
+export { formatDuration };
 
 /**
  * Get status icon

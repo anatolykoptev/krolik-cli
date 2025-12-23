@@ -1,9 +1,11 @@
 /**
  * @module commands/fix/strategies/hardcoded/generators
  * @description Fix generators for hardcoded values using AST
+ *
+ * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { SyntaxKind } from 'ts-morph';
+import { SyntaxKind } from '../../../../lib/ast';
 import type { FixOperation } from '../../types';
 import { ALLOWED_NUMBERS } from './constants';
 import { generateConstName } from './naming';

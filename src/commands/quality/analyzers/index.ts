@@ -11,14 +11,14 @@ const ERROR_CODE = 30;
 
 // Re-export all analyzer functions
 export { detectFileType } from "./detectors";
-export { calculateComplexity, extractFunctions } from "./complexity";
+export { calculateComplexity, extractFunctions, analyzeSplitPoints } from "./complexity";
 export { detectHardcodedValues } from "./hardcoded";
 export { checkSRP } from "./srp";
 export { checkMixedConcerns } from "./concerns";
 export { checkTypeSafety } from "./type-safety";
 export { checkDocumentation } from "./documentation";
 export { getThresholdsForPath, buildThresholds } from "./thresholds";
-export { checkLintRules_all as checkLintRules } from "./lint-rules";
+export { checkLintRules_all as checkLintRules, isCliFile, type LintOptions } from "./lint-rules";
 
 // Import for internal use
 import { detectFileType } from "./detectors";
@@ -94,7 +94,9 @@ export function analyzeFile(
   analysis.issues.push(
     ...checkDocumentation(functions, relativePath, thresholds.requireJSDoc),
   );
-  analysis.issues.push(...checkLintRules_all(content, relativePath));
+  analysis.issues.push(...checkLintRules_all(content, relativePath, {
+    ignoreCliConsole: options.ignoreCliConsole ?? false,
+  }));
 
   // Hardcoded values
   const hardcoded = detectHardcodedValues(content, filepath);

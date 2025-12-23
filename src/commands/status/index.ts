@@ -4,6 +4,7 @@
  */
 
 import type { CommandContext, StatusResult } from '../../types';
+import { measureTime } from '../../lib/timing';
 import { checkGit, checkTypecheck, checkLint, toStatusResult } from './checks';
 import { countTodosSimple } from './todos';
 import { printStatus, formatJson, formatMarkdown } from './output';
@@ -22,16 +23,23 @@ export interface StatusOptions {
  * Get project status
  */
 export function getProjectStatus(projectRoot: string, options: StatusOptions = {}): StatusResult {
-  const start = performance.now();
   const { fast = false } = options;
 
-  const git = checkGit(projectRoot);
-  const typecheck = checkTypecheck(projectRoot, fast);
-  const lint = checkLint(projectRoot, fast);
-  const todoCount = countTodosSimple(projectRoot);
-  const durationMs = Math.round(performance.now() - start);
+  const { result, durationMs } = measureTime(() => {
+    const git = checkGit(projectRoot);
+    const typecheck = checkTypecheck(projectRoot, fast);
+    const lint = checkLint(projectRoot, fast);
+    const todoCount = countTodosSimple(projectRoot);
+    return { git, typecheck, lint, todoCount };
+  });
 
-  return toStatusResult(git, typecheck, lint, { count: todoCount }, durationMs);
+  return toStatusResult(
+    result.git,
+    result.typecheck,
+    result.lint,
+    { count: result.todoCount },
+    durationMs,
+  );
 }
 
 /**

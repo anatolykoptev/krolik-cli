@@ -11,7 +11,6 @@
 import type { QualityIssue } from '../../../quality/types';
 import type { FixOperation, FixStrategy } from '../../types';
 import {
-  extractNumber,
   matchNumberInRange,
   validateAndFormat,
 } from '../shared';
@@ -67,7 +66,7 @@ export const complexityStrategy: FixStrategy = {
     try {
       const result = generateFixOperation(message, content, file, line);
 
-      if (!result) return null;
+      if (!result || !result.newCode) return null;
 
       // Validate syntax and format with Prettier
       const validated = await validateAndFormat(result.newCode, file);

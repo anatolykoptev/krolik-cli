@@ -25,11 +25,19 @@ import {
   formatJson,
   formatMarkdown,
   formatAiPrompt,
-  type AiContextData,
-  type DiscoveredFiles,
-  type GitContextInfo,
-  type ProjectTree,
-} from "./output";
+} from "./formatters";
+import type {
+  ContextOptions,
+  AiContextData,
+  GitContextInfo,
+} from "./types";
+import {
+  DOMAIN_FILE_PATTERNS,
+  discoverFiles,
+  findSchemaDir,
+  findRoutersDir,
+  generateProjectTree,
+} from "./helpers";
 import { analyzeSchema } from "../schema";
 import { analyzeRoutes } from "../routes";
 import {
@@ -37,62 +45,11 @@ import {
   parseComponents,
   parseTestFiles,
   generateContextHints,
+  parseTypesInDir,
+  buildImportGraph,
 } from "./parsers";
 
-const MAX_VALUE = 3;
-
-const MAX_LENGTH = 150;
-
-const MAGIC_150 = MAX_LENGTH;
-
-const MAGIC_5 = 5;
-
-/**
- * Domain to file pattern mapping
- */
-const DOMAIN_FILE_PATTERNS: Record<
-  string,
-  { zod: string[]; components: string[]; tests: string[] }
-> = {
-  booking: {
-    zod: ["booking", "availability", "schedule"],
-    components: ["Booking", "Calendar", "Schedule", "Availability"],
-    tests: ["booking", "availability"],
-  },
-  events: {
-    zod: ["event", "ticket", "venue"],
-    components: ["Event", "Ticket", "Venue", "Ticketing"],
-    tests: ["event", "ticket"],
-  },
-  crm: {
-    zod: ["customer", "interaction", "lead", "crm"],
-    components: ["Customer", "CRM", "Lead", "Interaction"],
-    tests: ["customer", "crm"],
-  },
-  places: {
-    zod: ["place", "business", "location"],
-    components: ["Place", "Business", "Location"],
-    tests: ["place", "business"],
-  },
-  users: {
-    zod: ["user", "auth", "profile"],
-    components: ["User", "Auth", "Profile"],
-    tests: ["user", "auth"],
-  },
-};
-
-/**
- * Context command options
- */
-export interface ContextOptions {
-  issue?: string;
-  feature?: string;
-  file?: string;
-  json?: boolean;
-  markdown?: boolean;
-  ai?: boolean;
-  verbose?: boolean;
-}
+const MAX_COMMITS = 5;
 
 /**
  * Generate task context
@@ -123,156 +80,13 @@ export function generateContext(
 }
 
 /**
- * Discover relevant files based on domains
- */
-function discoverFiles(
-  projectRoot: string,
-  domains: string[],
-): DiscoveredFiles {
-  const result: DiscoveredFiles = {
-    zodSchemas: [],
-    components: [],
-    tests: [],
-  };
-
-  // Collect patterns from domains
-  const zodPatterns: string[] = [];
-  const componentPatterns: string[] = [];
-  const testPatterns: string[] = [];
-
-  for (const domain of domains) {
-    const patterns = DOMAIN_FILE_PATTERNS[domain.toLowerCase()];
-    if (patterns) {
-      zodPatterns.push(...patterns.zod);
-      componentPatterns.push(...patterns.components);
-      testPatterns.push(...patterns.tests);
-    }
-  }
-
-  // Search for Zod schemas
-  const zodDirs = [
-    "packages/shared/src/schemas",
-    "src/schemas",
-    "src/lib/schemas",
-  ];
-  for (const dir of zodDirs) {
-    const fullPath = path.join(projectRoot, dir);
-    if (fs.existsSync(fullPath)) {
-      const files = findFilesMatching(fullPath, zodPatterns, ".ts");
-      result.zodSchemas.push(...files.map((f) => path.relative(fullPath, f)));
-    }
-  }
-
-  // Search for components
-  const componentDirs = [
-    "apps/web/components/Business",
-    "apps/web/components",
-    "src/components",
-  ];
-  for (const dir of componentDirs) {
-    const fullPath = path.join(projectRoot, dir);
-    if (fs.existsSync(fullPath)) {
-      const files = findFilesMatching(fullPath, componentPatterns, ".tsx");
-      result.components.push(...files.map((f) => path.relative(fullPath, f)));
-    }
-  }
-
-  // Search for tests
-  const testDirs = [
-    "packages/api/src/routers/__tests__",
-    "apps/web/__tests__",
-    "__tests__",
-    "tests",
-  ];
-  for (const dir of testDirs) {
-    const fullPath = path.join(projectRoot, dir);
-    if (fs.existsSync(fullPath)) {
-      const files = findFilesMatching(fullPath, testPatterns, ".test.ts");
-      result.tests.push(...files.map((f) => path.relative(fullPath, f)));
-    }
-  }
-
-  return result;
-}
-
-/**
- * Find files matching patterns in a directory
- */
-function findFilesMatching(
-  dir: string,
-  patterns: string[],
-  ext: string,
-): string[] {
-  const results: string[] = [];
-
-  function scanDir(currentDir: string): void {
-    try {
-      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path.join(currentDir, entry.name);
-        if (
-          entry.isDirectory() &&
-          !entry.name.startsWith(".") &&
-          entry.name !== "node_modules"
-        ) {
-          scanDir(fullPath);
-        } else if (entry.isFile() && entry.name.endsWith(ext)) {
-          const nameLower = entry.name.toLowerCase();
-          if (patterns.some((p) => nameLower.includes(p.toLowerCase()))) {
-            results.push(fullPath);
-          }
-        }
-      }
-    } catch {
-      // Directory not readable, skip
-    }
-  }
-
-  scanDir(dir);
-  return results;
-}
-
-/**
- * Find prisma schema directory
- */
-function findSchemaDir(projectRoot: string): string | null {
-  const candidates = [
-    "packages/db/prisma",
-    "prisma",
-    "src/prisma",
-    "db/prisma",
-  ];
-  for (const candidate of candidates) {
-    const fullPath = path.join(projectRoot, candidate);
-    if (fs.existsSync(fullPath)) return fullPath;
-  }
-  return null;
-}
-
-/**
- * Find tRPC routers directory
- */
-function findRoutersDir(projectRoot: string): string | null {
-  const candidates = [
-    "packages/api/src/routers",
-    "src/server/routers",
-    "src/routers",
-    "server/routers",
-  ];
-  for (const candidate of candidates) {
-    const fullPath = path.join(projectRoot, candidate);
-    if (fs.existsSync(fullPath)) return fullPath;
-  }
-  return null;
-}
-
-/**
  * Run context command
  */
 export async function runContext(
   ctx: CommandContext & { options: ContextOptions },
 ): Promise<void> {
   const { config, logger, options } = ctx;
+  const projectRoot = config.projectRoot ?? process.cwd();
 
   let task = options.feature || options.file || "General development context";
   let issueData: ContextResult["issue"] | undefined;
@@ -281,7 +95,7 @@ export async function runContext(
   if (options.issue) {
     const issueNum = Number.parseInt(options.issue, 10);
     if (!Number.isNaN(issueNum)) {
-      const issue = getIssue(issueNum, config.projectRoot);
+      const issue = getIssue(issueNum, projectRoot);
       if (issue) {
         issueData = {
           number: issue.number,
@@ -299,13 +113,15 @@ export async function runContext(
     }
   }
 
-  const result = generateContext(task, config.projectRoot, issueData, config);
+  const result = generateContext(task, projectRoot, issueData, config);
 
+  // JSON output
   if (options.json) {
     console.log(formatJson(result));
     return;
   }
 
+  // Markdown output
   if (options.markdown) {
     console.log(formatMarkdown(result));
     return;
@@ -313,247 +129,256 @@ export async function runContext(
 
   // AI-ready structured output
   if (options.ai) {
-    const aiData: AiContextData = {
-      context: result,
-      config,
-      checklist: generateChecklist(result.domains),
-    };
-
-    // Try to get schema
-    const schemaDir = findSchemaDir(config.projectRoot);
-    if (schemaDir) {
-      try {
-        aiData.schema = analyzeSchema(schemaDir);
-      } catch {
-        // Schema analysis failed, continue without
-      }
-    }
-
-    // Try to get routes
-    const routersDir = findRoutersDir(config.projectRoot);
-    if (routersDir) {
-      try {
-        aiData.routes = analyzeRoutes(routersDir);
-      } catch {
-        // Routes analysis failed, continue without
-      }
-    }
-
-    // Discover related files
-    aiData.files = discoverFiles(config.projectRoot, result.domains);
-
-    // Collect domain patterns for file discovery
-    const domainPatterns = result.domains.flatMap((d) => {
-      const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
-      return patterns ? patterns.zod : [d.toLowerCase()];
-    });
-
-    // Parse Zod schemas with validation details
-    const zodDirs = [
-      "packages/shared/src/schemas",
-      "packages/shared/src/validation",
-      "packages/db/src/schemas",
-      "packages/api/src/lib",
-      "src/schemas",
-      "src/lib/schemas",
-    ];
-    for (const dir of zodDirs) {
-      const fullPath = path.join(config.projectRoot, dir);
-      if (fs.existsSync(fullPath)) {
-        const schemas = parseZodSchemas(fullPath, domainPatterns);
-        if (schemas.length > 0) {
-          aiData.ioSchemas = [...(aiData.ioSchemas || []), ...schemas];
-        }
-      }
-    }
-
-    // Parse component details
-    const componentPatterns = result.domains.flatMap((d) => {
-      const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
-      return patterns ? patterns.components : [d];
-    });
-    const componentDirs = ["apps/web/components", "src/components"];
-    for (const dir of componentDirs) {
-      const fullPath = path.join(config.projectRoot, dir);
-      if (fs.existsSync(fullPath)) {
-        const components = parseComponents(fullPath, componentPatterns);
-        if (components.length > 0) {
-          aiData.componentDetails = [
-            ...(aiData.componentDetails || []),
-            ...components,
-          ];
-        }
-      }
-    }
-
-    // Parse test files
-    const testPatterns = result.domains.flatMap((d) => {
-      const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
-      return patterns ? patterns.tests : [d.toLowerCase()];
-    });
-    const testDirs = [
-      "packages/api/src/routers/__tests__",
-      "apps/web/__tests__",
-      "__tests__",
-      "tests",
-    ];
-    for (const dir of testDirs) {
-      const fullPath = path.join(config.projectRoot, dir);
-      if (fs.existsSync(fullPath)) {
-        const tests = parseTestFiles(fullPath, testPatterns);
-        if (tests.length > 0) {
-          aiData.testDetails = [...(aiData.testDetails || []), ...tests];
-        }
-      }
-    }
-
-    // Generate context hints
-    aiData.hints = generateContextHints(result.domains);
-
-    // Gather git information
-    if (isGitRepo(config.projectRoot)) {
-      const branch = getCurrentBranch(config.projectRoot);
-      const status = getStatus(config.projectRoot);
-      const commits = getRecentCommits(MAGIC_5, config.projectRoot);
-
-      const gitInfo: GitContextInfo = {
-        branch: branch ?? "unknown",
-        changedFiles: [
-          ...status.modified,
-          ...status.staged.filter((f) => !status.modified.includes(f)),
-        ],
-        stagedFiles: status.staged,
-        untrackedFiles: status.untracked.slice(0, 10),
-        recentCommits: commits.map((c) => `${c.hash} ${c.message}`),
-      };
-
-      // Add diff if there are changes (limit to 150 lines for context size)
-      if (status.hasChanges) {
-        const diff = getDiff({ cwd: config.projectRoot });
-        if (diff) {
-          const lines = diff.split("\n");
-          gitInfo.diff = lines.slice(0, MAGIC_150).join("\n");
-          if (lines.length > MAX_LENGTH) {
-            gitInfo.diff += `\n... (${lines.length - MAX_LENGTH} more lines)`;
-          }
-        }
-      }
-
-      aiData.git = gitInfo;
-    }
-
-    // Generate project tree
-    aiData.tree = generateProjectTree(config.projectRoot);
-
+    const aiData = buildAiContextData(result, config);
     console.log(formatAiPrompt(aiData));
     return;
   }
 
+  // Default: text output
   printContext(result, logger, options.verbose);
 }
 
 /**
- * Generate project tree structure
+ * Build AI context data with all enhanced sections
  */
-function generateProjectTree(projectRoot: string): ProjectTree {
-  const excludeDirs = [
-    "node_modules",
-    ".git",
-    ".next",
-    "dist",
-    "build",
-    ".turbo",
-    "coverage",
-    ".pnpm",
-  ];
-  const importantDirs = [
-    "src",
-    "apps",
-    "packages",
-    "lib",
-    "components",
-    "pages",
-    "api",
-  ];
+function buildAiContextData(
+  result: ContextResult,
+  config: KrolikConfig,
+): AiContextData {
+  // projectRoot is guaranteed to exist at this point
+  const projectRoot = config.projectRoot ?? process.cwd();
 
-  let totalFiles = 0;
-  let totalDirs = 0;
-  const lines: string[] = [];
+  const aiData: AiContextData = {
+    context: result,
+    config,
+    checklist: generateChecklist(result.domains),
+  };
 
-  function scanDir(dir: string, prefix: string, depth: number): void {
-    if (depth > MAX_VALUE) return; // Max depth 3 for readability
-
+  // Schema analysis
+  const schemaDir = findSchemaDir(projectRoot);
+  if (schemaDir) {
     try {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-      const dirs = entries.filter(
-        (e) =>
-          e.isDirectory() &&
-          !excludeDirs.includes(e.name) &&
-          !e.name.startsWith("."),
-      );
-      const files = entries.filter(
-        (e) => e.isFile() && !e.name.startsWith("."),
-      );
-
-      // Sort: important dirs first, then alphabetically
-      dirs.sort((a, b) => {
-        const aImportant = importantDirs.includes(a.name);
-        const bImportant = importantDirs.includes(b.name);
-        if (aImportant && !bImportant) return -1;
-        if (!aImportant && bImportant) return 1;
-        return a.name.localeCompare(b.name);
-      });
-
-      for (let i = 0; i < dirs.length; i++) {
-        const entry = dirs[i];
-        if (!entry) continue;
-
-        const isLast = i === dirs.length - 1 && files.length === 0;
-        const connector = isLast ? "└── " : "├── ";
-        const subPrefix = isLast ? "    " : "│   ";
-
-        lines.push(`${prefix}${connector}${entry.name}/`);
-        totalDirs++;
-
-        scanDir(path.join(dir, entry.name), prefix + subPrefix, depth + 1);
-      }
-
-      // Show file count at leaf level instead of listing all files
-      if (files.length > 0 && depth > 0) {
-        const exts = [
-          ...new Set(files.map((f) => path.extname(f.name)).filter(Boolean)),
-        ];
-        const extStr = exts.slice(0, MAX_VALUE).join(", ");
-        lines.push(`${prefix}└── (${files.length} files: ${extStr})`);
-        totalFiles += files.length;
-      } else if (depth === 0) {
-        // At root, show key files
-        const keyFiles = files.filter((f) =>
-          ["package.json", "tsconfig.json", "CLAUDE.md", "README.md"].includes(
-            f.name,
-          ),
-        );
-        for (const file of keyFiles) {
-          lines.push(`${prefix}├── ${file.name}`);
-          totalFiles++;
-        }
-      }
+      aiData.schema = analyzeSchema(schemaDir);
     } catch {
-      // Directory not readable
+      // Schema analysis failed, continue without
     }
   }
 
-  lines.push(path.basename(projectRoot) + "/");
-  scanDir(projectRoot, "", 0);
+  // Routes analysis
+  const routersDir = findRoutersDir(projectRoot);
+  if (routersDir) {
+    try {
+      aiData.routes = analyzeRoutes(routersDir);
+    } catch {
+      // Routes analysis failed, continue without
+    }
+  }
 
-  return {
-    structure: lines.join("\n"),
-    totalFiles,
-    totalDirs,
-  };
+  // Discover related files
+  aiData.files = discoverFiles(projectRoot, result.domains);
+
+  // Collect domain patterns
+  const domainPatterns = result.domains.flatMap((d) => {
+    const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
+    return patterns ? patterns.zod : [d.toLowerCase()];
+  });
+
+  // Parse Zod schemas
+  parseZodSchemasFromDirs(projectRoot, domainPatterns, aiData);
+
+  // Parse components
+  parseComponentsFromDirs(projectRoot, result.domains, aiData);
+
+  // Parse tests
+  parseTestsFromDirs(projectRoot, result.domains, aiData);
+
+  // Parse TypeScript types and imports
+  parseTypesAndImports(projectRoot, result.domains, aiData);
+
+  // Generate hints
+  aiData.hints = generateContextHints(result.domains);
+
+  // Git information
+  if (isGitRepo(projectRoot)) {
+    aiData.git = buildGitInfo(projectRoot);
+  }
+
+  // Project tree
+  aiData.tree = generateProjectTree(projectRoot);
+
+  return aiData;
 }
 
-// Re-export for external use
+/**
+ * Parse Zod schemas from standard directories
+ */
+function parseZodSchemasFromDirs(
+  projectRoot: string,
+  patterns: string[],
+  aiData: AiContextData,
+): void {
+  const zodDirs = [
+    "packages/shared/src/schemas",
+    "packages/shared/src/validation",
+    "packages/db/src/schemas",
+    "packages/api/src/lib",
+    "src/schemas",
+    "src/lib/schemas",
+  ];
+
+  for (const dir of zodDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      const schemas = parseZodSchemas(fullPath, patterns);
+      if (schemas.length > 0) {
+        aiData.ioSchemas = [...(aiData.ioSchemas || []), ...schemas];
+      }
+    }
+  }
+}
+
+/**
+ * Parse components from standard directories
+ */
+function parseComponentsFromDirs(
+  projectRoot: string,
+  domains: string[],
+  aiData: AiContextData,
+): void {
+  const componentPatterns = domains.flatMap((d) => {
+    const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
+    return patterns ? patterns.components : [d];
+  });
+
+  const componentDirs = ["apps/web/components", "src/components"];
+  for (const dir of componentDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      const components = parseComponents(fullPath, componentPatterns);
+      if (components.length > 0) {
+        aiData.componentDetails = [
+          ...(aiData.componentDetails || []),
+          ...components,
+        ];
+      }
+    }
+  }
+}
+
+/**
+ * Parse tests from standard directories
+ */
+function parseTestsFromDirs(
+  projectRoot: string,
+  domains: string[],
+  aiData: AiContextData,
+): void {
+  const testPatterns = domains.flatMap((d) => {
+    const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
+    return patterns ? patterns.tests : [d.toLowerCase()];
+  });
+
+  const testDirs = [
+    "packages/api/src/routers/__tests__",
+    "apps/web/__tests__",
+    "__tests__",
+    "tests",
+  ];
+
+  for (const dir of testDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      const tests = parseTestFiles(fullPath, testPatterns);
+      if (tests.length > 0) {
+        aiData.testDetails = [...(aiData.testDetails || []), ...tests];
+      }
+    }
+  }
+}
+
+/**
+ * Parse TypeScript types and import graph
+ */
+function parseTypesAndImports(
+  projectRoot: string,
+  domains: string[],
+  aiData: AiContextData,
+): void {
+  // Filter out generic domains that won't match file names
+  const GENERIC_DOMAINS = ["general", "development", "context", "feature"];
+  const typePatterns = domains
+    .map((d) => d.toLowerCase())
+    .filter((d) => !GENERIC_DOMAINS.some((g) => d.includes(g)));
+
+  // Directories to scan for types
+  const typeDirs = [
+    "packages/shared/src/types",
+    "packages/api/src/types",
+    "apps/web/types",
+    "src/types",
+    "types",
+  ];
+
+  for (const dir of typeDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      const types = parseTypesInDir(fullPath, typePatterns);
+      if (types.length > 0) {
+        aiData.types = [...(aiData.types || []), ...types];
+      }
+    }
+  }
+
+  // Build import graph for domain-related files
+  const importDirs = [
+    "packages/api/src/routers",
+    "apps/web/components",
+    "src/commands",
+  ];
+
+  for (const dir of importDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      const imports = buildImportGraph(fullPath, typePatterns);
+      if (imports.length > 0) {
+        aiData.imports = [...(aiData.imports || []), ...imports];
+      }
+    }
+  }
+}
+
+/**
+ * Build git context info
+ */
+function buildGitInfo(projectRoot: string): GitContextInfo {
+  const branch = getCurrentBranch(projectRoot);
+  const status = getStatus(projectRoot);
+  const commits = getRecentCommits(MAX_COMMITS, projectRoot);
+
+  const gitInfo: GitContextInfo = {
+    branch: branch ?? "unknown",
+    changedFiles: [
+      ...status.modified,
+      ...status.staged.filter((f) => !status.modified.includes(f)),
+    ],
+    stagedFiles: status.staged,
+    untrackedFiles: status.untracked.slice(0, 10),
+    recentCommits: commits.map((c) => `${c.hash} ${c.message}`),
+  };
+
+  // Add diff if there are changes (smart truncation happens in formatter)
+  if (status.hasChanges) {
+    const diff = getDiff({ cwd: projectRoot });
+    if (diff) {
+      gitInfo.diff = diff;
+    }
+  }
+
+  return gitInfo;
+}
+
+// Re-export types and functions
+export type { ContextOptions } from "./types";
 export {
   detectDomains,
   findRelatedFiles,

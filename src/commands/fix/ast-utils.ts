@@ -12,36 +12,18 @@ import {
   Project,
   SourceFile,
   SyntaxKind,
-  FunctionDeclaration,
   Node,
-  VariableStatement,
-  ArrowFunction,
-  FunctionExpression,
   IfStatement,
   Block,
-  Statement,
 } from "ts-morph";
 import * as path from "node:path";
+import { createProject } from "./strategies/shared";
 
 const MAX_LENGTH = 3;
 
 // ============================================================================
-// PROJECT INITIALIZATION
+// SOURCE FILE HELPERS
 // ============================================================================
-
-/**
- * Create a ts-morph project for code manipulation
- */
-export function createProject(tsConfigPath?: string): Project {
-  return new Project({
-    tsConfigFilePath: tsConfigPath,
-    skipAddingFilesFromTsConfig: true,
-    compilerOptions: {
-      allowJs: true,
-      checkJs: false,
-    },
-  });
-}
 
 /**
  * Create a source file from content
@@ -86,8 +68,9 @@ export function extractFunction(
   options: ExtractFunctionOptions,
 ): ExtractFunctionResult {
   try {
+    // Create project for future AST-based improvements
     const project = createProject();
-    const sourceFile = createSourceFile(project, filePath, content);
+    createSourceFile(project, filePath, content);
 
     const lines = content.split("\n");
     const extractedLines = lines.slice(options.startLine - 1, options.endLine);
@@ -539,20 +522,76 @@ export function splitFile(
 }
 
 // ============================================================================
-// HELPERS
+// AST-BASED VARIABLE ANALYSIS
 // ============================================================================
 
 /**
- * Find variables used in code (simplified - checks for identifiers)
+ * Find all identifiers used in code (AST-based)
+ *
+ * Uses ts-morph to find actual Identifier nodes, excluding:
+ * - Property names in member expressions (obj.property)
+ * - Type annotations
+ * - Import/export specifiers
  */
 function findUsedVariables(code: string): string[] {
+  const vars = new Set<string>();
+
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile("temp.ts", code, {
+      overwrite: true,
+    });
+
+    const identifiers = sourceFile.getDescendantsOfKind(SyntaxKind.Identifier);
+
+    for (const id of identifiers) {
+      const name = id.getText();
+
+      // Skip keywords and globals
+      if (isKeyword(name) || isGlobal(name)) continue;
+
+      // Skip property access (obj.property - skip "property")
+      const parent = id.getParent();
+      if (
+        parent &&
+        Node.isPropertyAccessExpression(parent) &&
+        parent.getName() === name &&
+        parent.getExpression() !== id
+      ) {
+        continue;
+      }
+
+      // Skip type references
+      if (parent && Node.isTypeReference(parent)) continue;
+
+      // Skip import/export specifiers
+      if (
+        parent &&
+        (Node.isImportSpecifier(parent) || Node.isExportSpecifier(parent))
+      ) {
+        continue;
+      }
+
+      vars.add(name);
+    }
+  } catch {
+    // Fallback to regex for invalid code
+    return findUsedVariablesRegex(code);
+  }
+
+  return Array.from(vars);
+}
+
+/**
+ * Regex fallback for findUsedVariables (for invalid/partial code)
+ */
+function findUsedVariablesRegex(code: string): string[] {
   const vars = new Set<string>();
   const identifierPattern = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g;
 
   let match;
   while ((match = identifierPattern.exec(code)) !== null) {
     const name = match[1];
-    // Skip keywords and common globals
     if (name && !isKeyword(name) && !isGlobal(name)) {
       vars.add(name);
     }
@@ -562,20 +601,89 @@ function findUsedVariables(code: string): string[] {
 }
 
 /**
- * Find variables declared in code
+ * Find variables declared in code (AST-based)
+ *
+ * Finds:
+ * - const/let/var declarations
+ * - Destructuring patterns
+ * - Function parameters
  */
 function findDeclaredVariables(code: string): string[] {
   const vars: string[] = [];
+
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile("temp.ts", code, {
+      overwrite: true,
+    });
+
+    // Variable declarations
+    const varDeclarations = sourceFile.getDescendantsOfKind(
+      SyntaxKind.VariableDeclaration,
+    );
+    for (const decl of varDeclarations) {
+      const nameNode = decl.getNameNode();
+
+      if (Node.isIdentifier(nameNode)) {
+        vars.push(nameNode.getText());
+      } else if (Node.isObjectBindingPattern(nameNode)) {
+        // Destructuring: const { a, b } = obj
+        for (const element of nameNode.getElements()) {
+          const name = element.getNameNode();
+          if (Node.isIdentifier(name)) {
+            vars.push(name.getText());
+          }
+        }
+      } else if (Node.isArrayBindingPattern(nameNode)) {
+        // Array destructuring: const [a, b] = arr
+        for (const element of nameNode.getElements()) {
+          if (Node.isBindingElement(element)) {
+            const name = element.getNameNode();
+            if (Node.isIdentifier(name)) {
+              vars.push(name.getText());
+            }
+          }
+        }
+      }
+    }
+
+    // Function parameters
+    const functions = [
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.ArrowFunction),
+      ...sourceFile.getDescendantsOfKind(SyntaxKind.FunctionExpression),
+    ];
+
+    for (const func of functions) {
+      for (const param of func.getParameters()) {
+        const nameNode = param.getNameNode();
+        if (Node.isIdentifier(nameNode)) {
+          vars.push(nameNode.getText());
+        }
+      }
+    }
+  } catch {
+    // Fallback to regex
+    return findDeclaredVariablesRegex(code);
+  }
+
+  return vars;
+}
+
+/**
+ * Regex fallback for findDeclaredVariables
+ */
+function findDeclaredVariablesRegex(code: string): string[] {
+  const vars: string[] = [];
   const patterns = [
     /(?:const|let|var)\s+(\w+)/g,
-    /(?:const|let|var)\s+\{([^}]+)\}/g, // destructuring
+    /(?:const|let|var)\s+\{([^}]+)\}/g,
   ];
 
   for (const pattern of patterns) {
     let match;
     while ((match = pattern.exec(code)) !== null) {
       if (match[1]) {
-        // Simple or destructured
         const names = match[1]
           .split(",")
           .map((n) => n.trim().split(":")[0]?.trim());
@@ -588,43 +696,150 @@ function findDeclaredVariables(code: string): string[] {
 }
 
 /**
- * Find variables that are modified/assigned
+ * Find variables that are modified/assigned (AST-based)
  */
 function findModifiedVariables(code: string, declaredVars: string[]): string[] {
-  const modified: string[] = [];
+  const modified = new Set<string>();
+  const declaredSet = new Set(declaredVars);
 
-  for (const v of declaredVars) {
-    // Check if used after declaration (simplified check)
-    const assignPattern = new RegExp(`\\b${v}\\s*=(?!=)`, "g");
-    if (assignPattern.test(code)) {
-      modified.push(v);
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile("temp.ts", code, {
+      overwrite: true,
+    });
+
+    // Binary expressions with assignment
+    const binaryExpressions = sourceFile.getDescendantsOfKind(
+      SyntaxKind.BinaryExpression,
+    );
+
+    for (const expr of binaryExpressions) {
+      const operator = expr.getOperatorToken().getText();
+
+      // Assignment operators
+      if (["=", "+=", "-=", "*=", "/=", "%=", "&&=", "||=", "??="].includes(operator)) {
+        const left = expr.getLeft();
+        if (Node.isIdentifier(left)) {
+          const name = left.getText();
+          if (declaredSet.has(name)) {
+            modified.add(name);
+          }
+        }
+      }
+    }
+
+    // Prefix/postfix increment/decrement
+    const prefixUnary = sourceFile.getDescendantsOfKind(
+      SyntaxKind.PrefixUnaryExpression,
+    );
+    const postfixUnary = sourceFile.getDescendantsOfKind(
+      SyntaxKind.PostfixUnaryExpression,
+    );
+
+    for (const expr of [...prefixUnary, ...postfixUnary]) {
+      const operand = expr.getOperand();
+      if (Node.isIdentifier(operand)) {
+        const name = operand.getText();
+        if (declaredSet.has(name)) {
+          modified.add(name);
+        }
+      }
+    }
+  } catch {
+    // Fallback to regex
+    for (const v of declaredVars) {
+      const assignPattern = new RegExp(`\\b${v}\\s*=(?!=)`, "g");
+      if (assignPattern.test(code)) {
+        modified.add(v);
+      }
     }
   }
 
-  return modified;
+  return Array.from(modified);
 }
 
+// ============================================================================
+// CONDITION MANIPULATION
+// ============================================================================
+
 /**
- * Invert a condition for early return
+ * Invert a condition for early return (AST-based when possible)
  */
 function invertCondition(condition: string): string {
-  // Already negated
-  if (condition.startsWith("!") && !condition.startsWith("!=")) {
-    return condition.slice(1);
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile(
+      "temp.ts",
+      `const x = ${condition};`,
+      { overwrite: true },
+    );
+
+    const varDecl = sourceFile.getVariableDeclarations()[0];
+    const init = varDecl?.getInitializer();
+
+    if (!init) {
+      return `!(${condition})`;
+    }
+
+    // Handle prefix unary (!)
+    if (Node.isPrefixUnaryExpression(init)) {
+      const operator = init.getOperatorToken();
+      if (operator === SyntaxKind.ExclamationToken) {
+        return init.getOperand().getText();
+      }
+    }
+
+    // Handle binary expressions
+    if (Node.isBinaryExpression(init)) {
+      const operator = init.getOperatorToken().getText();
+      const left = init.getLeft().getText();
+      const right = init.getRight().getText();
+
+      const inversions: Record<string, string> = {
+        "===": "!==",
+        "!==": "===",
+        "==": "!=",
+        "!=": "==",
+        ">=": "<",
+        "<=": ">",
+        ">": "<=",
+        "<": ">=",
+        "&&": "||",
+        "||": "&&",
+      };
+
+      if (inversions[operator]) {
+        // For && and ||, need to invert both sides (De Morgan's law)
+        if (operator === "&&" || operator === "||") {
+          return `!(${condition})`;
+        }
+        return `${left} ${inversions[operator]} ${right}`;
+      }
+    }
+
+    // Handle parenthesized expression
+    if (Node.isParenthesizedExpression(init)) {
+      return `!(${condition})`;
+    }
+
+    return `!(${condition})`;
+  } catch {
+    // Fallback to simple string manipulation
+    if (condition.startsWith("!") && !condition.startsWith("!=")) {
+      return condition.slice(1);
+    }
+
+    if (condition.includes("===")) return condition.replace("===", "!==");
+    if (condition.includes("!==")) return condition.replace("!==", "===");
+    if (condition.includes("==")) return condition.replace("==", "!=");
+    if (condition.includes("!=")) return condition.replace("!=", "==");
+    if (condition.includes(">=")) return condition.replace(">=", "<");
+    if (condition.includes("<=")) return condition.replace("<=", ">");
+    if (condition.includes(">")) return condition.replace(">", "<=");
+    if (condition.includes("<")) return condition.replace("<", ">=");
+
+    return `!(${condition})`;
   }
-
-  // Comparison operators
-  if (condition.includes("===")) return condition.replace("===", "!==");
-  if (condition.includes("!==")) return condition.replace("!==", "===");
-  if (condition.includes("==")) return condition.replace("==", "!=");
-  if (condition.includes("!=")) return condition.replace("!=", "==");
-  if (condition.includes(">=")) return condition.replace(">=", "<");
-  if (condition.includes("<=")) return condition.replace("<=", ">");
-  if (condition.includes(">")) return condition.replace(">", "<=");
-  if (condition.includes("<")) return condition.replace("<", ">=");
-
-  // Simple negation
-  return `!(${condition})`;
 }
 
 /**

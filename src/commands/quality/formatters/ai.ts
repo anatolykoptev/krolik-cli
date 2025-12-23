@@ -11,6 +11,7 @@
 
 import type { QualityReport } from '../types';
 import { transformToAIFormat, formatAIReport } from '../ai-format';
+import { escapeXml } from '../../../lib/formatters';
 
 /**
  * Format quality report as AI-optimized XML
@@ -98,13 +99,4 @@ export function formatAISimple(report: QualityReport): string {
   return lines.join('\n');
 }
 
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+// escapeXml imported from lib/formatters

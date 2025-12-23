@@ -76,6 +76,22 @@ export interface FixOptions {
   backup?: boolean;
   /** Max fixes to apply */
   limit?: number;
+  /** Run Biome auto-fix before custom fixes */
+  biome?: boolean;
+  /** Only run Biome (skip custom fixes) */
+  biomeOnly?: boolean;
+  /** Skip Biome even if available */
+  noBiome?: boolean;
+  /** Run TypeScript type check first */
+  typecheck?: boolean;
+  /** Only run TypeScript check (skip fixes) */
+  typecheckOnly?: boolean;
+  /** Skip TypeScript check */
+  noTypecheck?: boolean;
+  /** Output format for TypeScript errors (json, xml, text) */
+  typecheckFormat?: 'json' | 'xml' | 'text';
+  /** Show unified diff for dry-run */
+  showDiff?: boolean;
 }
 
 /**

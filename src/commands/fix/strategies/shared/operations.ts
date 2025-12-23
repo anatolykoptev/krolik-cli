@@ -14,7 +14,7 @@ import { countLines } from './line-utils';
  * Create a delete-line operation
  */
 export function createDeleteLine(
-  file: string | undefined,
+  file: string,
   line: number,
   oldCode: string,
 ): FixOperation {
@@ -30,7 +30,7 @@ export function createDeleteLine(
  * Create a replace-line operation
  */
 export function createReplaceLine(
-  file: string | undefined,
+  file: string,
   line: number,
   oldCode: string,
   newCode: string,
@@ -52,7 +52,7 @@ export function createReplaceLine(
  * Create a replace-range operation for specific lines
  */
 export function createReplaceRange(
-  file: string | undefined,
+  file: string,
   startLine: number,
   endLine: number,
   oldCode: string,
@@ -72,7 +72,7 @@ export function createReplaceRange(
  * Create a replace-range operation for full file replacement
  */
 export function createFullFileReplace(
-  file: string | undefined,
+  file: string,
   oldContent: string,
   newContent: string,
 ): FixOperation {
@@ -94,7 +94,7 @@ export function createFullFileReplace(
  * Create a split-file operation
  */
 export function createSplitFile(
-  file: string | undefined,
+  file: string,
   newFiles: Array<{ path: string; content: string }>,
 ): FixOperation {
   return {

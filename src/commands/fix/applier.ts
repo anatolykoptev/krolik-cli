@@ -26,7 +26,7 @@ export function applyFix(
   issue: QualityIssue,
   options: { backup?: boolean; dryRun?: boolean } = {},
 ): FixResult {
-  const { file, action, line, endLine, oldCode, newCode } = operation;
+  const { file, action, line, endLine, newCode } = operation;
 
   try {
     // Read current content
@@ -130,12 +130,15 @@ export function applyFix(
       fs.writeFileSync(file, newContent);
     }
 
-    return {
+    const result: FixResult = {
       issue,
       operation,
       success: true,
-      backup,
     };
+    if (backup !== undefined) {
+      result.backup = backup;
+    }
+    return result;
   } catch (error) {
     return {
       issue,

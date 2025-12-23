@@ -11,6 +11,8 @@ Fast AI-assisted development toolkit for TypeScript projects.
 ## Features
 
 - **Project Status** — Quick diagnostics (git, types, lint, TODOs)
+- **Code Quality** — Analyze code for SRP, complexity, type-safety, lint issues
+- **Auto-Fix** — Automatically fix code issues (Biome + TypeScript + custom)
 - **Code Review** — AI-assisted review of changes
 - **Schema Analysis** — Prisma schema documentation
 - **Routes Analysis** — tRPC routes documentation
@@ -58,6 +60,14 @@ krolik issue 123
 krolik codegen hooks
 krolik codegen schemas
 krolik codegen tests
+
+# Code quality analysis
+krolik quality
+krolik quality --ai         # AI-friendly XML output
+
+# Auto-fix issues
+krolik fix                  # Full pipeline
+krolik fix --dry-run        # Preview changes
 
 # Security audit
 krolik security
@@ -206,6 +216,45 @@ krolik codegen barrels   # Generate index.ts exports
 krolik codegen docs      # Generate documentation
 ```
 
+### `krolik quality`
+
+Code quality analysis with AI-optimized output:
+
+```bash
+krolik quality                    # Analyze entire project
+krolik quality --path=src/        # Analyze specific path
+krolik quality --ai               # AI-friendly XML output
+krolik quality --category=lint    # Filter by category
+krolik quality --json             # JSON output
+```
+
+**Categories:**
+- `srp` — Single Responsibility violations
+- `complexity` — High cyclomatic complexity, long functions
+- `type-safety` — `any`, `@ts-ignore`, type assertions
+- `lint` — `console`, `debugger`, `alert` statements
+- `hardcoded` — Magic numbers, hardcoded strings
+- `size` — Files exceeding line limits
+
+### `krolik fix`
+
+Auto-fix code issues:
+
+```bash
+krolik fix                        # Full pipeline (tsc + biome + custom)
+krolik fix --dry-run              # Preview changes
+krolik fix --typecheck-only       # Only TypeScript check
+krolik fix --biome-only           # Only Biome fixes
+krolik fix --no-biome             # Skip Biome
+krolik fix --path=src/commands    # Fix specific path
+krolik fix --trivial              # Only trivial fixes
+```
+
+**Fix pipeline:**
+1. TypeScript type check (`tsc --noEmit`)
+2. Biome auto-fix (if available)
+3. Custom strategies (lint, type-safety, complexity)
+
 ### `krolik mcp`
 
 Start MCP server for Claude Code integration (stdio transport):
@@ -241,6 +290,7 @@ Or add to `.claude/settings.json`:
 |------|-------------|
 | `krolik_status` | Project diagnostics |
 | `krolik_context` | AI context generation |
+| `krolik_quality` | Code quality analysis |
 | `krolik_schema` | Prisma schema analysis |
 | `krolik_routes` | tRPC routes analysis |
 | `krolik_review` | Code review |

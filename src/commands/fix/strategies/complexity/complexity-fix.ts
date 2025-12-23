@@ -82,7 +82,7 @@ function tryIfChainConversion(
 function tryNestingReduction(
   content: string,
   file: string,
-  lines: string[],
+  _lines: string[],
   targetLine?: number,
 ): FixOperation | null {
   const result = reduceNesting(content, file, targetLine);

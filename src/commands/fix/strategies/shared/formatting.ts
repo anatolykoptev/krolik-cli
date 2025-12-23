@@ -1,30 +1,21 @@
 /**
  * @module commands/fix/strategies/shared/formatting
  * @description Code formatting and validation utilities
+ *
+ * NOTE: createProject is re-exported from lib/ast for backwards compatibility.
+ * New code should import directly from '@/lib/ast'.
  */
 
 import * as prettier from 'prettier';
-import { Project, DiagnosticCategory, SyntaxKind } from 'ts-morph';
+import { DiagnosticCategory, SyntaxKind } from 'ts-morph';
+import {
+  createProject,
+  createSourceFile,
+  type CreateProjectOptions,
+} from '../../../../lib/ast';
 
-// ============================================================================
-// PROJECT CREATION
-// ============================================================================
-
-/**
- * Create a ts-morph project for code analysis
- * Uses in-memory file system for performance
- */
-export function createProject(): Project {
-  return new Project({
-    useInMemoryFileSystem: true,
-    compilerOptions: {
-      allowJs: true,
-      checkJs: false,
-      noEmit: true,
-      skipLibCheck: true,
-    },
-  });
-}
+// Re-export for backwards compatibility
+export { createProject, type CreateProjectOptions };
 
 // ============================================================================
 // SYNTAX VALIDATION
@@ -37,9 +28,7 @@ export function createProject(): Project {
 export function validateSyntax(code: string, filepath: string): boolean {
   try {
     const project = createProject();
-    const sourceFile = project.createSourceFile(filepath, code, {
-      overwrite: true,
-    });
+    const sourceFile = createSourceFile(project, filepath, code);
 
     const diagnostics = sourceFile.getPreEmitDiagnostics();
     const syntaxErrors = diagnostics.filter(
@@ -62,9 +51,7 @@ export function getSyntaxErrors(
 ): Array<{ line: number; message: string }> {
   try {
     const project = createProject();
-    const sourceFile = project.createSourceFile(filepath, code, {
-      overwrite: true,
-    });
+    const sourceFile = createSourceFile(project, filepath, code);
 
     const diagnostics = sourceFile.getPreEmitDiagnostics();
     const errors = diagnostics.filter(
@@ -106,9 +93,7 @@ export function hasDebuggerStatementAtLine(
 ): boolean {
   try {
     const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', content, {
-      overwrite: true,
-    });
+    const sourceFile = createSourceFile(project, 'temp.ts', content);
 
     const debuggerStatements = sourceFile.getDescendantsOfKind(
       SyntaxKind.DebuggerStatement,
@@ -137,9 +122,7 @@ export function hasConsoleCallAtLine(
 ): boolean {
   try {
     const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', content, {
-      overwrite: true,
-    });
+    const sourceFile = createSourceFile(project, 'temp.ts', content);
 
     const callExpressions = sourceFile.getDescendantsOfKind(
       SyntaxKind.CallExpression,
@@ -167,9 +150,7 @@ export function hasAlertCallAtLine(
 ): boolean {
   try {
     const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', content, {
-      overwrite: true,
-    });
+    const sourceFile = createSourceFile(project, 'temp.ts', content);
 
     const callExpressions = sourceFile.getDescendantsOfKind(
       SyntaxKind.CallExpression,

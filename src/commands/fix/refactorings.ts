@@ -9,16 +9,8 @@
  * 4. Repeated conditions → Guard clauses
  */
 
-import {
-  Project,
-  SourceFile,
-  SyntaxKind,
-  Node,
-  IfStatement,
-  SwitchStatement,
-  FunctionDeclaration,
-  Block,
-} from "ts-morph";
+import { SyntaxKind, Node, ReturnStatement } from "ts-morph";
+import { createProject } from "./strategies/shared";
 
 // ============================================================================
 // IF-CHAIN TO MAP CONVERSION
@@ -31,16 +23,16 @@ export interface IfChainInfo {
     check: string; // e.g., "trimmed.includes('valid')"
     result: string; // e.g., "'validateInput'"
     checkType: "includes" | "startsWith" | "endsWith" | "equals" | "other";
-    searchValue?: string; // extracted value being searched
+    searchValue?: string | undefined; // extracted value being searched
   }>;
-  defaultResult?: string;
+  defaultResult?: string | undefined;
   variableName: string; // The variable being checked
 }
 
 const MAX_LENGTH = 3;
 
 /**
- * Detect if-chain patterns that return based on string checks
+ * Detect if-chain patterns that return based on string checks (AST-based)
  *
  * Pattern:
  *   if (str.includes('x')) return 'a';
@@ -58,13 +50,175 @@ export function detectIfChain(
   content: string,
   startLine: number,
 ): IfChainInfo | null {
+  try {
+    const project = createProject();
+    const sourceFile = project.createSourceFile("temp.ts", content, {
+      overwrite: true,
+    });
+
+    const conditions: IfChainInfo["conditions"] = [];
+    let variableName = "";
+    let endLine = startLine;
+    let defaultResult: string | undefined;
+
+    // Find all if statements
+    const ifStatements = sourceFile.getDescendantsOfKind(SyntaxKind.IfStatement);
+
+    // Filter to if statements starting at or after startLine
+    const relevantIfs = ifStatements.filter(
+      (stmt) => stmt.getStartLineNumber() >= startLine,
+    );
+
+    for (const ifStmt of relevantIfs) {
+      // Only process if we're in sequence
+      const ifLine = ifStmt.getStartLineNumber();
+      if (conditions.length > 0 && ifLine > endLine + 1) {
+        // Gap in sequence - stop
+        break;
+      }
+
+      // Check for pattern: if (var.method('value')) return 'result';
+      const condition = ifStmt.getExpression();
+      const thenStatement = ifStmt.getThenStatement();
+
+      // Must be a call expression like str.includes('x')
+      if (!Node.isCallExpression(condition)) continue;
+
+      const callExpr = condition.getExpression();
+      if (!Node.isPropertyAccessExpression(callExpr)) continue;
+
+      const varExpr = callExpr.getExpression();
+      const methodName = callExpr.getName();
+
+      // Get variable name
+      const varName = varExpr.getText();
+
+      // Check method type
+      const checkType = getCheckType(methodName);
+      if (checkType === "other") continue;
+
+      // Get search value (first argument)
+      const args = condition.getArguments();
+      if (args.length === 0) continue;
+
+      const firstArg = args[0];
+      if (!firstArg || !Node.isStringLiteral(firstArg)) continue;
+
+      const searchValue = firstArg.getLiteralValue();
+
+      // Check then statement is a return with string literal
+      let returnValue: string | undefined;
+
+      if (Node.isReturnStatement(thenStatement)) {
+        const returnExpr = thenStatement.getExpression();
+        if (returnExpr && Node.isStringLiteral(returnExpr)) {
+          returnValue = returnExpr.getLiteralValue();
+        }
+      } else if (Node.isBlock(thenStatement)) {
+        // Block with single return statement
+        const statements = thenStatement.getStatements();
+        if (statements.length === 1 && Node.isReturnStatement(statements[0])) {
+          const returnExpr = (statements[0] as ReturnStatement).getExpression();
+          if (returnExpr && Node.isStringLiteral(returnExpr)) {
+            returnValue = returnExpr.getLiteralValue();
+          }
+        }
+      }
+
+      if (!returnValue) continue;
+
+      // Validate variable consistency
+      if (!variableName) {
+        variableName = varName;
+      } else if (varName !== variableName) {
+        // Different variable - chain broken
+        break;
+      }
+
+      conditions.push({
+        check: `${varName}.${methodName}('${searchValue}')`,
+        result: `'${returnValue}'`,
+        checkType,
+        searchValue,
+      });
+
+      endLine = ifStmt.getEndLineNumber();
+    }
+
+    // Look for default return after if-chain
+    const returnStatements = sourceFile.getDescendantsOfKind(
+      SyntaxKind.ReturnStatement,
+    );
+
+    for (const ret of returnStatements) {
+      const retLine = ret.getStartLineNumber();
+      if (retLine > endLine && retLine <= endLine + 2) {
+        const retExpr = ret.getExpression();
+        if (retExpr && Node.isStringLiteral(retExpr)) {
+          defaultResult = `'${retExpr.getLiteralValue()}'`;
+          endLine = retLine;
+          break;
+        }
+      }
+    }
+
+    // Need at least 3 conditions for worthwhile conversion
+    if (conditions.length < MAX_LENGTH) {
+      return null;
+    }
+
+    // Check if all conditions use the same method
+    const methods = new Set(conditions.map((c) => c.checkType));
+    if (methods.size > 1 || methods.has("other")) {
+      return null;
+    }
+
+    return {
+      startLine,
+      endLine,
+      conditions,
+      defaultResult,
+      variableName,
+    };
+  } catch {
+    // Fallback to regex-based detection
+    return detectIfChainRegex(content, startLine);
+  }
+}
+
+/**
+ * Get check type from method name
+ */
+function getCheckType(
+  method: string,
+): "includes" | "startsWith" | "endsWith" | "equals" | "other" {
+  switch (method) {
+    case "includes":
+      return "includes";
+    case "startsWith":
+      return "startsWith";
+    case "endsWith":
+      return "endsWith";
+    case "equals":
+      return "equals";
+    default:
+      return "other";
+  }
+}
+
+/**
+ * Regex fallback for detectIfChain
+ */
+function detectIfChainRegex(
+  content: string,
+  startLine: number,
+): IfChainInfo | null {
   const lines = content.split("\n");
   const conditions: IfChainInfo["conditions"] = [];
   let variableName = "";
   let endLine = startLine;
   let defaultResult: string | undefined;
 
-  // Pattern for if (variable.method('value')) return 'result';
   const ifPattern =
     /if\s*\(\s*(\w+)\.(\w+)\(['"]([^'"]+)['"]\)\s*\)\s*return\s+['"]([^'"]+)['"];?/;
   const returnPattern = /^\s*return\s+['"]([^'"]+)['"];?\s*$/;
@@ -73,27 +227,16 @@ export function detectIfChain(
     const line = lines[i] || "";
     const trimmed = line.trim();
 
-    // Check for if-return pattern
     const ifMatch = trimmed.match(ifPattern);
     if (ifMatch) {
       const [, varName, method, searchVal, result] = ifMatch;
       if (!variableName) {
         variableName = varName || "";
       } else if (varName !== variableName) {
-        // Different variable - chain broken
         break;
       }
 
-      const checkType =
-        method === "includes"
-          ? "includes"
-          : method === "startsWith"
-            ? "startsWith"
-            : method === "endsWith"
-              ? "endsWith"
-              : method === "equals" || method === "==="
-                ? "equals"
-                : "other";
+      const checkType = getCheckType(method || "");
 
       conditions.push({
         check: `${varName}.${method}('${searchVal}')`,
@@ -105,7 +248,6 @@ export function detectIfChain(
       continue;
     }
 
-    // Check for default return
     const returnMatch = trimmed.match(returnPattern);
     if (returnMatch && conditions.length > 0) {
       defaultResult = `'${returnMatch[1]}'`;
@@ -113,26 +255,22 @@ export function detectIfChain(
       break;
     }
 
-    // Empty line or comment - continue
     if (trimmed === "" || trimmed.startsWith("//")) {
       continue;
     }
 
-    // Other code - chain ends
     if (conditions.length > 0) {
       break;
     }
   }
 
-  // Need at least 3 conditions for worthwhile conversion
   if (conditions.length < MAX_LENGTH) {
     return null;
   }
 
-  // Check if all conditions use the same method
   const methods = new Set(conditions.map((c) => c.checkType));
   if (methods.size > 1 || methods.has("other")) {
-    return null; // Mixed methods - can't easily convert
+    return null;
   }
 
   return {
@@ -189,7 +327,7 @@ export interface SwitchInfo {
     value: string;
     result: string;
   }>;
-  defaultResult?: string;
+  defaultResult?: string | undefined;
 }
 
 /**
@@ -353,7 +491,9 @@ export function detectSections(
   }
 
   // Save last section
-  if (currentSection && sectionLines.length <= 2) return;
+  if (!currentSection || sectionLines.length <= 2) {
+    return sections.filter((s) => s.content.split("\n").length >= MAX_LENGTH);
+  }
 
   currentSection.endLine = funcEndLine;
   currentSection.content = sectionLines.join("\n");

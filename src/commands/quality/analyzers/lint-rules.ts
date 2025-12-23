@@ -18,9 +18,47 @@ interface LintRule {
   category: "lint";
   /** Skip in certain file types */
   skipInFiles?: string[];
+  /** Rule ID for context-aware skipping */
+  skipWithOption?: string;
 }
 
 const MAX_VALUE = 4;
+
+/**
+ * Lint check options
+ */
+export interface LintOptions {
+  maxNestingDepth?: number;
+  enabledRules?: string[];
+  disabledRules?: string[];
+  /** Ignore console in CLI files */
+  ignoreCliConsole?: boolean;
+}
+
+/**
+ * CLI file patterns for auto-detection
+ */
+const CLI_FILE_PATTERNS = [
+  // Direct CLI indicators
+  /[/\\]bin[/\\]/,
+  /[/\\]cli[/\\]/,
+  /\.cli\.(ts|js)$/,
+  /cli\.(ts|js)$/,
+  /bin\.(ts|js)$/,
+  // Command handlers often need console output
+  /[/\\]commands[/\\].*[/\\]index\.(ts|js)$/,
+  // MCP servers communicate via stdout
+  /[/\\]mcp[/\\]/,
+  // Scripts directory
+  /[/\\]scripts[/\\]/,
+];
+
+/**
+ * Check if file is a CLI entry point or command handler
+ */
+export function isCliFile(filepath: string): boolean {
+  return CLI_FILE_PATTERNS.some((pattern) => pattern.test(filepath));
+}
 
 /**
  * Universal lint rules
@@ -33,7 +71,8 @@ const LINT_RULES: LintRule[] = [
     suggestion: "Remove console statement or use a proper logging library",
     severity: "warning",
     category: "lint",
-    skipInFiles: [".test.", ".spec.", "cli.ts", "logger."],
+    skipInFiles: [".test.", ".spec.", "logger."],
+    skipWithOption: "ignoreCliConsole",
   },
   {
     id: "no-debugger",
@@ -184,7 +223,11 @@ function isInsideString(line: string, matchIndex: number): boolean {
 /**
  * Run pattern-based lint rules
  */
-function checkLintRules(content: string, filepath: string): QualityIssue[] {
+function checkLintRules(
+  content: string,
+  filepath: string,
+  options: LintOptions = {},
+): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const lines = content.split("\n");
 
@@ -197,6 +240,14 @@ function checkLintRules(content: string, filepath: string): QualityIssue[] {
 
     for (const rule of LINT_RULES) {
       if (shouldSkipForRule(filepath, rule)) continue;
+
+      // Skip console rules in CLI files when option enabled
+      if (
+        rule.skipWithOption === "ignoreCliConsole" &&
+        options.ignoreCliConsole
+      ) {
+        continue;
+      }
 
       // Reset regex lastIndex
       rule.pattern.lastIndex = 0;
@@ -227,12 +278,6 @@ function checkLintRules(content: string, filepath: string): QualityIssue[] {
 // MAIN EXPORT
 // ============================================================================
 
-export interface LintOptions {
-  maxNestingDepth?: number;
-  enabledRules?: string[];
-  disabledRules?: string[];
-}
-
 /**
  * Run all lint checks on content
  */
@@ -243,8 +288,14 @@ export function checkLintRules_all(
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
 
+  // Auto-detect CLI files and adjust options
+  const effectiveOptions = { ...options };
+  if (isCliFile(filepath)) {
+    effectiveOptions.ignoreCliConsole = true;
+  }
+
   // Pattern-based rules
-  issues.push(...checkLintRules(content, filepath));
+  issues.push(...checkLintRules(content, filepath, effectiveOptions));
 
   // Nesting depth
   const maxDepth = options.maxNestingDepth ?? MAX_VALUE;

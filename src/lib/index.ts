@@ -3,6 +3,15 @@
  * @description Core library exports
  */
 
+// AST utilities (centralized ts-morph)
+export * from './ast';
+
+// Formatters (XML, JSON, Markdown, Text)
+export * from './formatters';
+
+// Discovery (project root, schemas, routes)
+export * from './discovery';
+
 // Logger
 export { createLogger, logger } from './logger';
 
@@ -59,3 +68,6 @@ export {
   listPRs,
 } from './github';
 export type { GitHubIssue, GitHubPR } from './github';
+
+// Timing utilities
+export { measureTime, measureTimeAsync, formatDuration } from './timing';

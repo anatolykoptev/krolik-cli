@@ -3,7 +3,7 @@
  * @description CLI text formatter for quality reports
  */
 
-import type { QualityIssue, QualityOptions, QualityReport, RecommendationItem } from '../types';
+import type { QualityIssue, QualityOptions, QualityReport, RecommendationItem, SplitSuggestion } from '../types';
 
 // ============================================================================
 // SECTION FORMATTERS
@@ -122,6 +122,49 @@ function getRecSeverityIcon(severity: RecommendationItem['severity']): string {
 }
 
 /**
+ * Format split suggestions for complex functions
+ */
+function formatSplitSuggestions(report: QualityReport): string[] {
+  // Find functions with split suggestions
+  const functionsWithSuggestions: Array<{
+    file: string;
+    name: string;
+    complexity: number;
+    suggestions: SplitSuggestion[];
+  }> = [];
+
+  for (const file of report.files) {
+    for (const func of file.functions) {
+      if (func.splitSuggestions && func.splitSuggestions.length > 0) {
+        functionsWithSuggestions.push({
+          file: file.relativePath,
+          name: func.name,
+          complexity: func.complexity,
+          suggestions: func.splitSuggestions,
+        });
+      }
+    }
+  }
+
+  if (functionsWithSuggestions.length === 0) return [];
+
+  const lines: string[] = [
+    '─── Complexity Split Points ──────────────────────────────',
+    '',
+  ];
+
+  for (const { file, name, complexity, suggestions } of functionsWithSuggestions.slice(0, 5)) {
+    lines.push(`🔧 ${file}::${name} (complexity: ${complexity})`);
+    for (const sug of suggestions) {
+      lines.push(`   → Extract ${sug.suggestedName}() — ${sug.reason}`);
+    }
+    lines.push('');
+  }
+
+  return lines;
+}
+
+/**
  * Format recommendations section
  */
 function formatRecommendations(recommendations: RecommendationItem[]): string[] {
@@ -189,6 +232,7 @@ export function formatText(report: QualityReport, options: QualityOptions): stri
 
   if (!options.issuesOnly) {
     lines.push(...formatRefactoring(report.needsRefactoring));
+    lines.push(...formatSplitSuggestions(report));
     lines.push(...formatRecommendations(report.recommendations));
     lines.push(...formatFooter(report));
   }

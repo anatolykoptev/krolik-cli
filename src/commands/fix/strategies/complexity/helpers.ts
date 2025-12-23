@@ -3,7 +3,7 @@
  * @description Helper functions for complexity analysis
  */
 
-import { splitLines, lineStartsWith } from '../shared';
+import { lineStartsWith } from '../shared';
 import {
   FUNCTION_NAME_MAP,
   DEFAULT_FUNCTION_NAME,

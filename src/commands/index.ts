@@ -12,3 +12,4 @@ export { runContext } from './context';
 export { runCodegen } from './codegen';
 export { runSecurity } from './security';
 export { runInit } from './init';
+export { runRefine } from './refine';

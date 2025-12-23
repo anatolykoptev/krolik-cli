@@ -10,6 +10,7 @@
  */
 
 import type { QualityReport, QualityIssue, FileAnalysis } from "./types";
+import { escapeXml } from "../../lib/formatters";
 
 // ============================================================================
 // AI-ENHANCED TYPES
@@ -546,13 +547,4 @@ export function formatAIReport(aiReport: AIReport): string {
   return lines.join("\n");
 }
 
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+// escapeXml imported from lib/formatters

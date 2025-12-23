@@ -1,9 +1,16 @@
 /**
  * @module commands/fix/strategies/hardcoded/ast-utils
  * @description AST utilities for code analysis and transformation
+ *
+ * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { Project, SyntaxKind, SourceFile, NumericLiteral, Node } from 'ts-morph';
+import { SyntaxKind, SourceFile, Node } from 'ts-morph';
+import type { NumericLiteral } from 'ts-morph';
+import { createProject } from '../../../../lib/ast';
+
+// Re-export for convenience
+export { createProject };
 
 // ============================================================================
 // CONSTANTS
@@ -43,23 +50,6 @@ export function findAncestor(node: Node, predicate: (parent: Node) => boolean): 
  */
 export function hasAncestor(node: Node, predicate: (parent: Node) => boolean): boolean {
   return findAncestor(node, predicate) !== null;
-}
-
-// ============================================================================
-// PROJECT CREATION
-// ============================================================================
-
-/**
- * Create a ts-morph project for code manipulation
- */
-export function createProject(): Project {
-  return new Project({
-    useInMemoryFileSystem: true,
-    compilerOptions: {
-      allowJs: true,
-      checkJs: false,
-    },
-  });
 }
 
 // ============================================================================

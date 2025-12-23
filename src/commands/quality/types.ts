@@ -37,6 +37,24 @@ export interface QualityIssue {
 }
 
 /**
+ * Suggested split point for complex functions
+ */
+export interface SplitSuggestion {
+  /** Line number where extractable code starts */
+  startLine: number;
+  /** Line number where extractable code ends */
+  endLine: number;
+  /** Type of code block */
+  type: 'if-block' | 'loop' | 'switch' | 'try-catch' | 'callback' | 'sequential';
+  /** Suggested function name */
+  suggestedName: string;
+  /** Complexity this block contributes */
+  complexity: number;
+  /** Brief description */
+  reason: string;
+}
+
+/**
  * Analysis of a single function
  */
 export interface FunctionInfo {
@@ -50,6 +68,8 @@ export interface FunctionInfo {
   hasJSDoc: boolean;
   /** Cyclomatic complexity (branches count) */
   complexity: number;
+  /** Suggested split points for refactoring */
+  splitSuggestions?: SplitSuggestion[];
 }
 
 /**
@@ -130,6 +150,8 @@ export interface QualityOptions {
   path?: string;
   /** Include test files */
   includeTests?: boolean;
+  /** Ignore console statements in CLI files (auto-detected or explicit) */
+  ignoreCliConsole?: boolean;
   /** Maximum lines per function */
   maxFunctionLines?: number;
   /** Maximum functions per file */

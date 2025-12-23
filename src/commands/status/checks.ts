@@ -3,6 +3,8 @@
  * @description Git, typecheck, and lint checking functions
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { StatusResult } from "../../types";
 import {
   getCurrentBranch,
@@ -101,10 +103,26 @@ export function checkTypecheck(cwd: string, skip = false): TypecheckResult {
   }
 
   const result = tryExec("pnpm typecheck", { cwd, timeout: 60000 });
+  const passed = result.success;
+
+  // Save to cache for future fast lookups
+  try {
+    const cacheDir = path.join(cwd, ".krolik");
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+    fs.writeFileSync(
+      path.join(cacheDir, "typecheck-cache.json"),
+      JSON.stringify({ passed, timestamp: Date.now() }),
+    );
+  } catch {
+    // Ignore cache write errors
+  }
+
   return {
-    status: result.success ? "passed" : "failed",
+    status: passed ? "passed" : "failed",
     cached: false,
-    errors: result.success ? undefined : result.error,
+    ...(passed || !result.error ? {} : { errors: result.error }),
   };
 }
 
@@ -173,7 +191,7 @@ export function toStatusResult(
     typecheck: {
       status: typecheck.status,
       cached: typecheck.cached,
-      errors: typecheck.errors,
+      ...(typecheck.errors ? { errors: typecheck.errors } : {}),
     },
     lint: {
       warnings: lint.warnings,

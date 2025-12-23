@@ -45,6 +45,8 @@ export {
   hasDebuggerStatementAtLine,
   hasConsoleCallAtLine,
   hasAlertCallAtLine,
+  // Types
+  type CreateProjectOptions,
 } from './formatting';
 
 // Fix operations
@@ -57,3 +59,36 @@ export {
   withMetadata,
   isNoOp,
 } from './operations';
+
+// Biome integration
+export {
+  isBiomeAvailable,
+  hasBiomeConfig,
+  biomeAutoFix,
+  biomeLint,
+  biomeLintFix,
+  biomeFormat,
+  biomeOrganizeImports,
+  biomeFixFile,
+  biomeCheckFile,
+  getBiomeVersion,
+  shouldBiomeProcess,
+  type BiomeDiagnostic,
+  type BiomeResult,
+  type BiomeCheckResult,
+} from './biome';
+
+// TypeScript integration
+export {
+  isTscAvailable,
+  hasTsConfig,
+  getTscVersion,
+  runTypeCheck,
+  formatAsJson,
+  formatAsXml,
+  formatAsText,
+  getSummaryLine,
+  shouldTsProcess,
+  type TsDiagnostic,
+  type TsCheckResult,
+} from './typescript';

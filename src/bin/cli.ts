@@ -164,6 +164,27 @@ function createProgram(): Command {
       await runSecurity(ctx);
     });
 
+  // Refine command
+  program
+    .command('refine')
+    .description('Analyze and reorganize lib/ structure to @namespace pattern')
+    .option('--lib-path <path>', 'Custom lib directory path')
+    .option('--apply', 'Apply migration (move directories, update imports)')
+    .option('--dry-run', 'Preview changes without applying')
+    .option('--generate-config', 'Generate ai-config.ts for AI assistants')
+    .option('-j, --json', 'Output as JSON')
+    .option('--markdown', 'Output as markdown')
+    .action(async (options: CommandOptions) => {
+      const { runRefine } = await import('../commands/refine');
+      const ctx = await createContext(program, {
+        ...options,
+        libPath: options.libPath,
+        generateConfig: options.generateConfig,
+        dryRun: options.dryRun,
+      });
+      await runRefine(ctx);
+    });
+
   // Quality command
   program
     .command('quality')
@@ -177,6 +198,7 @@ function createProgram(): Command {
     .option('--max-lines <n>', 'Max lines per file (default: 400)', parseInt)
     .option('--max-complexity <n>', 'Max cyclomatic complexity per function (default: 10)', parseInt)
     .option('--no-jsdoc', 'Disable JSDoc requirement for exported functions')
+    .option('--ignore-cli-console', 'Ignore console.log in CLI files (auto-detected by default)')
     .option('--category <cat>', 'Filter by category: srp, hardcoded, complexity, mixed-concerns, size, documentation, type-safety, lint')
     .option('--severity <sev>', 'Filter by severity: error, warning, info')
     .option('--issues-only', 'Show only issues, no stats')
@@ -194,6 +216,7 @@ function createProgram(): Command {
         maxComplexity: options.maxComplexity,
         requireJSDoc: options.jsdoc !== false,
         issuesOnly: options.issuesOnly,
+        ignoreCliConsole: options.ignoreCliConsole,
       });
       await runQuality(ctx);
     });
@@ -205,6 +228,7 @@ function createProgram(): Command {
     .option('--path <path>', 'Path to fix (default: project root)')
     .option('--category <cat>', 'Only fix specific category: lint, type-safety, complexity')
     .option('--dry-run', 'Show what would be fixed without applying')
+    .option('--diff', 'Show unified diff output (use with --dry-run)')
     .option('--trivial', 'Only fix trivial issues (console, debugger)')
     .option('--yes', 'Auto-confirm all fixes')
     .option('--backup', 'Create backup before fixing')
@@ -214,6 +238,7 @@ function createProgram(): Command {
       const ctx = await createContext(program, {
         ...options,
         dryRun: options.dryRun,
+        showDiff: options.diff,
         trivialOnly: options.trivial,
       });
       await runFix(ctx);
