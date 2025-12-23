@@ -5,16 +5,15 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { CommandContext, RoutesResult } from '../../types';
-import { parseRoutersDirectory, type TrpcRouter, type TrpcProcedure } from './parser';
-import { printRoutes, formatJson, formatMarkdown, calculateStats, type RoutesOutput } from './output';
+import type { CommandContext, OutputFormat } from '../../types';
+import { parseRoutersDirectory } from './parser';
+import { printRoutes, formatJson, formatMarkdown, formatAI, calculateStats, type RoutesOutput } from './output';
 
 /**
  * Routes command options
  */
 export interface RoutesOptions {
-  json?: boolean;
-  markdown?: boolean;
+  format?: OutputFormat;
   save?: boolean;
 }
 
@@ -71,26 +70,34 @@ export async function runRoutes(ctx: CommandContext & { options: RoutesOptions }
   }
 
   const result = analyzeRoutes(routersDir);
+  const format = options.format ?? 'ai';
 
-  if (options.json) {
+  // Handle --save option separately
+  if (options.save) {
+    const md = formatMarkdown(result);
+    const outPath = path.join(config.projectRoot, 'ROUTES.md');
+    fs.writeFileSync(outPath, md, 'utf-8');
+    logger.success(`Saved to: ROUTES.md`);
+    return;
+  }
+
+  if (format === 'json') {
     console.log(formatJson(result));
     return;
   }
 
-  if (options.markdown || options.save) {
-    const md = formatMarkdown(result);
-
-    if (options.save) {
-      const outPath = path.join(config.projectRoot, 'ROUTES.md');
-      fs.writeFileSync(outPath, md, 'utf-8');
-      logger.success(`Saved to: ROUTES.md`);
-    } else {
-      console.log(md);
-    }
+  if (format === 'markdown') {
+    console.log(formatMarkdown(result));
     return;
   }
 
-  printRoutes(result, logger);
+  if (format === 'text') {
+    printRoutes(result, logger);
+    return;
+  }
+
+  // Default: AI-friendly XML
+  console.log(formatAI(result));
 }
 
 // Re-export types

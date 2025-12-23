@@ -3,7 +3,7 @@
  * @description Review output formatters
  */
 
-import type { Logger, ReviewResult, ReviewIssue } from "../../types";
+import type { Logger, ReviewResult } from "../../types";
 
 /**
  * Group items by a key
@@ -55,7 +55,7 @@ export function printReview(review: ReviewResult, logger: Logger): void {
     const stats = file.binary
       ? "binary"
       : `+${file.additions} -${file.deletions}`;
-    const status = file.status[0].toUpperCase();
+    const status = file.status[0]?.toUpperCase() ?? 'M';
     console.log(`  [${status}] ${file.path} (${stats})`);
   }
   console.log("");
@@ -97,6 +97,78 @@ export function printReview(review: ReviewResult, logger: Logger): void {
  */
 export function formatJson(review: ReviewResult): string {
   return JSON.stringify(review, null, 2);
+}
+
+/**
+ * Format review as AI-friendly XML
+ */
+export function formatAI(review: ReviewResult): string {
+  const lines: string[] = [];
+
+  lines.push('<code-review>');
+  lines.push(`  <title>${escapeXml(review.title)}</title>`);
+  lines.push(`  <branches base="${escapeXml(review.baseBranch)}" head="${escapeXml(review.headBranch)}" />`);
+  lines.push('');
+
+  // Summary
+  lines.push('  <summary>');
+  lines.push(`    <files count="${review.summary.totalFiles}" />`);
+  lines.push(`    <changes additions="${review.summary.additions}" deletions="${review.summary.deletions}" />`);
+  lines.push(`    <risk level="${review.summary.riskLevel}" />`);
+  lines.push(`    <tests_required>${review.summary.testsRequired}</tests_required>`);
+  lines.push(`    <docs_required>${review.summary.docsRequired}</docs_required>`);
+  lines.push('  </summary>');
+  lines.push('');
+
+  // Affected features
+  if (review.affectedFeatures.length > 0) {
+    lines.push('  <affected-features>');
+    for (const feature of review.affectedFeatures) {
+      lines.push(`    <feature>${escapeXml(feature)}</feature>`);
+    }
+    lines.push('  </affected-features>');
+    lines.push('');
+  }
+
+  // Changed files
+  lines.push('  <changed-files>');
+  for (const file of review.files) {
+    lines.push(`    <file path="${escapeXml(file.path)}" status="${file.status}" additions="${file.additions}" deletions="${file.deletions}" binary="${file.binary}" />`);
+  }
+  lines.push('  </changed-files>');
+  lines.push('');
+
+  // Issues
+  if (review.issues.length > 0) {
+    lines.push('  <issues>');
+    for (const issue of review.issues) {
+      lines.push(`    <issue severity="${issue.severity}" category="${issue.category}">`);
+      lines.push(`      <file>${escapeXml(issue.file)}</file>`);
+      if (issue.line) lines.push(`      <line>${issue.line}</line>`);
+      lines.push(`      <message>${escapeXml(issue.message)}</message>`);
+      if (issue.suggestion) lines.push(`      <suggestion>${escapeXml(issue.suggestion)}</suggestion>`);
+      lines.push('    </issue>');
+    }
+    lines.push('  </issues>');
+  } else {
+    lines.push('  <issues count="0" />');
+  }
+
+  lines.push('</code-review>');
+
+  return lines.join('\n');
+}
+
+/**
+ * Escape XML special characters
+ */
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 /**

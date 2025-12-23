@@ -8,7 +8,7 @@
  * - Only fixes actual statement nodes
  */
 
-import type { QualityIssue } from '../../../quality/types';
+import type { QualityIssue } from '../../types';
 import type { FixOperation } from '../../types';
 import type { FixContext } from '../../context';
 import { shouldSkipConsoleFix } from '../../context';

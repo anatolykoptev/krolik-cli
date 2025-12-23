@@ -172,7 +172,7 @@ export function checkPatterns(content: string, patterns: ReviewPattern[] = ALL_P
         severity,
         category,
         message,
-        suggestion,
+        ...(suggestion ? { suggestion } : {}),
       });
     }
   }

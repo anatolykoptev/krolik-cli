@@ -58,7 +58,7 @@ export const STRUCTURE_RULES: Recommendation[] = [
     description: 'Functions doing multiple things should be split',
     category: 'structure',
     severity: 'recommendation',
-    check: (content, analysis) => {
+    check: (_content, analysis) => {
       // Check if any function has multiple "await" with different purposes
       return analysis.functions.some((f) => f.lines > 40 && f.complexity > 8);
     },

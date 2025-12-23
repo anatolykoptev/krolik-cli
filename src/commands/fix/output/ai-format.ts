@@ -9,7 +9,7 @@
  * - Priority based on severity and fix complexity
  */
 
-import type { QualityReport, QualityIssue, FileAnalysis } from "./types";
+import type { QualityReport, QualityIssue, FileAnalysis } from "../types";
 import { escapeXml } from '@/lib';
 
 // ============================================================================
@@ -96,7 +96,7 @@ const MAX_LIMIT = 15;
 /**
  * Generate concrete fix for an issue
  */
-function generateFix(issue: QualityIssue, content?: string): AIFix {
+function generateFix(issue: QualityIssue, _content?: string): AIFix {
   const { category, message, snippet } = issue;
 
   // Category-specific fixes
@@ -133,7 +133,7 @@ function generateFix(issue: QualityIssue, content?: string): AIFix {
         return {
           action: "replace",
           location: `line ${issue.line}`,
-          before: snippet,
+          ...(snippet ? { before: snippet } : {}),
           after: `// Remove or use logger:\n// logger.debug(...)`,
           reason: "Console statements should not be in production code",
         };
@@ -201,7 +201,7 @@ function generateFix(issue: QualityIssue, content?: string): AIFix {
         return {
           action: "replace",
           location: `line ${issue.line}`,
-          before: snippet,
+          ...(snippet ? { before: snippet } : {}),
           after: `const MEANINGFUL_NAME = ${snippet?.match(/\d+/)?.[0] || "value"};\n// Use MEANINGFUL_NAME instead`,
           reason: "Magic numbers are hard to understand and maintain",
         };
@@ -210,7 +210,7 @@ function generateFix(issue: QualityIssue, content?: string): AIFix {
         return {
           action: "replace",
           location: `line ${issue.line}`,
-          before: snippet,
+          ...(snippet ? { before: snippet } : {}),
           after: `// Move to i18n:\n// t('key.path')`,
           reason: "Hardcoded text prevents localization",
         };
@@ -381,7 +381,7 @@ function transformIssue(issue: QualityIssue): AIIssue {
   return {
     id: `${issue.category}-${issue.line || 0}`,
     file: issue.file,
-    line: issue.line,
+    ...(issue.line !== undefined ? { line: issue.line } : {}),
     severity: mapSeverity(issue.severity),
     category: issue.category,
     what: issue.message,

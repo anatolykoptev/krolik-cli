@@ -5,16 +5,15 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { CommandContext, SchemaResult } from '../../types';
-import { parseSchemaDirectory, type PrismaModel, type PrismaEnum } from './parser';
-import { printSchema, formatJson, formatMarkdown, type SchemaOutput } from './output';
+import type { CommandContext, OutputFormat } from '../../types';
+import { parseSchemaDirectory } from './parser';
+import { printSchema, formatJson, formatMarkdown, formatAI, type SchemaOutput } from './output';
 
 /**
  * Schema command options
  */
 export interface SchemaOptions {
-  json?: boolean;
-  markdown?: boolean;
+  format?: OutputFormat;
   save?: boolean;
   groupBy?: 'file' | 'domain';
 }
@@ -77,26 +76,34 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
   }
 
   const result = analyzeSchema(schemaDir);
+  const format = options.format ?? 'ai';
 
-  if (options.json) {
+  // Handle --save option separately
+  if (options.save) {
+    const md = formatMarkdown(result);
+    const outPath = path.join(config.projectRoot, 'SCHEMA.md');
+    fs.writeFileSync(outPath, md, 'utf-8');
+    logger.success(`Saved to: SCHEMA.md`);
+    return;
+  }
+
+  if (format === 'json') {
     console.log(formatJson(result));
     return;
   }
 
-  if (options.markdown || options.save) {
-    const md = formatMarkdown(result);
-
-    if (options.save) {
-      const outPath = path.join(config.projectRoot, 'SCHEMA.md');
-      fs.writeFileSync(outPath, md, 'utf-8');
-      logger.success(`Saved to: SCHEMA.md`);
-    } else {
-      console.log(md);
-    }
+  if (format === 'markdown') {
+    console.log(formatMarkdown(result));
     return;
   }
 
-  printSchema(result, logger, options.groupBy ?? 'file');
+  if (format === 'text') {
+    printSchema(result, logger, options.groupBy ?? 'file');
+    return;
+  }
+
+  // Default: AI-friendly XML
+  console.log(formatAI(result));
 }
 
 // Re-export types

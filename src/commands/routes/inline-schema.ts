@@ -50,7 +50,7 @@ export function extractInlineSchema(procBlock: string): InlineSchema | null {
 
   return {
     fields,
-    raw: objectContent.length < 500 ? objectContent.trim() : undefined,
+    ...(objectContent.length < 500 ? { raw: objectContent.trim() } : {}),
   };
 }
 
@@ -89,9 +89,9 @@ function parseObjectFields(content: string): InlineField[] {
 function parseZodChain(name: string, chain: string): InlineField | null {
   // Extract base type
   const typeMatch = chain.match(/^z\.(\w+)/);
-  if (!typeMatch) return null;
+  if (!typeMatch?.[1]) return null;
 
-  let baseType = typeMatch[1];
+  let baseType: string = typeMatch[1];
   let required = true;
   const validations: string[] = [];
   let defaultValue: string | undefined;
@@ -99,7 +99,7 @@ function parseZodChain(name: string, chain: string): InlineField | null {
   // Handle enum with values
   if (baseType === 'enum') {
     const enumMatch = chain.match(/z\.enum\s*\(\s*\[([^\]]+)\]/);
-    if (enumMatch) {
+    if (enumMatch?.[1]) {
       const values = enumMatch[1]
         .split(',')
         .map((v) => v.trim().replace(/['"]/g, ''))
@@ -186,8 +186,8 @@ function parseZodChain(name: string, chain: string): InlineField | null {
     name,
     type: baseType,
     required,
-    validation: validations.length > 0 ? validations.join(', ') : undefined,
-    defaultValue,
+    ...(validations.length > 0 ? { validation: validations.join(', ') } : {}),
+    ...(defaultValue ? { defaultValue } : {}),
   };
 }
 

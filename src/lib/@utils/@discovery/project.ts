@@ -229,7 +229,7 @@ export function getProjectInfo(startDir: string = process.cwd()): ProjectInfo {
   return {
     root,
     isMonorepo: monorepo !== null,
-    name,
+    ...(name ? { name } : {}),
     isGitRepo: gitRoot !== null,
   };
 }

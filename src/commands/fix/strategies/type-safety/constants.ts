@@ -21,7 +21,7 @@ export const TYPE_SAFETY_KEYWORDS = {
 // ============================================================================
 
 /**
- * Patterns for @ts-ignore comments
+ * Patterns for @ts-expect-error comments
  */
 export const TS_IGNORE_PATTERNS = {
   /** Standalone comment line */

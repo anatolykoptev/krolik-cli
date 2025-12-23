@@ -5,7 +5,7 @@
  * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { SyntaxKind, SourceFile, Node } from 'ts-morph';
+import { SyntaxKind, type SourceFile, type Node } from 'ts-morph';
 import type { NumericLiteral } from 'ts-morph';
 import { createProject } from '@/lib';
 

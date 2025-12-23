@@ -7,6 +7,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadConfig } from '../config';
 import { createLogger } from '../lib/logger';
+import type { OutputFormat } from '../types';
 
 const VERSION = '1.0.0';
 
@@ -24,6 +25,16 @@ interface CommandOptions {
   [key: string]: unknown;
 }
 
+/**
+ * Determine output format from options
+ * Priority: --json > --text > default (ai)
+ */
+function getOutputFormat(globalOpts: CommandOptions, cmdOpts: CommandOptions): OutputFormat {
+  if (globalOpts.json || cmdOpts.json) return 'json';
+  if (globalOpts.text || cmdOpts.text) return 'text';
+  return 'ai'; // Default: AI-friendly XML
+}
+
 /** Helper to create command context */
 async function createContext(program: Command, options: CommandOptions) {
   const globalOpts = program.opts();
@@ -31,7 +42,8 @@ async function createContext(program: Command, options: CommandOptions) {
   const projectRoot = globalOpts.projectRoot || globalOpts.cwd || process.env.KROLIK_PROJECT_ROOT;
   const config = await loadConfig({ projectRoot });
   const logger = createLogger({ level: globalOpts.verbose ? 'debug' : 'info' });
-  return { config, logger, options: { ...globalOpts, ...options } };
+  const format = getOutputFormat(globalOpts, options);
+  return { config, logger, options: { ...globalOpts, ...options, format } };
 }
 
 /**
@@ -42,11 +54,12 @@ function createProgram(): Command {
 
   program
     .name('krolik')
-    .description('KROLIK — fast AI-assisted development toolkit')
+    .description('KROLIK — fast AI-assisted development toolkit (AI-friendly output by default)')
     .version(VERSION, '-V, --version', 'Output version number')
     .option('-c, --config <path>', 'Path to config file')
     .option('--project-root <path>', 'Project root directory')
     .option('--cwd <path>', 'Project root directory (alias for --project-root)')
+    .option('-t, --text', 'Human-readable text output (default: AI-friendly XML)')
     .option('--json', 'Output as JSON')
     .option('-v, --verbose', 'Verbose output')
     .option('--no-color', 'Disable colored output');
@@ -56,8 +69,6 @@ function createProgram(): Command {
     .command('status')
     .description('Quick project diagnostics')
     .option('--fast', 'Skip slow checks (typecheck, lint)')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
     .action(async (options: CommandOptions) => {
       const { runStatus } = await import('../commands/status');
       const ctx = await createContext(program, options);
@@ -70,8 +81,6 @@ function createProgram(): Command {
     .description('AI-assisted code review')
     .option('--pr <number>', 'Review specific PR')
     .option('--staged', 'Review staged changes only')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
     .action(async (options: CommandOptions) => {
       const { runReview } = await import('../commands/review');
       const ctx = await createContext(program, options);
@@ -82,8 +91,6 @@ function createProgram(): Command {
   program
     .command('schema')
     .description('Analyze Prisma schema')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
     .option('--save', 'Save to SCHEMA.md')
     .action(async (options: CommandOptions) => {
       const { runSchema } = await import('../commands/schema');
@@ -95,8 +102,6 @@ function createProgram(): Command {
   program
     .command('routes')
     .description('Analyze tRPC routes')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
     .option('--save', 'Save to ROUTES.md')
     .action(async (options: CommandOptions) => {
       const { runRoutes } = await import('../commands/routes');
@@ -109,8 +114,6 @@ function createProgram(): Command {
     .command('issue [number]')
     .description('Parse GitHub issue')
     .option('-u, --url <url>', 'Issue URL')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
     .action(async (number: string | undefined, options: CommandOptions) => {
       const { runIssue } = await import('../commands/issue');
       const ctx = await createContext(program, {
@@ -127,9 +130,6 @@ function createProgram(): Command {
     .option('--issue <number>', 'Context for GitHub issue')
     .option('--feature <name>', 'Context for feature')
     .option('--file <path>', 'Context for file')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
-    .option('--ai', 'Output structured XML for AI assistants (Claude, GPT)')
     .option('--include-code', 'Include Zod schemas and example code snippets')
     .option('--domain-history', 'Include git history filtered by domain files')
     .option('--show-deps', 'Show domain dependencies from package.json')
@@ -172,8 +172,6 @@ function createProgram(): Command {
     .option('--apply', 'Apply migration (move directories, update imports)')
     .option('--dry-run', 'Preview changes without applying')
     .option('--generate-config', 'Generate ai-config.ts for AI assistants')
-    .option('-j, --json', 'Output as JSON')
-    .option('--markdown', 'Output as markdown')
     .action(async (options: CommandOptions) => {
       const { runRefine } = await import('../commands/refine');
       const ctx = await createContext(program, {
@@ -185,61 +183,66 @@ function createProgram(): Command {
       await runRefine(ctx);
     });
 
-  // Quality command
+  // Quality command (deprecated - redirects to fix --analyze-only)
   program
     .command('quality')
     .alias('lint')
-    .description('Analyze code quality: SRP, complexity, type-safety, documentation')
+    .description('[DEPRECATED] Use "fix --analyze-only" instead. Analyze code quality.')
     .option('--path <path>', 'Path to analyze (default: project root)')
     .option('--include-tests', 'Include test files in analysis')
-    .option('--max-function-lines <n>', 'Max lines per function (default: 50)', parseInt)
-    .option('--max-functions <n>', 'Max functions per file (default: 10)', parseInt)
-    .option('--max-exports <n>', 'Max exports per file (default: 5)', parseInt)
-    .option('--max-lines <n>', 'Max lines per file (default: 400)', parseInt)
-    .option('--max-complexity <n>', 'Max cyclomatic complexity per function (default: 10)', parseInt)
-    .option('--no-jsdoc', 'Disable JSDoc requirement for exported functions')
-    .option('--ignore-cli-console', 'Ignore console.log in CLI files (auto-detected by default)')
     .option('--category <cat>', 'Filter by category: srp, hardcoded, complexity, mixed-concerns, size, documentation, type-safety, lint')
     .option('--severity <sev>', 'Filter by severity: error, warning, info')
-    .option('--issues-only', 'Show only issues, no stats')
-    .option('-j, --json', 'Output as JSON')
-    .option('--ai', 'Output as AI-friendly XML')
+    .option('--format <fmt>', 'Output format: ai (default), text', 'ai')
     .action(async (options: CommandOptions) => {
-      const { runQuality } = await import('../commands/quality');
+      console.log('\x1b[33m⚠️  "quality" command is deprecated. Use "fix --analyze-only" instead.\x1b[0m\n');
+      const { runFix } = await import('../commands/fix');
       const ctx = await createContext(program, {
         ...options,
-        format: options.json ? 'json' : options.ai ? 'ai' : 'text',
-        maxFunctionLines: options.maxFunctionLines,
-        maxFunctionsPerFile: options.maxFunctions,
-        maxExportsPerFile: options.maxExports,
-        maxFileLines: options.maxLines,
-        maxComplexity: options.maxComplexity,
-        requireJSDoc: options.jsdoc !== false,
-        issuesOnly: options.issuesOnly,
-        ignoreCliConsole: options.ignoreCliConsole,
+        analyzeOnly: true,
+        format: options.format || 'ai',
+        noTypecheck: true,
+        noBiome: true,
       });
-      await runQuality(ctx);
+      await runFix(ctx);
     });
 
-  // Fix command (autofixer)
+  // Fix command (autofixer + quality analysis)
   program
     .command('fix')
-    .description('Auto-fix code quality issues')
-    .option('--path <path>', 'Path to fix (default: project root)')
+    .description('Auto-fix code quality issues (also replaces quality command with --analyze-only)')
+    .option('--path <path>', 'Path to analyze/fix (default: project root)')
     .option('--category <cat>', 'Only fix specific category: lint, type-safety, complexity')
     .option('--dry-run', 'Show what would be fixed without applying')
+    .option('--analyze-only', 'Analyze only, no fix plan (replaces quality command)')
+    .option('--recommendations', 'Include Airbnb-style recommendations (default: true for --analyze-only)')
+    .option('--format <fmt>', 'Output format: ai (default), text')
     .option('--diff', 'Show unified diff output (use with --dry-run)')
     .option('--trivial', 'Only fix trivial issues (console, debugger)')
     .option('--yes', 'Auto-confirm all fixes')
     .option('--backup', 'Create backup before fixing')
     .option('--limit <n>', 'Max fixes to apply', parseInt)
+    .option('--biome', 'Run Biome auto-fix (default if available)')
+    .option('--biome-only', 'Only run Biome, skip custom fixes')
+    .option('--no-biome', 'Skip Biome even if available')
+    .option('--typecheck', 'Run TypeScript check (default)')
+    .option('--typecheck-only', 'Only run TypeScript check')
+    .option('--no-typecheck', 'Skip TypeScript check')
     .action(async (options: CommandOptions) => {
       const { runFix } = await import('../commands/fix');
       const ctx = await createContext(program, {
         ...options,
         dryRun: options.dryRun,
+        analyzeOnly: options.analyzeOnly,
+        recommendations: options.recommendations,
+        format: options.format,
         showDiff: options.diff,
         trivialOnly: options.trivial,
+        biome: options.biome,
+        biomeOnly: options.biomeOnly,
+        noBiome: options.biome === false,
+        typecheck: options.typecheck,
+        typecheckOnly: options.typecheckOnly,
+        noTypecheck: options.typecheck === false,
       });
       await runFix(ctx);
     });

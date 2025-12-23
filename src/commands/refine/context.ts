@@ -304,12 +304,13 @@ export function detectImportAlias(projectRoot: string): string | null {
     const content = fs.readFileSync(tsconfigPath, 'utf-8');
     // Simple regex to find paths
     const pathsMatch = content.match(/"paths"\s*:\s*\{([^}]+)\}/);
-    if (!pathsMatch) return null;
+    if (!pathsMatch?.[1]) return null;
 
+    const pathsContent = pathsMatch[1];
     // Look for @/* or ~/*
-    if (pathsMatch[1].includes('"@/*"')) return '@';
-    if (pathsMatch[1].includes('"~/*"')) return '~';
-    if (pathsMatch[1].includes('"#/*"')) return '#';
+    if (pathsContent.includes('"@/*"')) return '@';
+    if (pathsContent.includes('"~/*"')) return '~';
+    if (pathsContent.includes('"#/*"')) return '#';
 
     return null;
   } catch {
@@ -353,7 +354,7 @@ export function generateAiNavigation(
 function generateAddNewCodeHints(
   context: ProjectContext,
   libDir: string | null,
-  alias: string,
+  _alias: string,
 ): AiNavigation['addNewCode'] {
   const lib = libDir ? path.basename(libDir) : 'lib';
 

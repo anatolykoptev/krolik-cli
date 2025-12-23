@@ -6,7 +6,7 @@
  * This is the SINGLE source of truth for ts-morph Project creation.
  */
 
-import { Project, SourceFile, ScriptKind } from 'ts-morph';
+import { Project, type SourceFile, ScriptKind } from 'ts-morph';
 
 // ============================================================================
 // TYPES

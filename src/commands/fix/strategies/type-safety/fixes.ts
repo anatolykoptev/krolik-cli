@@ -3,7 +3,7 @@
  * @description Fix generators for type-safety issues
  */
 
-import type { QualityIssue } from '../../../quality/types';
+import type { QualityIssue } from '../../types';
 import type { FixOperation } from '../../types';
 import {
   getLineContext,
@@ -18,13 +18,13 @@ import {
 } from './constants';
 
 // ============================================================================
-// @ts-ignore FIX
+// TS-EXPECT-ERROR FIX
 // ============================================================================
 
 /**
- * Fix @ts-ignore comments
+ * Fix @ts-expect-error comments
  *
- * Removes @ts-ignore comments which suppress type errors.
+ * Removes @ts-expect-error comments which suppress type errors.
  * Better to fix the actual type error than suppress it.
  */
 export function fixTsIgnore(
@@ -36,17 +36,17 @@ export function fixTsIgnore(
   const lineCtx = getLineContext(content, issue.line);
   if (!lineCtx) return null;
 
-  // Standalone line comment: // @ts-ignore
+  // Standalone line comment: // @ts-expect-error
   if (TS_IGNORE_PATTERNS.STANDALONE.test(lineCtx.line)) {
     return createDeleteLine(issue.file, issue.line, lineCtx.line);
   }
 
-  // Standalone block comment: /* @ts-ignore */
+  // Standalone block comment: /* @ts-expect-error */
   if (TS_IGNORE_PATTERNS.BLOCK.test(lineCtx.line)) {
     return createDeleteLine(issue.file, issue.line, lineCtx.line);
   }
 
-  // Inline @ts-ignore - remove just the comment
+  // Inline @ts-expect-error - remove just the comment
   if (lineContains(lineCtx.line, ['@ts-ignore'])) {
     const newLine = lineCtx.line
       .replace(TS_IGNORE_PATTERNS.INLINE_LINE, '')

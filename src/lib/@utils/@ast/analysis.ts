@@ -11,8 +11,9 @@
 import {
   Node,
   SyntaxKind,
-  SourceFile,
+  type SourceFile,
   DiagnosticCategory,
+  VariableDeclarationKind,
 } from 'ts-morph';
 
 // ============================================================================
@@ -140,7 +141,7 @@ export function isInsideConstObject(node: Node): boolean {
   if (!varDeclList || !Node.isVariableDeclarationList(varDeclList)) return false;
 
   // Check if const
-  return varDeclList.getDeclarationKind() === 1; // 1 = Const
+  return varDeclList.getDeclarationKind() === VariableDeclarationKind.Const;
 }
 
 /**
@@ -194,7 +195,8 @@ export function getCodeContext(node: Node): CodeContext {
 
   if (func) {
     if (Node.isFunctionDeclaration(func)) {
-      context.functionName = func.getName();
+      const funcName = func.getName();
+      if (funcName) context.functionName = funcName;
       context.isAsync = func.isAsync();
     } else if (Node.isMethodDeclaration(func)) {
       context.methodName = func.getName();
@@ -212,7 +214,8 @@ export function getCodeContext(node: Node): CodeContext {
   // Check for class context
   const classDecl = findAncestor(node, SyntaxKind.ClassDeclaration);
   if (classDecl && Node.isClassDeclaration(classDecl)) {
-    context.className = classDecl.getName();
+    const className = classDecl.getName();
+    if (className) context.className = className;
   }
 
   // Check for try-catch context

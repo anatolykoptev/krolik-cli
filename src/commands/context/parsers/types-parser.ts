@@ -75,7 +75,7 @@ function parseTypesFile(filePath: string): ExtractedType[] {
       name,
       kind: "interface",
       file: fileName,
-      properties: parseProperties(body),
+      properties: parseProperties(body ?? ''),
     };
 
     if (extendsStr) {
@@ -114,7 +114,7 @@ function parseTypesFile(filePath: string): ExtractedType[] {
         name,
         kind: "type",
         file: fileName,
-        description: value.length < 100 ? value : undefined,
+        ...(value.length < 100 && { description: value }),
       });
     }
   }

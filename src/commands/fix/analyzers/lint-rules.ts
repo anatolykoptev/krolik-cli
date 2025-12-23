@@ -1,28 +1,15 @@
 /**
  * @module commands/quality/analyzers/lint-rules
  * @description Universal lint rules (no-console, no-debugger, max-nesting, etc.)
+ *
+ * Uses shared patterns from @lib/@utils/@patterns/lint
+ * Uses shared context from @lib/@utils/@context
  */
 
-import type { QualityIssue, QualitySeverity } from "../types";
-
-// ============================================================================
-// RULE DEFINITIONS
-// ============================================================================
-
-interface LintRule {
-  id: string;
-  pattern: RegExp;
-  message: string;
-  suggestion: string;
-  severity: QualitySeverity;
-  category: "lint";
-  /** Skip in certain file types */
-  skipInFiles?: string[];
-  /** Rule ID for context-aware skipping */
-  skipWithOption?: string;
-}
-
-const MAX_VALUE = 4;
+import type { QualityIssue } from "../types";
+import { LINT_RULES, type LintRule } from "@/lib/@utils/@patterns/lint";
+import { isCliFile } from "@/lib/@utils/@context";
+import { DEFAULT_MAX_NESTING } from "@/lib/@utils/@patterns/complexity";
 
 /**
  * Lint check options
@@ -35,107 +22,12 @@ export interface LintOptions {
   ignoreCliConsole?: boolean;
 }
 
-/**
- * CLI file patterns for auto-detection
- */
-const CLI_FILE_PATTERNS = [
-  // Direct CLI indicators
-  /[/\\]bin[/\\]/,
-  /[/\\]cli[/\\]/,
-  /\.cli\.(ts|js)$/,
-  /cli\.(ts|js)$/,
-  /bin\.(ts|js)$/,
-  // Command handlers often need console output
-  /[/\\]commands[/\\].*[/\\]index\.(ts|js)$/,
-  // MCP servers communicate via stdout
-  /[/\\]mcp[/\\]/,
-  // Scripts directory
-  /[/\\]scripts[/\\]/,
-];
-
-/**
- * Check if file is a CLI entry point or command handler
- */
-export function isCliFile(filepath: string): boolean {
-  return CLI_FILE_PATTERNS.some((pattern) => pattern.test(filepath));
-}
-
-/**
- * Universal lint rules
- */
-const LINT_RULES: LintRule[] = [
-  {
-    id: "no-console",
-    pattern: /\bconsole\.(log|info|warn|error|debug|trace)\s*\(/g,
-    message: "Unexpected console statement",
-    suggestion: "Remove console statement or use a proper logging library",
-    severity: "warning",
-    category: "lint",
-    skipInFiles: [".test.", ".spec.", "logger."],
-    skipWithOption: "ignoreCliConsole",
-  },
-  {
-    id: "no-debugger",
-    pattern: /\bdebugger\b/g,
-    message: "Unexpected debugger statement",
-    suggestion: "Remove debugger statement before committing",
-    severity: "error",
-    category: "lint",
-  },
-  {
-    id: "no-alert",
-    pattern: /\b(alert|confirm|prompt)\s*\(/g,
-    message: "Unexpected native dialog",
-    suggestion: "Use a modal component instead of native browser dialogs",
-    severity: "warning",
-    category: "lint",
-    skipInFiles: [".test.", ".spec."],
-  },
-  {
-    id: "no-eval",
-    pattern: /\beval\s*\(/g,
-    message: "eval() is a security risk",
-    suggestion:
-      "Avoid eval() - use safer alternatives like JSON.parse() or Function constructor",
-    severity: "error",
-    category: "lint",
-  },
-  {
-    id: "no-var",
-    pattern: /\bvar\s+\w+/g,
-    message: "Unexpected var declaration",
-    suggestion: "Use const or let instead of var",
-    severity: "info",
-    category: "lint",
-  },
-  {
-    id: "no-todo-comments",
-    pattern: /\/\/\s*(TODO|FIXME|HACK|XXX|BUG):/gi,
-    message: "Unresolved TODO/FIXME comment",
-    suggestion: "Address or create a ticket for this TODO",
-    severity: "info",
-    category: "lint",
-  },
-];
+// Re-export for backward compatibility
+export { isCliFile };
 
 // ============================================================================
 // NESTING DEPTH DETECTION
 // ============================================================================
-
-/**
- * Calculate nesting depth of a line
- */
-function calculateNestingDepth(lines: string[], lineIndex: number): number {
-  let depth = 0;
-  for (let i = 0; i <= lineIndex; i++) {
-    const line = lines[i] ?? "";
-    for (const char of line) {
-      if (char === "{" || char === "(") depth++;
-      if (char === "}" || char === ")") depth--;
-    }
-  }
-  return depth;
-}
 
 /**
  * Check for excessive nesting depth
@@ -143,12 +35,12 @@ function calculateNestingDepth(lines: string[], lineIndex: number): number {
 function checkNestingDepth(
   content: string,
   filepath: string,
-  maxDepth: number = MAX_VALUE,
+  maxDepth: number = DEFAULT_MAX_NESTING,
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const lines = content.split("\n");
   let currentDepth = 0;
-  let reported = new Set<number>();
+  const reported = new Set<number>();
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? "";
@@ -242,10 +134,7 @@ function checkLintRules(
       if (shouldSkipForRule(filepath, rule)) continue;
 
       // Skip console rules in CLI files when option enabled
-      if (
-        rule.skipWithOption === "ignoreCliConsole" &&
-        options.ignoreCliConsole
-      ) {
+      if (rule.skipInCli && options.ignoreCliConsole) {
         continue;
       }
 
@@ -262,7 +151,7 @@ function checkLintRules(
           file: filepath,
           line: i + 1,
           severity: rule.severity,
-          category: "lint" as any, // Will be added to QualityCategory
+          category: "lint",
           message: rule.message,
           suggestion: rule.suggestion,
           snippet: trimmed.slice(0, 60),
@@ -298,7 +187,7 @@ export function checkLintRules_all(
   issues.push(...checkLintRules(content, filepath, effectiveOptions));
 
   // Nesting depth
-  const maxDepth = options.maxNestingDepth ?? MAX_VALUE;
+  const maxDepth = options.maxNestingDepth ?? DEFAULT_MAX_NESTING;
   issues.push(...checkNestingDepth(content, filepath, maxDepth));
 
   return issues;

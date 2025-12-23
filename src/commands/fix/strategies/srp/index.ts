@@ -10,7 +10,7 @@
  * Uses AST-based file splitting for safe transformations.
  */
 
-import type { QualityIssue } from '../../../quality/types';
+import type { QualityIssue } from '../../types';
 import type { FixOperation, FixStrategy } from '../../types';
 import { matchNumberInRange, createSplitFile } from '../shared';
 import { splitFile } from '../../ast-utils';

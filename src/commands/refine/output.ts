@@ -3,9 +3,11 @@
  * @description Output formatters for refine command
  */
 
-import type { Logger } from '../../types';
-import type { RefineResult, DirectoryInfo, NamespaceCategory } from './types';
-import { NAMESPACE_INFO } from './analyzer';
+import type { Logger } from "../../types";
+import type { RefineResult, DirectoryInfo, NamespaceCategory } from "./types";
+import { NAMESPACE_INFO } from "./analyzer";
+
+const PERCENT_VALUE = 5;
 
 // ============================================================================
 // CONSOLE OUTPUT
@@ -14,21 +16,24 @@ import { NAMESPACE_INFO } from './analyzer';
 /**
  * Print analysis summary to console
  */
-export function printRefineAnalysis(result: RefineResult, logger: Logger): void {
+export function printRefineAnalysis(
+  result: RefineResult,
+  logger: Logger,
+): void {
   if (!result.libDir) {
-    logger.error('No lib directory found in project');
-    logger.info('Expected locations: lib/, src/lib/, apps/web/lib/');
+    logger.error("No lib directory found in project");
+    logger.info("Expected locations: lib/, src/lib/, apps/web/lib/");
     return;
   }
 
   // Header
-  logger.section('Namespace Structure Analysis');
+  logger.section("Namespace Structure Analysis");
   logger.info(`Project: ${result.projectRoot}`);
   logger.info(`Lib dir: ${result.libDir}`);
-  logger.info('');
+  logger.info("");
 
   // Current structure
-  logger.section('Current Structure');
+  logger.section("Current Structure");
 
   // Group by category
   const byCategory = groupByCategory(result.directories);
@@ -40,21 +45,23 @@ export function printRefineAnalysis(result: RefineResult, logger: Logger): void 
     logger.info(`${icon} @${category} — ${info.description}`);
 
     for (const dir of dirs) {
-      const status = dir.isNamespaced ? '✓' : '○';
-      const name = dir.isNamespaced ? dir.name : `${dir.name} → @${category}/@${dir.name}`;
+      const status = dir.isNamespaced ? "✓" : "○";
+      const name = dir.isNamespaced
+        ? dir.name
+        : `${dir.name} → @${category}/@${dir.name}`;
       logger.info(`   ${status} ${name} (${dir.fileCount} files)`);
     }
-    logger.info('');
+    logger.info("");
   }
 
   // Unknown directories
-  const unknown = result.directories.filter(d => d.category === 'unknown');
+  const unknown = result.directories.filter((d) => d.category === "unknown");
   if (unknown.length > 0) {
-    logger.info('❓ Uncategorized');
+    logger.info("❓ Uncategorized");
     for (const dir of unknown) {
       logger.info(`   ○ ${dir.name} (${dir.fileCount} files)`);
     }
-    logger.info('');
+    logger.info("");
   }
 
   // Score
@@ -65,7 +72,7 @@ export function printRefineAnalysis(result: RefineResult, logger: Logger): void 
  * Print organization score
  */
 export function printScore(result: RefineResult, logger: Logger): void {
-  logger.section('Organization Score');
+  logger.section("Organization Score");
 
   const { currentScore, suggestedScore } = result;
   const bar = createProgressBar(currentScore);
@@ -75,10 +82,10 @@ export function printScore(result: RefineResult, logger: Logger): void {
   if (suggestedScore > currentScore) {
     const suggestedBar = createProgressBar(suggestedScore);
     logger.info(`Potential: ${suggestedBar} ${suggestedScore}%`);
-    logger.info('');
+    logger.info("");
     logger.info(`Run with --apply to reorganize structure`);
   } else {
-    logger.success('Structure is already optimized!');
+    logger.success("Structure is already optimized!");
   }
 }
 
@@ -86,9 +93,9 @@ export function printScore(result: RefineResult, logger: Logger): void {
  * Create ASCII progress bar
  */
 function createProgressBar(percent: number): string {
-  const filled = Math.round(percent / 5);
+  const filled = Math.round(percent / PERCENT_VALUE);
   const empty = 20 - filled;
-  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+  return `[${"█".repeat(filled)}${"░".repeat(empty)}]`;
 }
 
 /**
@@ -96,13 +103,13 @@ function createProgressBar(percent: number): string {
  */
 function getCategoryIcon(category: NamespaceCategory): string {
   const icons: Record<NamespaceCategory, string> = {
-    core: '🔧',
-    domain: '📦',
-    integrations: '🔌',
-    ui: '🎨',
-    utils: '🛠️',
-    seo: '🔍',
-    unknown: '❓',
+    core: "🔧",
+    domain: "📦",
+    integrations: "🔌",
+    ui: "🎨",
+    utils: "🛠️",
+    seo: "🔍",
+    unknown: "❓",
   };
   return icons[category];
 }
@@ -116,7 +123,7 @@ function groupByCategory(
   const result = new Map<NamespaceCategory, DirectoryInfo[]>();
 
   for (const dir of directories) {
-    if (dir.category === 'unknown') continue;
+    if (dir.category === "unknown") continue;
 
     if (!result.has(dir.category)) {
       result.set(dir.category, []);
@@ -139,6 +146,93 @@ export function formatJson(result: RefineResult): string {
 }
 
 // ============================================================================
+// AI-FRIENDLY XML OUTPUT
+// ============================================================================
+
+/**
+ * Format result as AI-friendly XML
+ */
+export function formatAI(result: RefineResult): string {
+  const lines: string[] = [];
+
+  lines.push('<refine-analysis>');
+  lines.push(`  <project root="${result.projectRoot}" lib_dir="${result.libDir || 'not-found'}" />`);
+  lines.push(`  <score current="${result.currentScore}" suggested="${result.suggestedScore}" />`);
+  lines.push('');
+
+  // Directories by category
+  const byCategory = groupByCategory(result.directories);
+  lines.push('  <namespaces>');
+  for (const [category, dirs] of byCategory) {
+    const info = NAMESPACE_INFO[category];
+    lines.push(`    <namespace name="@${category}" description="${info.description}">`);
+    for (const dir of dirs) {
+      const status = dir.isNamespaced ? 'namespaced' : 'needs-migration';
+      lines.push(`      <directory name="${dir.name}" path="${dir.path}" files="${dir.fileCount}" status="${status}" />`);
+    }
+    lines.push('    </namespace>');
+  }
+  lines.push('  </namespaces>');
+  lines.push('');
+
+  // Unknown directories
+  const unknown = result.directories.filter((d) => d.category === 'unknown');
+  if (unknown.length > 0) {
+    lines.push('  <uncategorized>');
+    for (const dir of unknown) {
+      lines.push(`    <directory name="${dir.name}" path="${dir.path}" files="${dir.fileCount}" />`);
+    }
+    lines.push('  </uncategorized>');
+    lines.push('');
+  }
+
+  // Migration plan
+  if (result.plan.moves.length > 0) {
+    lines.push('  <migration-plan>');
+    for (const move of result.plan.moves) {
+      lines.push(`    <move from="${move.from}" to="${move.to}" reason="${move.reason}" />`);
+    }
+    lines.push('  </migration-plan>');
+    lines.push('');
+  }
+
+  // Context if available
+  if (result.context) {
+    lines.push('  <project-context>');
+    lines.push(`    <type>${result.context.type}</type>`);
+    lines.push(`    <name>${result.context.name}</name>`);
+    const ts = result.context.techStack;
+    lines.push(`    <tech-stack framework="${ts.framework || 'none'}" runtime="${ts.runtime}" language="${ts.language}" ui="${ts.ui || 'none'}" />`);
+    if (ts.database.length > 0) {
+      lines.push(`    <databases>${ts.database.join(', ')}</databases>`);
+    }
+    lines.push('  </project-context>');
+    lines.push('');
+  }
+
+  // Architecture health if available
+  if (result.archHealth) {
+    lines.push(`  <architecture-health score="${result.archHealth.score}">`);
+    if (result.archHealth.violations.length > 0) {
+      lines.push('    <violations>');
+      for (const v of result.archHealth.violations) {
+        lines.push(`      <violation type="${v.type}" severity="${v.severity}" from="${v.from}" to="${v.to}">`);
+        lines.push(`        <message>${v.message}</message>`);
+        lines.push(`        <fix>${v.fix}</fix>`);
+        lines.push('      </violation>');
+      }
+      lines.push('    </violations>');
+    }
+    lines.push('  </architecture-health>');
+    lines.push('');
+  }
+
+  lines.push('</refine-analysis>');
+
+  return lines.join('\n');
+}
+
+// ============================================================================
 // MARKDOWN OUTPUT
 // ============================================================================
 
@@ -147,18 +241,18 @@ export function formatJson(result: RefineResult): string {
  */
 export function formatMarkdown(result: RefineResult): string {
   if (!result.libDir) {
-    return '# Error\n\nNo lib directory found in project.';
+    return "# Error\n\nNo lib directory found in project.";
   }
 
   const lines: string[] = [
-    '# Namespace Structure Analysis',
-    '',
+    "# Namespace Structure Analysis",
+    "",
     `**Project:** \`${result.projectRoot}\``,
     `**Lib directory:** \`${result.libDir}\``,
     `**Generated:** ${result.timestamp}`,
-    '',
-    '## Current Structure',
-    '',
+    "",
+    "## Current Structure",
+    "",
   ];
 
   // Group by category
@@ -168,64 +262,64 @@ export function formatMarkdown(result: RefineResult): string {
     const info = NAMESPACE_INFO[category];
 
     lines.push(`### @${category}`);
-    lines.push('');
+    lines.push("");
     lines.push(`> ${info.description}`);
-    lines.push('');
-    lines.push('| Directory | Status | Files | Subdirs |');
-    lines.push('|-----------|--------|-------|---------|');
+    lines.push("");
+    lines.push("| Directory | Status | Files | Subdirs |");
+    lines.push("|-----------|--------|-------|---------|");
 
     for (const dir of dirs) {
-      const status = dir.isNamespaced ? '✅ Namespaced' : '⚠️ Needs migration';
-      const subdirs = dir.subdirs.length > 0 ? dir.subdirs.join(', ') : '-';
+      const status = dir.isNamespaced ? "✅ Namespaced" : "⚠️ Needs migration";
+      const subdirs = dir.subdirs.length > 0 ? dir.subdirs.join(", ") : "-";
       lines.push(`| ${dir.name} | ${status} | ${dir.fileCount} | ${subdirs} |`);
     }
 
-    lines.push('');
+    lines.push("");
   }
 
   // Unknown
-  const unknown = result.directories.filter(d => d.category === 'unknown');
+  const unknown = result.directories.filter((d) => d.category === "unknown");
   if (unknown.length > 0) {
-    lines.push('### Uncategorized');
-    lines.push('');
-    lines.push('| Directory | Files |');
-    lines.push('|-----------|-------|');
+    lines.push("### Uncategorized");
+    lines.push("");
+    lines.push("| Directory | Files |");
+    lines.push("|-----------|-------|");
 
     for (const dir of unknown) {
       lines.push(`| ${dir.name} | ${dir.fileCount} |`);
     }
 
-    lines.push('');
+    lines.push("");
   }
 
   // Migration plan
   if (result.plan.moves.length > 0) {
-    lines.push('## Migration Plan');
-    lines.push('');
-    lines.push('| From | To | Reason |');
-    lines.push('|------|----|---------');
+    lines.push("## Migration Plan");
+    lines.push("");
+    lines.push("| From | To | Reason |");
+    lines.push("|------|----|---------");
 
     for (const move of result.plan.moves) {
       lines.push(`| ${move.from}/ | ${move.to}/ | ${move.reason} |`);
     }
 
-    lines.push('');
+    lines.push("");
   }
 
   // Score
-  lines.push('## Organization Score');
-  lines.push('');
+  lines.push("## Organization Score");
+  lines.push("");
   lines.push(`- **Current:** ${result.currentScore}%`);
   lines.push(`- **Potential:** ${result.suggestedScore}%`);
-  lines.push('');
+  lines.push("");
 
   if (result.suggestedScore > result.currentScore) {
-    lines.push('Run `krolik refine --apply` to reorganize structure.');
+    lines.push("Run `krolik refine --apply` to reorganize structure.");
   } else {
-    lines.push('✅ Structure is already optimized!');
+    lines.push("✅ Structure is already optimized!");
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 // ============================================================================
@@ -237,11 +331,11 @@ export function formatMarkdown(result: RefineResult): string {
  */
 export function printSummary(result: RefineResult, logger: Logger): void {
   if (!result.libDir) {
-    logger.error('No lib directory found');
+    logger.error("No lib directory found");
     return;
   }
 
-  const namespaced = result.directories.filter(d => d.isNamespaced).length;
+  const namespaced = result.directories.filter((d) => d.isNamespaced).length;
   const total = result.directories.length;
 
   logger.info(`Directories: ${total} total, ${namespaced} namespaced`);
@@ -260,7 +354,10 @@ export function printSummary(result: RefineResult, logger: Logger): void {
 /**
  * Print full enhanced analysis
  */
-export function printEnhancedAnalysis(result: RefineResult, logger: Logger): void {
+export function printEnhancedAnalysis(
+  result: RefineResult,
+  logger: Logger,
+): void {
   // Print basic analysis first
   printRefineAnalysis(result, logger);
 
@@ -291,11 +388,11 @@ export function printEnhancedAnalysis(result: RefineResult, logger: Logger): voi
 function printProjectContext(result: RefineResult, logger: Logger): void {
   const ctx = result.context!;
 
-  logger.section('Project Context');
+  logger.section("Project Context");
 
   logger.info(`Type:      ${getProjectTypeLabel(ctx.type)}`);
   logger.info(`Name:      ${ctx.name}`);
-  logger.info(`Framework: ${ctx.techStack.framework || 'none'}`);
+  logger.info(`Framework: ${ctx.techStack.framework || "none"}`);
   logger.info(`Runtime:   ${ctx.techStack.runtime}`);
   logger.info(`Language:  ${ctx.techStack.language}`);
 
@@ -304,37 +401,37 @@ function printProjectContext(result: RefineResult, logger: Logger): void {
   }
 
   if (ctx.techStack.database.length > 0) {
-    logger.info(`Database:  ${ctx.techStack.database.join(', ')}`);
+    logger.info(`Database:  ${ctx.techStack.database.join(", ")}`);
   }
 
   if (ctx.techStack.stateManagement.length > 0) {
-    logger.info(`State:     ${ctx.techStack.stateManagement.join(', ')}`);
+    logger.info(`State:     ${ctx.techStack.stateManagement.join(", ")}`);
   }
 
   if (ctx.techStack.styling.length > 0) {
-    logger.info(`Styling:   ${ctx.techStack.styling.join(', ')}`);
+    logger.info(`Styling:   ${ctx.techStack.styling.join(", ")}`);
   }
 
   if (ctx.techStack.testing.length > 0) {
-    logger.info(`Testing:   ${ctx.techStack.testing.join(', ')}`);
+    logger.info(`Testing:   ${ctx.techStack.testing.join(", ")}`);
   }
 
   if (ctx.importAlias) {
     logger.info(`Alias:     ${ctx.importAlias}/`);
   }
 
-  logger.info('');
+  logger.info("");
 }
 
 function getProjectTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    cli: '🖥️  CLI Tool',
-    'web-app': '🌐 Web Application',
-    api: '⚡ API Service',
-    library: '📚 Library',
-    monorepo: '🏗️  Monorepo',
-    mobile: '📱 Mobile App',
-    unknown: '❓ Unknown',
+    cli: "🖥️  CLI Tool",
+    "web-app": "🌐 Web Application",
+    api: "⚡ API Service",
+    library: "📚 Library",
+    monorepo: "🏗️  Monorepo",
+    mobile: "📱 Mobile App",
+    unknown: "❓ Unknown",
   };
   return labels[type] || type;
 }
@@ -345,39 +442,41 @@ function getProjectTypeLabel(type: string): string {
 function printArchHealth(result: RefineResult, logger: Logger): void {
   const health = result.archHealth!;
 
-  logger.section('Architecture Health');
+  logger.section("Architecture Health");
 
   const healthBar = createProgressBar(health.score);
-  const healthIcon = health.score >= 80 ? '✅' : health.score >= 50 ? '⚠️' : '❌';
+  const healthIcon =
+    health.score >= 80 ? "✅" : health.score >= 50 ? "⚠️" : "❌";
 
   logger.info(`Score: ${healthBar} ${health.score}% ${healthIcon}`);
-  logger.info('');
+  logger.info("");
 
   // Dependency graph
   if (Object.keys(health.dependencyGraph).length > 0) {
-    logger.info('Dependencies:');
+    logger.info("Dependencies:");
     for (const [ns, deps] of Object.entries(health.dependencyGraph)) {
       if (deps.length > 0) {
-        logger.info(`  ${ns} → ${deps.join(', ')}`);
+        logger.info(`  ${ns} → ${deps.join(", ")}`);
       } else {
         logger.info(`  ${ns} (no dependencies)`);
       }
     }
-    logger.info('');
+    logger.info("");
   }
 
   // Violations
   if (health.violations.length > 0) {
-    logger.info('Violations:');
+    logger.info("Violations:");
     for (const v of health.violations) {
-      const icon = v.severity === 'error' ? '❌' : v.severity === 'warning' ? '⚠️' : 'ℹ️';
+      const icon =
+        v.severity === "error" ? "❌" : v.severity === "warning" ? "⚠️" : "ℹ️";
       logger.info(`  ${icon} ${v.message}`);
       logger.info(`     Fix: ${v.fix}`);
     }
-    logger.info('');
+    logger.info("");
   } else {
-    logger.success('No architecture violations found!');
-    logger.info('');
+    logger.success("No architecture violations found!");
+    logger.info("");
   }
 }
 
@@ -387,39 +486,48 @@ function printArchHealth(result: RefineResult, logger: Logger): void {
 function printStandards(result: RefineResult, logger: Logger): void {
   const standards = result.standards!;
 
-  logger.section('Standards Compliance');
+  logger.section("Standards Compliance");
 
   const bar = createProgressBar(standards.score);
-  const icon = standards.score >= 80 ? '✅' : standards.score >= 50 ? '⚠️' : '❌';
+  const icon =
+    standards.score >= 80 ? "✅" : standards.score >= 50 ? "⚠️" : "❌";
 
   logger.info(`Overall: ${bar} ${standards.score}% ${icon}`);
-  logger.info('');
+  logger.info("");
 
   // Category scores
-  logger.info('Categories:');
-  logger.info(`  Structure:     ${createMiniBar(standards.categories.structure)} ${standards.categories.structure}%`);
-  logger.info(`  Naming:        ${createMiniBar(standards.categories.naming)} ${standards.categories.naming}%`);
-  logger.info(`  Dependencies:  ${createMiniBar(standards.categories.dependencies)} ${standards.categories.dependencies}%`);
-  logger.info(`  Documentation: ${createMiniBar(standards.categories.documentation)} ${standards.categories.documentation}%`);
-  logger.info('');
+  logger.info("Categories:");
+  logger.info(
+    `  Structure:     ${createMiniBar(standards.categories.structure)} ${standards.categories.structure}%`,
+  );
+  logger.info(
+    `  Naming:        ${createMiniBar(standards.categories.naming)} ${standards.categories.naming}%`,
+  );
+  logger.info(
+    `  Dependencies:  ${createMiniBar(standards.categories.dependencies)} ${standards.categories.dependencies}%`,
+  );
+  logger.info(
+    `  Documentation: ${createMiniBar(standards.categories.documentation)} ${standards.categories.documentation}%`,
+  );
+  logger.info("");
 
   // Failed checks
-  const failed = standards.checks.filter(c => !c.passed);
+  const failed = standards.checks.filter((c) => !c.passed);
   if (failed.length > 0) {
-    logger.info('Issues:');
+    logger.info("Issues:");
     for (const check of failed) {
-      const fixable = check.autoFixable ? ' [auto-fixable]' : '';
+      const fixable = check.autoFixable ? " [auto-fixable]" : "";
       logger.info(`  ○ ${check.name}${fixable}`);
       logger.info(`    ${check.details}`);
     }
-    logger.info('');
+    logger.info("");
   }
 }
 
 function createMiniBar(percent: number): string {
   const filled = Math.round(percent / 10);
   const empty = 10 - filled;
-  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}]`;
+  return `[${"█".repeat(filled)}${"░".repeat(empty)}]`;
 }
 
 /**
@@ -428,9 +536,9 @@ function createMiniBar(percent: number): string {
 function printAiNavigation(result: RefineResult, logger: Logger): void {
   const nav = result.aiNavigation!;
 
-  logger.section('AI Navigation Guide');
+  logger.section("AI Navigation Guide");
 
-  logger.info('Where to add new code:');
+  logger.info("Where to add new code:");
   logger.info(`  Server logic:   ${nav.addNewCode.serverLogic}`);
   logger.info(`  Client hook:    ${nav.addNewCode.clientHook}`);
   logger.info(`  Utility:        ${nav.addNewCode.utility}`);
@@ -439,22 +547,26 @@ function printAiNavigation(result: RefineResult, logger: Logger): void {
   logger.info(`  Component:      ${nav.addNewCode.component}`);
   logger.info(`  API route:      ${nav.addNewCode.apiRoute}`);
   logger.info(`  Test:           ${nav.addNewCode.test}`);
-  logger.info('');
+  logger.info("");
 
-  logger.info('Import conventions:');
-  logger.info(`  Absolute imports: ${nav.importConventions.absoluteImports ? 'Yes' : 'No'}`);
+  logger.info("Import conventions:");
+  logger.info(
+    `  Absolute imports: ${nav.importConventions.absoluteImports ? "Yes" : "No"}`,
+  );
   if (nav.importConventions.alias) {
     logger.info(`  Alias: ${nav.importConventions.alias}/`);
   }
-  logger.info(`  Barrel exports: ${nav.importConventions.barrelExports ? 'Yes' : 'No'}`);
-  logger.info('');
+  logger.info(
+    `  Barrel exports: ${nav.importConventions.barrelExports ? "Yes" : "No"}`,
+  );
+  logger.info("");
 
-  logger.info('Naming conventions:');
+  logger.info("Naming conventions:");
   logger.info(`  Files:      ${nav.namingConventions.files}`);
   logger.info(`  Components: ${nav.namingConventions.components}`);
   logger.info(`  Hooks:      ${nav.namingConventions.hooks}`);
   logger.info(`  Utilities:  ${nav.namingConventions.utilities}`);
   logger.info(`  Constants:  ${nav.namingConventions.constants}`);
   logger.info(`  Types:      ${nav.namingConventions.types}`);
-  logger.info('');
+  logger.info("");
 }

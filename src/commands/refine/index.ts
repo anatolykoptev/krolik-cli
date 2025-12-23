@@ -26,6 +26,7 @@ import {
   printSummary,
   formatJson,
   formatMarkdown,
+  formatAI,
 } from './output';
 
 // ============================================================================
@@ -43,24 +44,29 @@ export async function runRefine(
 
   // Analyze structure
   const result = analyzeStructure(projectRoot, options.libPath);
+  const format = options.format ?? 'ai';
 
-  // Enhance with context, arch health, and standards (always for verbose/full)
-  if (options.verbose) {
+  // Enhance with context, arch health, and standards (always for verbose/full or non-text formats)
+  if (options.verbose || format !== 'text') {
     enhanceResult(result, projectRoot);
   }
 
-  // Handle output formats
-  if (options.json) {
-    // For JSON, always include full analysis
-    enhanceResult(result, projectRoot);
-    console.log(formatJson(result));
-    return;
-  }
+  // Handle output formats (if not an action command)
+  if (!options.apply && !options.dryRun && !options.generateConfig) {
+    if (format === 'json') {
+      console.log(formatJson(result));
+      return;
+    }
 
-  if (options.markdown) {
-    enhanceResult(result, projectRoot);
-    console.log(formatMarkdown(result));
-    return;
+    if (format === 'markdown') {
+      console.log(formatMarkdown(result));
+      return;
+    }
+
+    if (format === 'ai') {
+      console.log(formatAI(result));
+      return;
+    }
   }
 
   // No lib directory found

@@ -3,11 +3,11 @@
  * @description AI-assisted code review command
  */
 
-import type { CommandContext, ReviewResult, FileChange, ReviewIssue } from '../../types';
+import type { CommandContext, ReviewResult, FileChange, ReviewIssue, OutputFormat } from '../../types';
 import { getChangedFiles, getStagedChanges, getPRInfo, getFileChanges, getReviewBranches } from './diff';
 import { analyzeAddedLines } from './patterns';
 import { assessRisk, needsTests, needsDocs, detectAffectedFeatures } from './risk';
-import { printReview, formatJson, formatMarkdown } from './output';
+import { printReview, formatJson, formatMarkdown, formatAI } from './output';
 
 /**
  * Review command options
@@ -16,8 +16,7 @@ export interface ReviewOptions {
   pr?: string;
   staged?: boolean;
   base?: string;
-  json?: boolean;
-  markdown?: boolean;
+  format?: OutputFormat;
   verbose?: boolean;
 }
 
@@ -43,10 +42,10 @@ export function generateReview(
     if (!file.path.match(/\.(ts|tsx|js|jsx)$/)) continue;
 
     const diff = getFileChanges(file.path, {
-      staged: options.staged,
+      ...(options.staged ? { staged: options.staged } : {}),
       base: options.baseBranch,
       head: options.headBranch,
-      cwd: options.cwd,
+      ...(options.cwd ? { cwd: options.cwd } : {}),
     });
 
     const fileIssues = analyzeAddedLines(diff, file.path);
@@ -127,21 +126,29 @@ export async function runReview(ctx: CommandContext & { options: ReviewOptions }
     description,
     baseBranch,
     headBranch,
-    staged: options.staged,
+    ...(options.staged ? { staged: options.staged } : {}),
     cwd,
   });
 
-  if (options.json) {
+  const format = options.format ?? 'ai';
+
+  if (format === 'json') {
     console.log(formatJson(review));
     return;
   }
 
-  if (options.markdown) {
+  if (format === 'markdown') {
     console.log(formatMarkdown(review));
     return;
   }
 
-  printReview(review, logger);
+  if (format === 'text') {
+    printReview(review, logger);
+    return;
+  }
+
+  // Default: AI-friendly XML
+  console.log(formatAI(review));
 }
 
 // Re-export for external use

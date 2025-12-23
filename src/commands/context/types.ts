@@ -3,7 +3,7 @@
  * @description Type definitions for context module
  */
 
-import type { ContextResult, KrolikConfig } from "../../types";
+import type { ContextResult, KrolikConfig, OutputFormat } from "../../types";
 import type { SchemaOutput } from "../schema/output";
 import type { RoutesOutput } from "../routes/output";
 import type {
@@ -21,9 +21,7 @@ export interface ContextOptions {
   issue?: string;
   feature?: string;
   file?: string;
-  json?: boolean;
-  markdown?: boolean;
-  ai?: boolean;
+  format?: OutputFormat;
   verbose?: boolean;
 }
 

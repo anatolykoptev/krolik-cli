@@ -8,7 +8,7 @@
  * - Accurate function boundary detection
  */
 
-import { SyntaxKind, Node, SourceFile, Project } from 'ts-morph';
+import { SyntaxKind, Node, type SourceFile, type Project } from 'ts-morph';
 import { createProject } from '@/lib';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 

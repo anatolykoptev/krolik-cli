@@ -7,8 +7,9 @@ import type { ResolvedConfig } from './config';
 
 /**
  * Output format for command results
+ * Default is 'ai' (AI-friendly XML format)
  */
-export type OutputFormat = 'text' | 'json' | 'markdown';
+export type OutputFormat = 'ai' | 'json' | 'text' | 'markdown';
 
 /**
  * Log levels
@@ -32,8 +33,8 @@ export interface Logger {
  * Base options for all commands
  */
 export interface BaseCommandOptions {
-  /** Output format */
-  output?: OutputFormat;
+  /** Output format (default: 'ai' for AI-friendly XML) */
+  format?: OutputFormat;
   /** Enable verbose logging */
   verbose?: boolean;
   /** Dry run mode (no changes) */
@@ -42,6 +43,10 @@ export interface BaseCommandOptions {
   config?: string;
   /** Project root override */
   projectRoot?: string;
+  /** Human-readable text output */
+  text?: boolean;
+  /** JSON output */
+  json?: boolean;
 }
 
 /**
@@ -84,6 +89,8 @@ export interface StatusResult {
     modified: number;
     untracked: number;
     staged: number;
+    ahead?: number;
+    behind?: number;
   };
   typecheck: {
     status: 'passed' | 'failed' | 'skipped';
@@ -98,6 +105,53 @@ export interface StatusResult {
     count: number;
   };
   durationMs: number;
+  /** Package info (optional, for rich output) */
+  package?: {
+    name: string;
+    version: string;
+    depsCount: number;
+    devDepsCount: number;
+  };
+  /** Tech stack (optional, for rich output) */
+  techStack?: {
+    framework?: string;
+    language: 'typescript' | 'javascript';
+    ui: string[];
+    database: string[];
+    api: string[];
+    packageManager: string;
+  };
+  /** Recent commits (optional, for rich output) */
+  recentCommits?: Array<{
+    hash: string;
+    message: string;
+    author: string;
+    relativeDate: string;
+  }>;
+  /** File stats (optional, for rich output) */
+  fileStats?: {
+    sourceFiles: number;
+    testFiles: number;
+  };
+  /** Monorepo workspaces (optional) */
+  workspaces?: Array<{
+    name: string;
+    path: string;
+    type: 'app' | 'package' | 'config' | 'unknown';
+  }>;
+  /** AI rules files for agents to read (IMPORTANT!) */
+  aiRules?: Array<{
+    path: string;
+    relativePath: string;
+    scope: 'root' | 'package' | 'app';
+  }>;
+  /** Current branch context */
+  branchContext?: {
+    name: string;
+    type: 'feature' | 'fix' | 'chore' | 'release' | 'hotfix' | 'main' | 'develop' | 'unknown';
+    issueNumber?: number;
+    description?: string;
+  };
 }
 
 /**

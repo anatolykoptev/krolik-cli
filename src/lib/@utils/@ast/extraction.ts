@@ -11,12 +11,7 @@
 import {
   Node,
   SyntaxKind,
-  SourceFile,
-  ImportDeclaration,
-  ExportDeclaration,
-  FunctionDeclaration,
-  ArrowFunction,
-  MethodDeclaration,
+  type SourceFile,
 } from 'ts-morph';
 
 // ============================================================================
@@ -115,8 +110,8 @@ export function extractImports(sourceFile: SourceFile): ImportInfo[] {
     imports.push({
       module: moduleSpecifier,
       namedImports,
-      defaultImport,
-      namespaceImport,
+      ...(defaultImport ? { defaultImport } : {}),
+      ...(namespaceImport ? { namespaceImport } : {}),
       isTypeOnly: imp.isTypeOnly(),
       line: imp.getStartLineNumber(),
     });

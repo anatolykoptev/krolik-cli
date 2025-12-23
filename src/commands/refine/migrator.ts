@@ -3,19 +3,29 @@
  * @description Apply structure migrations (move directories, update imports)
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import type { Logger } from '../../types';
-import type { MigrationPlan, RefineResult } from './types';
-import { escapeRegex } from '@/lib';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import type { Logger } from "../../types";
+import type { MigrationPlan, RefineResult } from "./types";
+import { escapeRegex } from "@/lib";
+
+const DEFAULT_PORT = 5;
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const SKIP_DIRS = [
-  'node_modules', '.git', '.next', 'dist', 'build', 'coverage',
-  '__tests__', '__mocks__', '.turbo', '.cache',
+  "node_modules",
+  ".git",
+  ".next",
+  "dist",
+  "build",
+  "coverage",
+  "__tests__",
+  "__mocks__",
+  ".turbo",
+  ".cache",
 ];
 
 // ============================================================================
@@ -76,16 +86,16 @@ function moveDirectory(from: string, to: string): void {
  */
 export function updateFileImports(
   filePath: string,
-  updates: MigrationPlan['importUpdates'],
+  updates: MigrationPlan["importUpdates"],
 ): boolean {
-  let content = fs.readFileSync(filePath, 'utf-8');
+  let content = fs.readFileSync(filePath, "utf-8");
   let modified = false;
 
   for (const { oldPath, newPath } of updates) {
     // Match import statements with optional subpath
     const regex = new RegExp(
       `(from\\s+['"])${escapeRegex(oldPath)}(/[^'"]*)?(['"])`,
-      'g'
+      "g",
     );
 
     if (regex.test(content)) {
@@ -96,7 +106,7 @@ export function updateFileImports(
   }
 
   if (modified) {
-    fs.writeFileSync(filePath, content, 'utf-8');
+    fs.writeFileSync(filePath, content, "utf-8");
   }
 
   return modified;
@@ -107,7 +117,7 @@ export function updateFileImports(
  */
 export function updateAllImports(
   projectRoot: string,
-  updates: MigrationPlan['importUpdates'],
+  updates: MigrationPlan["importUpdates"],
   logger?: Logger,
 ): number {
   const files = findAllTsFiles(projectRoot);
@@ -150,7 +160,7 @@ export function applyMigration(
       success: false,
       movedDirs: [],
       updatedFiles: 0,
-      errors: ['No lib directory found'],
+      errors: ["No lib directory found"],
     };
   }
 
@@ -163,14 +173,14 @@ export function applyMigration(
   };
 
   if (plan.moves.length === 0) {
-    logger?.info('No migrations needed - structure is already optimized');
+    logger?.info("No migrations needed - structure is already optimized");
     return migrationResult;
   }
 
   // 1. Create namespace directories
-  const namespaces = new Set(plan.moves.map(m => m.to.split('/')[0]));
+  const namespaces = new Set(plan.moves.map((m) => m.to.split("/")[0]).filter(Boolean));
   for (const ns of namespaces) {
-    const nsPath = path.join(libDir, ns);
+    const nsPath = path.join(libDir, ns!);
     if (dryRun) {
       logger?.info(`[DRY] Would create: ${ns}/`);
     } else {
@@ -197,7 +207,7 @@ export function applyMigration(
         migrationResult.movedDirs.push(move.to);
         logger?.success(`Moved: ${move.from} -> ${move.to}`);
       } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Unknown error';
+        const msg = error instanceof Error ? error.message : "Unknown error";
         migrationResult.errors.push(`Failed to move ${move.from}: ${msg}`);
         migrationResult.success = false;
       }
@@ -206,7 +216,7 @@ export function applyMigration(
 
   // 3. Update imports
   if (!dryRun && plan.importUpdates.length > 0) {
-    logger?.info('Updating imports...');
+    logger?.info("Updating imports...");
     migrationResult.updatedFiles = updateAllImports(
       projectRoot,
       plan.importUpdates,
@@ -214,7 +224,9 @@ export function applyMigration(
     );
     logger?.success(`Updated imports in ${migrationResult.updatedFiles} files`);
   } else if (dryRun && plan.importUpdates.length > 0) {
-    logger?.info(`[DRY] Would update ${plan.importUpdates.length} import patterns`);
+    logger?.info(
+      `[DRY] Would update ${plan.importUpdates.length} import patterns`,
+    );
   }
 
   if (migrationResult.errors.length > 0) {
@@ -227,21 +239,18 @@ export function applyMigration(
 /**
  * Preview migration (dry run output)
  */
-export function previewMigration(
-  result: RefineResult,
-  logger: Logger,
-): void {
+export function previewMigration(result: RefineResult, logger: Logger): void {
   if (!result.libDir) {
-    logger.error('No lib directory found');
+    logger.error("No lib directory found");
     return;
   }
 
   if (result.plan.moves.length === 0) {
-    logger.success('No migrations needed - structure is already optimized!');
+    logger.success("No migrations needed - structure is already optimized!");
     return;
   }
 
-  logger.section('Migration Preview');
+  logger.section("Migration Preview");
 
   // Show moves
   for (const move of result.plan.moves) {
@@ -251,16 +260,22 @@ export function previewMigration(
 
   // Show import updates
   if (result.plan.importUpdates.length > 0) {
-    logger.info('');
-    logger.info(`Import patterns to update: ${result.plan.importUpdates.length}`);
-    for (const update of result.plan.importUpdates.slice(0, 5)) {
+    logger.info("");
+    logger.info(
+      `Import patterns to update: ${result.plan.importUpdates.length}`,
+    );
+    for (const update of result.plan.importUpdates.slice(0, DEFAULT_PORT)) {
       logger.debug(`  ${update.oldPath} → ${update.newPath}`);
     }
-    if (result.plan.importUpdates.length > 5) {
-      logger.debug(`  ... and ${result.plan.importUpdates.length - 5} more`);
+    if (result.plan.importUpdates.length > DEFAULT_PORT) {
+      logger.debug(
+        `  ... and ${result.plan.importUpdates.length - DEFAULT_PORT} more`,
+      );
     }
   }
 
-  logger.info('');
-  logger.info(`Score: ${result.plan.score.before}% → ${result.plan.score.after}%`);
+  logger.info("");
+  logger.info(
+    `Score: ${result.plan.score.before}% → ${result.plan.score.after}%`,
+  );
 }

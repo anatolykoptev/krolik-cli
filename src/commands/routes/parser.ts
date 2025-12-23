@@ -68,7 +68,7 @@ export function parseRouterFile(filePath: string): TrpcRouter | null {
     file: fileName,
     procedures,
     subRouters,
-    description,
+    ...(description ? { description } : {}),
   };
 }
 

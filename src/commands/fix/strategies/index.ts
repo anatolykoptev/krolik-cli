@@ -4,13 +4,13 @@
  *
  * Each strategy is organized in its own module:
  * - lint/        - console, debugger, alert fixes
- * - type-safety/ - @ts-ignore, @ts-nocheck, explicit any
+ * - type-safety/ - @ts-expect-error, @ts-nocheck, explicit any
  * - complexity/  - nesting, long functions, complexity
  * - srp/         - file splitting for large files
  * - hardcoded/   - magic numbers, URLs extraction
  */
 
-import type { FixStrategy } from '../types';
+import type { FixStrategy, QualityIssue } from '../types';
 import { lintStrategy } from './lint';
 import { typeSafetyStrategy } from './type-safety';
 import { complexityStrategy } from './complexity';
@@ -40,7 +40,7 @@ export type FindStrategyResult =
  * Find strategy that can handle an issue
  */
 export function findStrategy(
-  issue: import('../../quality/types').QualityIssue,
+  issue: QualityIssue,
   content: string,
 ): FixStrategy | null {
   for (const strategy of ALL_STRATEGIES) {
@@ -55,7 +55,7 @@ export function findStrategy(
  * Find strategy with detailed result
  */
 export function findStrategyDetailed(
-  issue: import('../../quality/types').QualityIssue,
+  issue: QualityIssue,
   content: string,
 ): FindStrategyResult {
   // First check if any strategy handles this category

@@ -314,6 +314,8 @@ export interface RefineResult {
 // COMMAND OPTIONS
 // ============================================================================
 
+import type { OutputFormat } from '../../types';
+
 /**
  * Refine command options
  */
@@ -324,10 +326,8 @@ export interface RefineOptions {
   dryRun?: boolean;
   /** Generate ai-config.ts */
   generateConfig?: boolean;
-  /** Output as JSON */
-  json?: boolean;
-  /** Output as markdown */
-  markdown?: boolean;
+  /** Output format (default: 'ai') */
+  format?: OutputFormat;
   /** Verbose output */
   verbose?: boolean;
   /** Custom lib path */

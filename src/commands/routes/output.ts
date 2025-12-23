@@ -4,7 +4,7 @@
  */
 
 import type { Logger } from "../../types";
-import type { TrpcRouter, TrpcProcedure } from "./parser";
+import type { TrpcRouter } from "./parser";
 
 /**
  * Routes analysis result
@@ -88,6 +88,40 @@ export function formatJson(data: RoutesOutput): string {
 }
 
 /**
+ * Format routes as AI-friendly XML
+ */
+export function formatAI(data: RoutesOutput): string {
+  const lines: string[] = [];
+
+  lines.push('<trpc-routes>');
+  lines.push(`  <stats routers="${data.routers.length}" procedures="${data.totalProcedures}" queries="${data.queries}" mutations="${data.mutations}" protected="${data.protectedCount}" />`);
+  lines.push('');
+
+  const grouped = groupByDomain(data.routers);
+
+  for (const [domain, routers] of Object.entries(grouped)) {
+    if (routers.length === 0) continue;
+
+    lines.push(`  <domain name="${domain}">`);
+    for (const router of routers) {
+      lines.push(`    <router file="${router.file}" procedures="${router.procedures.length}">`);
+      for (const proc of router.procedures) {
+        const protAttr = proc.isProtected ? ' protected="true"' : '';
+        const inputAttr = proc.hasInput ? ' has_input="true"' : '';
+        lines.push(`      <procedure name="${proc.name}" type="${proc.type}"${protAttr}${inputAttr} />`);
+      }
+      lines.push('    </router>');
+    }
+    lines.push('  </domain>');
+    lines.push('');
+  }
+
+  lines.push('</trpc-routes>');
+
+  return lines.join('\n');
+}
+
+/**
  * Format routes as markdown
  */
 export function formatMarkdown(data: RoutesOutput): string {
@@ -153,27 +187,27 @@ function groupByDomain(routers: TrpcRouter[]): Record<string, TrpcRouter[]> {
 
   for (const router of routers) {
     if (router.file.startsWith("business")) {
-      domains["Business"].push(router);
+      domains["Business"]!.push(router);
     } else if (
       ["user", "favorites", "userLists", "userTodos"].some((k) =>
         router.file.includes(k),
       )
     ) {
-      domains["User"].push(router);
+      domains["User"]!.push(router);
     } else if (
       ["places", "events", "reviews", "search"].some((k) =>
         router.file.includes(k),
       )
     ) {
-      domains["Content"].push(router);
+      domains["Content"]!.push(router);
     } else if (
       ["social", "activity", "referral", "interactions"].some((k) =>
         router.file.includes(k),
       )
     ) {
-      domains["Social"].push(router);
+      domains["Social"]!.push(router);
     } else {
-      domains["System"].push(router);
+      domains["System"]!.push(router);
     }
   }
 

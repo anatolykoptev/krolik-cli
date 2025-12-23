@@ -92,7 +92,7 @@ function parseModels(content: string, fileName: string): PrismaModel[] {
             isArray: field.isArray,
             isUnique: field.isUnique,
             isId: field.isId,
-            default: field.default,
+            ...(field.default ? { default: field.default } : {}),
           });
         }
       }
@@ -128,6 +128,8 @@ function parseField(line: string): {
   const [, name, type, isArray, isOptional, rest] = fieldMatch;
   if (!name || !type) return null;
 
+  const defaultValue = rest?.match(/@default\(([^)]+)\)/)?.[1];
+
   return {
     name,
     type,
@@ -136,7 +138,7 @@ function parseField(line: string): {
     isUnique: rest?.includes('@unique') || false,
     isId: rest?.includes('@id') || false,
     isRelation: rest?.includes('@relation') || false,
-    default: rest?.match(/@default\(([^)]+)\)/)?.[1],
+    ...(defaultValue ? { default: defaultValue } : {}),
   };
 }
 

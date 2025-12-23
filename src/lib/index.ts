@@ -12,6 +12,12 @@ export * from './@utils/@formatters';
 // Discovery (project root, schemas, routes)
 export * from './@utils/@discovery';
 
+// Patterns (lint, hardcoded, complexity) - single source of truth
+export * from './@utils/@patterns';
+
+// Context (file type detection, skip logic)
+export * from './@utils/@context';
+
 // Logger
 export { createLogger, logger } from './logger';
 

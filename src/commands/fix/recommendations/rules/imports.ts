@@ -68,7 +68,7 @@ export const IMPORTS_RULES: Recommendation[] = [
     description: 'Centralize exports for cleaner import paths',
     category: 'imports',
     severity: 'suggestion',
-    check: (content, analysis) => {
+    check: (content, _analysis) => {
       // Check if there are many exports from same folder
       const relativeImports = content.match(/from\s+['"]\.\/[^'"]+['"]/g) || [];
       return relativeImports.length > 5;

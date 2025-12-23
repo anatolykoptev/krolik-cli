@@ -1,18 +1,15 @@
 /**
- * @module commands/quality
- * @description Code quality analysis: SRP, hardcoded values, complexity
+ * @module commands/fix/analyze
+ * @description Code quality analysis entry point (moved from quality/)
  *
- * Usage:
- *   krolik quality                      # Analyze current directory
- *   krolik quality --path=apps/web      # Analyze specific path
- *   krolik quality --ai                 # AI-friendly output
- *   krolik quality --category=srp       # Filter by category
+ * Provides:
+ * - analyzeQuality() - main analysis function
+ * - QualityReportWithContents - extended report with file contents
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { glob } from "glob";
-import type { CommandContext } from "../../types";
 import type {
   QualityReport,
   FileAnalysis,
@@ -25,20 +22,12 @@ import {
   checkRecommendations,
   type RecommendationResult,
 } from "./recommendations";
-import { formatText, formatAI } from "./formatters";
 
-const SLICE_ARG1_VALUE = 15;
-
+const TOP_RECOMMENDATIONS_LIMIT = 15;
 const DEFAULT_PAGE_SIZE = 20;
 
 // ============================================================================
 // TYPES
-// ============================================================================
-
-export type { QualityReport, FileAnalysis, QualityIssue, QualityOptions };
-
-// ============================================================================
-// MAIN ANALYSIS
 // ============================================================================
 
 /**
@@ -48,6 +37,10 @@ export interface QualityReportWithContents {
   report: QualityReport;
   fileContents: Map<string, string>;
 }
+
+// ============================================================================
+// MAIN ANALYSIS
+// ============================================================================
 
 /**
  * Run quality analysis on a directory
@@ -62,8 +55,20 @@ export async function analyzeQuality(
       : path.join(projectRoot, options.path)
     : projectRoot;
 
+  // Check if target is a file or directory
+  const targetStats = fs.existsSync(targetPath) ? fs.statSync(targetPath) : null;
+  const isFile = targetStats?.isFile() ?? false;
+
   // Find all TypeScript/JavaScript files
-  const patterns = ["**/*.ts", "**/*.tsx"];
+  let patterns = ["**/*.ts", "**/*.tsx"];
+  let searchDir = targetPath;
+
+  // If path points to a specific file, adjust accordingly
+  if (isFile) {
+    searchDir = path.dirname(targetPath);
+    patterns = [path.basename(targetPath)];
+  }
+
   const ignore = [
     "**/node_modules/**",
     "**/dist/**",
@@ -83,7 +88,7 @@ export async function analyzeQuality(
   }
 
   const files = await glob(patterns, {
-    cwd: targetPath,
+    cwd: searchDir,
     ignore,
     absolute: true,
   });
@@ -213,7 +218,7 @@ export async function analyzeQuality(
       if (sevDiff !== 0) return sevDiff;
       return b.count - a.count;
     })
-    .slice(0, SLICE_ARG1_VALUE)
+    .slice(0, TOP_RECOMMENDATIONS_LIMIT)
     .map(({ rec, count }) => ({
       id: rec.recommendation.id,
       title: rec.recommendation.title,
@@ -240,37 +245,3 @@ export async function analyzeQuality(
 
   return { report, fileContents };
 }
-
-// ============================================================================
-// CLI RUNNER
-// ============================================================================
-
-/**
- * Run quality command
- */
-export async function runQuality(
-  ctx: CommandContext & { options: QualityOptions },
-): Promise<void> {
-  const { config, options } = ctx;
-
-  const { report, fileContents } = await analyzeQuality(
-    config.projectRoot,
-    options,
-  );
-
-  if (options.format === "json") {
-    console.log(JSON.stringify(report, null, 2));
-    return;
-  }
-
-  if (options.format === "ai") {
-    // Pass file contents for AI context extraction
-    console.log(formatAI(report, fileContents));
-    return;
-  }
-
-  console.log(formatText(report, options));
-}
-
-// Re-export types
-export { DEFAULT_THRESHOLDS } from "./types";

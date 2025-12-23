@@ -1,87 +1,20 @@
 /**
  * @module commands/quality/analyzers/hardcoded
  * @description Detection of hardcoded values (magic numbers, URLs, colors, text)
+ *
+ * Uses shared patterns from @lib/@utils/@patterns/hardcoded
  */
 
 import type { HardcodedValue } from "../types";
+import {
+  DETECTION_PATTERNS,
+  shouldSkipFile,
+  shouldSkipLine,
+  isAcceptableNumber,
+  shouldSkipUrl,
+} from "@/lib/@utils/@patterns/hardcoded";
 
-const HTTP_PORT = 80;
-
-// ============================================================================
-// PATTERNS
-// ============================================================================
-
-const PATTERNS = {
-  magicNumber: /(?<![.\w])(\d{2,}|[2-9]\d*)(?![.\w\]])/g,
-  url: /(["'`])(https?:\/\/[^"'`\s]+)\1/g,
-  hexColor: /#([0-9A-Fa-f]{3}){1,2}\b/g,
-  hardcodedText: /["'`][А-Яа-яЁё][А-Яа-яЁё\s]{10,}["'`]/g,
-};
-
-const ACCEPTABLE_NUMBERS = new Set([10, 100, 1000, 24, 60, 1024, 2048]);
-
-const SKIP_FILE_PATTERNS = [
-  ".config.",
-  "schema",
-  ".test.",
-  ".spec.",
-  "__tests__",
-];
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Check if file should be skipped
- */
-function shouldSkipFile(filepath: string): boolean {
-  return SKIP_FILE_PATTERNS.some((pattern) => filepath.includes(pattern));
-}
-
-/** Pattern for SCREAMING_SNAKE_CASE constant declarations */
-const CONST_DECL_PATTERN = /^\s*(?:export\s+)?const\s+[A-Z][A-Z0-9_]*\s*=/;
-
-/**
- * Check if line should be skipped
- */
-function shouldSkipLine(line: string): boolean {
-  const trimmed = line.trim();
-  return (
-    trimmed.startsWith("//") ||
-    trimmed.startsWith("*") ||
-    line.includes("import ") ||
-    line.includes("from ") ||
-    line.includes(": number") ||
-    line.includes(": string") ||
-    // Skip constant declarations (SCREAMING_SNAKE_CASE = value)
-    CONST_DECL_PATTERN.test(line)
-  );
-}
-
-/**
- * Check if number should be skipped
- */
-function shouldSkipNumber(line: string, num: number): boolean {
-  return (
-    ACCEPTABLE_NUMBERS.has(num) ||
-    line.includes(`[${num}]`) ||
-    line.includes("timeout") ||
-    line.includes("delay")
-  );
-}
-
-/**
- * Check if URL should be skipped
- */
-function shouldSkipUrl(url: string): boolean {
-  return (
-    url.includes("schema.org") ||
-    url.includes("json-schema") ||
-    url.includes("github.com") ||
-    url.includes("docs.")
-  );
-}
+const MAX_CONTEXT_LENGTH = 80;
 
 // ============================================================================
 // INDIVIDUAL DETECTORS
@@ -93,18 +26,22 @@ function shouldSkipUrl(url: string): boolean {
 function detectNumbers(line: string, lineNum: number): HardcodedValue[] {
   const values: HardcodedValue[] = [];
   // Strip trailing comments before matching
-  const codeOnly = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
-  const matches = codeOnly.matchAll(PATTERNS.magicNumber);
+  const codeOnly = line.replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
+  const matches = codeOnly.matchAll(DETECTION_PATTERNS.magicNumber);
 
   for (const match of matches) {
     const num = parseInt(match[1] ?? "0", 10);
-    if (shouldSkipNumber(line, num)) continue;
+
+    // Skip acceptable numbers and array indices
+    if (isAcceptableNumber(num)) continue;
+    if (line.includes(`[${num}]`)) continue;
+    if (line.includes("timeout") || line.includes("delay")) continue;
 
     values.push({
       value: num,
       type: "number",
       line: lineNum,
-      context: line.trim().slice(0, HTTP_PORT),
+      context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
   }
 
@@ -116,7 +53,7 @@ function detectNumbers(line: string, lineNum: number): HardcodedValue[] {
  */
 function detectUrls(line: string, lineNum: number): HardcodedValue[] {
   const values: HardcodedValue[] = [];
-  const matches = line.matchAll(PATTERNS.url);
+  const matches = line.matchAll(DETECTION_PATTERNS.url);
 
   for (const match of matches) {
     const url = match[2] ?? "";
@@ -126,7 +63,7 @@ function detectUrls(line: string, lineNum: number): HardcodedValue[] {
       value: url,
       type: "url",
       line: lineNum,
-      context: line.trim().slice(0, HTTP_PORT),
+      context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
   }
 
@@ -147,14 +84,14 @@ function detectColors(
   }
 
   const values: HardcodedValue[] = [];
-  const matches = line.matchAll(PATTERNS.hexColor);
+  const matches = line.matchAll(DETECTION_PATTERNS.hexColor);
 
   for (const match of matches) {
     values.push({
       value: match[0],
       type: "color",
       line: lineNum,
-      context: line.trim().slice(0, HTTP_PORT),
+      context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
   }
 
@@ -175,14 +112,14 @@ function detectText(
   }
 
   const values: HardcodedValue[] = [];
-  const matches = line.matchAll(PATTERNS.hardcodedText);
+  const matches = line.matchAll(DETECTION_PATTERNS.hardcodedText);
 
   for (const match of matches) {
     values.push({
       value: match[0].slice(1, -1), // Remove quotes
       type: "string",
       line: lineNum,
-      context: line.trim().slice(0, HTTP_PORT),
+      context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
   }
 

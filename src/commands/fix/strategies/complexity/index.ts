@@ -8,7 +8,7 @@
  * - Long functions (block extraction)
  */
 
-import type { QualityIssue } from '../../../quality/types';
+import type { QualityIssue } from '../../types';
 import type { FixOperation, FixStrategy } from '../../types';
 import {
   matchNumberInRange,

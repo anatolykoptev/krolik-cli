@@ -3,7 +3,7 @@
  * @description Fix strategy for TypeScript type-safety issues
  *
  * Handles:
- * - @ts-ignore comments (removes)
+ * - @ts-expect-error comments (removes)
  * - @ts-nocheck comments (removes)
  * - Explicit 'any' types (replaces with 'unknown')
  *
@@ -11,7 +11,7 @@
  * they require proper null checks which need context understanding.
  */
 
-import type { QualityIssue } from '../../../quality/types';
+import type { QualityIssue } from '../../types';
 import type { FixOperation, FixStrategy } from '../../types';
 import { containsKeyword } from '../shared';
 import { TYPE_SAFETY_KEYWORDS } from './constants';
@@ -25,7 +25,7 @@ import { fixTsIgnore, fixTsNocheck, fixAnyType } from './fixes';
  * Type-safety fix strategy
  *
  * Only handles safe type-safety fixes:
- * - Removing suppression comments (@ts-ignore, @ts-nocheck)
+ * - Removing suppression comments (@ts-expect-error, @ts-nocheck)
  * - Converting 'any' to 'unknown'
  *
  * Does NOT handle:

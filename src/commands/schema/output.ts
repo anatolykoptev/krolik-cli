@@ -58,6 +58,56 @@ export function formatJson(data: SchemaOutput): string {
 }
 
 /**
+ * Format schema as AI-friendly XML
+ */
+export function formatAI(data: SchemaOutput): string {
+  const lines: string[] = [];
+
+  lines.push('<prisma-schema>');
+  lines.push(`  <stats models="${data.modelCount}" enums="${data.enumCount}" />`);
+  lines.push('');
+
+  const byDomain = groupByDomain(data.models);
+
+  for (const [domain, models] of byDomain) {
+    lines.push(`  <domain name="${domain}">`);
+    for (const model of models) {
+      lines.push(`    <model name="${model.name}" fields="${model.fields.length}">`);
+      if (model.relations.length > 0) {
+        lines.push(`      <relations>${model.relations.join(', ')}</relations>`);
+      }
+      lines.push(`      <fields>`);
+      for (const field of model.fields) {
+        const attrs: string[] = [];
+        if (field.isId) attrs.push('pk');
+        if (field.isUnique) attrs.push('unique');
+        if (!field.isRequired) attrs.push('optional');
+        if (field.isArray) attrs.push('array');
+        const attrStr = attrs.length > 0 ? ` attrs="${attrs.join(',')}"` : '';
+        const defaultStr = field.default ? ` default="${field.default}"` : '';
+        lines.push(`        <field name="${field.name}" type="${field.type}"${attrStr}${defaultStr} />`);
+      }
+      lines.push('      </fields>');
+      lines.push('    </model>');
+    }
+    lines.push('  </domain>');
+    lines.push('');
+  }
+
+  if (data.enums.length > 0) {
+    lines.push('  <enums>');
+    for (const e of data.enums) {
+      lines.push(`    <enum name="${e.name}">${e.values.join(', ')}</enum>`);
+    }
+    lines.push('  </enums>');
+  }
+
+  lines.push('</prisma-schema>');
+
+  return lines.join('\n');
+}
+
+/**
  * Generate markdown documentation
  */
 export function formatMarkdown(data: SchemaOutput): string {

@@ -69,8 +69,8 @@ function checkSingleRecommendation(
     return {
       recommendation: rec,
       file: analysis.relativePath,
-      line: location?.line,
-      snippet: location?.snippet,
+      ...(location?.line !== undefined ? { line: location.line } : {}),
+      ...(location?.snippet !== undefined ? { snippet: location.snippet } : {}),
     };
   }
 

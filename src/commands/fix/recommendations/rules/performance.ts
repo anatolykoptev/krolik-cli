@@ -23,7 +23,7 @@ export const PERFORMANCE_RULES: Recommendation[] = [
     description: 'Use React.lazy() for code splitting on routes/modals',
     category: 'performance',
     severity: 'suggestion',
-    check: (content, analysis) => {
+    check: (_content, analysis) => {
       if (analysis.fileType !== 'component') return false;
       return analysis.lines > 300;
     },

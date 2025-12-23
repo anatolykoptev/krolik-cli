@@ -9,12 +9,12 @@
  */
 
 import {
-  Project,
-  SourceFile,
+  type Project,
+  type SourceFile,
   SyntaxKind,
   Node,
-  IfStatement,
-  Block,
+  type IfStatement,
+  type Block,
 } from "ts-morph";
 import * as path from "node:path";
 import { createProject } from "./strategies/shared";
@@ -441,6 +441,17 @@ export function splitFile(
       const decl = declarations[0];
       if (!decl) continue;
 
+      // Skip import declarations - they should not be treated as exports
+      if (Node.isImportSpecifier(decl) || Node.isNamespaceImport(decl)) {
+        continue;
+      }
+
+      // Skip if parent is import declaration
+      const parent = decl.getParent();
+      if (parent && Node.isImportDeclaration(parent)) {
+        continue;
+      }
+
       let groupName = "utils";
 
       if (config.groupFn) {
@@ -456,10 +467,9 @@ export function splitFile(
         groupContents.set(groupName, []);
       }
 
-      groups.get(groupName)!.push(name);
+      groups.get(groupName)?.push(name);
 
       // Get the full declaration text with export
-      const parent = decl.getParent();
       let declText = "";
 
       if (Node.isVariableDeclaration(decl)) {
@@ -469,16 +479,25 @@ export function splitFile(
         if (varStmt) {
           declText = varStmt.getText();
         }
+      } else if (Node.isFunctionDeclaration(decl) || Node.isClassDeclaration(decl) ||
+                 Node.isInterfaceDeclaration(decl) || Node.isTypeAliasDeclaration(decl) ||
+                 Node.isEnumDeclaration(decl)) {
+        declText = decl.getText();
+      } else if (parent) {
+        declText = parent.getText();
       } else {
-        declText = parent?.getText() || decl.getText();
+        declText = decl.getText();
       }
 
-      // Ensure it has export
-      if (!declText.startsWith("export")) {
+      // Ensure it has export (but skip if it's an import)
+      if (declText && !declText.startsWith("export") && !declText.startsWith("import")) {
         declText = "export " + declText;
       }
 
-      groupContents.get(groupName)!.push(declText);
+      // Only add if we got valid declaration text
+      if (declText && !declText.startsWith("import")) {
+        groupContents.get(groupName)?.push(declText);
+      }
     }
 
     // Don't split if only 1-2 groups
@@ -486,31 +505,81 @@ export function splitFile(
       return { success: false, error: "File cannot be meaningfully split" };
     }
 
-    // Generate files
+    // Generate files using Airbnb-style folder structure
+    // analyzer.ts → analyzer/index.ts, analyzer/constants.ts, analyzer/functions.ts
     const baseName = path.basename(filePath, path.extname(filePath));
     const dir = path.dirname(filePath);
     const files: Array<{ path: string; content: string }> = [];
+    const isIndexFile = baseName === "index";
 
     const importsText = Array.from(imports).join("\n");
     const reExports: string[] = [];
 
-    for (const [groupName, contents] of groupContents) {
-      const newFileName =
-        groupName === "index" ? "index.ts" : `${baseName}.${groupName}.ts`;
-      const newFilePath = path.join(dir, newFileName);
+    // Create folder for the module (Airbnb style)
+    // For index.ts - files go in same dir, for others - create subdirectory
+    const moduleDir = isIndexFile ? dir : path.join(dir, baseName);
 
-      const fileContent = `${importsText}\n\n${contents.join("\n\n")}\n`;
+    // Fix relative imports when moving to subdirectory
+    // './types' becomes '../types', './analyzer' becomes '../analyzer'
+    const fixedImportsText = isIndexFile
+      ? importsText
+      : importsText.replace(
+          /from\s+['"](\.\/)([^'"]+)['"]/g,
+          "from '../$2'"
+        );
+
+    for (const [groupName, contents] of groupContents) {
+      // Skip empty groups
+      if (contents.length === 0) continue;
+
+      // Create file inside the module folder
+      const newFileName = `${groupName}.ts`;
+      const newFilePath = path.join(moduleDir, newFileName);
+
+      // Generate cross-imports: find which names from OTHER groups are used in this group
+      const crossImports: string[] = [];
+      const contentText = contents.join("\n");
+
+      for (const [otherGroup, otherNames] of groups) {
+        if (otherGroup === groupName) continue;
+
+        // Find which names from otherGroup are used in this group's content
+        const usedNames = otherNames.filter(name => {
+          // Check if name is used (but not just as part of another word)
+          const regex = new RegExp(`\\b${name}\\b`, 'g');
+          return regex.test(contentText);
+        });
+
+        if (usedNames.length > 0) {
+          crossImports.push(`import { ${usedNames.join(', ')} } from './${otherGroup}';`);
+        }
+      }
+
+      const crossImportsText = crossImports.length > 0 ? crossImports.join('\n') + '\n' : '';
+      const fileContent = `${fixedImportsText}\n${crossImportsText}\n${contents.join("\n\n")}\n`;
       files.push({ path: newFilePath, content: fileContent });
 
-      if (groupName !== "index") {
-        reExports.push(`export * from './${baseName}.${groupName}';`);
-      }
+      // Re-export from the barrel file
+      reExports.push(`export * from './${groupName}';`);
     }
 
-    // Create index file with re-exports
-    const indexPath = path.join(dir, "index.ts");
-    const indexContent = `/**\n * @module ${baseName}\n * Re-exports from split modules\n */\n\n${reExports.join("\n")}\n`;
-    files.push({ path: indexPath, content: indexContent });
+    // Don't create files if no valid exports were found
+    if (reExports.length === 0) {
+      return { success: false, error: "No valid exports found to split" };
+    }
+
+    // Create barrel index.ts inside the module folder
+    const barrelContent = `/**\n * @module ${baseName}\n * Re-exports from split modules\n */\n\n${reExports.join("\n")}\n`;
+    const barrelPath = path.join(moduleDir, "index.ts");
+    files.push({ path: barrelPath, content: barrelContent });
+
+    // Update the original file to re-export from the new folder
+    // (only if not already index.ts)
+    if (!isIndexFile) {
+      // Use explicit /index path for bundler compatibility (esbuild, etc)
+      const originalReExport = `/**\n * @module ${baseName}\n * @deprecated Import from './${baseName}' folder instead\n */\n\nexport * from './${baseName}/index';\n`;
+      files.push({ path: filePath, content: originalReExport });
+    }
 
     return { success: true, files };
   } catch (error) {

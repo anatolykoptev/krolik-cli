@@ -55,7 +55,7 @@ export function countTodos(
 
   // Extract unique files
   const allLines = [...todoLines, ...fixmeLines, ...hackLines];
-  const files = [...new Set(allLines.map((l) => l.split(':')[0]))];
+  const files = [...new Set(allLines.map((l) => l.split(':')[0]).filter((f): f is string => !!f))];
 
   return {
     todo: todoLines.length,
@@ -70,6 +70,6 @@ export function countTodos(
  * Simple count (just total)
  */
 export function countTodosSimple(cwd: string, exclude?: string[]): number {
-  const result = countTodos(cwd, { exclude });
+  const result = countTodos(cwd, { ...(exclude ? { exclude } : {}) });
   return result.total;
 }

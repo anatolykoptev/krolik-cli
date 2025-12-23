@@ -6,7 +6,6 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CommandContext } from '../../types';
-import { createDefaultConfig } from '../../config';
 
 interface InitOptions {
   force?: boolean;

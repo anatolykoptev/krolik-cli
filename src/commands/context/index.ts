@@ -114,28 +114,29 @@ export async function runContext(
   }
 
   const result = generateContext(task, projectRoot, issueData, config);
+  const format = options.format ?? 'ai';
 
   // JSON output
-  if (options.json) {
+  if (format === 'json') {
     console.log(formatJson(result));
     return;
   }
 
   // Markdown output
-  if (options.markdown) {
+  if (format === 'markdown') {
     console.log(formatMarkdown(result));
     return;
   }
 
-  // AI-ready structured output
-  if (options.ai) {
-    const aiData = buildAiContextData(result, config);
-    console.log(formatAiPrompt(aiData));
+  // Human-readable text output
+  if (format === 'text') {
+    printContext(result, logger, options.verbose);
     return;
   }
 
-  // Default: text output
-  printContext(result, logger, options.verbose);
+  // Default: AI-ready structured output
+  const aiData = buildAiContextData(result, config);
+  console.log(formatAiPrompt(aiData));
 }
 
 /**

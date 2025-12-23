@@ -15,7 +15,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { QualityIssue } from '../../../quality/types';
+import type { QualityIssue } from '../../types';
 import type { FixOperation, FixStrategy } from '../../types';
 import type { FixContext } from '../../context';
 import { buildFixContext, shouldSkipConsoleFix } from '../../context';

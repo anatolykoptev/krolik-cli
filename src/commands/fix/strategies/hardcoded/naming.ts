@@ -17,7 +17,7 @@ const VALUE_VALUE = 300000;
  */
 export function toScreamingSnake(str: string): string {
   // Extract only valid identifier parts (handle dot notation like "router.procedures")
-  const parts = str.split(/[.\[\]()]/);
+  const parts = str.split(/[.[\]()]/);
   const lastPart = parts.filter(Boolean).pop() || str;
 
   // Only keep valid identifier characters
