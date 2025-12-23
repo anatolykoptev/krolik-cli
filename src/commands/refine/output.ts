@@ -299,12 +299,20 @@ function printProjectContext(result: RefineResult, logger: Logger): void {
   logger.info(`Runtime:   ${ctx.techStack.runtime}`);
   logger.info(`Language:  ${ctx.techStack.language}`);
 
+  if (ctx.techStack.ui) {
+    logger.info(`UI:        ${ctx.techStack.ui}`);
+  }
+
   if (ctx.techStack.database.length > 0) {
     logger.info(`Database:  ${ctx.techStack.database.join(', ')}`);
   }
 
   if (ctx.techStack.stateManagement.length > 0) {
     logger.info(`State:     ${ctx.techStack.stateManagement.join(', ')}`);
+  }
+
+  if (ctx.techStack.styling.length > 0) {
+    logger.info(`Styling:   ${ctx.techStack.styling.join(', ')}`);
   }
 
   if (ctx.techStack.testing.length > 0) {
