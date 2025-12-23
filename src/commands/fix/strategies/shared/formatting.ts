@@ -3,7 +3,7 @@
  * @description Code formatting and validation utilities
  *
  * NOTE: createProject is re-exported from lib/ast for backwards compatibility.
- * New code should import directly from '@/lib/ast'.
+ * New code should import directly from '@/lib/@utils/@ast'.
  */
 
 import * as prettier from 'prettier';
@@ -12,7 +12,7 @@ import {
   createProject,
   createSourceFile,
   type CreateProjectOptions,
-} from '../../../../lib/ast';
+} from '@/lib';
 
 // Re-export for backwards compatibility
 export { createProject, type CreateProjectOptions };

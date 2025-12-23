@@ -9,7 +9,7 @@
  */
 
 import { SyntaxKind, Node, SourceFile, Project } from 'ts-morph';
-import { createProject } from '../../../lib/ast';
+import { createProject } from '@/lib';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 
 // ============================================================================

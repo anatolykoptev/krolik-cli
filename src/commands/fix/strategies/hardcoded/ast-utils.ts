@@ -7,7 +7,7 @@
 
 import { SyntaxKind, SourceFile, Node } from 'ts-morph';
 import type { NumericLiteral } from 'ts-morph';
-import { createProject } from '../../../../lib/ast';
+import { createProject } from '@/lib';
 
 // Re-export for convenience
 export { createProject };

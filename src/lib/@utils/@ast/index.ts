@@ -6,7 +6,7 @@
  * All commands should import from here, never directly from ts-morph.
  *
  * @example
- * import { createProject, parseCode, extractImports } from '@/lib/ast';
+ * import { createProject, parseCode, extractImports } from '@/lib/@utils/@ast';
  *
  * const project = createProject();
  * const sourceFile = parseCode('const x = 1;');

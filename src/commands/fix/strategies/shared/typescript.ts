@@ -11,7 +11,7 @@
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { escapeXml } from '../../../../lib/formatters';
+import { escapeXml } from '@/lib';
 
 // ============================================================================
 // TYPES

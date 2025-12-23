@@ -5,7 +5,7 @@
  * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { SyntaxKind } from '../../../../lib/ast';
+import { SyntaxKind } from '@/lib';
 import type { FixOperation } from '../../types';
 import { ALLOWED_NUMBERS } from './constants';
 import { generateConstName } from './naming';

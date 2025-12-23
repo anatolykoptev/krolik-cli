@@ -4,13 +4,13 @@
  */
 
 // AST utilities (centralized ts-morph)
-export * from './ast';
+export * from './@utils/@ast';
 
 // Formatters (XML, JSON, Markdown, Text)
-export * from './formatters';
+export * from './@utils/@formatters';
 
 // Discovery (project root, schemas, routes)
-export * from './discovery';
+export * from './@utils/@discovery';
 
 // Logger
 export { createLogger, logger } from './logger';

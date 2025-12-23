@@ -6,7 +6,7 @@
  * All commands should import from here instead of duplicating discovery logic.
  *
  * @example
- * import { findProjectRoot, findSchemaDir, findRoutersDir } from '@/lib/discovery';
+ * import { findProjectRoot, findSchemaDir, findRoutersDir } from '@/lib/@utils/@discovery';
  */
 
 // Project discovery

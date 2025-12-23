@@ -11,7 +11,7 @@
 
 import type { QualityReport } from '../types';
 import { transformToAIFormat, formatAIReport } from '../ai-format';
-import { escapeXml } from '../../../lib/formatters';
+import { escapeXml } from '@/lib';
 
 /**
  * Format quality report as AI-optimized XML

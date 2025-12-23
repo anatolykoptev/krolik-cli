@@ -6,7 +6,7 @@
  * All commands should import from here instead of duplicating formatters.
  *
  * @example
- * import { escapeXml, formatJson, heading, truncate } from '@/lib/formatters';
+ * import { escapeXml, formatJson, heading, truncate } from '@/lib/@utils/@formatters';
  */
 
 // XML formatting
