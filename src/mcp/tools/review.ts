@@ -3,11 +3,17 @@
  * @description krolik_review tool - Code review
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { withProjectDetection } from './projects';
 import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
+import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
 import type { MCPToolDefinition } from './types';
-import { runKrolik, sanitizeIssueNumber, TIMEOUT_60S } from './utils';
+import { runKrolik, TIMEOUT_60S } from './utils';
+
+const reviewSchema: FlagSchema = {
+  staged: COMMON_FLAGS.staged,
+  pr: COMMON_FLAGS.pr,
+};
 
 export const reviewTool: MCPToolDefinition = {
   name: 'krolik_review',
@@ -28,22 +34,11 @@ export const reviewTool: MCPToolDefinition = {
     },
   },
   handler: (args, workspaceRoot) => {
-    let flags = '';
-
-    if (args.staged) {
-      flags += ' --staged';
-    }
-
-    if (args.pr) {
-      const pr = sanitizeIssueNumber(args.pr);
-      if (!pr) {
-        return 'Error: Invalid PR number. Must be a positive integer.';
-      }
-      flags += ` --pr=${pr}`;
-    }
+    const result = buildFlags(args, reviewSchema);
+    if (!result.ok) return result.error;
 
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      return runKrolik(`review ${flags}`, projectPath, TIMEOUT_60S);
+      return runKrolik(`review ${result.flags}`, projectPath, TIMEOUT_60S);
     });
   },
 };

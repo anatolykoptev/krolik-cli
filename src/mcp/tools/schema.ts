@@ -3,11 +3,16 @@
  * @description krolik_schema tool - Prisma schema analysis
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { withProjectDetection } from './projects';
 import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
+import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
 import type { MCPToolDefinition } from './types';
 import { runKrolik } from './utils';
+
+const schemaFlagSchema: FlagSchema = {
+  json: COMMON_FLAGS.json,
+};
 
 export const schemaTool: MCPToolDefinition = {
   name: 'krolik_schema',
@@ -24,8 +29,9 @@ export const schemaTool: MCPToolDefinition = {
   },
   handler: (args, workspaceRoot) => {
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const flags = args.json ? '--json' : '';
-      return runKrolik(`schema ${flags}`, projectPath);
+      const result = buildFlags(args, schemaFlagSchema);
+      if (!result.ok) return result.error;
+      return runKrolik(`schema ${result.flags}`, projectPath);
     });
   },
 };

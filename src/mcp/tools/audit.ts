@@ -3,11 +3,16 @@
  * @description krolik_audit tool - Code quality audit
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { withProjectDetection } from './projects';
 import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
+import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
 import type { MCPToolDefinition } from './types';
-import { escapeShellArg, runKrolik, sanitizeFeatureName, TIMEOUT_60S } from './utils';
+import { runKrolik, TIMEOUT_60S } from './utils';
+
+const auditSchema: FlagSchema = {
+  path: COMMON_FLAGS.path,
+};
 
 export const auditTool: MCPToolDefinition = {
   name: 'krolik_audit',
@@ -24,18 +29,11 @@ export const auditTool: MCPToolDefinition = {
     },
   },
   handler: (args, workspaceRoot) => {
-    const flagParts: string[] = [];
-
-    if (args.path) {
-      const pathVal = sanitizeFeatureName(args.path);
-      if (!pathVal) {
-        return 'Error: Invalid path. Only alphanumeric, hyphens, underscores, dots allowed.';
-      }
-      flagParts.push(`--path=${escapeShellArg(pathVal)}`);
-    }
+    const result = buildFlags(args, auditSchema);
+    if (!result.ok) return result.error;
 
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      return runKrolik(`audit ${flagParts.join(' ')}`, projectPath, TIMEOUT_60S);
+      return runKrolik(`audit ${result.flags}`, projectPath, TIMEOUT_60S);
     });
   },
 };

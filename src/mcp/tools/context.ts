@@ -3,17 +3,17 @@
  * @description krolik_context tool - AI-friendly context generation
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { withProjectDetection } from './projects';
 import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
+import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
 import type { MCPToolDefinition } from './types';
-import {
-  escapeShellArg,
-  runKrolik,
-  sanitizeFeatureName,
-  sanitizeIssueNumber,
-  TIMEOUT_60S,
-} from './utils';
+import { runKrolik, TIMEOUT_60S } from './utils';
+
+const contextSchema: FlagSchema = {
+  feature: COMMON_FLAGS.feature,
+  issue: COMMON_FLAGS.issue,
+};
 
 export const contextTool: MCPToolDefinition = {
   name: 'krolik_context',
@@ -34,26 +34,11 @@ export const contextTool: MCPToolDefinition = {
     },
   },
   handler: (args, workspaceRoot) => {
-    const flagParts: string[] = [];
-
-    if (args.feature) {
-      const feature = sanitizeFeatureName(args.feature);
-      if (!feature) {
-        return 'Error: Invalid feature name. Only alphanumeric, hyphens, underscores allowed.';
-      }
-      flagParts.push(`--feature=${escapeShellArg(feature)}`);
-    }
-
-    if (args.issue) {
-      const issue = sanitizeIssueNumber(args.issue);
-      if (!issue) {
-        return 'Error: Invalid issue number. Must be a positive integer.';
-      }
-      flagParts.push(`--issue=${issue}`);
-    }
+    const result = buildFlags(args, contextSchema);
+    if (!result.ok) return result.error;
 
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      return runKrolik(`context ${flagParts.join(' ')}`, projectPath, TIMEOUT_60S);
+      return runKrolik(`context ${result.flags}`, projectPath, TIMEOUT_60S);
     });
   },
 };

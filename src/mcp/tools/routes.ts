@@ -3,11 +3,16 @@
  * @description krolik_routes tool - tRPC routes analysis
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { withProjectDetection } from './projects';
 import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
+import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
 import type { MCPToolDefinition } from './types';
 import { runKrolik } from './utils';
+
+const routesFlagSchema: FlagSchema = {
+  json: COMMON_FLAGS.json,
+};
 
 export const routesTool: MCPToolDefinition = {
   name: 'krolik_routes',
@@ -25,8 +30,9 @@ export const routesTool: MCPToolDefinition = {
   },
   handler: (args, workspaceRoot) => {
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const flags = args.json ? '--json' : '';
-      return runKrolik(`routes ${flags}`, projectPath);
+      const result = buildFlags(args, routesFlagSchema);
+      if (!result.ok) return result.error;
+      return runKrolik(`routes ${result.flags}`, projectPath);
     });
   },
 };

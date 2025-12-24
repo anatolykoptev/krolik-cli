@@ -1,11 +1,19 @@
 /**
  * @module mcp/tools/registry
- * @description Self-registering tool registry - add a tool in one place only!
+ * @description Auto-discovering tool registry - zero-config tool registration!
+ *
+ * How it works:
+ * 1. Create a new tool file: src/mcp/tools/my-tool.ts
+ * 2. Export MCPToolDefinition and call registerTool()
+ * 3. Run: pnpm generate:tools (or happens automatically on build)
+ * 4. Your tool is automatically discovered and registered!
  *
  * Benefits:
- * - Adding a new tool requires only creating the tool file and one import line
- * - No need to modify multiple arrays or exports
+ * - Adding a new tool requires ONLY creating the file
+ * - NO manual imports needed
+ * - NO registration calls in index.ts
  * - Type-safe and explicit
+ * - Automatic discovery at build time
  */
 
 import type { MCPTool, MCPToolDefinition } from './types';

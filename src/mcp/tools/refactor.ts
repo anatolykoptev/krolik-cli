@@ -3,11 +3,25 @@
  * @description krolik_refactor tool - Module structure analysis and refactoring
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { withProjectDetection } from './projects';
 import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
+import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
 import type { MCPToolDefinition } from './types';
-import { escapeShellArg, runKrolik, sanitizeFeatureName, TIMEOUT_60S } from './utils';
+import { runKrolik, TIMEOUT_60S } from './utils';
+
+const refactorSchema: FlagSchema = {
+  path: COMMON_FLAGS.path,
+  package: { flag: '--package', sanitize: 'feature' },
+  allPackages: { flag: '--all-packages' },
+  duplicatesOnly: { flag: '--duplicates-only' },
+  typesOnly: { flag: '--types-only' },
+  includeTypes: { flag: '--include-types' },
+  structureOnly: { flag: '--structure-only' },
+  dryRun: COMMON_FLAGS.dryRun,
+  apply: COMMON_FLAGS.apply,
+  fixTypes: { flag: '--fix-types' },
+};
 
 export const refactorTool: MCPToolDefinition = {
   name: 'krolik_refactor',
@@ -60,38 +74,20 @@ export const refactorTool: MCPToolDefinition = {
     },
   },
   handler: (args, workspaceRoot) => {
-    const flagParts: string[] = [];
-
-    if (args.path) {
-      const pathVal = sanitizeFeatureName(args.path);
-      if (!pathVal) {
-        return 'Error: Invalid path. Only alphanumeric, hyphens, underscores, dots allowed.';
-      }
-      flagParts.push(`--path=${escapeShellArg(pathVal)}`);
-    }
-
-    if (args.package) {
-      const pkgVal = sanitizeFeatureName(args.package);
-      if (!pkgVal) {
+    const result = buildFlags(args, refactorSchema);
+    if (!result.ok) {
+      // Provide better error message for package name
+      if (args.package && result.error.includes('package')) {
         return 'Error: Invalid package name.';
       }
-      flagParts.push(`--package=${escapeShellArg(pkgVal)}`);
+      return result.error;
     }
 
-    if (args.allPackages) flagParts.push('--all-packages');
-    if (args.duplicatesOnly) flagParts.push('--duplicates-only');
-    if (args.typesOnly) flagParts.push('--types-only');
-    if (args.includeTypes) flagParts.push('--include-types');
-    if (args.structureOnly) flagParts.push('--structure-only');
-    if (args.dryRun) flagParts.push('--dry-run');
-    if (args.apply) flagParts.push('--apply');
-    if (args.fixTypes) flagParts.push('--fix-types');
-
     // Always use AI-native output for MCP
-    flagParts.push('--ai');
+    const flags = result.flags ? `${result.flags} --ai` : '--ai';
 
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      return runKrolik(`refactor ${flagParts.join(' ')}`, projectPath, TIMEOUT_60S);
+      return runKrolik(`refactor ${flags}`, projectPath, TIMEOUT_60S);
     });
   },
 };

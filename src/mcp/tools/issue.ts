@@ -3,9 +3,14 @@
  * @description krolik_issue tool - GitHub issue parsing
  */
 
+import { buildFlags, type FlagSchema } from './flag-builder';
 import { registerTool } from './registry';
 import type { MCPToolDefinition } from './types';
-import { runKrolik, sanitizeIssueNumber } from './utils';
+import { runKrolik } from './utils';
+
+const issueSchema: FlagSchema = {
+  number: { flag: '', sanitize: 'issue', required: true },
+};
 
 export const issueTool: MCPToolDefinition = {
   name: 'krolik_issue',
@@ -21,12 +26,11 @@ export const issueTool: MCPToolDefinition = {
     required: ['number'],
   },
   handler: (args, projectRoot) => {
-    const issueNum = sanitizeIssueNumber(args.number);
-    if (!issueNum) {
-      return 'Error: Invalid issue number. Must be a positive integer.';
-    }
+    const result = buildFlags(args, issueSchema);
+    if (!result.ok) return result.error;
 
-    return runKrolik(`issue ${issueNum}`, projectRoot);
+    // For issue command, the number is a positional argument, not a flag
+    return runKrolik(`issue ${result.flags}`, projectRoot);
   },
 };
 
