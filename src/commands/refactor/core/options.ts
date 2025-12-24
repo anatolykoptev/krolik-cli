@@ -48,6 +48,10 @@ export interface RefactorOptions {
   aiNative?: boolean;
   /** Create git backup before applying migrations (default: true) */
   backup?: boolean;
+  /** Commit uncommitted changes before applying (default: true) */
+  commitFirst?: boolean;
+  /** Push auto-commit to remote (default: true) */
+  push?: boolean;
   /** Generate ai-config.ts for AI assistants */
   generateConfig?: boolean;
   /** Auto-fix type duplicates */

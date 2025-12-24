@@ -32,6 +32,10 @@ export function registerRefactorCommand(program: Command): void {
     .option('--generate-config', 'Generate ai-config.ts for AI assistants')
     .option('--backup', 'Create git backup before applying (default: true)')
     .option('--no-backup', 'Skip git backup before applying')
+    .option('--commit-first', 'Commit uncommitted changes before applying (default: true)')
+    .option('--no-commit-first', 'Skip auto-commit before applying')
+    .option('--push', 'Push auto-commit to remote (default: true)')
+    .option('--no-push', 'Skip push to remote')
     .option('--fix-types', 'Auto-fix type duplicates (merge 100% identical types)')
     .option('--fix-types-all', 'Include similar types (90%+) in auto-fix')
     .action(async (options: CommandOptions) => {
@@ -60,6 +64,9 @@ export function registerRefactorCommand(program: Command): void {
       if (options.generateConfig) refactorOpts.generateConfig = true;
       // backup defaults to true, only set if explicitly specified
       if (options.backup !== undefined) refactorOpts.backup = options.backup;
+      // commit/push defaults to true, only set if explicitly specified
+      if (options.commitFirst !== undefined) refactorOpts.commitFirst = options.commitFirst;
+      if (options.push !== undefined) refactorOpts.push = options.push;
       // Type auto-fix options
       if (options.fixTypes) {
         refactorOpts.fixTypes = true;

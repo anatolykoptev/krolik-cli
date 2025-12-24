@@ -27,9 +27,11 @@ import * as path from 'node:path';
 import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../config';
 import {
   cleanupBackup,
+  commitAndPushChanges,
   createBackupBranch,
   exists,
   type GitBackupResult,
+  hasUncommittedChanges,
   relativePath as getRelativePath,
 } from '../../lib';
 import {
@@ -319,26 +321,62 @@ export function printAnalysis(
 /**
  * Apply migrations from analysis
  *
+ * Flow:
+ * 1. Commit + push all uncommitted changes (safety net)
+ * 2. Create git backup branch
+ * 3. Apply migrations
+ *
  * @param analysis - Refactor analysis with migration plan
  * @param projectRoot - Project root directory
  * @param options - Options for migration
  * @param options.dryRun - Preview changes without applying
  * @param options.verbose - Verbose output
  * @param options.backup - Create git backup before applying (default: true)
+ * @param options.commitFirst - Commit uncommitted changes first (default: true)
+ * @param options.push - Push commits to remote (default: true)
  */
 export async function applyMigrations(
   analysis: RefactorAnalysis,
   projectRoot: string,
-  options: { dryRun?: boolean; verbose?: boolean; backup?: boolean } = {},
+  options: {
+    dryRun?: boolean;
+    verbose?: boolean;
+    backup?: boolean;
+    commitFirst?: boolean;
+    push?: boolean;
+  } = {},
 ): Promise<{ success: boolean; results: string[]; backup?: GitBackupResult }> {
   if (analysis.migration.actions.length === 0) {
     return { success: true, results: ['No migrations to apply'] };
   }
 
   const shouldBackup = options.backup !== false;
+  const shouldCommitFirst = options.commitFirst !== false;
+  const shouldPush = options.push !== false;
   let backupResult: GitBackupResult | undefined;
 
-  // Create git backup before applying migrations
+  // Step 1: Commit and push uncommitted changes first
+  if (shouldCommitFirst && !options.dryRun && hasUncommittedChanges(projectRoot)) {
+    console.log('\n💾 Saving uncommitted changes...');
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
+    const commitMessage = `chore: auto-save before refactor (${timestamp})`;
+
+    const commitResult = commitAndPushChanges(projectRoot, commitMessage, shouldPush);
+
+    if (commitResult.committed) {
+      console.log(`   ✓ Changes committed: ${commitResult.commitHash?.slice(0, 7)}`);
+      if (commitResult.pushed) {
+        console.log('   ✓ Pushed to remote');
+      } else if (shouldPush) {
+        console.log('   ⚠️  Push failed (commit saved locally)');
+      }
+    } else if (!commitResult.success) {
+      console.log(`   ⚠️  Commit failed: ${commitResult.error}`);
+      console.log('   Continuing with stash backup...');
+    }
+  }
+
+  // Step 2: Create git backup before applying migrations
   if (shouldBackup && !options.dryRun) {
     console.log('\n📦 Creating git backup...');
     backupResult = createBackupBranch(projectRoot, 'refactor');
@@ -423,11 +461,19 @@ export async function refactorCommand(
 
         // Apply if requested
         if (options.apply && !options.dryRun) {
-          const migrateOpts: { dryRun?: boolean; verbose?: boolean; backup?: boolean } = {
+          const migrateOpts: {
+            dryRun?: boolean;
+            verbose?: boolean;
+            backup?: boolean;
+            commitFirst?: boolean;
+            push?: boolean;
+          } = {
             dryRun: false,
           };
           if (options.verbose !== undefined) migrateOpts.verbose = options.verbose;
           if (options.backup !== undefined) migrateOpts.backup = options.backup;
+          if (options.commitFirst !== undefined) migrateOpts.commitFirst = options.commitFirst;
+          if (options.push !== undefined) migrateOpts.push = options.push;
           await applyMigrations(analysis, projectRoot, migrateOpts);
         }
       }
@@ -454,11 +500,19 @@ export async function refactorCommand(
         // Would prompt for confirmation here
         // For now, just apply
       }
-      const migrateOpts: { dryRun?: boolean; verbose?: boolean; backup?: boolean } = {
+      const migrateOpts: {
+        dryRun?: boolean;
+        verbose?: boolean;
+        backup?: boolean;
+        commitFirst?: boolean;
+        push?: boolean;
+      } = {
         dryRun: false,
       };
       if (options.verbose !== undefined) migrateOpts.verbose = options.verbose;
       if (options.backup !== undefined) migrateOpts.backup = options.backup;
+      if (options.commitFirst !== undefined) migrateOpts.commitFirst = options.commitFirst;
+      if (options.push !== undefined) migrateOpts.push = options.push;
       const result = await applyMigrations(analysis, projectRoot, migrateOpts);
       appliedMigrations = result.success;
     }

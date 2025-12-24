@@ -26,6 +26,8 @@ export {
   dropStash,
   isGitRepoForBackup,
   getCurrentBranchForBackup,
+  commitAndPushChanges,
   type GitBackupResult,
   type RestoreResult,
+  type CommitPushResult,
 } from './backup';

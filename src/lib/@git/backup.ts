@@ -284,6 +284,96 @@ export function fullRestore(
 }
 
 /**
+ * Commit and push all uncommitted changes before destructive operations
+ *
+ * This ensures that:
+ * 1. All changes are saved in git history
+ * 2. Changes are pushed to remote for safety
+ * 3. Refactoring can be safely applied knowing we can always restore
+ *
+ * @param cwd - Working directory
+ * @param message - Commit message
+ * @param push - Whether to push to remote (default: true)
+ * @returns Result with success status and details
+ */
+export interface CommitPushResult {
+  success: boolean;
+  committed: boolean;
+  pushed: boolean;
+  commitHash?: string;
+  error?: string;
+}
+
+export function commitAndPushChanges(
+  cwd: string,
+  message: string,
+  push: boolean = true
+): CommitPushResult {
+  // Check if git repo
+  if (!isGitRepoForBackup(cwd)) {
+    return {
+      success: false,
+      committed: false,
+      pushed: false,
+      error: "Not a git repository",
+    };
+  }
+
+  // Check if there are changes to commit
+  if (!hasUncommittedChanges(cwd)) {
+    return {
+      success: true,
+      committed: false,
+      pushed: false,
+    };
+  }
+
+  try {
+    // Stage all changes (including untracked files)
+    execSync("git add -A", { cwd, stdio: "pipe" });
+
+    // Commit with message
+    execSync(`git commit -m "${message}"`, { cwd, stdio: "pipe" });
+
+    // Get commit hash
+    const commitHash = execSync("git rev-parse HEAD", {
+      cwd,
+      encoding: "utf-8",
+    }).trim();
+
+    // Push to remote if requested
+    let pushed = false;
+    if (push) {
+      try {
+        // Get current branch
+        const branch = getCurrentBranchForBackup(cwd);
+        if (branch) {
+          execSync(`git push origin ${branch}`, { cwd, stdio: "pipe" });
+          pushed = true;
+        }
+      } catch {
+        // Push failed, but commit succeeded - still return success
+        // User can push manually later
+      }
+    }
+
+    return {
+      success: true,
+      committed: true,
+      pushed,
+      commitHash,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      committed: false,
+      pushed: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
  * Cleanup after successful operation
  * - Delete backup branch
  * - Drop stash (optional, default: keep for safety)
