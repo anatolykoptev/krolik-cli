@@ -8,7 +8,7 @@
  * - Accurate function boundary detection
  */
 
-import { SyntaxKind, Node, type SourceFile, type Project } from 'ts-morph';
+import { Node, type Project, type SourceFile, SyntaxKind } from 'ts-morph';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 
 // ============================================================================
@@ -139,7 +139,7 @@ export function analyzeSplitPoints(
     const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(
       `function __wrapper__() ${bodyText}`,
-      'body.ts'
+      'body.ts',
     );
 
     try {
@@ -266,7 +266,9 @@ function generateName(parentName: string, action: string, context: string): stri
     .trim()
     .split(/\s+/)
     .slice(0, 2)
-    .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .map((w, i) =>
+      i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(),
+    )
     .join('');
 
   if (clean) {
@@ -300,70 +302,15 @@ export function extractFunctions(content: string): FunctionInfo[] {
       const functions: FunctionInfo[] = [];
       const project = astPool.getProject();
 
-    // Function declarations
-    const funcDecls = sourceFile.getDescendantsOfKind(
-      SyntaxKind.FunctionDeclaration,
-    );
+      // Function declarations
+      const funcDecls = sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration);
 
-    for (const func of funcDecls) {
-      const name = func.getName() || 'anonymous';
-      const startLine = func.getStartLineNumber();
-      const endLine = func.getEndLineNumber();
-      const body = func.getBody();
-      const bodyText = body?.getText() || '';
-
-      const complexity = calculateComplexityFromAST(
-        project.createSourceFile('body.ts', bodyText, { overwrite: true }),
-      );
-
-      const funcInfo: FunctionInfo = {
-        name,
-        startLine,
-        endLine,
-        lines: endLine - startLine + 1,
-        params: func.getParameters().length,
-        isExported: func.isExported(),
-        isAsync: func.isAsync(),
-        hasJSDoc: func.getJsDocs().length > 0,
-        complexity,
-      };
-
-      // Add split suggestions for complex functions
-      if (complexity > 10) {
-        const suggestions = analyzeSplitPoints(bodyText, name, startLine);
-        if (suggestions.length > 0) {
-          funcInfo.splitSuggestions = suggestions;
-        }
-      }
-
-      functions.push(funcInfo);
-    }
-
-    // Arrow functions and function expressions in variable declarations
-    const varDecls = sourceFile.getDescendantsOfKind(
-      SyntaxKind.VariableDeclaration,
-    );
-
-    for (const varDecl of varDecls) {
-      const init = varDecl.getInitializer();
-      if (!init) continue;
-
-      // Arrow function or function expression
-      if (
-        Node.isArrowFunction(init) ||
-        Node.isFunctionExpression(init)
-      ) {
-        const name = varDecl.getName();
-        const startLine = varDecl.getStartLineNumber();
-        const endLine = init.getEndLineNumber();
-        const body = init.getBody();
+      for (const func of funcDecls) {
+        const name = func.getName() || 'anonymous';
+        const startLine = func.getStartLineNumber();
+        const endLine = func.getEndLineNumber();
+        const body = func.getBody();
         const bodyText = body?.getText() || '';
-
-        // Check if exported
-        const varStmt = varDecl.getFirstAncestorByKind(
-          SyntaxKind.VariableStatement,
-        );
-        const isExported = varStmt?.isExported() || false;
 
         const complexity = calculateComplexityFromAST(
           project.createSourceFile('body.ts', bodyText, { overwrite: true }),
@@ -374,10 +321,10 @@ export function extractFunctions(content: string): FunctionInfo[] {
           startLine,
           endLine,
           lines: endLine - startLine + 1,
-          params: init.getParameters().length,
-          isExported,
-          isAsync: init.isAsync(),
-          hasJSDoc: varStmt?.getJsDocs?.()?.length ? varStmt.getJsDocs().length > 0 : false,
+          params: func.getParameters().length,
+          isExported: func.isExported(),
+          isAsync: func.isAsync(),
+          hasJSDoc: func.getJsDocs().length > 0,
           complexity,
         };
 
@@ -391,52 +338,94 @@ export function extractFunctions(content: string): FunctionInfo[] {
 
         functions.push(funcInfo);
       }
-    }
 
-    // Method declarations in classes
-    const methods = sourceFile.getDescendantsOfKind(
-      SyntaxKind.MethodDeclaration,
-    );
+      // Arrow functions and function expressions in variable declarations
+      const varDecls = sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
 
-    for (const method of methods) {
-      const name = method.getName();
-      const startLine = method.getStartLineNumber();
-      const endLine = method.getEndLineNumber();
-      const body = method.getBody();
-      const bodyText = body?.getText() || '';
+      for (const varDecl of varDecls) {
+        const init = varDecl.getInitializer();
+        if (!init) continue;
 
-      // Check if parent class is exported
-      const parentClass = method.getFirstAncestorByKind(
-        SyntaxKind.ClassDeclaration,
-      );
-      const isExported = parentClass?.isExported() || false;
+        // Arrow function or function expression
+        if (Node.isArrowFunction(init) || Node.isFunctionExpression(init)) {
+          const name = varDecl.getName();
+          const startLine = varDecl.getStartLineNumber();
+          const endLine = init.getEndLineNumber();
+          const body = init.getBody();
+          const bodyText = body?.getText() || '';
 
-      const complexity = calculateComplexityFromAST(
-        project.createSourceFile('body.ts', bodyText, { overwrite: true }),
-      );
+          // Check if exported
+          const varStmt = varDecl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
+          const isExported = varStmt?.isExported() || false;
 
-      const funcInfo: FunctionInfo = {
-        name,
-        startLine,
-        endLine,
-        lines: endLine - startLine + 1,
-        params: method.getParameters().length,
-        isExported,
-        isAsync: method.isAsync(),
-        hasJSDoc: method.getJsDocs().length > 0,
-        complexity,
-      };
+          const complexity = calculateComplexityFromAST(
+            project.createSourceFile('body.ts', bodyText, { overwrite: true }),
+          );
 
-      // Add split suggestions for complex functions
-      if (complexity > 10) {
-        const suggestions = analyzeSplitPoints(bodyText, name, startLine);
-        if (suggestions.length > 0) {
-          funcInfo.splitSuggestions = suggestions;
+          const funcInfo: FunctionInfo = {
+            name,
+            startLine,
+            endLine,
+            lines: endLine - startLine + 1,
+            params: init.getParameters().length,
+            isExported,
+            isAsync: init.isAsync(),
+            hasJSDoc: varStmt?.getJsDocs?.()?.length ? varStmt.getJsDocs().length > 0 : false,
+            complexity,
+          };
+
+          // Add split suggestions for complex functions
+          if (complexity > 10) {
+            const suggestions = analyzeSplitPoints(bodyText, name, startLine);
+            if (suggestions.length > 0) {
+              funcInfo.splitSuggestions = suggestions;
+            }
+          }
+
+          functions.push(funcInfo);
         }
       }
 
-      functions.push(funcInfo);
-    }
+      // Method declarations in classes
+      const methods = sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration);
+
+      for (const method of methods) {
+        const name = method.getName();
+        const startLine = method.getStartLineNumber();
+        const endLine = method.getEndLineNumber();
+        const body = method.getBody();
+        const bodyText = body?.getText() || '';
+
+        // Check if parent class is exported
+        const parentClass = method.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
+        const isExported = parentClass?.isExported() || false;
+
+        const complexity = calculateComplexityFromAST(
+          project.createSourceFile('body.ts', bodyText, { overwrite: true }),
+        );
+
+        const funcInfo: FunctionInfo = {
+          name,
+          startLine,
+          endLine,
+          lines: endLine - startLine + 1,
+          params: method.getParameters().length,
+          isExported,
+          isAsync: method.isAsync(),
+          hasJSDoc: method.getJsDocs().length > 0,
+          complexity,
+        };
+
+        // Add split suggestions for complex functions
+        if (complexity > 10) {
+          const suggestions = analyzeSplitPoints(bodyText, name, startLine);
+          if (suggestions.length > 0) {
+            funcInfo.splitSuggestions = suggestions;
+          }
+        }
+
+        functions.push(funcInfo);
+      }
 
       // Sort by start line
       return functions.sort((a, b) => a.startLine - b.startLine);

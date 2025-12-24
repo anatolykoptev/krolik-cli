@@ -7,15 +7,15 @@
  */
 
 import type {
-  EnhancedRefactorAnalysis,
-  EnhancedMigrationPlan,
-  EnhancedMigrationAction,
-  RefactorAnalysis,
-  MigrationPlan,
   ArchHealth,
+  EnhancedMigrationAction,
+  EnhancedMigrationPlan,
+  EnhancedRefactorAnalysis,
+  MigrationPlan,
+  RefactorAnalysis,
 } from '../core';
-import { detectProjectContext } from './context';
 import { analyzeArchHealth } from './architecture';
+import { detectProjectContext } from './context';
 import { classifyDomains } from './domains';
 import { generateAiNavigation } from './navigation';
 import { generateRecommendations } from './recommendations';
@@ -62,7 +62,9 @@ export function createEnhancedMigrationPlan(
       id,
       order,
       prerequisite: [],
-      reason: action.target ? `Move to correct namespace (${action.target})` : 'Reorganize file location',
+      reason: action.target
+        ? `Move to correct namespace (${action.target})`
+        : 'Reorganize file location',
       affectedDetails: action.affectedImports.map((f) => ({ file: f, importCount: 1 })),
     });
     executionOrder.push({ step: order, actionId: id, canParallelize: false });

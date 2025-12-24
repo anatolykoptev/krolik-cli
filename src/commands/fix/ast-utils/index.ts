@@ -10,23 +10,22 @@
  * General AST utilities are in lib/@ast/
  */
 
-// Types
-export type {
-  ExtractFunctionOptions,
-  ExtractFunctionResult,
-  ReduceNestingResult,
-  SplitFileResult,
-  SplitConfig,
-} from './types';
-
-// Transformations
-export { extractFunction } from './extract-function';
-export { reduceNesting } from './nesting';
-export { splitFile } from './split-file';
-
 // Re-export commonly used utilities from lib for convenience
 export {
   createProject,
   createSourceFile,
   parseCode,
 } from '../../../lib/@ast';
+
+// Transformations
+export { extractFunction } from './extract-function';
+export { reduceNesting } from './nesting';
+export { splitFile } from './split-file';
+// Types
+export type {
+  ExtractFunctionOptions,
+  ExtractFunctionResult,
+  ReduceNestingResult,
+  SplitConfig,
+  SplitFileResult,
+} from './types';

@@ -10,10 +10,10 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DOCS_VERSION,
-  KROLIK_SECTION_START,
-  KROLIK_SECTION_END,
   generateKrolikDocs,
   generateMinimalClaudeMd,
+  KROLIK_SECTION_END,
+  KROLIK_SECTION_START,
 } from './template';
 
 /**
@@ -121,10 +121,7 @@ function insertKrolikSection(content: string, newSection: string): string {
  * @param options - Sync options
  * @returns Sync result
  */
-export function syncClaudeMd(
-  projectRoot: string,
-  options: SyncOptions = {}
-): SyncResult {
+export function syncClaudeMd(projectRoot: string, options: SyncOptions = {}): SyncResult {
   const { force = false, dryRun = false } = options;
 
   const claudeMdPath = join(projectRoot, 'CLAUDE.md');

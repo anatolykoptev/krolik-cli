@@ -4,7 +4,7 @@
  */
 
 import type { StatusResult } from '../../../types';
-import { getHealthEmoji, formatDuration } from './shared';
+import { formatDuration, getHealthEmoji } from './shared';
 
 // ============================================================================
 // SECTION FORMATTERS
@@ -12,8 +12,15 @@ import { getHealthEmoji, formatDuration } from './shared';
 
 /** Format markdown header */
 function mdHeader(status: StatusResult): string[] {
-  const title = status.package ? `# ${status.package.name} v${status.package.version}` : '# Project Status';
-  return [title, '', `${getHealthEmoji(status.health)} **Health: ${status.health.toUpperCase()}**`, ''];
+  const title = status.package
+    ? `# ${status.package.name} v${status.package.version}`
+    : '# Project Status';
+  return [
+    title,
+    '',
+    `${getHealthEmoji(status.health)} **Health: ${status.health.toUpperCase()}**`,
+    '',
+  ];
 }
 
 /** Format tech stack section */
@@ -56,13 +63,25 @@ function mdChecks(status: StatusResult): string[] {
 /** Format file stats section */
 function mdFileStats(fileStats: StatusResult['fileStats']): string[] {
   if (!fileStats?.sourceFiles || fileStats.sourceFiles === 0) return [];
-  return ['## Files', '', `- **Source files:** ${fileStats.sourceFiles}`, `- **Test files:** ${fileStats.testFiles}`, ''];
+  return [
+    '## Files',
+    '',
+    `- **Source files:** ${fileStats.sourceFiles}`,
+    `- **Test files:** ${fileStats.testFiles}`,
+    '',
+  ];
 }
 
 /** Format dependencies section */
 function mdDependencies(pkg: StatusResult['package']): string[] {
   if (!pkg) return [];
-  return ['## Dependencies', '', `- **Dependencies:** ${pkg.depsCount}`, `- **Dev Dependencies:** ${pkg.devDepsCount}`, ''];
+  return [
+    '## Dependencies',
+    '',
+    `- **Dependencies:** ${pkg.depsCount}`,
+    `- **Dev Dependencies:** ${pkg.devDepsCount}`,
+    '',
+  ];
 }
 
 /** Format recent commits section */
@@ -113,7 +132,12 @@ function mdAIRules(aiRules: StatusResult['aiRules']): string[] {
 function mdBranchContext(ctx: StatusResult['branchContext']): string[] {
   if (!ctx) return [];
 
-  const lines: string[] = ['## Branch Context', '', `- **Branch:** ${ctx.name}`, `- **Type:** ${ctx.type}`];
+  const lines: string[] = [
+    '## Branch Context',
+    '',
+    `- **Branch:** ${ctx.name}`,
+    `- **Type:** ${ctx.type}`,
+  ];
   if (ctx.issueNumber) lines.push(`- **Issue:** #${ctx.issueNumber}`);
   if (ctx.description) lines.push(`- **Description:** ${ctx.description}`);
   lines.push('');

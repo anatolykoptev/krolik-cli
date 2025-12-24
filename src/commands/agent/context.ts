@@ -3,9 +3,9 @@
  * @description Context injection for agents
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { AgentContext, AgentOptions } from './types';
 
 /**
@@ -135,7 +135,7 @@ function getGitDiff(projectRoot: string): string | undefined {
 
     // Limit diff size
     if (diff.length > 5000) {
-      return diff.slice(0, 5000) + '\n... (truncated)';
+      return `${diff.slice(0, 5000)}\n... (truncated)`;
     }
 
     return diff;

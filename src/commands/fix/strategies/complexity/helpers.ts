@@ -5,8 +5,8 @@
 
 import { lineStartsWith } from '../shared';
 import {
-  FUNCTION_NAME_MAP,
   DEFAULT_FUNCTION_NAME,
+  FUNCTION_NAME_MAP,
   MIN_BLOCK_SIZE,
   MIN_IF_CHAIN_LENGTH,
 } from './patterns';
@@ -32,10 +32,7 @@ export interface ExtractionRange {
  * @param startLine - 1-based line number where function starts
  * @returns 1-based line number where function ends, or null
  */
-export function findFunctionEnd(
-  lines: string[],
-  startLine: number,
-): number | null {
+export function findFunctionEnd(lines: string[], startLine: number): number | null {
   let braceCount = 0;
   let started = false;
 
@@ -107,8 +104,7 @@ export function findExtractionRange(
 
     // Look for significant block starts (one level inside the function)
     const isBlockStart =
-      lineStartsWith(trimmed, BLOCK_START_PATTERNS) ||
-      trimmed.includes(COMMENT_SEPARATOR);
+      lineStartsWith(trimmed, BLOCK_START_PATTERNS) || trimmed.includes(COMMENT_SEPARATOR);
 
     if (inFunction && braceCount === 2 && blockStart === null && isBlockStart) {
       blockStart = i + 1;
@@ -134,10 +130,7 @@ export function findExtractionRange(
 /**
  * Extract the middle third of a function as fallback
  */
-function extractMiddleThird(
-  funcStart: number,
-  funcEnd: number,
-): ExtractionRange | null {
+function extractMiddleThird(funcStart: number, funcEnd: number): ExtractionRange | null {
   const funcLength = funcEnd - funcStart;
 
   if (funcLength <= MIN_IF_CHAIN_LENGTH) {

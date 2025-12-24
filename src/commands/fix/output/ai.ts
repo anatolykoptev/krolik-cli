@@ -9,9 +9,9 @@
  * - Effort estimates for each fix
  */
 
-import type { QualityReport } from '../types';
-import { transformToAIFormat, formatAIReport } from './ai-format';
 import { escapeXml } from '@/lib';
+import type { QualityReport } from '../types';
+import { formatAIReport, transformToAIFormat } from './ai-format';
 
 /**
  * Format quality report as AI-optimized XML
@@ -40,7 +40,9 @@ export function formatAISimple(report: QualityReport): string {
   const lines: string[] = ['<quality-report>'];
 
   // Summary
-  lines.push(`  <summary files="${report.analyzedFiles}" errors="${report.summary.errors}" warnings="${report.summary.warnings}">`);
+  lines.push(
+    `  <summary files="${report.analyzedFiles}" errors="${report.summary.errors}" warnings="${report.summary.warnings}">`,
+  );
   for (const [cat, count] of Object.entries(report.summary.byCategory)) {
     if (count > 0) {
       lines.push(`    <category name="${cat}">${count}</category>`);
@@ -87,7 +89,9 @@ export function formatAISimple(report: QualityReport): string {
   if (report.recommendations.length > 0) {
     lines.push('  <recommendations>');
     for (const rec of report.recommendations) {
-      lines.push(`    <recommendation id="${rec.id}" severity="${rec.severity}" count="${rec.count}">`);
+      lines.push(
+        `    <recommendation id="${rec.id}" severity="${rec.severity}" count="${rec.count}">`,
+      );
       lines.push(`      <title>${escapeXml(rec.title)}</title>`);
       lines.push(`      <description>${escapeXml(rec.description)}</description>`);
       lines.push('    </recommendation>');

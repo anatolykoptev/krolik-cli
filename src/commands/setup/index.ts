@@ -9,18 +9,18 @@
  */
 
 import type { CommandContext } from '../../types';
-import type { SetupOptions } from './core/types';
 import { getPluginsByType } from './core/config';
+import type { SetupOptions } from './core/types';
+import { printDiagnostics } from './diagnostics';
 import {
   ensureDirectories,
-  installMcpPlugin,
-  updateMcpPlugin,
   installAgentsRepo,
-  updateAgentsRepo,
-  installMcpServer,
   installAllMcpServers,
+  installMcpPlugin,
+  installMcpServer,
+  updateAgentsRepo,
+  updateMcpPlugin,
 } from './installers';
-import { printDiagnostics } from './diagnostics';
 
 // Re-export types and functions for external use
 export type { SetupOptions } from './core/types';
@@ -29,9 +29,7 @@ export { listPlugins, printDiagnostics } from './diagnostics';
 /**
  * Run setup command
  */
-export async function runSetup(
-  ctx: CommandContext & { options: SetupOptions },
-): Promise<void> {
+export async function runSetup(ctx: CommandContext & { options: SetupOptions }): Promise<void> {
   const { logger, options } = ctx;
   const { all, plugins, agents, mem, mcp, update, check, dryRun, force } = options;
 

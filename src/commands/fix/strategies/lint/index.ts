@@ -15,13 +15,12 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { QualityIssue } from '../../types';
-import type { FixOperation, FixStrategy } from '../../types';
 import type { FixContext } from '../../context';
 import { buildFixContext, shouldSkipConsoleFix } from '../../context';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
 import { containsKeyword } from '../shared';
 import { LINT_KEYWORDS } from './constants';
-import { fixConsole, fixDebugger, fixAlert } from './fixes';
+import { fixAlert, fixConsole, fixDebugger } from './fixes';
 
 // ============================================================================
 // CONTEXT MANAGEMENT
@@ -33,11 +32,7 @@ const contextCache = new Map<string, FixContext>();
 /**
  * Get or build fix context for a file
  */
-function getContext(
-  filePath: string,
-  content: string,
-  projectRoot: string,
-): FixContext {
+function getContext(filePath: string, content: string, projectRoot: string): FixContext {
   const cached = contextCache.get(filePath);
   if (cached) return cached;
 
@@ -133,4 +128,4 @@ export const lintStrategy: FixStrategy = {
 
 // Re-export for testing
 export { LINT_KEYWORDS } from './constants';
-export { fixConsole, fixDebugger, fixAlert } from './fixes';
+export { fixAlert, fixConsole, fixDebugger } from './fixes';

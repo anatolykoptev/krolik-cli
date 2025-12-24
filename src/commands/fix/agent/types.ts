@@ -18,17 +18,17 @@ export type StepStatus =
  * Type of action in a plan step
  */
 export type StepAction =
-  | 'fix'           // Fix a specific issue
-  | 'refactor'      // Refactor code
-  | 'rename'        // Rename identifier
-  | 'move'          // Move file/function
-  | 'extract'       // Extract to new file
-  | 'delete'        // Delete code/file
-  | 'add'           // Add new code
-  | 'replace'       // Replace code
+  | 'fix' // Fix a specific issue
+  | 'refactor' // Refactor code
+  | 'rename' // Rename identifier
+  | 'move' // Move file/function
+  | 'extract' // Extract to new file
+  | 'delete' // Delete code/file
+  | 'add' // Add new code
+  | 'replace' // Replace code
   | 'update-import' // Update import paths
   | 'update-export' // Update exports
-  | 'custom';       // Custom action
+  | 'custom'; // Custom action
 
 /**
  * A single step in an improvement plan
@@ -101,9 +101,9 @@ export interface ImprovementPlan {
  * Execution mode
  */
 export type ExecutionMode =
-  | 'interactive'  // Confirm each step
-  | 'batch'        // Execute all without confirmation
-  | 'dry-run';     // Don't apply, just show what would happen
+  | 'interactive' // Confirm each step
+  | 'batch' // Execute all without confirmation
+  | 'dry-run'; // Don't apply, just show what would happen
 
 /**
  * Result of executing a single step
@@ -161,9 +161,9 @@ export interface PlanExecutionResult {
  * Supported plan formats
  */
 export type PlanFormat =
-  | 'markdown'  // IMPROVEMENT-PLAN.md
-  | 'json'      // improvement-plan.json
-  | 'yaml';     // improvement-plan.yaml
+  | 'markdown' // IMPROVEMENT-PLAN.md
+  | 'json' // improvement-plan.json
+  | 'yaml'; // improvement-plan.yaml
 
 /**
  * Parser result
@@ -186,19 +186,12 @@ export interface ParseResult {
 /**
  * Callback for step execution progress
  */
-export type StepProgressCallback = (
-  step: PlanStep,
-  status: StepStatus,
-  message?: string,
-) => void;
+export type StepProgressCallback = (step: PlanStep, status: StepStatus, message?: string) => void;
 
 /**
  * Callback for confirmation prompts
  */
-export type ConfirmCallback = (
-  step: PlanStep,
-  preview: string,
-) => Promise<boolean>;
+export type ConfirmCallback = (step: PlanStep, preview: string) => Promise<boolean>;
 
 /**
  * Executor options

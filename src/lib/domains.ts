@@ -111,10 +111,7 @@ export function getDomainKeywords(
  * @param config - Optional krolik config with custom domains
  * @returns Array of detected domain names
  */
-export function detectDomainsFromText(
-  text: string,
-  config?: KrolikConfig,
-): string[] {
+export function detectDomainsFromText(text: string, config?: KrolikConfig): string[] {
   const lowerText = text.toLowerCase();
   const detected: string[] = [];
 

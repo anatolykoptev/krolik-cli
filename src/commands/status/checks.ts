@@ -3,15 +3,10 @@
  * @description Git, typecheck, and lint checking functions
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { StatusResult } from "../../types";
-import {
-  getCurrentBranch,
-  getStatus as getGitStatus,
-  getAheadBehind,
-  tryExec,
-} from "../../lib";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { getAheadBehind, getCurrentBranch, getStatus as getGitStatus, tryExec } from '../../lib';
+import type { StatusResult } from '../../types';
 
 /**
  * Git check result
@@ -30,7 +25,7 @@ export interface GitCheck {
  * Typecheck result
  */
 export interface TypecheckResult {
-  status: "passed" | "failed" | "skipped";
+  status: 'passed' | 'failed' | 'skipped';
   cached: boolean;
   errors?: string;
 }
@@ -41,7 +36,7 @@ export interface TypecheckResult {
 export interface LintResult {
   warnings: number;
   errors: number;
-  status: "passed" | "failed" | "skipped";
+  status: 'passed' | 'failed' | 'skipped';
 }
 
 const MAX_PAGE_SIZE = 50;
@@ -54,7 +49,7 @@ const MAGIC_5 = MAGIC_5_VALUE;
  * Check git status
  */
 export function checkGit(cwd: string): GitCheck {
-  const branch = getCurrentBranch(cwd) ?? "unknown";
+  const branch = getCurrentBranch(cwd) ?? 'unknown';
   const gitStatus = getGitStatus(cwd);
   const aheadBehind = getAheadBehind(cwd);
 
@@ -74,12 +69,12 @@ export function checkGit(cwd: string): GitCheck {
  */
 export function checkTypecheck(cwd: string, skip = false): TypecheckResult {
   if (skip) {
-    return { status: "skipped", cached: false };
+    return { status: 'skipped', cached: false };
   }
 
   // Try to use cached result if available
   const cacheResult = tryExec(
-    "test -f .krolik/typecheck-cache.json && cat .krolik/typecheck-cache.json",
+    'test -f .krolik/typecheck-cache.json && cat .krolik/typecheck-cache.json',
     {
       cwd,
       silent: true,
@@ -93,7 +88,7 @@ export function checkTypecheck(cwd: string, skip = false): TypecheckResult {
       // Use cache if less than 5 minutes old
       if (age < MAGIC_5 * 60 * 1000) {
         return {
-          status: cache.passed ? "passed" : "failed",
+          status: cache.passed ? 'passed' : 'failed',
           cached: true,
         };
       }
@@ -102,17 +97,17 @@ export function checkTypecheck(cwd: string, skip = false): TypecheckResult {
     }
   }
 
-  const result = tryExec("pnpm typecheck", { cwd, timeout: 60000 });
+  const result = tryExec('pnpm typecheck', { cwd, timeout: 60000 });
   const passed = result.success;
 
   // Save to cache for future fast lookups
   try {
-    const cacheDir = path.join(cwd, ".krolik");
+    const cacheDir = path.join(cwd, '.krolik');
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }
     fs.writeFileSync(
-      path.join(cacheDir, "typecheck-cache.json"),
+      path.join(cacheDir, 'typecheck-cache.json'),
       JSON.stringify({ passed, timestamp: Date.now() }),
     );
   } catch {
@@ -120,7 +115,7 @@ export function checkTypecheck(cwd: string, skip = false): TypecheckResult {
   }
 
   return {
-    status: passed ? "passed" : "failed",
+    status: passed ? 'passed' : 'failed',
     cached: false,
     ...(passed || !result.error ? {} : { errors: result.error }),
   };
@@ -131,25 +126,19 @@ export function checkTypecheck(cwd: string, skip = false): TypecheckResult {
  */
 export function checkLint(cwd: string, skip = false): LintResult {
   if (skip) {
-    return { warnings: 0, errors: 0, status: "skipped" };
+    return { warnings: 0, errors: 0, status: 'skipped' };
   }
 
-  const result = tryExec("pnpm lint 2>&1", { cwd, timeout: 60000 });
-  const output = result.output || "";
+  const result = tryExec('pnpm lint 2>&1', { cwd, timeout: 60000 });
+  const output = result.output || '';
 
-  const warnings = Number.parseInt(
-    output.match(/(\d+)\s*warnings?/i)?.[1] ?? "0",
-    10,
-  );
-  const errors = Number.parseInt(
-    output.match(/(\d+)\s*errors?/i)?.[1] ?? "0",
-    10,
-  );
+  const warnings = Number.parseInt(output.match(/(\d+)\s*warnings?/i)?.[1] ?? '0', 10);
+  const errors = Number.parseInt(output.match(/(\d+)\s*errors?/i)?.[1] ?? '0', 10);
 
   return {
     warnings,
     errors,
-    status: errors > 0 ? "failed" : "passed",
+    status: errors > 0 ? 'failed' : 'passed',
   };
 }
 
@@ -165,15 +154,11 @@ export function toStatusResult(
   expectedBranch?: string,
 ): StatusResult {
   // Determine health
-  let health: StatusResult["health"] = "good";
-  if (typecheck.status === "failed" || lint.errors > 0) {
-    health = "error";
-  } else if (
-    lint.warnings > 10 ||
-    todos.count > MAX_PAGE_SIZE ||
-    git.behind > 0
-  ) {
-    health = "warning";
+  let health: StatusResult['health'] = 'good';
+  if (typecheck.status === 'failed' || lint.errors > 0) {
+    health = 'error';
+  } else if (lint.warnings > 10 || todos.count > MAX_PAGE_SIZE || git.behind > 0) {
+    health = 'warning';
   }
 
   return {

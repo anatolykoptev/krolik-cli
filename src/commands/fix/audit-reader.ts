@@ -8,8 +8,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { QualityIssue, QualitySeverity } from './types';
 import type { AIReport, EnrichedIssue, PriorityLevel } from './reporter/types';
+import type { QualityIssue, QualitySeverity } from './types';
 
 // ============================================================================
 // CONSTANTS
@@ -119,10 +119,7 @@ export function getAuditDataAge(projectRoot: string): number | null {
  * @param projectRoot - Project root directory
  * @param quickWinsOnly - If true, only return quick wins (auto-fixable issues)
  */
-export function readAuditData(
-  projectRoot: string,
-  quickWinsOnly = false,
-): AuditDataResult {
+export function readAuditData(projectRoot: string, quickWinsOnly = false): AuditDataResult {
   const auditPath = path.join(projectRoot, AUDIT_DATA_FILE);
 
   // Check if file exists
@@ -149,7 +146,7 @@ export function readAuditData(
       enrichedIssues = report.quickWins;
     } else {
       // All issues from all groups
-      enrichedIssues = report.groups.flatMap(group => group.issues);
+      enrichedIssues = report.groups.flatMap((group) => group.issues);
     }
 
     // Convert to QualityIssue[]

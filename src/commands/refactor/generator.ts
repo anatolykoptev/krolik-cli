@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { NamespaceCategory, DirectoryInfo } from './core';
+import type { DirectoryInfo, NamespaceCategory } from './core';
 import { NAMESPACE_INFO } from './core/constants';
 
 // ============================================================================
@@ -33,10 +33,7 @@ export interface RefineResult {
 /**
  * Generate AI config TypeScript content
  */
-export function generateAiConfigContent(
-  result: RefineResult,
-  projectRoot: string,
-): string {
+export function generateAiConfigContent(result: RefineResult, projectRoot: string): string {
   if (!result.libDir) {
     return '// ERROR: No lib directory found';
   }
@@ -48,7 +45,7 @@ export function generateAiConfigContent(
     if (!byCategory.has(dir.category)) {
       byCategory.set(dir.category, []);
     }
-    byCategory.get(dir.category)!.push(dir);
+    byCategory.get(dir.category)?.push(dir);
   }
 
   // Generate namespace entries
@@ -58,10 +55,12 @@ export function generateAiConfigContent(
     if (category === 'unknown' || dirs.length === 0) continue;
 
     const info = NAMESPACE_INFO[category];
-    const modules = dirs.map(d => {
-      const desc = `${d.fileCount} files`;
-      return `      ${d.name.replace(/^@/, '')}: '${desc}',`;
-    }).join('\n');
+    const modules = dirs
+      .map((d) => {
+        const desc = `${d.fileCount} files`;
+        return `      ${d.name.replace(/^@/, '')}: '${desc}',`;
+      })
+      .join('\n');
 
     const layerName = `Layer ${info.layer}`;
     namespaceEntries.push(`
@@ -148,10 +147,7 @@ export type NamespaceKey = keyof typeof AI_NAMESPACES;
 /**
  * Write ai-config.ts to project
  */
-export function writeAiConfig(
-  result: RefineResult,
-  projectRoot: string,
-): string | null {
+export function writeAiConfig(result: RefineResult, projectRoot: string): string | null {
   if (!result.libDir) {
     return null;
   }

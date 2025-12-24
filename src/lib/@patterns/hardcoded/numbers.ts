@@ -7,10 +7,18 @@
  * Numbers that are typically intentional, not magic
  */
 export const ACCEPTABLE_NUMBERS = new Set([
-  0, 1, 2, -1, // Common indices/increments
-  10, 100, 1000, // Common bases
-  24, 60, 365, // Time units
-  1024, 2048, // Binary sizes
+  0,
+  1,
+  2,
+  -1, // Common indices/increments
+  10,
+  100,
+  1000, // Common bases
+  24,
+  60,
+  365, // Time units
+  1024,
+  2048, // Binary sizes
 ]);
 
 /** HTTP Status Codes */

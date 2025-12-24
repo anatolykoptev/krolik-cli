@@ -3,9 +3,9 @@
  * @description Zod schema file parser
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { ZodField, ZodSchemaInfo } from "./types";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { ZodField, ZodSchemaInfo } from './types';
 
 /**
  * Parse Zod field definitions
@@ -20,12 +20,11 @@ function parseZodFields(fieldsBlock: string): ZodField[] {
   while ((match = fieldRegex.exec(fieldsBlock)) !== null) {
     const name = match[1];
     const baseType = match[2];
-    const chain = match[4] ?? "";
+    const chain = match[4] ?? '';
 
     if (!name || !baseType) continue;
 
-    const isOptional =
-      chain.includes(".optional()") || chain.includes(".nullable()");
+    const isOptional = chain.includes('.optional()') || chain.includes('.nullable()');
 
     // Extract validation constraints
     const validations: string[] = [];
@@ -43,7 +42,7 @@ function parseZodFields(fieldsBlock: string): ZodField[] {
       required: !isOptional,
     };
     if (validations.length > 0) {
-      field.validation = validations.join(", ");
+      field.validation = validations.join(', ');
     }
     fields.push(field);
   }
@@ -54,17 +53,15 @@ function parseZodFields(fieldsBlock: string): ZodField[] {
 /**
  * Determine schema type from name
  */
-function getSchemaType(
-  schemaName: string,
-): "input" | "output" | "filter" {
+function getSchemaType(schemaName: string): 'input' | 'output' | 'filter' {
   const lower = schemaName.toLowerCase();
-  if (lower.includes("output") || lower.includes("response")) {
-    return "output";
+  if (lower.includes('output') || lower.includes('response')) {
+    return 'output';
   }
-  if (lower.includes("filter") || lower.includes("query")) {
-    return "filter";
+  if (lower.includes('filter') || lower.includes('query')) {
+    return 'filter';
   }
-  return "input";
+  return 'input';
 }
 
 /**
@@ -75,14 +72,13 @@ function parseSchemaFile(filePath: string): ZodSchemaInfo[] {
 
   let content: string;
   try {
-    content = fs.readFileSync(filePath, "utf-8");
+    content = fs.readFileSync(filePath, 'utf-8');
   } catch {
     return schemas;
   }
 
   const fileName = path.basename(filePath);
-  const schemaRegex =
-    /export\s+const\s+(\w+Schema)\s*=\s*z\.object\(\{([^}]+)\}\)/gs;
+  const schemaRegex = /export\s+const\s+(\w+Schema)\s*=\s*z\.object\(\{([^}]+)\}\)/gs;
   let match: RegExpExecArray | null;
 
   while ((match = schemaRegex.exec(content)) !== null) {
@@ -113,10 +109,7 @@ function matchesPatterns(fileName: string, patterns: string[]): boolean {
 /**
  * Parse Zod schema files to extract input/output schemas
  */
-export function parseZodSchemas(
-  schemasDir: string,
-  patterns: string[],
-): ZodSchemaInfo[] {
+export function parseZodSchemas(schemasDir: string, patterns: string[]): ZodSchemaInfo[] {
   const results: ZodSchemaInfo[] = [];
 
   if (!fs.existsSync(schemasDir)) return results;
@@ -132,12 +125,12 @@ export function parseZodSchemas(
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
 
-      if (entry.isDirectory() && !entry.name.startsWith(".")) {
+      if (entry.isDirectory() && !entry.name.startsWith('.')) {
         scanDir(fullPath);
         continue;
       }
 
-      if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
+      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
       if (!matchesPatterns(entry.name, patterns)) continue;
 
       results.push(...parseSchemaFile(fullPath));

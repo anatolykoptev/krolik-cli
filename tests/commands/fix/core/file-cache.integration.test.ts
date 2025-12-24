@@ -3,11 +3,11 @@
  * @description Integration tests demonstrating cache performance benefits
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { fileCache } from '../../../../src/commands/fix/core/file-cache';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { fileCache } from '../../../../src/lib/@cache/file-cache';
 
 describe('FileCache Integration', () => {
   let tempDir: string;
@@ -48,19 +48,19 @@ export function test${i}() {
     // 4. Validation re-reads files
 
     // Phase 1: Initial analysis
-    const analysisReads = testFiles.map(f => fileCache.get(f));
+    const analysisReads = testFiles.map((f) => fileCache.get(f));
     expect(analysisReads).toHaveLength(10);
 
     // Phase 2: Plan generation (re-read for context)
-    const planReads = testFiles.map(f => fileCache.get(f));
+    const planReads = testFiles.map((f) => fileCache.get(f));
     expect(planReads).toHaveLength(10);
 
     // Phase 3: Apply fixes (read again)
-    const applyReads = testFiles.map(f => fileCache.get(f));
+    const applyReads = testFiles.map((f) => fileCache.get(f));
     expect(applyReads).toHaveLength(10);
 
     // Phase 4: Validation (read again)
-    const validateReads = testFiles.map(f => fileCache.get(f));
+    const validateReads = testFiles.map((f) => fileCache.get(f));
     expect(validateReads).toHaveLength(10);
 
     // Check statistics
@@ -69,8 +69,8 @@ export function test${i}() {
     // Without cache: 40 reads (10 files × 4 phases)
     // With cache: 10 misses (first phase) + 30 hits (remaining phases)
     expect(stats.misses).toBe(10); // Only first read per file
-    expect(stats.hits).toBe(30);   // All subsequent reads are cached
-    expect(stats.size).toBe(10);   // 10 unique files cached
+    expect(stats.hits).toBe(30); // All subsequent reads are cached
+    expect(stats.size).toBe(10); // 10 unique files cached
 
     // Hit rate should be 75% (30 hits out of 40 total accesses)
     const hitRate = (stats.hits / (stats.hits + stats.misses)) * 100;
@@ -108,7 +108,7 @@ export function test${i}() {
     expect(stats1.hits).toBe(0);
 
     // All subsequent reads should be hits
-    testFiles.forEach(f => fileCache.get(f));
+    testFiles.forEach((f) => fileCache.get(f));
 
     const stats2 = fileCache.getStats();
     expect(stats2.hits).toBe(10);

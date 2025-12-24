@@ -6,9 +6,9 @@
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { InstallerOptions, InstallResult } from '../core/types';
 import { getPlugin } from '../core/config';
 import { AGENTS_DIR, AGENTS_PLUGINS_DIR } from '../core/paths';
+import type { InstallerOptions, InstallResult } from '../core/types';
 import { getAgentsVersion, isGitAvailable } from './utils';
 
 const AGENTS_REPO = 'https://github.com/wshobson/agents.git';
@@ -61,11 +61,11 @@ export async function installAgentsRepo(opts: InstallerOptions): Promise<Install
       fs.rmSync(AGENTS_DIR, { recursive: true });
     }
 
-    const cloneResult = spawnSync(
-      'git',
-      ['clone', '--depth', '1', AGENTS_REPO, AGENTS_DIR],
-      { stdio: 'pipe', encoding: 'utf8', timeout: 60000 },
-    );
+    const cloneResult = spawnSync('git', ['clone', '--depth', '1', AGENTS_REPO, AGENTS_DIR], {
+      stdio: 'pipe',
+      encoding: 'utf8',
+      timeout: 60000,
+    });
 
     if (cloneResult.status !== 0) {
       throw new Error(cloneResult.stderr || 'Clone failed');

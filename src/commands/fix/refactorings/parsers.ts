@@ -3,13 +3,13 @@
  * @description Parsing helpers for refactoring detection
  */
 
-import { Node, ReturnStatement, IfStatement } from "ts-morph";
+import { type IfStatement, Node, type ReturnStatement } from 'ts-morph';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type CheckType = "includes" | "startsWith" | "endsWith" | "equals" | "other";
+export type CheckType = 'includes' | 'startsWith' | 'endsWith' | 'equals' | 'other';
 
 export interface ConditionInfo {
   check: string;
@@ -33,13 +33,13 @@ export interface ParsedIfResult {
  */
 export function getCheckType(methodName: string): CheckType {
   const methodMap: Record<string, CheckType> = {
-    includes: "includes",
-    startsWith: "startsWith",
-    endsWith: "endsWith",
-    equals: "equals",
-    "===": "equals",
+    includes: 'includes',
+    startsWith: 'startsWith',
+    endsWith: 'endsWith',
+    equals: 'equals',
+    '===': 'equals',
   };
-  return methodMap[methodName] ?? "other";
+  return methodMap[methodName] ?? 'other';
 }
 
 // ============================================================================
@@ -102,7 +102,7 @@ export function parseIfCondition(condition: Node): {
 
   // Check method type
   const checkType = getCheckType(methodName);
-  if (checkType === "other") return null;
+  if (checkType === 'other') return null;
 
   // Get search value (first argument)
   const args = condition.getArguments();
@@ -119,10 +119,7 @@ export function parseIfCondition(condition: Node): {
 /**
  * Parse a single if statement for if-chain detection
  */
-export function parseIfStatement(
-  ifStmt: IfStatement,
-  currentVarName: string,
-): ParsedIfResult {
+export function parseIfStatement(ifStmt: IfStatement, currentVarName: string): ParsedIfResult {
   const condition = ifStmt.getExpression();
   const thenStatement = ifStmt.getThenStatement();
 
@@ -192,18 +189,18 @@ export function findDefaultReturn(
  */
 export function invertCondition(condition: string): string {
   // Handle negation
-  if (condition.startsWith("!")) {
+  if (condition.startsWith('!')) {
     return condition.slice(1);
   }
 
   // Handle common operators
   const inversions: [RegExp, string][] = [
-    [/(.+)\s*===\s*(.+)/, "$1 !== $2"],
-    [/(.+)\s*!==\s*(.+)/, "$1 === $2"],
-    [/(.+)\s*>\s*(.+)/, "$1 <= $2"],
-    [/(.+)\s*<\s*(.+)/, "$1 >= $2"],
-    [/(.+)\s*>=\s*(.+)/, "$1 < $2"],
-    [/(.+)\s*<=\s*(.+)/, "$1 > $2"],
+    [/(.+)\s*===\s*(.+)/, '$1 !== $2'],
+    [/(.+)\s*!==\s*(.+)/, '$1 === $2'],
+    [/(.+)\s*>\s*(.+)/, '$1 <= $2'],
+    [/(.+)\s*<\s*(.+)/, '$1 >= $2'],
+    [/(.+)\s*>=\s*(.+)/, '$1 < $2'],
+    [/(.+)\s*<=\s*(.+)/, '$1 > $2'],
   ];
 
   for (const [pattern, replacement] of inversions) {

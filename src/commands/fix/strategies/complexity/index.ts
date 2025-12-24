@@ -8,16 +8,12 @@
  * - Long functions (block extraction)
  */
 
-import type { QualityIssue } from '../../types';
-import type { FixOperation, FixStrategy } from '../../types';
-import {
-  matchNumberInRange,
-  validateAndFormat,
-} from '../shared';
-import { PATTERNS, COMPLEXITY_RANGE, LONG_FUNCTION_RANGE } from './patterns';
-import { generateNestingFix } from './nesting-fix';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
+import { matchNumberInRange, validateAndFormat } from '../shared';
 import { generateComplexityFix } from './complexity-fix';
 import { generateLongFunctionFix } from './long-function-fix';
+import { generateNestingFix } from './nesting-fix';
+import { COMPLEXITY_RANGE, LONG_FUNCTION_RANGE, PATTERNS } from './patterns';
 
 // ============================================================================
 // STRATEGY
@@ -55,10 +51,7 @@ export const complexityStrategy: FixStrategy = {
     return false;
   },
 
-  async generateFix(
-    issue: QualityIssue,
-    content: string,
-  ): Promise<FixOperation | null> {
+  async generateFix(issue: QualityIssue, content: string): Promise<FixOperation | null> {
     const { message, line, file } = issue;
 
     if (!file) return null;
@@ -119,8 +112,8 @@ function generateFixOperation(
 // RE-EXPORTS
 // ============================================================================
 
-export { PATTERNS, COMPLEXITY_RANGE, LONG_FUNCTION_RANGE } from './patterns';
-export { generateNestingFix } from './nesting-fix';
 export { generateComplexityFix } from './complexity-fix';
+export { findExtractionRange, findFunctionEnd, generateFunctionName } from './helpers';
 export { generateLongFunctionFix } from './long-function-fix';
-export { findFunctionEnd, findExtractionRange, generateFunctionName } from './helpers';
+export { generateNestingFix } from './nesting-fix';
+export { COMPLEXITY_RANGE, LONG_FUNCTION_RANGE, PATTERNS } from './patterns';

@@ -27,7 +27,7 @@ export const AI_NAMESPACES = {
       formatters: '5 files',
     },
     dependsOn: [],
-    usedBy: ["@core","@domain","@ui"],
+    usedBy: ['@core', '@domain', '@ui'],
   },
 } as const;
 
@@ -39,7 +39,7 @@ export const AI_COMPONENT_STRUCTURE = {
   /**
    * components/features/ — Feature components organized by domain
    */
-  'features': {
+  features: {
     path: 'components/features',
     description: 'Domain-specific feature components',
     domains: {},
@@ -48,7 +48,7 @@ export const AI_COMPONENT_STRUCTURE = {
   /**
    * components/shared/ — Cross-feature shared components
    */
-  'shared': {
+  shared: {
     path: 'components/shared',
     description: 'Shared components used across features',
     components: [],
@@ -57,7 +57,7 @@ export const AI_COMPONENT_STRUCTURE = {
   /**
    * components/layouts/ — Page layouts
    */
-  'layouts': {
+  layouts: {
     path: 'components/layouts',
     description: 'Page layout components',
     components: [],

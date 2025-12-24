@@ -16,6 +16,7 @@
  */
 
 // Tool imports - each tool calls registerTool() on import
+import './agent';
 import './audit';
 import './context';
 import './fix';

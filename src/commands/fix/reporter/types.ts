@@ -3,7 +3,7 @@
  * @description Types for AI Report Generator
  */
 
-import type { QualityIssue, QualityCategory, FixDifficulty } from '../types';
+import type { FixDifficulty, QualityCategory, QualityIssue } from '../types';
 
 // ============================================================================
 // EFFORT ESTIMATION
@@ -109,11 +109,13 @@ export interface ReportSummary {
 export interface ReportContext {
   projectRoot: string;
   gitBranch?: string | undefined;
-  gitStatus?: {
-    modified: number;
-    untracked: number;
-    staged: number;
-  } | undefined;
+  gitStatus?:
+    | {
+        modified: number;
+        untracked: number;
+        staged: number;
+      }
+    | undefined;
   /** Detected tech stack */
   techStack?: string[] | undefined;
   /** Detected domains */
@@ -139,11 +141,13 @@ export interface ActionStep {
   /** Code snippet showing the problematic code */
   snippet?: string | undefined;
   /** Code change suggestion */
-  suggestion?: {
-    before?: string | undefined;
-    after: string;
-    reason: string;
-  } | undefined;
+  suggestion?:
+    | {
+        before?: string | undefined;
+        after: string;
+        reason: string;
+      }
+    | undefined;
 }
 
 /**

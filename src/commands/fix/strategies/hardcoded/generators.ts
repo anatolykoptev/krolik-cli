@@ -5,19 +5,19 @@
  * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { SyntaxKind, type NumericLiteral, type VariableDeclaration } from 'ts-morph';
+import { type NumericLiteral, SyntaxKind, type VariableDeclaration } from 'ts-morph';
 import type { FixOperation } from '../../types';
+import { createFullFileReplace, formatWithPrettier } from '../shared';
+import {
+  extractASTContext,
+  findInsertionPoint,
+  isInsideConstDeclaration,
+  isInsideConstObjectLiteral,
+  isInsideString,
+  isInsideTypeDefinition,
+} from './ast-utils';
 import { ALLOWED_NUMBERS } from './constants';
 import { generateConstName } from './naming';
-import {
-  findInsertionPoint,
-  isInsideTypeDefinition,
-  isInsideString,
-  isInsideConstObjectLiteral,
-  isInsideConstDeclaration,
-  extractASTContext,
-} from './ast-utils';
-import { formatWithPrettier, createFullFileReplace } from '../shared';
 
 // ============================================================================
 // NUMBER FIX GENERATOR
@@ -52,55 +52,59 @@ export async function generateNumberFix(
 
     try {
       // Find ALL numeric literals with this value that are safe to replace
-      const candidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n: NumericLiteral) => {
-      const value = n.getLiteralValue();
-      return (
-        value === targetValue &&
-        !isInsideTypeDefinition(n) &&
-        !isInsideString(n) &&
-        !isInsideConstObjectLiteral(n)
-      );
-    });
+      const candidates = sourceFile
+        .getDescendantsOfKind(SyntaxKind.NumericLiteral)
+        .filter((n: NumericLiteral) => {
+          const value = n.getLiteralValue();
+          return (
+            value === targetValue &&
+            !isInsideTypeDefinition(n) &&
+            !isInsideString(n) &&
+            !isInsideConstObjectLiteral(n)
+          );
+        });
 
-    if (candidates.length === 0) return null;
+      if (candidates.length === 0) return null;
 
-    // Extract AST context from first candidate for better naming
-    const astContext = extractASTContext(candidates[0]!);
+      // Extract AST context from first candidate for better naming
+      const astContext = extractASTContext(candidates[0]!);
 
-    // Generate constant name from context
-    const context = snippet || message;
-    const constName = generateConstName(targetValue, context, astContext);
+      // Generate constant name from context
+      const context = snippet || message;
+      const constName = generateConstName(targetValue, context, astContext);
 
-    // Check if constant already exists
-    const existingConst = sourceFile
-      .getVariableDeclarations()
-      .find((v: VariableDeclaration) => v.getName() === constName);
+      // Check if constant already exists
+      const existingConst = sourceFile
+        .getVariableDeclarations()
+        .find((v: VariableDeclaration) => v.getName() === constName);
 
-    if (!existingConst) {
-      // Find insertion point and add constant
-      const insertPos = findInsertionPoint(sourceFile);
-      const constDecl = `\nconst ${constName} = ${targetValue};\n`;
-      sourceFile.insertText(insertPos, constDecl);
-    }
+      if (!existingConst) {
+        // Find insertion point and add constant
+        const insertPos = findInsertionPoint(sourceFile);
+        const constDecl = `\nconst ${constName} = ${targetValue};\n`;
+        sourceFile.insertText(insertPos, constDecl);
+      }
 
-    // After insertion, re-find candidates (positions have changed)
-    // Replace ALL matching literals (not just first)
-    // IMPORTANT: Skip the literal inside the const declaration we just created!
-    const updatedCandidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n: NumericLiteral) => {
-      const value = n.getLiteralValue();
-      return (
-        value === targetValue &&
-        !isInsideTypeDefinition(n) &&
-        !isInsideString(n) &&
-        !isInsideConstObjectLiteral(n) &&
-        !isInsideConstDeclaration(n, constName)
-      );
-    });
+      // After insertion, re-find candidates (positions have changed)
+      // Replace ALL matching literals (not just first)
+      // IMPORTANT: Skip the literal inside the const declaration we just created!
+      const updatedCandidates = sourceFile
+        .getDescendantsOfKind(SyntaxKind.NumericLiteral)
+        .filter((n: NumericLiteral) => {
+          const value = n.getLiteralValue();
+          return (
+            value === targetValue &&
+            !isInsideTypeDefinition(n) &&
+            !isInsideString(n) &&
+            !isInsideConstObjectLiteral(n) &&
+            !isInsideConstDeclaration(n, constName)
+          );
+        });
 
-    // Replace ALL candidates (from last to first to preserve positions)
-    for (let i = updatedCandidates.length - 1; i >= 0; i--) {
-      updatedCandidates[i]?.replaceWithText(constName);
-    }
+      // Replace ALL candidates (from last to first to preserve positions)
+      for (let i = updatedCandidates.length - 1; i >= 0; i--) {
+        updatedCandidates[i]?.replaceWithText(constName);
+      }
 
       // Format with Prettier for clean output
       const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
@@ -139,12 +143,15 @@ export async function generateUrlFix(
   let constName = 'API_URL';
   try {
     const parsed = new URL(url);
-    const host = parsed.hostname.replace(/^www\./, '').replace(/\./g, '_').toUpperCase();
+    const host = parsed.hostname
+      .replace(/^www\./, '')
+      .replace(/\./g, '_')
+      .toUpperCase();
 
     // Add path hint if meaningful
     const pathParts = parsed.pathname.split('/').filter(Boolean);
     if (pathParts.length > 0 && pathParts[0] !== 'api') {
-      constName = `${host}_${pathParts[0]!.toUpperCase()}_URL`;
+      constName = `${host}_${pathParts[0]?.toUpperCase()}_URL`;
     } else {
       constName = `${host}_URL`;
     }
@@ -159,14 +166,14 @@ export async function generateUrlFix(
     try {
       // Check if constant exists
       const existingConst = sourceFile
-      .getVariableDeclarations()
-      .find((v: VariableDeclaration) => v.getName() === constName);
+        .getVariableDeclarations()
+        .find((v: VariableDeclaration) => v.getName() === constName);
 
-    if (!existingConst) {
-      const insertPos = findInsertionPoint(sourceFile);
-      const constDecl = `\nconst ${constName} = ${quote}${url}${quote};\n`;
-      sourceFile.insertText(insertPos, constDecl);
-    }
+      if (!existingConst) {
+        const insertPos = findInsertionPoint(sourceFile);
+        const constDecl = `\nconst ${constName} = ${quote}${url}${quote};\n`;
+        sourceFile.insertText(insertPos, constDecl);
+      }
 
       // Find and replace the URL string
       const stringLiterals = sourceFile.getDescendantsOfKind(SyntaxKind.StringLiteral);

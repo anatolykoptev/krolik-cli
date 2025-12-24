@@ -2,11 +2,11 @@
  * @module commands/fix/fixers/ts-ignore
  * @description TypeScript ignore comment fixer
  *
- * Detects and removes @ts-ignore and @ts-nocheck comments.
+ * Detects and removes @ts-expect-error and @ts-nocheck comments.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('ts-ignore', 'TS-Ignore Comments', 'type-safety', {
   description: 'Remove @ts-ignore/@ts-nocheck comments',
@@ -24,7 +24,7 @@ const TS_IGNORE_PATTERNS = {
 };
 
 /**
- * Check if a line contains an ACTUAL @ts-ignore/nocheck/expect-error directive.
+ * Check if a line contains an ACTUAL @ts-expect-error/nocheck/expect-error directive.
  * Only matches TypeScript comment directives, not string literals, regex patterns, etc.
  */
 function isActualTsDirective(line: string, directive: string): boolean {
@@ -73,7 +73,7 @@ function analyzeTsIgnore(content: string, file: string): QualityIssue[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
 
-    // Check for @ts-ignore
+    // Check for @ts-expect-error
     if (isActualTsDirective(line, '@ts-ignore')) {
       issues.push({
         file,
@@ -113,7 +113,10 @@ function fixTsIgnoreIssue(issue: QualityIssue, content: string): FixOperation | 
   if (!line) return null;
 
   // If line is just the comment, delete it
-  if (TS_IGNORE_PATTERNS.standaloneLine.test(line) || TS_IGNORE_PATTERNS.standaloneBlock.test(line)) {
+  if (
+    TS_IGNORE_PATTERNS.standaloneLine.test(line) ||
+    TS_IGNORE_PATTERNS.standaloneBlock.test(line)
+  ) {
     return {
       action: 'delete-line',
       file: issue.file,

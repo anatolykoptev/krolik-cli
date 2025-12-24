@@ -9,9 +9,9 @@
 
 // Detection patterns and rules
 export {
+  CONST_DECL_PATTERN,
   DETECTION_PATTERNS,
   FIXABLE_PATTERNS,
-  CONST_DECL_PATTERN,
   SKIP_FILE_PATTERNS,
   shouldSkipFile,
   shouldSkipLine,
@@ -20,11 +20,11 @@ export {
 // Number-related patterns and helpers
 export {
   ACCEPTABLE_NUMBERS,
-  KNOWN_CONSTANTS,
-  KEYWORD_TO_CONST_NAME,
-  isAcceptableNumber,
-  getKnownConstantName,
   getConstNameFromKeyword,
+  getKnownConstantName,
+  isAcceptableNumber,
+  KEYWORD_TO_CONST_NAME,
+  KNOWN_CONSTANTS,
 } from './numbers';
 
 // URL-related patterns and helpers

@@ -5,8 +5,8 @@
  * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { SyntaxKind, type SourceFile, type Node } from 'ts-morph';
 import type { NumericLiteral } from 'ts-morph';
+import { type Node, type SourceFile, SyntaxKind } from 'ts-morph';
 import { createProject } from '@/lib';
 
 // Re-export for convenience
@@ -138,7 +138,10 @@ export function isInsideConstObjectLiteral(node: NumericLiteral): boolean {
   if (!objectLiteral) return false;
 
   // Then check if the object is assigned to a CONST_CASE variable
-  const varDecl = findAncestor(objectLiteral, (p) => p.getKind() === SyntaxKind.VariableDeclaration);
+  const varDecl = findAncestor(
+    objectLiteral,
+    (p) => p.getKind() === SyntaxKind.VariableDeclaration,
+  );
   if (varDecl) {
     const decl = varDecl.asKind(SyntaxKind.VariableDeclaration);
     if (decl && CONST_NAME_PATTERN.test(decl.getName())) {
@@ -205,7 +208,7 @@ export function extractASTContext(node: NumericLiteral): string | null {
       const call = parent.asKind(SyntaxKind.CallExpression);
       if (!call) return null;
       const args = call.getArguments();
-      const argIndex = args.findIndex((arg) => arg === node);
+      const argIndex = args.indexOf(node);
       const funcName = call.getExpression().getText();
       return funcName && argIndex >= 0 ? `${funcName}_arg${argIndex}` : null;
     }

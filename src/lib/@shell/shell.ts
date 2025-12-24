@@ -3,7 +3,7 @@
  * @description Shell command execution utilities
  */
 
-import { execSync, type ExecSyncOptions } from 'node:child_process';
+import { type ExecSyncOptions, execSync } from 'node:child_process';
 
 /**
  * Shell execution options

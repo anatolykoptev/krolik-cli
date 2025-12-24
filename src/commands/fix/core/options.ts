@@ -168,7 +168,7 @@ export interface FixOptions {
   fixAlert?: boolean;
 
   // Type-safety fixers
-  /** Fix @ts-ignore comments */
+  /** Fix @ts-expect-error comments */
   fixTsIgnore?: boolean;
   /** Fix `any` type usage */
   fixAny?: boolean;
@@ -206,7 +206,7 @@ export interface FixOptions {
  */
 export function hasExplicitFixerFlags(options: FixOptions): boolean {
   return Object.keys(options).some(
-    key => key.startsWith('fix') && key !== 'fix' && options[key as keyof FixOptions] === true
+    (key) => key.startsWith('fix') && key !== 'fix' && options[key as keyof FixOptions] === true,
   );
 }
 
@@ -221,8 +221,8 @@ export function getEnabledFixerIds(options: FixOptions): string[] {
       // Convert fixConsole -> console
       const id = key
         .replace(/^fix/, '')
-        .replace(/^[A-Z]/, c => c.toLowerCase())
-        .replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
+        .replace(/^[A-Z]/, (c) => c.toLowerCase())
+        .replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
       ids.push(id);
     }
   }

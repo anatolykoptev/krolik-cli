@@ -3,7 +3,7 @@
  * @description Effort estimation for code quality issues
  */
 
-import type { QualityIssue, QualityCategory, FixDifficulty } from '../types';
+import type { FixDifficulty, QualityCategory, QualityIssue } from '../types';
 import { getFixDifficulty } from '../types';
 import type { EffortEstimate, EffortLevel } from './types';
 
@@ -15,18 +15,18 @@ import type { EffortEstimate, EffortLevel } from './types';
  * Base effort by category (in minutes)
  */
 const CATEGORY_BASE_EFFORT: Record<QualityCategory, number> = {
-  lint: 2,              // Simple delete/replace
-  'type-safety': 10,    // May need type analysis
-  hardcoded: 5,         // Extract to constant
-  documentation: 5,     // Add JSDoc
-  complexity: 20,       // May need refactoring
-  srp: 30,              // File splitting
+  lint: 2, // Simple delete/replace
+  'type-safety': 10, // May need type analysis
+  hardcoded: 5, // Extract to constant
+  documentation: 5, // Add JSDoc
+  complexity: 20, // May need refactoring
+  srp: 30, // File splitting
   'mixed-concerns': 25, // Separation of concerns
-  size: 40,             // Large refactoring
-  'circular-dep': 30,   // Dependency restructuring
-  composite: 15,        // Multi-file operation
-  agent: 20,            // AI-assisted fix
-  refine: 35,           // @namespace structure migration
+  size: 40, // Large refactoring
+  'circular-dep': 30, // Dependency restructuring
+  composite: 15, // Multi-file operation
+  agent: 20, // AI-assisted fix
+  refine: 35, // @namespace structure migration
 };
 
 /**

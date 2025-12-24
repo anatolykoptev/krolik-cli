@@ -3,8 +3,8 @@
  * @description Basic XML output formatter
  */
 
-import type { RefactorAnalysis } from '../core';
 import { escapeXml } from '../../../lib/@formatters';
+import type { RefactorAnalysis } from '../core';
 
 // ============================================================================
 // MAIN FORMATTER

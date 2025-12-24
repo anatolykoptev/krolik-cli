@@ -3,7 +3,13 @@
  * @description CLI text formatter for quality reports
  */
 
-import type { QualityIssue, QualityOptions, QualityReport, RecommendationItem, SplitSuggestion } from '../types';
+import type {
+  QualityIssue,
+  QualityOptions,
+  QualityReport,
+  RecommendationItem,
+  SplitSuggestion,
+} from '../types';
 
 // ============================================================================
 // SECTION FORMATTERS
@@ -76,10 +82,7 @@ function formatIssue(issue: QualityIssue): string[] {
 function formatTopIssues(issues: QualityIssue[]): string[] {
   if (issues.length === 0) return [];
 
-  const lines: string[] = [
-    '─── Top Issues ───────────────────────────────────────────',
-    '',
-  ];
+  const lines: string[] = ['─── Top Issues ───────────────────────────────────────────', ''];
 
   for (const issue of issues) {
     lines.push(...formatIssue(issue));
@@ -91,15 +94,10 @@ function formatTopIssues(issues: QualityIssue[]): string[] {
 /**
  * Format refactoring section
  */
-function formatRefactoring(
-  items: QualityReport['needsRefactoring'],
-): string[] {
+function formatRefactoring(items: QualityReport['needsRefactoring']): string[] {
   if (items.length === 0) return [];
 
-  const lines: string[] = [
-    '─── Needs Refactoring ────────────────────────────────────',
-    '',
-  ];
+  const lines: string[] = ['─── Needs Refactoring ────────────────────────────────────', ''];
 
   for (const item of items) {
     lines.push(`📁 ${item.file}`);
@@ -148,10 +146,7 @@ function formatSplitSuggestions(report: QualityReport): string[] {
 
   if (functionsWithSuggestions.length === 0) return [];
 
-  const lines: string[] = [
-    '─── Complexity Split Points ──────────────────────────────',
-    '',
-  ];
+  const lines: string[] = ['─── Complexity Split Points ──────────────────────────────', ''];
 
   for (const { file, name, complexity, suggestions } of functionsWithSuggestions.slice(0, 5)) {
     lines.push(`🔧 ${file}::${name} (complexity: ${complexity})`);
@@ -170,10 +165,7 @@ function formatSplitSuggestions(report: QualityReport): string[] {
 function formatRecommendations(recommendations: RecommendationItem[]): string[] {
   if (recommendations.length === 0) return [];
 
-  const lines: string[] = [
-    '─── Recommendations (Airbnb-style) ───────────────────────',
-    '',
-  ];
+  const lines: string[] = ['─── Recommendations (Airbnb-style) ───────────────────────', ''];
 
   for (const rec of recommendations) {
     const icon = getRecSeverityIcon(rec.severity);

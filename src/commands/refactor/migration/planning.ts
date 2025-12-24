@@ -5,14 +5,9 @@
  * Creates migration plans from duplicate detection and structure analysis.
  */
 
-import * as path from 'path';
-import type {
-  MigrationPlan,
-  MigrationAction,
-  DuplicateInfo,
-  StructureAnalysis,
-} from '../core';
+import * as path from 'node:path';
 import { normalizeToRelative } from '../../../lib';
+import type { DuplicateInfo, MigrationAction, MigrationPlan, StructureAnalysis } from '../core';
 
 // ============================================================================
 // MIGRATION PLANNING
@@ -148,9 +143,7 @@ function planGroupingActions(
 /**
  * Calculate risk summary from actions
  */
-function calculateRiskSummary(
-  actions: MigrationAction[],
-): MigrationPlan['riskSummary'] {
+function calculateRiskSummary(actions: MigrationAction[]): MigrationPlan['riskSummary'] {
   return {
     safe: actions.filter((a) => a.risk === 'safe').length,
     medium: actions.filter((a) => a.risk === 'medium').length,
@@ -180,8 +173,6 @@ export function filterSafeActions(plan: MigrationPlan): MigrationPlan {
  */
 export function sortByRisk(plan: MigrationPlan): MigrationPlan {
   const riskOrder = { safe: 0, medium: 1, risky: 2 };
-  const sorted = [...plan.actions].sort(
-    (a, b) => riskOrder[a.risk] - riskOrder[b.risk],
-  );
+  const sorted = [...plan.actions].sort((a, b) => riskOrder[a.risk] - riskOrder[b.risk]);
   return { ...plan, actions: sorted };
 }

@@ -3,12 +3,12 @@
  * @description Project status and diagnostics command
  */
 
-import type { CommandContext, StatusResult, OutputFormat } from '../../types';
 import { measureTime } from '../../lib';
-import { checkGit, checkTypecheck, checkLint, toStatusResult } from './checks';
-import { countTodosSimple } from './todos';
+import type { CommandContext, OutputFormat, StatusResult } from '../../types';
+import { checkGit, checkLint, checkTypecheck, toStatusResult } from './checks';
+import { formatAI, formatJson, formatMarkdown, printStatus } from './output';
 import { getProjectInfo } from './project-info';
-import { printStatus, formatJson, formatMarkdown, formatAI } from './output';
+import { countTodosSimple } from './todos';
 
 /**
  * Status command options
@@ -44,7 +44,15 @@ export function getProjectStatus(projectRoot: string, options: StatusOptions = {
 
   // Add rich project info
   if (result.projectInfo) {
-    const { package: pkg, techStack, recentCommits, fileStats, workspaces, aiRules, branchContext } = result.projectInfo;
+    const {
+      package: pkg,
+      techStack,
+      recentCommits,
+      fileStats,
+      workspaces,
+      aiRules,
+      branchContext,
+    } = result.projectInfo;
 
     return {
       ...baseResult,
@@ -122,5 +130,5 @@ export async function runStatus(ctx: CommandContext & { options: StatusOptions }
 }
 
 // Re-export types for external use
-export type { GitCheck, TypecheckResult, LintResult } from './checks';
+export type { GitCheck, LintResult, TypecheckResult } from './checks';
 export type { TodoCount } from './todos';

@@ -3,8 +3,8 @@
  * @description Setup paths configuration
  */
 
-import * as path from 'node:path';
 import { homedir } from 'node:os';
+import * as path from 'node:path';
 
 /**
  * Claude Code directories

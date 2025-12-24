@@ -124,11 +124,9 @@ function resolveConfig(
 /**
  * Load and resolve configuration
  */
-export async function loadConfig(options: {
-  configPath?: string;
-  projectRoot?: string;
-  noCache?: boolean;
-} = {}): Promise<ResolvedConfig> {
+export async function loadConfig(
+  options: { configPath?: string; projectRoot?: string; noCache?: boolean } = {},
+): Promise<ResolvedConfig> {
   const { projectRoot: explicitRoot, noCache = false } = options;
 
   // Use cached config if available

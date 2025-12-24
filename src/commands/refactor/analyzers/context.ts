@@ -5,22 +5,17 @@
  * Detects project type, tech stack, entry points, and import conventions.
  */
 
-import * as path from 'path';
-import type {
-  ProjectContext,
-  ProjectType,
-  TechStack,
-  EntryPoints,
-} from '../core';
-import {
-  readPackageJson,
-  getAllDependencies,
-  hasFile,
-  hasDir,
-  findDir,
-  type PackageJson,
-} from './helpers';
+import * as path from 'node:path';
 import { readFile } from '../../../lib';
+import type { EntryPoints, ProjectContext, ProjectType, TechStack } from '../core';
+import {
+  findDir,
+  getAllDependencies,
+  hasDir,
+  hasFile,
+  type PackageJson,
+  readPackageJson,
+} from './helpers';
 
 // ============================================================================
 // PROJECT TYPE DETECTION
@@ -29,10 +24,7 @@ import { readFile } from '../../../lib';
 /**
  * Detect project type from package.json and directory structure
  */
-export function detectProjectType(
-  projectRoot: string,
-  pkg: PackageJson | null,
-): ProjectType {
+export function detectProjectType(projectRoot: string, pkg: PackageJson | null): ProjectType {
   // CLI project
   if (pkg?.bin || hasDir(projectRoot, 'src/bin') || hasDir(projectRoot, 'bin')) {
     return 'cli';
@@ -58,11 +50,7 @@ export function detectProjectType(
   }
 
   // API server
-  if (
-    pkg?.dependencies?.express ||
-    pkg?.dependencies?.fastify ||
-    pkg?.dependencies?.hono
-  ) {
+  if (pkg?.dependencies?.express || pkg?.dependencies?.fastify || pkg?.dependencies?.hono) {
     return 'api';
   }
 
@@ -81,10 +69,7 @@ export function detectProjectType(
 /**
  * Detect tech stack from dependencies
  */
-export function detectTechStack(
-  projectRoot: string,
-  pkg: PackageJson | null,
-): TechStack {
+export function detectTechStack(projectRoot: string, pkg: PackageJson | null): TechStack {
   const deps = getAllDependencies(pkg);
 
   return {

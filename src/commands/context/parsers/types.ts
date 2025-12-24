@@ -18,7 +18,7 @@ export interface ZodField {
  */
 export interface ZodSchemaInfo {
   name: string;
-  type: "input" | "output" | "filter";
+  type: 'input' | 'output' | 'filter';
   fields: ZodField[];
   file: string;
 }
@@ -29,7 +29,7 @@ export interface ZodSchemaInfo {
 export interface ComponentInfo {
   name: string;
   file: string;
-  type: "client" | "server";
+  type: 'client' | 'server';
   purpose?: string;
   imports: string[];
   hooks: string[];

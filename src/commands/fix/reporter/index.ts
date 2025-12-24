@@ -19,42 +19,38 @@
  * ```
  */
 
-// Types
-export type {
-  EffortLevel,
-  EffortEstimate,
-  PriorityLevel,
-  EnrichedIssue,
-  IssueGroup,
-  ReportSummary,
-  ReportContext,
-  ActionStep,
-  AIReport,
-  AIReportOptions,
-  FileContext,
-  GitInfo,
-  AIRuleFile,
-  NextActionItem,
-} from './types';
-
-export { EFFORT_THRESHOLDS } from './types';
-
 // Effort estimation
-export { estimateEffort, aggregateEffort } from './effort';
+export { aggregateEffort, estimateEffort } from './effort';
+// Formatters
+export { formatAsJson, formatAsMarkdown, formatAsXml } from './formatter';
+// Report generation
+export { generateAIReport, generateAIReportFromAnalysis } from './generator';
 
 // Issue grouping
 export {
   enrichIssue,
-  groupByFile,
-  groupByCategory,
-  groupByPriority,
-  extractQuickWins,
   extractHotspots,
+  extractQuickWins,
+  groupByCategory,
+  groupByFile,
+  groupByPriority,
   normalizePath,
 } from './grouping';
-
-// Report generation
-export { generateAIReport, generateAIReportFromAnalysis } from './generator';
-
-// Formatters
-export { formatAsMarkdown, formatAsJson, formatAsXml } from './formatter';
+// Types
+export type {
+  ActionStep,
+  AIReport,
+  AIReportOptions,
+  AIRuleFile,
+  EffortEstimate,
+  EffortLevel,
+  EnrichedIssue,
+  FileContext,
+  GitInfo,
+  IssueGroup,
+  NextActionItem,
+  PriorityLevel,
+  ReportContext,
+  ReportSummary,
+} from './types';
+export { EFFORT_THRESHOLDS } from './types';

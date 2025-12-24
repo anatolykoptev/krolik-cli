@@ -58,11 +58,7 @@ export interface XmlAttributes {
  * wrapXml('user', 'John', { id: '123', active: true })
  * // Returns: '<user id="123" active="true">John</user>'
  */
-export function wrapXml(
-  tag: string,
-  content: string,
-  attrs?: XmlAttributes,
-): string {
+export function wrapXml(tag: string, content: string, attrs?: XmlAttributes): string {
   const attrStr = formatAttributes(attrs);
   const openTag = attrStr ? `<${tag} ${attrStr}>` : `<${tag}>`;
 
@@ -95,9 +91,7 @@ function formatAttributes(attrs?: XmlAttributes): string {
   for (const [key, value] of Object.entries(attrs)) {
     if (value === undefined) continue;
 
-    const strValue = typeof value === 'boolean'
-      ? value.toString()
-      : escapeXml(String(value));
+    const strValue = typeof value === 'boolean' ? value.toString() : escapeXml(String(value));
 
     parts.push(`${key}="${strValue}"`);
   }
@@ -140,9 +134,7 @@ export function buildElement(element: XmlElement, indent: number = 0): string {
 
   // String content
   if (typeof content === 'string') {
-    const escapedContent = cdata
-      ? `<![CDATA[${content}]]>`
-      : escapeXml(content);
+    const escapedContent = cdata ? `<![CDATA[${content}]]>` : escapeXml(content);
 
     // Short content on one line
     if (content.length < 60 && !content.includes('\n')) {
@@ -158,9 +150,7 @@ export function buildElement(element: XmlElement, indent: number = 0): string {
   // Array of child elements
   const attrStr = formatAttributes(attrs);
   const openTag = attrStr ? `<${tag} ${attrStr}>` : `<${tag}>`;
-  const children = content
-    .map((child) => buildElement(child, indent + 1))
-    .join('\n');
+  const children = content.map((child) => buildElement(child, indent + 1)).join('\n');
 
   return `${spaces}${openTag}\n${children}\n${spaces}</${tag}>`;
 }

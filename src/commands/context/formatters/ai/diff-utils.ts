@@ -81,9 +81,9 @@ function getExtension(file: string): string {
 function filterByDomain(hunks: DiffHunk[], keywords: string[]): DiffHunk[] {
   if (keywords.length === 0) return hunks;
 
-  return hunks.filter(hunk => {
+  return hunks.filter((hunk) => {
     const fileLower = hunk.file.toLowerCase();
-    return keywords.some(k => fileLower.includes(k.toLowerCase()));
+    return keywords.some((k) => fileLower.includes(k.toLowerCase()));
   });
 }
 
@@ -134,14 +134,13 @@ export function truncateDiff(
   }
 
   // Build truncated diff
-  const truncatedDiff = selectedHunks
-    .map(h => h.lines.join('\n'))
-    .join('\n');
+  const truncatedDiff = selectedHunks.map((h) => h.lines.join('\n')).join('\n');
 
   // Build summary
-  const summary = omittedFiles.length > 0
-    ? `(${omittedFiles.length} files omitted: ${omittedFiles.slice(0, 3).join(', ')}${omittedFiles.length > 3 ? '...' : ''})`
-    : '';
+  const summary =
+    omittedFiles.length > 0
+      ? `(${omittedFiles.length} files omitted: ${omittedFiles.slice(0, 3).join(', ')}${omittedFiles.length > 3 ? '...' : ''})`
+      : '';
 
   return {
     diff: truncatedDiff,

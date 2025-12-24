@@ -7,5 +7,5 @@
 
 export { MCPServer, startMCPServer } from './server';
 export { ALL_TOOLS as TOOLS } from './tools';
-export type { MCPMessage, MCPTool, MCPResource, MCPResult } from './types';
+export type { MCPMessage, MCPResource, MCPResult, MCPTool } from './types';
 export { MCP_ERROR_CODE } from './types';

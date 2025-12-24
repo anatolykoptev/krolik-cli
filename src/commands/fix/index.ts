@@ -20,38 +20,38 @@
  * For code quality audit, use: krolik audit
  */
 
-import chalk from "chalk";
-import type { CommandContext } from "../../types";
-import type { FixOptions, FixResult } from "./types";
-import { generateFixPlan, generateFixPlanFromIssues, type FixPlan, type SkipStats } from "./plan";
-import { formatPlanForAI, formatPlan, formatResults } from "./formatters";
-import { applyFix } from "./applier";
-import { createBackupBranch, isGitRepo } from "./git-backup";
-import { fileCache, formatCacheStats } from "./core/file-cache";
+import chalk from 'chalk';
+import { fileCache, formatCacheStats } from '@/lib';
+import type { CommandContext } from '../../types';
+import { applyFix } from './applier';
+import { formatPlan, formatPlanForAI, formatResults } from './formatters';
+import { createBackupBranch, isGitRepo } from './git-backup';
+import { type FixPlan, generateFixPlan, generateFixPlanFromIssues, type SkipStats } from './plan';
 import {
-  isBiomeAvailable,
-  hasBiomeConfig,
-  biomeAutoFix,
-  getBiomeVersion,
   type BiomeResult,
-  isTscAvailable,
-  hasTsConfig,
-  runTypeCheck,
+  biomeAutoFix,
   formatAsJson,
-  formatAsXml,
   formatAsText,
+  formatAsXml,
+  getBiomeVersion,
   getSummaryLine,
+  hasBiomeConfig,
+  hasTsConfig,
+  isBiomeAvailable,
+  isTscAvailable,
+  runTypeCheck,
   type TsCheckResult,
-} from "./strategies/shared";
+} from './strategies/shared';
+import type { FixOptions, FixResult } from './types';
 
+export { applyFix, applyFixes, createBackup, rollbackFix } from './applier';
+export { findStrategy } from './strategies';
 // Re-export types
-export type { FixOptions, FixResult, FixOperation } from "./types";
-export { getFixDifficulty } from "./types";
-export { findStrategy } from "./strategies";
-export { applyFix, applyFixes, createBackup, rollbackFix } from "./applier";
+export type { FixOperation, FixOptions, FixResult } from './types';
+export { getFixDifficulty } from './types';
 
 // Import registry for --list-fixers
-import { registry } from "./fixers";
+import { registry } from './fixers';
 
 // ============================================================================
 // LIST FIXERS
@@ -63,42 +63,42 @@ import { registry } from "./fixers";
 export async function listFixers(): Promise<void> {
   const fixers = registry.all();
 
-  console.log(chalk.bold("\n📦 Available Fixers\n"));
+  console.log(chalk.bold('\n📦 Available Fixers\n'));
 
   // Group by difficulty
   const byDifficulty = {
-    trivial: fixers.filter(f => f.metadata.difficulty === "trivial"),
-    safe: fixers.filter(f => f.metadata.difficulty === "safe"),
-    risky: fixers.filter(f => f.metadata.difficulty === "risky"),
+    trivial: fixers.filter((f) => f.metadata.difficulty === 'trivial'),
+    safe: fixers.filter((f) => f.metadata.difficulty === 'safe'),
+    risky: fixers.filter((f) => f.metadata.difficulty === 'risky'),
   };
 
   const difficultyLabels = {
-    trivial: chalk.green("🟢 Trivial (safe to auto-apply)"),
-    safe: chalk.yellow("🟡 Safe (unlikely to break)"),
-    risky: chalk.red("🔴 Risky (requires review)"),
+    trivial: chalk.green('🟢 Trivial (safe to auto-apply)'),
+    safe: chalk.yellow('🟡 Safe (unlikely to break)'),
+    risky: chalk.red('🔴 Risky (requires review)'),
   };
 
   for (const [difficulty, group] of Object.entries(byDifficulty)) {
     if (group.length === 0) continue;
 
     console.log(difficultyLabels[difficulty as keyof typeof difficultyLabels]);
-    console.log("");
+    console.log('');
 
     for (const fixer of group) {
       const { name, description, cliFlag, category } = fixer.metadata;
       console.log(`  ${chalk.cyan(cliFlag.padEnd(22))} ${name}`);
-      console.log(`  ${"".padEnd(22)} ${chalk.dim(description)}`);
-      console.log(`  ${"".padEnd(22)} ${chalk.dim(`Category: ${category}`)}`);
-      console.log("");
+      console.log(`  ${''.padEnd(22)} ${chalk.dim(description)}`);
+      console.log(`  ${''.padEnd(22)} ${chalk.dim(`Category: ${category}`)}`);
+      console.log('');
     }
   }
 
-  console.log(chalk.dim("Usage:"));
-  console.log(chalk.dim("  krolik fix --fix-console       # Enable specific fixer"));
-  console.log(chalk.dim("  krolik fix --no-console        # Disable specific fixer"));
-  console.log(chalk.dim("  krolik fix --trivial           # Only trivial fixers"));
-  console.log(chalk.dim("  krolik fix --safe              # Trivial + safe fixers"));
-  console.log("");
+  console.log(chalk.dim('Usage:'));
+  console.log(chalk.dim('  krolik fix --fix-console       # Enable specific fixer'));
+  console.log(chalk.dim('  krolik fix --no-console        # Disable specific fixer'));
+  console.log(chalk.dim('  krolik fix --trivial           # Only trivial fixers'));
+  console.log(chalk.dim('  krolik fix --safe              # Trivial + safe fixers'));
+  console.log('');
 }
 
 // ============================================================================
@@ -115,17 +115,17 @@ function runBiomeFixes(
   dryRun: boolean,
 ): BiomeResult | null {
   if (!isBiomeAvailable(projectRoot)) {
-    logger.debug("Biome not available in this project");
+    logger.debug('Biome not available in this project');
     return null;
   }
 
   if (!hasBiomeConfig(projectRoot)) {
-    logger.debug("No biome.json found - skipping Biome");
+    logger.debug('No biome.json found - skipping Biome');
     return null;
   }
 
   const version = getBiomeVersion(projectRoot);
-  logger.info(`Running Biome${version ? ` (${version})` : ""}...`);
+  logger.info(`Running Biome${version ? ` (${version})` : ''}...`);
 
   if (dryRun) {
     return { success: true, diagnostics: [], filesFixed: 0 };
@@ -146,28 +146,28 @@ function runBiomeFixes(
  * Format Biome results for display
  */
 function formatBiomeResults(result: BiomeResult, dryRun: boolean): string {
-  const lines: string[] = ["", chalk.bold("🔧 Biome Auto-Fix")];
+  const lines: string[] = ['', chalk.bold('🔧 Biome Auto-Fix')];
 
   if (dryRun) {
-    lines.push(chalk.yellow("  (dry run - would run biome check --apply)"));
-    return lines.join("\n");
+    lines.push(chalk.yellow('  (dry run - would run biome check --apply)'));
+    return lines.join('\n');
   }
 
   if (result.success) {
     lines.push(
       result.filesFixed > 0
         ? chalk.green(`  ✅ Fixed ${result.filesFixed} files`)
-        : chalk.green("  ✨ No issues to fix"),
+        : chalk.green('  ✨ No issues to fix'),
     );
   } else {
-    lines.push(chalk.red(`  ❌ Error: ${result.error || "Unknown error"}`));
+    lines.push(chalk.red(`  ❌ Error: ${result.error || 'Unknown error'}`));
   }
 
   if (result.diagnostics.length > 0) {
     lines.push(chalk.dim(`  📋 ${result.diagnostics.length} issues remain (manual fix needed)`));
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 // ============================================================================
@@ -183,16 +183,16 @@ function runTsCheck(
   logger: { info: (msg: string) => void; debug: (msg: string) => void },
 ): TsCheckResult | null {
   if (!isTscAvailable(projectRoot)) {
-    logger.debug("TypeScript not available in this project");
+    logger.debug('TypeScript not available in this project');
     return null;
   }
 
   if (!hasTsConfig(projectRoot)) {
-    logger.debug("No tsconfig.json found - skipping TypeScript check");
+    logger.debug('No tsconfig.json found - skipping TypeScript check');
     return null;
   }
 
-  logger.info("Running TypeScript type check...");
+  logger.info('Running TypeScript type check...');
   const result = runTypeCheck(projectRoot, targetPath);
   logger.debug(getSummaryLine(result));
 
@@ -203,31 +203,35 @@ function runTsCheck(
  * Format TypeScript results based on requested format
  */
 function formatTsResults(result: TsCheckResult, format: 'json' | 'xml' | 'text' = 'json'): string {
-  const lines: string[] = ["", chalk.bold("🔍 TypeScript Type Check")];
+  const lines: string[] = ['', chalk.bold('🔍 TypeScript Type Check')];
 
   if (result.success) {
     lines.push(chalk.green(`  ✅ No errors (${result.duration}ms)`));
-    return lines.join("\n");
+    return lines.join('\n');
   }
 
-  lines.push(chalk.red(`  ❌ ${result.errorCount} errors, ${result.warningCount} warnings (${result.duration}ms)`));
-  lines.push("");
+  lines.push(
+    chalk.red(
+      `  ❌ ${result.errorCount} errors, ${result.warningCount} warnings (${result.duration}ms)`,
+    ),
+  );
+  lines.push('');
 
   switch (format) {
     case 'json':
-      lines.push(chalk.dim("  <typescript-errors format=\"json\">"));
+      lines.push(chalk.dim('  <typescript-errors format="json">'));
       lines.push(formatAsJson(result));
-      lines.push(chalk.dim("  </typescript-errors>"));
+      lines.push(chalk.dim('  </typescript-errors>'));
       break;
     case 'xml':
-      lines.push(chalk.dim("  <typescript-errors format=\"xml\">"));
+      lines.push(chalk.dim('  <typescript-errors format="xml">'));
       lines.push(formatAsXml(result));
-      lines.push(chalk.dim("  </typescript-errors>"));
+      lines.push(chalk.dim('  </typescript-errors>'));
       break;
     default:
       lines.push(formatAsText(result));
   }
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 // ============================================================================
@@ -241,13 +245,18 @@ async function applyFixes(
   plans: FixPlan[],
   options: FixOptions,
   projectRoot: string,
-  logger: { info: (msg: string) => void; debug: (msg: string) => void; error: (msg: string) => void; warn: (msg: string) => void },
+  logger: {
+    info: (msg: string) => void;
+    debug: (msg: string) => void;
+    error: (msg: string) => void;
+    warn: (msg: string) => void;
+  },
 ): Promise<FixResult[]> {
   // Create git backup
   const backup = await createGitBackup(projectRoot, logger);
 
   // Apply fixes
-  logger.info("Applying fixes...");
+  logger.info('Applying fixes...');
   const results: FixResult[] = [];
 
   for (const plan of plans) {
@@ -284,17 +293,17 @@ async function createGitBackup(
   logger: { info: (msg: string) => void },
 ): Promise<BackupInfo> {
   if (!isGitRepo(projectRoot)) {
-    console.log(chalk.dim("Not a git repo - skipping backup"));
+    console.log(chalk.dim('Not a git repo - skipping backup'));
     return { hasStash: false };
   }
 
-  logger.info("Creating git backup branch...");
+  logger.info('Creating git backup branch...');
   const backupResult = createBackupBranch(projectRoot);
 
   if (backupResult.success) {
     console.log(chalk.green(`✅ Backup branch created: ${backupResult.branchName}`));
     if (backupResult.hadUncommittedChanges) {
-      console.log(chalk.dim("   (uncommitted changes stashed: git stash list)"));
+      console.log(chalk.dim('   (uncommitted changes stashed: git stash list)'));
     }
     return {
       branchName: backupResult.branchName,
@@ -304,7 +313,7 @@ async function createGitBackup(
   }
 
   console.log(chalk.yellow(`⚠️  Could not create backup: ${backupResult.error}`));
-  console.log(chalk.dim("   Proceeding without git backup..."));
+  console.log(chalk.dim('   Proceeding without git backup...'));
   return { hasStash: false };
 }
 
@@ -314,8 +323,8 @@ async function createGitBackup(
 function showBackupInfo(backup: BackupInfo, results: FixResult[]): void {
   if (!backup.branchName) return;
 
-  const failed = results.filter(r => !r.success);
-  console.log("");
+  const failed = results.filter((r) => !r.success);
+  console.log('');
 
   if (failed.length > 0) {
     console.log(chalk.yellow(`💾 Backup available:`));
@@ -336,12 +345,7 @@ function showBackupInfo(backup: BackupInfo, results: FixResult[]): void {
 // AUDIT INTEGRATION
 // ============================================================================
 
-import {
-  readAuditData,
-  hasAuditData,
-  formatAuditAge,
-  isAuditDataStale,
-} from "./audit-reader";
+import { formatAuditAge, hasAuditData, isAuditDataStale, readAuditData } from './audit-reader';
 
 /**
  * Run fix with cached audit data
@@ -349,12 +353,17 @@ import {
 async function runFixFromAudit(
   projectRoot: string,
   options: FixOptions,
-  logger: { info: (msg: string) => void; debug: (msg: string) => void; warn: (msg: string) => void; error: (msg: string) => void },
+  logger: {
+    info: (msg: string) => void;
+    debug: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+  },
 ): Promise<{ plans: FixPlan[]; skipStats: SkipStats; totalIssues: number } | null> {
   // Check if audit data exists
   if (!hasAuditData(projectRoot)) {
     logger.error("No audit data found. Run 'krolik audit' first.");
-    console.log(chalk.dim("  Then use: krolik fix --from-audit"));
+    console.log(chalk.dim('  Then use: krolik fix --from-audit'));
     return null;
   }
 
@@ -384,9 +393,7 @@ async function runFixFromAudit(
 /**
  * Run fix command
  */
-export async function runFix(
-  ctx: CommandContext & { options: FixOptions },
-): Promise<void> {
+export async function runFix(ctx: CommandContext & { options: FixOptions }): Promise<void> {
   const { config, logger, options } = ctx;
 
   try {
@@ -406,7 +413,7 @@ export async function runFix(
       planResult = auditResult;
     } else {
       // Fresh analysis
-      logger.info("Analyzing code quality...");
+      logger.info('Analyzing code quality...');
       planResult = await generateFixPlan(config.projectRoot, options);
     }
 
@@ -429,12 +436,12 @@ export async function runFix(
 
     // Confirm unless --yes
     if (!options.yes) {
-      console.log("");
-      console.log(chalk.yellow("⚠️  This will modify your files."));
-      console.log(chalk.dim("Use --dry-run to preview changes without applying."));
-      console.log(chalk.dim("Use --yes to skip this confirmation."));
-      console.log("");
-      logger.warn("Pass --yes to apply fixes");
+      console.log('');
+      console.log(chalk.yellow('⚠️  This will modify your files.'));
+      console.log(chalk.dim('Use --dry-run to preview changes without applying.'));
+      console.log(chalk.dim('Use --yes to skip this confirmation.'));
+      console.log('');
+      logger.warn('Pass --yes to apply fixes');
       return;
     }
 
@@ -455,7 +462,11 @@ export async function runFix(
 async function runTypecheckStep(
   projectRoot: string,
   options: FixOptions,
-  logger: { info: (msg: string) => void; debug: (msg: string) => void; warn: (msg: string) => void },
+  logger: {
+    info: (msg: string) => void;
+    debug: (msg: string) => void;
+    warn: (msg: string) => void;
+  },
 ): Promise<boolean> {
   const shouldRun = !options.noTypecheck && (options.typecheck || options.typecheckOnly || true);
 
@@ -468,7 +479,7 @@ async function runTypecheckStep(
 
   if (options.typecheckOnly) {
     if (!runTsCheck(projectRoot, options.path, logger)) {
-      logger.warn("TypeScript not available in this project");
+      logger.warn('TypeScript not available in this project');
     }
     return true;
   }
@@ -483,7 +494,11 @@ async function runTypecheckStep(
 async function runBiomeStep(
   projectRoot: string,
   options: FixOptions,
-  logger: { info: (msg: string) => void; debug: (msg: string) => void; warn: (msg: string) => void },
+  logger: {
+    info: (msg: string) => void;
+    debug: (msg: string) => void;
+    warn: (msg: string) => void;
+  },
 ): Promise<boolean> {
   const shouldRun = !options.noBiome && (options.biome || options.biomeOnly || true);
 
@@ -496,7 +511,7 @@ async function runBiomeStep(
 
   if (options.biomeOnly) {
     if (!runBiomeFixes(projectRoot, options.path, logger, false)) {
-      logger.warn("Biome not available in this project");
+      logger.warn('Biome not available in this project');
     }
     return true;
   }

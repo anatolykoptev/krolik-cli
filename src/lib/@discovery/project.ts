@@ -138,9 +138,7 @@ export function detectMonorepo(projectRoot: string): MonorepoInfo | null {
 
     // npm/yarn workspaces (package.json)
     if (pkg.workspaces) {
-      patterns = Array.isArray(pkg.workspaces)
-        ? pkg.workspaces
-        : pkg.workspaces.packages || [];
+      patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces.packages || [];
       type = fs.existsSync(path.join(projectRoot, 'yarn.lock')) ? 'yarn' : 'npm';
     }
 

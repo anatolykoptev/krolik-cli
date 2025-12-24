@@ -15,11 +15,11 @@
 // ============================================================================
 
 export {
-  validatePath,
-  safeDelete,
   createBackup,
-  restoreFromBackup,
   removeBackup,
+  restoreFromBackup,
+  safeDelete,
+  validatePath,
 } from './security';
 
 // ============================================================================
@@ -64,22 +64,19 @@ export {
 // ============================================================================
 
 export {
-  updateBarrelFile,
-  generateBarrelContent,
   analyzeExports,
+  generateBarrelContent,
   generateExportStatement,
+  updateBarrelFile,
 } from './barrel';
 
 // ============================================================================
 // TYPE MIGRATION
 // ============================================================================
 
+export { executeTypeMigrationPlan } from './type-execution';
 export {
   createTypeMigrationPlan,
   filterSafeTypeMigrations,
   previewTypeMigrationPlan,
 } from './type-planning';
-
-export {
-  executeTypeMigrationPlan,
-} from './type-execution';

@@ -3,7 +3,7 @@
  * @description Code generation command
  */
 
-import type { CommandContext, BaseCommandOptions } from '../../types';
+import type { BaseCommandOptions, CommandContext } from '../../types';
 
 type CodegenTarget = 'hooks' | 'schemas' | 'tests' | 'barrels' | 'docs';
 
@@ -16,7 +16,9 @@ interface CodegenOptions extends BaseCommandOptions {
 
 const VALID_TARGETS: CodegenTarget[] = ['hooks', 'schemas', 'tests', 'barrels', 'docs'];
 
-export async function runCodegen(context: CommandContext & { options: CodegenOptions }): Promise<void> {
+export async function runCodegen(
+  context: CommandContext & { options: CodegenOptions },
+): Promise<void> {
   const { logger, options } = context;
   const target = options.target as CodegenTarget;
 

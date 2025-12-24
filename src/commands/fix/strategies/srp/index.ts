@@ -10,16 +10,10 @@
  * Uses AST-based file splitting for safe transformations.
  */
 
-import type { QualityIssue } from '../../types';
-import type { FixOperation, FixStrategy } from '../../types';
-import { matchNumberInRange, createSplitFile } from '../shared';
 import { splitFile } from '../../ast-utils/index';
-import {
-  SRP_PATTERNS,
-  SIZE_RANGE,
-  EXPORTS_RANGE,
-  FUNCTIONS_RANGE,
-} from './constants';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
+import { createSplitFile, matchNumberInRange } from '../shared';
+import { EXPORTS_RANGE, FUNCTIONS_RANGE, SIZE_RANGE, SRP_PATTERNS } from './constants';
 
 // ============================================================================
 // HELPERS
@@ -59,10 +53,7 @@ function canFixFunctionsIssue(message: string): boolean {
  * Tries splitting by type first (types, functions, constants),
  * then falls back to splitting by prefix (handle*, create*, etc).
  */
-function generateSplitFix(
-  content: string,
-  file: string,
-): FixOperation | null {
+function generateSplitFix(content: string, file: string): FixOperation | null {
   // Try splitting by type first
   const byTypeResult = splitFile(content, file, { byType: true });
 
@@ -133,8 +124,8 @@ export const srpStrategy: FixStrategy = {
 
 // Re-export for testing
 export {
-  SRP_PATTERNS,
-  SIZE_RANGE,
   EXPORTS_RANGE,
   FUNCTIONS_RANGE,
+  SIZE_RANGE,
+  SRP_PATTERNS,
 } from './constants';

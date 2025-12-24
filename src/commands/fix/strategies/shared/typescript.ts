@@ -9,8 +9,8 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { escapeXml } from '@/lib';
 
 // ============================================================================
@@ -113,10 +113,7 @@ export function getTscVersion(projectRoot: string): string | null {
  * @param targetPath - Specific path to check (optional)
  * @returns Check result with diagnostics
  */
-export function runTypeCheck(
-  projectRoot: string,
-  targetPath?: string,
-): TsCheckResult {
+export function runTypeCheck(projectRoot: string, targetPath?: string): TsCheckResult {
   const startTime = Date.now();
   const tsc = getTscPath(projectRoot);
 

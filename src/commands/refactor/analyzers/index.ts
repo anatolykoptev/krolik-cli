@@ -19,38 +19,35 @@
 // ============================================================================
 
 export {
+  extractFunctions,
   findDuplicates,
   quickScanDuplicates,
-  extractFunctions,
 } from './duplicates';
-
-export { extractFunctionsSwc, type SwcFunctionInfo } from './swc-parser';
-
-export {
-  findTypeDuplicates,
-  quickScanTypeDuplicates,
-  extractTypes,
-  type TypeSignature,
-  type TypeDuplicateInfo,
-  type FindTypeDuplicatesOptions,
-} from './type-duplicates';
-
 export {
   analyzeStructure,
   visualizeStructure,
 } from './structure';
+export { extractFunctionsSwc, type SwcFunctionInfo } from './swc-parser';
+export {
+  extractTypes,
+  type FindTypeDuplicatesOptions,
+  findTypeDuplicates,
+  quickScanTypeDuplicates,
+  type TypeDuplicateInfo,
+  type TypeSignature,
+} from './type-duplicates';
 
 // ============================================================================
 // PROJECT CONTEXT (from context.ts)
 // ============================================================================
 
 export {
-  detectProjectContext,
-  detectProjectType,
-  detectTechStack,
   detectEntryPoints,
   detectImportAlias,
+  detectProjectContext,
+  detectProjectType,
   detectSrcDir,
+  detectTechStack,
 } from './context';
 
 // ============================================================================
@@ -59,9 +56,9 @@ export {
 
 export {
   analyzeArchHealth,
-  getDirectoriesWithCategories,
   analyzeDependencies,
   findCircularDeps,
+  getDirectoriesWithCategories,
 } from './architecture';
 
 // ============================================================================
@@ -79,21 +76,19 @@ export {
 // AI NAVIGATION (from navigation.ts)
 // ============================================================================
 
-export {
-  generateAiNavigation,
-} from './navigation';
+export { generateAiNavigation } from './navigation';
 
 // ============================================================================
 // RECOMMENDATIONS (from recommendations.ts)
 // ============================================================================
 
 export {
-  generateRecommendations,
-  filterByCategory,
-  getAutoFixable,
   calculateTotalImprovement,
-  sortByPriority,
+  filterByCategory,
+  generateRecommendations,
+  getAutoFixable,
   groupByCategory,
+  sortByPriority,
 } from './recommendations';
 
 // ============================================================================
@@ -109,45 +104,39 @@ export {
 // STANDARDS COMPLIANCE (from standards.ts)
 // ============================================================================
 
-export {
-  checkStandards,
-} from './standards';
+export { checkStandards } from './standards';
 
 // ============================================================================
 // NAMESPACE ANALYSIS (from namespace.ts)
 // ============================================================================
 
-export {
-  findLibDir,
-  detectNamespaceCategory,
-  analyzeNamespaceDirectory,
-  calculateNamespaceScore,
-  generateNamespaceMigrationPlan,
-  analyzeNamespaceStructure,
-} from './namespace';
-
 export type {
-  NamespaceMigrationMove,
-  NamespaceImportUpdate,
-  NamespaceMigrationPlan,
   NamespaceAnalysisResult,
+  NamespaceImportUpdate,
+  NamespaceMigrationMove,
+  NamespaceMigrationPlan,
+} from './namespace';
+export {
+  analyzeNamespaceDirectory,
+  analyzeNamespaceStructure,
+  calculateNamespaceScore,
+  detectNamespaceCategory,
+  findLibDir,
+  generateNamespaceMigrationPlan,
 } from './namespace';
 
 // ============================================================================
 // HELPERS (from helpers.ts)
 // ============================================================================
 
+export type { PackageJson } from './helpers';
 export {
-  readPackageJson,
-  getAllDependencies,
-  hasFile,
-  hasDir,
   findDir,
   findFile,
-  listDirectory,
+  getAllDependencies,
   getSubdirectories,
-} from './helpers';
-
-export type {
-  PackageJson,
+  hasDir,
+  hasFile,
+  listDirectory,
+  readPackageJson,
 } from './helpers';

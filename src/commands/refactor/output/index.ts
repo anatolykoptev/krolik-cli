@@ -9,34 +9,28 @@
  * - AI-Native: Enhanced XML optimized for AI agents
  */
 
-import type { RefactorAnalysis, OutputFormat } from '../core';
+import type { OutputFormat, RefactorAnalysis } from '../core';
 
 // ============================================================================
 // EXPORTS
 // ============================================================================
 
-// Text formatters
-export {
-  formatRefactorText,
-  formatMigrationPreview,
-  visualizeStructure,
-} from './text';
+// AI-native formatters
+export { formatAiNativeXml } from './ai-native';
 
 // JSON formatters
 export {
   formatRefactorJson,
   formatRefactorJsonCompact,
 } from './json';
-
+// Text formatters
+export {
+  formatMigrationPreview,
+  formatRefactorText,
+  visualizeStructure,
+} from './text';
 // XML formatters
-export {
-  formatRefactorXml,
-} from './xml';
-
-// AI-native formatters
-export {
-  formatAiNativeXml,
-} from './ai-native';
+export { formatRefactorXml } from './xml';
 
 // ============================================================================
 // UNIFIED FORMATTER
@@ -45,10 +39,7 @@ export {
 /**
  * Format analysis based on output type
  */
-export function formatRefactor(
-  analysis: RefactorAnalysis,
-  format: OutputFormat = 'text',
-): string {
+export function formatRefactor(analysis: RefactorAnalysis, format: OutputFormat = 'text'): string {
   // Lazy import to avoid circular deps
   switch (format) {
     case 'xml': {
@@ -59,7 +50,6 @@ export function formatRefactor(
       const { formatRefactorJson } = require('./json');
       return formatRefactorJson(analysis);
     }
-    case 'text':
     default: {
       const { formatRefactorText } = require('./text');
       return formatRefactorText(analysis);

@@ -9,16 +9,13 @@
  * - ai/xml: AI-agent friendly structured XML
  */
 
-// Text format
-export { printStatus, formatJson } from './text';
-
 // Markdown format
 export { formatMarkdown } from './markdown';
-
-// AI/XML format
-export { formatAI, formatReportOutput } from './xml';
-export type { ReportSummary } from './xml';
-
+export type { NextAction } from './shared';
 // Shared utilities
 export { formatDuration } from './shared';
-export type { NextAction } from './shared';
+// Text format
+export { formatJson, printStatus } from './text';
+export type { ReportSummary } from './xml';
+// AI/XML format
+export { formatAI, formatReportOutput } from './xml';

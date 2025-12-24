@@ -3,10 +3,12 @@
  * @description File discovery caching for performance optimization
  *
  * Caches directory scans to avoid repeated file discovery during refactor analysis.
+ * Uses unified FileCache from @/lib for content caching.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileCache as contentCache } from '@/lib';
 
 export interface FindFilesOptions {
   extensions?: string[];
@@ -17,16 +19,8 @@ export interface FindFilesOptions {
 const DEFAULT_EXTENSIONS = ['.ts', '.tsx'];
 const DEFAULT_EXCLUDE = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'];
 
-// File cache to avoid repeated directory scans
-const fileCache = new Map<string, string[]>();
-
-// Content cache with mtime-based invalidation
-interface CachedContent {
-  content: string;
-  mtime: number;
-}
-
-const contentCache = new Map<string, CachedContent>();
+// File list cache to avoid repeated directory scans
+const fileListCache = new Map<string, string[]>();
 
 /**
  * Find files in directory with caching
@@ -34,13 +28,13 @@ const contentCache = new Map<string, CachedContent>();
 export function getCachedFiles(dirPath: string, options: FindFilesOptions = {}): string[] {
   const key = `${dirPath}:${JSON.stringify(options)}`;
 
-  const cached = fileCache.get(key);
+  const cached = fileListCache.get(key);
   if (cached) {
     return cached;
   }
 
   const files = findFilesInternal(dirPath, options);
-  fileCache.set(key, files);
+  fileListCache.set(key, files);
   return files;
 }
 
@@ -48,47 +42,33 @@ export function getCachedFiles(dirPath: string, options: FindFilesOptions = {}):
  * Clear the file cache (call at start of new refactor run)
  */
 export function clearFileCache(): void {
-  fileCache.clear();
+  fileListCache.clear();
   contentCache.clear();
 }
 
 /**
  * Get cached file content with mtime-based invalidation
+ * @deprecated Use contentCache.get() directly from unified FileCache
  */
 export function getCachedContent(filePath: string): string | null {
-  const cached = contentCache.get(filePath);
-  if (!cached) return null;
-
   try {
-    const stat = fs.statSync(filePath);
-    if (stat.mtime.getTime() !== cached.mtime) {
-      contentCache.delete(filePath);
-      return null;
-    }
-    return cached.content;
+    return contentCache.get(filePath);
   } catch {
-    contentCache.delete(filePath);
     return null;
   }
 }
 
 /**
  * Cache file content with mtime tracking
+ * @deprecated Use contentCache.set() directly from unified FileCache
  */
 export function setCachedContent(filePath: string, content: string): void {
-  try {
-    const stat = fs.statSync(filePath);
-    contentCache.set(filePath, {
-      content,
-      mtime: stat.mtime.getTime(),
-    });
-  } catch {
-    // Ignore cache failures
-  }
+  contentCache.set(filePath, content);
 }
 
 /**
  * Clear content cache only
+ * @deprecated Use contentCache.clear() directly from unified FileCache
  */
 export function clearContentCache(): void {
   contentCache.clear();

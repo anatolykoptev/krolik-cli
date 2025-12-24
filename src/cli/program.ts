@@ -3,8 +3,8 @@
  * @description CLI program creation
  */
 
-import { Command } from 'commander';
 import chalk from 'chalk';
+import { Command } from 'commander';
 import { registerCommands } from './commands';
 import { addGlobalOptions } from './options';
 

@@ -3,14 +3,14 @@
  * @description Fix difficulty calculation logic
  */
 
-import type { QualityIssue, FixDifficulty } from './types';
+import type { FixDifficulty, QualityIssue } from './types';
 
 /**
  * Categorize fix difficulty based on issue
  *
  * Difficulty levels:
  * - trivial: Can always safely fix (console.log, debugger)
- * - safe: Unlikely to break anything (@ts-ignore removal)
+ * - safe: Unlikely to break anything (@ts-expect-error removal)
  * - risky: May require manual review (refactoring, type changes)
  */
 export function getFixDifficulty(issue: QualityIssue): FixDifficulty {
@@ -62,7 +62,7 @@ export function isSafeFix(issue: QualityIssue): boolean {
  */
 export function filterByDifficulty(
   issues: QualityIssue[],
-  maxDifficulty: FixDifficulty
+  maxDifficulty: FixDifficulty,
 ): QualityIssue[] {
   const allowedLevels: FixDifficulty[] = ['trivial'];
 
@@ -72,7 +72,7 @@ export function filterByDifficulty(
     allowedLevels.push('safe', 'risky');
   }
 
-  return issues.filter(issue => allowedLevels.includes(getFixDifficulty(issue)));
+  return issues.filter((issue) => allowedLevels.includes(getFixDifficulty(issue)));
 }
 
 /**

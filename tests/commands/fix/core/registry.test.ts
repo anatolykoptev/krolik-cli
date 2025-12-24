@@ -3,10 +3,9 @@
  * @description Tests for FixerRegistry
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FixerRegistry } from '../../../../src/commands/fix/core/registry';
-import { createTestFixer, CATEGORY, DIFFICULTY } from '../helpers';
-import type { Fixer } from '../../../../src/commands/fix/core/types';
+import { CATEGORY, createTestFixer, DIFFICULTY } from '../helpers';
 
 describe('FixerRegistry', () => {
   let registry: FixerRegistry;
@@ -36,7 +35,7 @@ describe('FixerRegistry', () => {
       expect(registry.size).toBe(1);
       expect(registry.get('test')?.metadata.name).toBe('Second');
       expect(mockWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Fixer 'test' is already registered")
+        expect.stringContaining("Fixer 'test' is already registered"),
       );
 
       mockWarn.mockRestore();
@@ -128,8 +127,8 @@ describe('FixerRegistry', () => {
     it('filters fixers by category', () => {
       const lintFixers = registry.byCategory('lint');
       expect(lintFixers).toHaveLength(2);
-      expect(lintFixers.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'debugger'])
+      expect(lintFixers.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'debugger']),
       );
     });
 
@@ -150,8 +149,8 @@ describe('FixerRegistry', () => {
     it('filters fixers by difficulty level', () => {
       const trivialFixers = registry.byDifficulty('trivial');
       expect(trivialFixers).toHaveLength(2);
-      expect(trivialFixers.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'debugger'])
+      expect(trivialFixers.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'debugger']),
       );
     });
 
@@ -167,28 +166,24 @@ describe('FixerRegistry', () => {
 
   describe('byTag()', () => {
     beforeEach(() => {
-      registry.register(
-        createTestFixer('console', { tags: ['trivial', 'safe-to-autofix'] })
-      );
-      registry.register(
-        createTestFixer('debugger', { tags: ['trivial', 'debugging'] })
-      );
+      registry.register(createTestFixer('console', { tags: ['trivial', 'safe-to-autofix'] }));
+      registry.register(createTestFixer('debugger', { tags: ['trivial', 'debugging'] }));
       registry.register(createTestFixer('any-type', { tags: ['safe-to-autofix'] }));
     });
 
     it('filters fixers by tag', () => {
       const trivialFixers = registry.byTag('trivial');
       expect(trivialFixers).toHaveLength(2);
-      expect(trivialFixers.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'debugger'])
+      expect(trivialFixers.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'debugger']),
       );
     });
 
     it('returns fixers matching any tag', () => {
       const safeFixers = registry.byTag('safe-to-autofix');
       expect(safeFixers).toHaveLength(2);
-      expect(safeFixers.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'any-type'])
+      expect(safeFixers.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'any-type']),
       );
     });
 
@@ -206,7 +201,7 @@ describe('FixerRegistry', () => {
 
       const trivial = registry.trivial();
       expect(trivial).toHaveLength(2);
-      expect(trivial.every(f => f.metadata.difficulty === 'trivial')).toBe(true);
+      expect(trivial.every((f) => f.metadata.difficulty === 'trivial')).toBe(true);
     });
   });
 
@@ -217,55 +212,55 @@ describe('FixerRegistry', () => {
           category: CATEGORY.LINT,
           difficulty: DIFFICULTY.TRIVIAL,
           tags: ['trivial'],
-        })
+        }),
       );
       registry.register(
         createTestFixer('debugger', {
           category: CATEGORY.LINT,
           difficulty: DIFFICULTY.TRIVIAL,
           tags: ['trivial'],
-        })
+        }),
       );
       registry.register(
         createTestFixer('any-type', {
           category: CATEGORY.TYPE_SAFETY,
           difficulty: DIFFICULTY.SAFE,
           tags: ['safe'],
-        })
+        }),
       );
       registry.register(
         createTestFixer('srp', {
           category: CATEGORY.SRP,
           difficulty: DIFFICULTY.RISKY,
           tags: ['risky'],
-        })
+        }),
       );
     });
 
     it('filters by ids', () => {
       const result = registry.filter({ ids: ['console', 'debugger'] });
       expect(result).toHaveLength(2);
-      expect(result.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'debugger'])
+      expect(result.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'debugger']),
       );
     });
 
     it('filters by category', () => {
       const result = registry.filter({ category: 'lint' });
       expect(result).toHaveLength(2);
-      expect(result.every(f => f.metadata.category === 'lint')).toBe(true);
+      expect(result.every((f) => f.metadata.category === 'lint')).toBe(true);
     });
 
     it('filters by difficulty', () => {
       const result = registry.filter({ difficulty: 'trivial' });
       expect(result).toHaveLength(2);
-      expect(result.every(f => f.metadata.difficulty === 'trivial')).toBe(true);
+      expect(result.every((f) => f.metadata.difficulty === 'trivial')).toBe(true);
     });
 
     it('filters by tags', () => {
       const result = registry.filter({ tags: ['trivial'] });
       expect(result).toHaveLength(2);
-      expect(result.every(f => f.metadata.tags?.includes('trivial'))).toBe(true);
+      expect(result.every((f) => f.metadata.tags?.includes('trivial'))).toBe(true);
     });
 
     it('combines multiple filters', () => {
@@ -275,8 +270,8 @@ describe('FixerRegistry', () => {
         tags: ['trivial'],
       });
       expect(result).toHaveLength(2);
-      expect(result.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'debugger'])
+      expect(result.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'debugger']),
       );
     });
 
@@ -288,8 +283,12 @@ describe('FixerRegistry', () => {
 
   describe('getEnabled()', () => {
     beforeEach(() => {
-      registry.register(createTestFixer('console', { cliFlag: '--fix-console', negateFlag: '--no-console' }));
-      registry.register(createTestFixer('debugger', { cliFlag: '--fix-debugger', negateFlag: '--no-debugger' }));
+      registry.register(
+        createTestFixer('console', { cliFlag: '--fix-console', negateFlag: '--no-console' }),
+      );
+      registry.register(
+        createTestFixer('debugger', { cliFlag: '--fix-debugger', negateFlag: '--no-debugger' }),
+      );
       registry.register(createTestFixer('alert', { cliFlag: '--fix-alert' }));
     });
 
@@ -307,9 +306,9 @@ describe('FixerRegistry', () => {
     it('excludes explicitly disabled fixers', () => {
       // flagToOptionKey converts --no-console to 'console'
       // So we check options['console'] === true when negateFlag is used
-      const enabled = registry.getEnabled({ console: true });  // --no-console becomes 'console: true'
+      const enabled = registry.getEnabled({ console: true }); // --no-console becomes 'console: true'
       expect(enabled).toHaveLength(2);
-      expect(enabled.map(f => f.metadata.id)).not.toContain('console');
+      expect(enabled.map((f) => f.metadata.id)).not.toContain('console');
     });
 
     it('handles multiple enable flags', () => {
@@ -318,8 +317,8 @@ describe('FixerRegistry', () => {
         fixDebugger: true,
       });
       expect(enabled).toHaveLength(2);
-      expect(enabled.map(f => f.metadata.id)).toEqual(
-        expect.arrayContaining(['console', 'debugger'])
+      expect(enabled.map((f) => f.metadata.id)).toEqual(
+        expect.arrayContaining(['console', 'debugger']),
       );
     });
 
@@ -329,9 +328,9 @@ describe('FixerRegistry', () => {
       // --no-console sets console: true (negateFlag processed by flagToOptionKey)
       const enabled = registry.getEnabled({
         fixConsole: true,
-        console: true,  // --no-console becomes console: true after flagToOptionKey
+        console: true, // --no-console becomes console: true after flagToOptionKey
       });
-      expect(enabled.map(f => f.metadata.id)).not.toContain('console');
+      expect(enabled.map((f) => f.metadata.id)).not.toContain('console');
     });
 
     it('handles kebab-case to camelCase conversion', () => {
@@ -348,25 +347,25 @@ describe('FixerRegistry', () => {
         createTestFixer('console', {
           cliFlag: '--fix-console',
           negateFlag: '--no-console',
-        })
+        }),
       );
       registry.register(
         createTestFixer('debugger', {
           cliFlag: '--fix-debugger',
-        })
+        }),
       );
 
       const options = registry.getCLIOptions();
       expect(options).toHaveLength(2);
 
-      const consoleOption = options.find(o => o.fixerId === 'console');
+      const consoleOption = options.find((o) => o.fixerId === 'console');
       expect(consoleOption).toMatchObject({
         flag: '--fix-console',
         negateFlag: '--no-console',
         fixerId: 'console',
       });
 
-      const debuggerOption = options.find(o => o.fixerId === 'debugger');
+      const debuggerOption = options.find((o) => o.fixerId === 'debugger');
       expect(debuggerOption).toMatchObject({
         flag: '--fix-debugger',
         fixerId: 'debugger',

@@ -4,14 +4,10 @@
  */
 
 import * as path from 'node:path';
-import type { QualityIssue, QualityCategory } from '../types';
+import type { QualityCategory, QualityIssue } from '../types';
 import { getFixDifficulty } from '../types';
-import type {
-  EnrichedIssue,
-  IssueGroup,
-  PriorityLevel,
-} from './types';
-import { estimateEffort, aggregateEffort } from './effort';
+import { aggregateEffort, estimateEffort } from './effort';
+import type { EnrichedIssue, IssueGroup, PriorityLevel } from './types';
 
 // ============================================================================
 // PATH NORMALIZATION
@@ -28,13 +24,7 @@ export function normalizePath(filePath: string, projectRoot?: string): string {
   }
 
   // Try to make relative to common project patterns
-  const patterns = [
-    '/krolik-cli/',
-    '/piternow/',
-    '/packages/',
-    '/apps/',
-    '/src/',
-  ];
+  const patterns = ['/krolik-cli/', '/piternow/', '/packages/', '/apps/', '/src/'];
 
   for (const pattern of patterns) {
     const idx = filePath.indexOf(pattern);
@@ -66,18 +56,18 @@ export function normalizePath(filePath: string, projectRoot?: string): string {
  * Priority by category
  */
 const CATEGORY_PRIORITY: Record<QualityCategory, PriorityLevel> = {
-  'type-safety': 'critical',   // Type errors break builds
-  'circular-dep': 'critical',  // Can cause runtime issues
-  lint: 'low',                 // Usually cosmetic
-  hardcoded: 'medium',         // Maintainability
-  documentation: 'low',        // Not urgent
-  complexity: 'medium',        // Technical debt
-  srp: 'high',                 // Architectural issue
-  'mixed-concerns': 'high',    // Architectural issue
-  size: 'medium',              // Technical debt
-  composite: 'medium',         // Multi-file ops
-  agent: 'medium',             // AI operations
-  refine: 'high',              // @namespace structure
+  'type-safety': 'critical', // Type errors break builds
+  'circular-dep': 'critical', // Can cause runtime issues
+  lint: 'low', // Usually cosmetic
+  hardcoded: 'medium', // Maintainability
+  documentation: 'low', // Not urgent
+  complexity: 'medium', // Technical debt
+  srp: 'high', // Architectural issue
+  'mixed-concerns': 'high', // Architectural issue
+  size: 'medium', // Technical debt
+  composite: 'medium', // Multi-file ops
+  agent: 'medium', // AI operations
+  refine: 'high', // @namespace structure
 };
 
 // ============================================================================
@@ -94,12 +84,13 @@ function isAutoFixable(issue: QualityIssue): boolean {
   // Category-based auto-fix rules
   switch (issue.category) {
     case 'lint':
-      return issue.message.includes('console') ||
-             issue.message.includes('debugger') ||
-             issue.message.includes('alert');
+      return (
+        issue.message.includes('console') ||
+        issue.message.includes('debugger') ||
+        issue.message.includes('alert')
+      );
     case 'type-safety':
-      return issue.message.includes('@ts-ignore') ||
-             issue.message.includes('@ts-nocheck');
+      return issue.message.includes('@ts-ignore') || issue.message.includes('@ts-nocheck');
     case 'hardcoded':
       return false; // Need human naming decision
     case 'documentation':
@@ -231,9 +222,9 @@ export function groupByPriority(issues: EnrichedIssue[]): IssueGroup[] {
  * Create a group from enriched issues
  */
 function createGroup(id: string, issues: EnrichedIssue[], title: string): IssueGroup {
-  const efforts = issues.map(i => i.effort);
+  const efforts = issues.map((i) => i.effort);
   const totalEffort = aggregateEffort(efforts);
-  const autoFixableCount = issues.filter(i => i.autoFixable).length;
+  const autoFixableCount = issues.filter((i) => i.autoFixable).length;
 
   // Determine group priority (highest priority issue)
   const priority = issues.reduce<PriorityLevel>((highest, i) => {
@@ -241,11 +232,10 @@ function createGroup(id: string, issues: EnrichedIssue[], title: string): IssueG
   }, 'low');
 
   // Determine group category
-  const categories = new Set(issues.map(i => i.issue.category));
+  const categories = new Set(issues.map((i) => i.issue.category));
   const firstCategory = [...categories][0];
-  const category: QualityCategory | 'mixed' = categories.size === 1 && firstCategory
-    ? firstCategory
-    : 'mixed';
+  const category: QualityCategory | 'mixed' =
+    categories.size === 1 && firstCategory ? firstCategory : 'mixed';
 
   return {
     id,
@@ -348,7 +338,7 @@ function priorityOrder(priority: PriorityLevel): number {
  */
 export function extractQuickWins(issues: EnrichedIssue[], limit = 10): EnrichedIssue[] {
   return issues
-    .filter(i => i.autoFixable && i.effort.level === 'trivial')
+    .filter((i) => i.autoFixable && i.effort.level === 'trivial')
     .sort((a, b) => a.effort.minutes - b.effort.minutes)
     .slice(0, limit);
 }

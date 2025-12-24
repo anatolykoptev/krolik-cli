@@ -3,11 +3,11 @@
  * @description Fix plan generation
  */
 
-import type { FixOptions, FixOperation, QualityIssue } from "./types";
-import { getFixDifficulty, isFixerEnabled } from "./types";
-import { analyzeQuality } from "./analyze";
-import { findStrategyDetailed } from "./strategies";
-import { registry } from "./fixers";
+import { analyzeQuality } from './analyze';
+import { registry } from './fixers';
+import { findStrategyDetailed } from './strategies';
+import type { FixOperation, FixOptions, QualityIssue } from './types';
+import { getFixDifficulty, isFixerEnabled } from './types';
 
 // ============================================================================
 // TYPES
@@ -16,7 +16,7 @@ import { registry } from "./fixers";
 export interface FixPlanItem {
   issue: QualityIssue;
   operation: FixOperation;
-  difficulty: "trivial" | "safe" | "risky";
+  difficulty: 'trivial' | 'safe' | 'risky';
 }
 
 export interface FixPlan {
@@ -60,11 +60,7 @@ export async function generateFixPlan(
   const allIssues = collectAllIssues(report.files, options.category);
 
   // Generate plans
-  const { plans, skipStats } = await generatePlansFromIssues(
-    allIssues,
-    fileContents,
-    options,
-  );
+  const { plans, skipStats } = await generatePlansFromIssues(allIssues, fileContents, options);
 
   // Apply limit if specified
   const limitedPlans = applyLimit(plans, options.limit);
@@ -121,10 +117,10 @@ async function generatePlansFromIssues(
 
     // Filter by difficulty
     const difficulty = getFixDifficulty(issue);
-    if (options.trivialOnly && difficulty !== "trivial") {
+    if (options.trivialOnly && difficulty !== 'trivial') {
       continue;
     }
-    if (options.safe && difficulty === "risky") {
+    if (options.safe && difficulty === 'risky') {
       continue;
     }
 
@@ -134,7 +130,7 @@ async function generatePlansFromIssues(
     }
 
     // Get file content
-    const content = fileContents.get(issue.file) || "";
+    const content = fileContents.get(issue.file) || '';
     if (!content) {
       skipStats.noContent++;
       continue;
@@ -154,12 +150,12 @@ async function generatePlansFromIssues(
     if (!operation) {
       const strategyResult = findStrategyDetailed(issue, content);
 
-      if (strategyResult.status === "no-strategy") {
+      if (strategyResult.status === 'no-strategy') {
         skipStats.noStrategy++;
         continue;
       }
 
-      if (strategyResult.status === "context-skipped") {
+      if (strategyResult.status === 'context-skipped') {
         skipStats.contextSkipped++;
         continue;
       }
@@ -186,7 +182,7 @@ function addToPlan(
   plans: Map<string, FixPlan>,
   issue: QualityIssue,
   operation: FixOperation,
-  difficulty: "trivial" | "safe" | "risky",
+  difficulty: 'trivial' | 'safe' | 'risky',
 ): void {
   let plan = plans.get(issue.file);
 
@@ -224,19 +220,19 @@ function applyLimit(plans: FixPlan[], limit?: number): FixPlan[] {
 // FROM AUDIT (--from-audit integration)
 // ============================================================================
 
-import * as fs from "node:fs";
+import * as fs from 'node:fs';
 
 /**
  * Read file contents for issues
  */
 function readFileContents(issues: QualityIssue[]): Map<string, string> {
   const fileContents = new Map<string, string>();
-  const uniqueFiles = [...new Set(issues.map(i => i.file))];
+  const uniqueFiles = [...new Set(issues.map((i) => i.file))];
 
   for (const file of uniqueFiles) {
     try {
       if (fs.existsSync(file)) {
-        fileContents.set(file, fs.readFileSync(file, "utf-8"));
+        fileContents.set(file, fs.readFileSync(file, 'utf-8'));
       }
     } catch {
       // Skip unreadable files
@@ -260,15 +256,11 @@ export async function generateFixPlanFromIssues(
   // Filter by category if specified
   let filteredIssues = issues;
   if (options.category) {
-    filteredIssues = issues.filter(i => i.category === options.category);
+    filteredIssues = issues.filter((i) => i.category === options.category);
   }
 
   // Generate plans from the issues
-  const { plans, skipStats } = await generatePlansFromIssues(
-    filteredIssues,
-    fileContents,
-    options,
-  );
+  const { plans, skipStats } = await generatePlansFromIssues(filteredIssues, fileContents, options);
 
   // Apply limit if specified
   const limitedPlans = applyLimit(plans, options.limit);

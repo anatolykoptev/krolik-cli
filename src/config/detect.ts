@@ -3,9 +3,9 @@
  * @description Auto-detection of project features and paths
  */
 
-import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { exists, readJson, isDirectory } from '../lib';
+import * as path from 'node:path';
+import { exists, isDirectory, readJson } from '../lib';
 import type { FeatureConfig, PathConfig, PrismaConfig, TrpcConfig } from '../types';
 
 /**
@@ -53,7 +53,12 @@ export function detectPaths(projectRoot: string, isMonorepo: boolean): Partial<P
     const monorepoPatterns = [
       { web: 'apps/web', api: 'packages/api', db: 'packages/db', shared: 'packages/shared' },
       { web: 'packages/web', api: 'packages/api', db: 'packages/db', shared: 'packages/shared' },
-      { web: 'apps/frontend', api: 'apps/backend', db: 'packages/database', shared: 'packages/common' },
+      {
+        web: 'apps/frontend',
+        api: 'apps/backend',
+        db: 'packages/database',
+        shared: 'packages/common',
+      },
     ];
 
     for (const pattern of monorepoPatterns) {

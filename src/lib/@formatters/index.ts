@@ -9,73 +9,70 @@
  * import { escapeXml, formatJson, heading, truncate } from '@/lib/@formatters';
  */
 
-// XML formatting
-export {
-  escapeXml,
-  unescapeXml,
-  wrapXml,
-  selfClosingTag,
-  buildElement,
-  buildXmlDocument,
-  textElement,
-  cdata,
-  xmlComment,
-} from './xml';
-export type { XmlAttributes, XmlElement } from './xml';
-
+export type { JsonFormatOptions } from './json';
 // JSON formatting
 export {
   formatJson,
   formatJsonCompact,
   formatJsonLines,
-  parseJsonSafe,
-  parseJsonWithDefault,
   isValidJson,
   mergeJson,
+  parseJsonSafe,
+  parseJsonWithDefault,
 } from './json';
-export type { JsonFormatOptions } from './json';
-
+export type { MarkdownSection, TableColumn, TableRow } from './markdown';
 // Markdown formatting
 export {
-  heading,
-  codeBlock,
-  inlineCode,
+  blockquote,
+  bold,
+  buildDocument,
   bulletList,
-  numberedList,
-  taskList,
-  table,
+  codeBlock,
+  heading,
+  horizontalRule,
+  image,
+  inlineCode,
+  italic,
   keyValueTable,
   link,
-  image,
-  bold,
-  italic,
+  numberedList,
   strikethrough,
-  blockquote,
-  horizontalRule,
-  buildDocument,
+  table,
+  taskList,
   truncate as truncateMd,
 } from './markdown';
-export type { TableColumn, TableRow, MarkdownSection } from './markdown';
-
 // Text formatting
 export {
-  truncate,
-  truncateMiddle,
-  truncateLines,
-  padLeft,
-  padRight,
-  center,
   alignColumns,
-  toCamelCase,
-  toPascalCase,
-  toKebabCase,
-  toSnakeCase,
-  toConstantCase,
-  pluralize,
+  center,
+  dedent,
   formatCount,
   indent,
-  dedent,
-  wordWrap,
+  padLeft,
+  padRight,
+  pluralize,
   stripAnsi,
+  toCamelCase,
+  toConstantCase,
+  toKebabCase,
+  toPascalCase,
+  toSnakeCase,
+  truncate,
+  truncateLines,
+  truncateMiddle,
+  wordWrap,
   // escapeRegex moved to @sanitize/regex - use import from '@/lib' or '@/lib/@sanitize'
 } from './text';
+export type { XmlAttributes, XmlElement } from './xml';
+// XML formatting
+export {
+  buildElement,
+  buildXmlDocument,
+  cdata,
+  escapeXml,
+  selfClosingTag,
+  textElement,
+  unescapeXml,
+  wrapXml,
+  xmlComment,
+} from './xml';

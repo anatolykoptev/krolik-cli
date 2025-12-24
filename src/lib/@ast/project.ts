@@ -2,11 +2,17 @@
  * @module lib/ast/project
  * @description ts-morph Project and SourceFile utilities
  *
- * Centralized project creation for consistent configuration across all commands.
- * This is the SINGLE source of truth for ts-morph Project creation.
+ * DEPRECATED: Use the pool API from lib/@ast/pool instead.
+ * This module is kept for backward compatibility only.
+ *
+ * Recommended migration:
+ * - Replace `createProject()` with `getProject()` + `releaseProject()`
+ * - Or better: use `withSourceFile()` for auto-cleanup
+ *
+ * @deprecated Use pool API instead (lib/@ast/pool)
  */
 
-import { Project, type SourceFile, ScriptKind } from 'ts-morph';
+import { Project, ScriptKind, type SourceFile } from 'ts-morph';
 
 // ============================================================================
 // TYPES
@@ -35,15 +41,20 @@ export interface ParseFileOptions {
 /**
  * Create a ts-morph project for code analysis
  *
- * This is the ONLY place where Project should be instantiated.
- * All other modules should import this function.
+ * @deprecated Use getProject() from lib/@ast/pool instead
+ *
+ * WARNING: Each call creates a new Project instance which may leak memory.
+ * Prefer using the pool API: withSourceFile() or getProject() + releaseProject()
  *
  * @example
- * // Fast in-memory project (default)
+ * // DEPRECATED (this function)
  * const project = createProject();
  *
- * // With tsconfig for type-aware analysis
- * const project = createProject({ tsConfigPath: './tsconfig.json' });
+ * // RECOMMENDED
+ * import { withSourceFile } from '@/lib/@ast';
+ * const result = withSourceFile(content, 'temp.ts', (sf) => {
+ *   // ... analyze sourceFile
+ * });
  */
 export function createProject(options: CreateProjectOptions = {}): Project {
   const { tsConfigPath, inMemory = true, allowJs = true } = options;
@@ -115,10 +126,7 @@ export function createSourceFile(
  * const sourceFile = parseCode('const x = 1;');
  * const vars = sourceFile.getVariableDeclarations();
  */
-export function parseCode(
-  code: string,
-  filePath: string = 'temp.ts',
-): SourceFile {
+export function parseCode(code: string, filePath: string = 'temp.ts'): SourceFile {
   const project = createProject();
   return createSourceFile(project, filePath, code);
 }
@@ -155,10 +163,7 @@ export function getScriptKind(filePath: string): ScriptKind {
  * @param project - ts-morph Project instance
  * @param files - Map of filePath to content
  */
-export function addFiles(
-  project: Project,
-  files: Record<string, string>,
-): SourceFile[] {
+export function addFiles(project: Project, files: Record<string, string>): SourceFile[] {
   return Object.entries(files).map(([filePath, content]) =>
     createSourceFile(project, filePath, content),
   );

@@ -6,9 +6,9 @@
  * Always safe to remove - these are debugging artifacts.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
-import { isInsideString, isInsideComment } from '../../core/string-utils';
+import { isInsideComment, isInsideString } from '../../core/string-utils';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 /**
  * Debugger fixer metadata

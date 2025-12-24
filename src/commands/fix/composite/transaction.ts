@@ -10,17 +10,17 @@
  */
 
 import * as fs from 'node:fs';
-import type {
-  Transaction,
-  FileBackup,
-  CompositeTransform,
-  StepResult,
-  CompositeResult,
-  VerificationResult,
-  CompositeStep,
-} from './types';
 import { applyFix } from '../applier';
-import { runTypeCheck, isTscAvailable } from '../strategies/shared';
+import { isTscAvailable, runTypeCheck } from '../strategies/shared';
+import type {
+  CompositeResult,
+  CompositeStep,
+  CompositeTransform,
+  FileBackup,
+  StepResult,
+  Transaction,
+  VerificationResult,
+} from './types';
 
 // ============================================================================
 // TRANSACTION ID
@@ -124,17 +124,13 @@ export function commitTransaction(transaction: Transaction): void {
 /**
  * Execute a single composite step
  */
-function executeStep(
-  step: CompositeStep,
-  index: number,
-  transaction: Transaction,
-): StepResult {
+function executeStep(step: CompositeStep, index: number, transaction: Transaction): StepResult {
   const filesModified: string[] = [];
 
   try {
     // Backup any new files not in initial backup
     for (const file of step.files) {
-      if (!transaction.backups.some(b => b.path === file)) {
+      if (!transaction.backups.some((b) => b.path === file)) {
         transaction.backups.push(backupFile(file));
       }
     }
@@ -142,10 +138,13 @@ function executeStep(
     // Apply operations
     if (step.operations) {
       for (const operation of step.operations) {
-        const result = applyFix(
-          operation,
-          { file: operation.file, line: operation.line ?? 0, message: '', category: 'composite', severity: 'warning' },
-        );
+        const result = applyFix(operation, {
+          file: operation.file,
+          line: operation.line ?? 0,
+          message: '',
+          category: 'composite',
+          severity: 'warning',
+        });
 
         if (!result.success) {
           return {
@@ -316,15 +315,13 @@ export function executeCompositeTransform(
 /**
  * Dry run - simulate without applying changes
  */
-export function dryRunCompositeTransform(
-  transform: CompositeTransform,
-): {
+export function dryRunCompositeTransform(transform: CompositeTransform): {
   wouldModify: string[];
   steps: Array<{ description: string; files: string[] }>;
 } {
   return {
     wouldModify: transform.affectedFiles,
-    steps: transform.steps.map(step => ({
+    steps: transform.steps.map((step) => ({
       description: step.description,
       files: step.files,
     })),

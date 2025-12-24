@@ -3,7 +3,7 @@
  * @description Constant name generation logic
  */
 
-import { KNOWN_CONSTANTS, KEYWORD_TO_NAME } from "./constants";
+import { KEYWORD_TO_NAME, KNOWN_CONSTANTS } from './constants';
 
 const VALUE_VALUE = 300000;
 
@@ -21,13 +21,13 @@ export function toScreamingSnake(str: string): string {
   const lastPart = parts.filter(Boolean).pop() || str;
 
   // Only keep valid identifier characters
-  const sanitized = lastPart.replace(/[^a-zA-Z0-9_]/g, "");
+  const sanitized = lastPart.replace(/[^a-zA-Z0-9_]/g, '');
 
-  if (!sanitized) return "VALUE";
+  if (!sanitized) return 'VALUE';
 
   return sanitized
-    .replace(/([a-z])([A-Z])/g, "$1_$2")
-    .replace(/[-\s]/g, "_")
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/[-\s]/g, '_')
     .toUpperCase();
 }
 
@@ -35,7 +35,7 @@ export function toScreamingSnake(str: string): string {
 const GENERIC_ARG_PATTERN = /^.+_arg\d+$/;
 
 /** Suffixes that already indicate the type */
-const VALUE_SUFFIXES = ["_VALUE", "_COUNT", "_SIZE"] as const;
+const VALUE_SUFFIXES = ['_VALUE', '_COUNT', '_SIZE'] as const;
 
 // ============================================================================
 // CONSTANT NAME GENERATION
@@ -74,9 +74,7 @@ export function generateConstName(
   if (astContext && !GENERIC_ARG_PATTERN.test(astContext)) {
     const upper = toScreamingSnake(astContext);
     // Avoid duplicating suffixes like "_VALUE", "_COUNT", "_SIZE"
-    const hasValueSuffix = VALUE_SUFFIXES.some((suffix) =>
-      upper.endsWith(suffix),
-    );
+    const hasValueSuffix = VALUE_SUFFIXES.some((suffix) => upper.endsWith(suffix));
     return hasValueSuffix ? upper : `${upper}_VALUE`;
   }
 

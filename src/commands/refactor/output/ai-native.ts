@@ -10,14 +10,14 @@
  * - Navigation hints for code placement
  */
 
-import type {
-  EnhancedRefactorAnalysis,
-  DomainInfo,
-  ArchViolation,
-  Recommendation,
-  EnhancedMigrationAction,
-} from '../core';
 import { escapeXml } from '../../../lib/@formatters';
+import type {
+  ArchViolation,
+  DomainInfo,
+  EnhancedMigrationAction,
+  EnhancedRefactorAnalysis,
+  Recommendation,
+} from '../core';
 
 // ============================================================================
 // MAIN FORMATTER
@@ -33,7 +33,9 @@ export function formatAiNativeXml(analysis: EnhancedRefactorAnalysis): string {
   lines.push('<!--');
   lines.push('  AI-NATIVE REFACTOR ANALYSIS');
   lines.push('  This output is optimized for AI agents like Claude Code.');
-  lines.push('  Structure: stats → context → architecture → domains → duplicates → migration → recommendations → navigation');
+  lines.push(
+    '  Structure: stats → context → architecture → domains → duplicates → migration → recommendations → navigation',
+  );
   lines.push('-->');
   lines.push('');
 
@@ -103,7 +105,9 @@ function formatProjectContext(lines: string[], analysis: EnhancedRefactorAnalysi
     lines.push(`      <database>${projectContext.techStack.database.join(', ')}</database>`);
   }
   if (projectContext.techStack.stateManagement.length > 0) {
-    lines.push(`      <state-management>${projectContext.techStack.stateManagement.join(', ')}</state-management>`);
+    lines.push(
+      `      <state-management>${projectContext.techStack.stateManagement.join(', ')}</state-management>`,
+    );
   }
   lines.push('    </tech-stack>');
 
@@ -149,7 +153,9 @@ function formatArchitectureHealth(lines: string[], analysis: EnhancedRefactorAna
   // Layer compliance
   lines.push('    <layer-compliance>');
   for (const [name, compliance] of Object.entries(archHealth.layerCompliance)) {
-    lines.push(`      <layer name="${name}" expected="${compliance.expected}" compliant="${compliance.compliant}" />`);
+    lines.push(
+      `      <layer name="${name}" expected="${compliance.expected}" compliant="${compliance.compliant}" />`,
+    );
   }
   lines.push('    </layer-compliance>');
 
@@ -187,7 +193,9 @@ function formatDomains(lines: string[], analysis: EnhancedRefactorAnalysis): voi
 }
 
 function formatDomain(lines: string[], domain: DomainInfo): void {
-  lines.push(`    <domain name="${domain.name}" category="${domain.category}" files="${domain.files}" coherence="${domain.coherence.toFixed(2)}">`);
+  lines.push(
+    `    <domain name="${domain.name}" category="${domain.category}" files="${domain.files}" coherence="${domain.coherence.toFixed(2)}">`,
+  );
   lines.push(`      <description>${escapeXml(domain.description)}</description>`);
 
   if (domain.suggestion) {
@@ -222,22 +230,28 @@ function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnalysis): 
 
   // Function duplicates
   if (duplicates.length > 0) {
-    lines.push('    <function-duplicates count="' + duplicates.length + '">');
+    lines.push(`    <function-duplicates count="${duplicates.length}">`);
     const sorted = [...duplicates].sort((a, b) => b.similarity - a.similarity);
 
     for (const dup of sorted.slice(0, 10)) {
       const similarity = Math.round(dup.similarity * 100);
-      lines.push(`      <duplicate name="${escapeXml(dup.name)}" similarity="${similarity}%" recommendation="${dup.recommendation}">`);
+      lines.push(
+        `      <duplicate name="${escapeXml(dup.name)}" similarity="${similarity}%" recommendation="${dup.recommendation}">`,
+      );
 
       const canonical = dup.locations.find((l) => l.exported) || dup.locations[0];
       if (canonical) {
-        lines.push(`        <canonical file="${canonical.file}" line="${canonical.line}" exported="${canonical.exported}" />`);
+        lines.push(
+          `        <canonical file="${canonical.file}" line="${canonical.line}" exported="${canonical.exported}" />`,
+        );
       }
 
       lines.push('        <locations>');
       for (const loc of dup.locations) {
         if (loc !== canonical) {
-          lines.push(`          <location file="${loc.file}" line="${loc.line}" exported="${loc.exported}" />`);
+          lines.push(
+            `          <location file="${loc.file}" line="${loc.line}" exported="${loc.exported}" />`,
+          );
         }
       }
       lines.push('        </locations>');
@@ -252,12 +266,14 @@ function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnalysis): 
 
   // Type duplicates
   if (typeDuplicates && typeDuplicates.length > 0) {
-    lines.push('    <type-duplicates count="' + typeDuplicates.length + '">');
+    lines.push(`    <type-duplicates count="${typeDuplicates.length}">`);
     const sorted = [...typeDuplicates].sort((a, b) => b.similarity - a.similarity);
 
     for (const dup of sorted.slice(0, 10)) {
       const similarity = Math.round(dup.similarity * 100);
-      lines.push(`      <duplicate name="${escapeXml(dup.name)}" kind="${dup.kind}" similarity="${similarity}%" recommendation="${dup.recommendation}">`);
+      lines.push(
+        `      <duplicate name="${escapeXml(dup.name)}" kind="${dup.kind}" similarity="${similarity}%" recommendation="${dup.recommendation}">`,
+      );
 
       if (dup.commonFields && dup.commonFields.length > 0) {
         lines.push(`        <common-fields>${dup.commonFields.join(', ')}</common-fields>`);
@@ -268,7 +284,9 @@ function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnalysis): 
 
       lines.push('        <locations>');
       for (const loc of dup.locations) {
-        lines.push(`          <location file="${loc.file}" line="${loc.line}" name="${escapeXml(loc.name)}" exported="${loc.exported}" />`);
+        lines.push(
+          `          <location file="${loc.file}" line="${loc.line}" name="${escapeXml(loc.name)}" exported="${loc.exported}" />`,
+        );
       }
       lines.push('        </locations>');
       lines.push('      </duplicate>');
@@ -287,7 +305,9 @@ function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnalysis): 
 function formatMigration(lines: string[], analysis: EnhancedRefactorAnalysis): void {
   const { enhancedMigration } = analysis;
 
-  lines.push(`  <migration files-affected="${enhancedMigration.filesAffected}" imports-to-update="${enhancedMigration.importsToUpdate}">`);
+  lines.push(
+    `  <migration files-affected="${enhancedMigration.filesAffected}" imports-to-update="${enhancedMigration.importsToUpdate}">`,
+  );
 
   // Risk summary
   lines.push('    <risk-summary>');
@@ -299,13 +319,17 @@ function formatMigration(lines: string[], analysis: EnhancedRefactorAnalysis): v
   // Execution order
   lines.push('    <execution-order>');
   for (const step of enhancedMigration.executionOrder) {
-    lines.push(`      <step number="${step.step}" action-id="${step.actionId}" can-parallelize="${step.canParallelize}" />`);
+    lines.push(
+      `      <step number="${step.step}" action-id="${step.actionId}" can-parallelize="${step.canParallelize}" />`,
+    );
   }
   lines.push('    </execution-order>');
 
   // Rollback points
   if (enhancedMigration.rollbackPoints.length > 0) {
-    lines.push(`    <rollback-points>${enhancedMigration.rollbackPoints.join(', ')}</rollback-points>`);
+    lines.push(
+      `    <rollback-points>${enhancedMigration.rollbackPoints.join(', ')}</rollback-points>`,
+    );
   }
 
   // Actions
@@ -320,7 +344,9 @@ function formatMigration(lines: string[], analysis: EnhancedRefactorAnalysis): v
 }
 
 function formatMigrationAction(lines: string[], action: EnhancedMigrationAction): void {
-  lines.push(`      <action id="${action.id}" type="${action.type}" risk="${action.risk}" order="${action.order}">`);
+  lines.push(
+    `      <action id="${action.id}" type="${action.type}" risk="${action.risk}" order="${action.order}">`,
+  );
   lines.push(`        <source>${action.source}</source>`);
   if (action.target) {
     lines.push(`        <target>${action.target}</target>`);
@@ -369,7 +395,9 @@ function formatRecommendations(lines: string[], analysis: EnhancedRefactorAnalys
 }
 
 function formatRecommendation(lines: string[], rec: Recommendation): void {
-  lines.push(`    <recommendation id="${rec.id}" priority="${rec.priority}" category="${rec.category}">`);
+  lines.push(
+    `    <recommendation id="${rec.id}" priority="${rec.priority}" category="${rec.category}">`,
+  );
   lines.push(`      <title>${escapeXml(rec.title)}</title>`);
   lines.push(`      <description>${escapeXml(rec.description)}</description>`);
   lines.push(`      <effort level="${rec.effort}" />`);
@@ -409,17 +437,23 @@ function formatAiNavigation(lines: string[], analysis: EnhancedRefactorAnalysis)
   lines.push('    <!-- FILE PATTERNS -->');
   lines.push('    <file-patterns>');
   for (const fp of aiNavigation.filePatterns) {
-    lines.push(`      <pattern type="${fp.pattern}" meaning="${fp.meaning}" example="${fp.example}" />`);
+    lines.push(
+      `      <pattern type="${fp.pattern}" meaning="${fp.meaning}" example="${fp.example}" />`,
+    );
   }
   lines.push('    </file-patterns>');
 
   lines.push('    <!-- IMPORT CONVENTIONS -->');
   lines.push('    <import-conventions>');
-  lines.push(`      <absolute-imports>${aiNavigation.importConventions.absoluteImports}</absolute-imports>`);
+  lines.push(
+    `      <absolute-imports>${aiNavigation.importConventions.absoluteImports}</absolute-imports>`,
+  );
   if (aiNavigation.importConventions.alias) {
     lines.push(`      <alias>${aiNavigation.importConventions.alias}</alias>`);
   }
-  lines.push(`      <barrel-exports>${aiNavigation.importConventions.barrelExports}</barrel-exports>`);
+  lines.push(
+    `      <barrel-exports>${aiNavigation.importConventions.barrelExports}</barrel-exports>`,
+  );
   lines.push('      <preferred-order>');
   for (const order of aiNavigation.importConventions.preferredOrder) {
     lines.push(`        <item>${order}</item>`);

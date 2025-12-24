@@ -1,7 +1,7 @@
-import type { NumberRange } from "../../../../lib/@patterns/complexity";
+import type { NumberRange } from '../../../../lib/@patterns/complexity';
 
 // Re-export for backwards compatibility
-export type { NumberRange } from "../../../../lib/@patterns/complexity";
+export type { NumberRange } from '../../../../lib/@patterns/complexity';
 
 export interface PatternMatch<T = string> {
   matched: boolean;
@@ -21,10 +21,7 @@ export interface PatternMatch<T = string> {
  * extractNumber('has complexity 25', /has\s+complexity\s+(\d+)/i)
  * // { matched: true, value: 25, fullMatch: 'has complexity 25' }
  */
-export function extractNumber(
-  message: string,
-  pattern: RegExp,
-): PatternMatch<number> {
+export function extractNumber(message: string, pattern: RegExp): PatternMatch<number> {
   const match = message.match(pattern);
 
   if (!match) {
@@ -44,10 +41,7 @@ export function extractNumber(
  * Extract a string from a message using a pattern
  * Pattern should have a capture group for the string
  */
-export function extractString(
-  message: string,
-  pattern: RegExp,
-): PatternMatch<string> {
+export function extractString(message: string, pattern: RegExp): PatternMatch<string> {
   const match = message.match(pattern);
 
   if (!match) {
@@ -79,11 +73,7 @@ export function inRange(value: number, range: NumberRange): boolean {
  * matchNumberInRange('has complexity 25', /complexity\s+(\d+)/i, { min: 10, max: 100 })
  * // true
  */
-export function matchNumberInRange(
-  message: string,
-  pattern: RegExp,
-  range: NumberRange,
-): boolean {
+export function matchNumberInRange(message: string, pattern: RegExp, range: NumberRange): boolean {
   const result = extractNumber(message, pattern);
 
   if (!result.matched || result.value === undefined) {

@@ -3,10 +3,10 @@
  * @description Fix generator for long function issues
  */
 
-import type { FixOperation } from '../../types';
 import { extractFunction } from '../../ast-utils/index';
-import { splitLines, createFullFileReplace, withMetadata } from '../shared';
-import { findFunctionEnd, findExtractionRange, generateFunctionName } from './helpers';
+import type { FixOperation } from '../../types';
+import { createFullFileReplace, splitLines, withMetadata } from '../shared';
+import { findExtractionRange, findFunctionEnd, generateFunctionName } from './helpers';
 
 // ============================================================================
 // LONG FUNCTION FIX
@@ -45,9 +45,7 @@ export function generateLongFunctionFix(
   const isAsync = funcLine.includes('async');
 
   // Generate a meaningful name based on content
-  const blockContent = lines
-    .slice(extractionRange.start - 1, extractionRange.end)
-    .join('\n');
+  const blockContent = lines.slice(extractionRange.start - 1, extractionRange.end).join('\n');
   const functionName = generateFunctionName(blockContent);
 
   // Extract the function

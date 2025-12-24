@@ -8,8 +8,8 @@
  * Uses the existing refine command logic for analysis and migration.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('refine', 'Namespace Structure', 'refine', {
   description: 'Migrate lib/ to @namespace pattern',
@@ -87,10 +87,7 @@ function fixRefineIssue(issue: QualityIssue, _content: string): FixOperation | n
   const currentDir = issue.file.match(/\/lib\/([^/]+)\//)?.[1] || '';
 
   // Calculate new path
-  const newPath = issue.file.replace(
-    `/lib/${currentDir}/`,
-    `/lib/${namespace}/${currentDir}/`
-  );
+  const newPath = issue.file.replace(`/lib/${currentDir}/`, `/lib/${namespace}/${currentDir}/`);
 
   return {
     action: 'move-file',

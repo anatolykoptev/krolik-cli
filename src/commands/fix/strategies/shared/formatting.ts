@@ -9,11 +9,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as prettier from 'prettier';
-import { DiagnosticCategory, SyntaxKind, type Diagnostic, type Statement, type CallExpression } from 'ts-morph';
 import {
-  createProject,
-  type CreateProjectOptions,
-} from '@/lib';
+  type CallExpression,
+  type Diagnostic,
+  DiagnosticCategory,
+  type Statement,
+  SyntaxKind,
+} from 'ts-morph';
+import { type CreateProjectOptions, createProject } from '@/lib';
 
 // Re-export for backwards compatibility
 export { createProject, type CreateProjectOptions };
@@ -146,22 +149,15 @@ export function getSyntaxErrors(
  * @param content - Full file content
  * @param lineNumber - 1-based line number to check
  */
-export function hasDebuggerStatementAtLine(
-  content: string,
-  lineNumber: number,
-): boolean {
+export function hasDebuggerStatementAtLine(content: string, lineNumber: number): boolean {
   try {
     const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
-      const debuggerStatements = sourceFile.getDescendantsOfKind(
-        SyntaxKind.DebuggerStatement,
-      );
+      const debuggerStatements = sourceFile.getDescendantsOfKind(SyntaxKind.DebuggerStatement);
 
-      return debuggerStatements.some(
-        (stmt: Statement) => stmt.getStartLineNumber() === lineNumber,
-      );
+      return debuggerStatements.some((stmt: Statement) => stmt.getStartLineNumber() === lineNumber);
     } finally {
       cleanup();
     }
@@ -179,18 +175,13 @@ export function hasDebuggerStatementAtLine(
  * @param content - Full file content
  * @param lineNumber - 1-based line number to check
  */
-export function hasConsoleCallAtLine(
-  content: string,
-  lineNumber: number,
-): boolean {
+export function hasConsoleCallAtLine(content: string, lineNumber: number): boolean {
   try {
     const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
-      const callExpressions = sourceFile.getDescendantsOfKind(
-        SyntaxKind.CallExpression,
-      );
+      const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
       return callExpressions.some((call: CallExpression) => {
         if (call.getStartLineNumber() !== lineNumber) return false;
@@ -211,18 +202,13 @@ export function hasConsoleCallAtLine(
 /**
  * Check if a line contains an actual alert call (not in string/regex)
  */
-export function hasAlertCallAtLine(
-  content: string,
-  lineNumber: number,
-): boolean {
+export function hasAlertCallAtLine(content: string, lineNumber: number): boolean {
   try {
     const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
-      const callExpressions = sourceFile.getDescendantsOfKind(
-        SyntaxKind.CallExpression,
-      );
+      const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
 
       return callExpressions.some((call: CallExpression) => {
         if (call.getStartLineNumber() !== lineNumber) return false;
@@ -246,10 +232,7 @@ export function hasAlertCallAtLine(
  * Format code with Prettier using cached project config
  * Falls back to original code if formatting fails
  */
-export async function formatWithPrettier(
-  code: string,
-  filepath: string,
-): Promise<string> {
+export async function formatWithPrettier(code: string, filepath: string): Promise<string> {
   try {
     const config = await getPrettierConfig(filepath);
     return await prettier.format(code, {
@@ -294,10 +277,7 @@ export async function tryFormatWithPrettier(
  *   // Syntax error - don't apply fix
  * }
  */
-export async function validateAndFormat(
-  code: string,
-  filepath: string,
-): Promise<string | null> {
+export async function validateAndFormat(code: string, filepath: string): Promise<string | null> {
   // First validate syntax
   if (!validateSyntax(code, filepath)) {
     return null;

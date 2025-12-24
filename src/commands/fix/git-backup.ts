@@ -7,18 +7,18 @@
 
 // Re-export everything from shared module for backwards compatibility
 export {
+  applyStash,
+  cleanupBackup,
   createBackupBranch,
   deleteBackupBranch,
-  restoreFromBackup,
-  fullRestore,
-  cleanupBackup,
-  hasUncommittedChanges,
-  stashChanges,
-  applyStash,
-  popStash,
   dropStash,
-  isGitRepoForBackup as isGitRepo,
-  getCurrentBranchForBackup as getCurrentBranch,
+  fullRestore,
   type GitBackupResult,
+  getCurrentBranchForBackup as getCurrentBranch,
+  hasUncommittedChanges,
+  isGitRepoForBackup as isGitRepo,
+  popStash,
   type RestoreResult,
+  restoreFromBackup,
+  stashChanges,
 } from '../../lib';

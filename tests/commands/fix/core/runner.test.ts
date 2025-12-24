@@ -3,21 +3,23 @@
  * @description Tests for FixerRunner
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  type FixerRegistry,
+  registry as globalRegistry,
+} from '../../../../src/commands/fix/core/registry';
+import {
+  getFixerSummary,
   runFixerAnalysis,
-  runTrivialFixers,
   runSafeFixers,
   runSpecificFixers,
-  getFixerSummary,
+  runTrivialFixers,
 } from '../../../../src/commands/fix/core/runner';
-import { FixerRegistry } from '../../../../src/commands/fix/core/registry';
-import { registry as globalRegistry } from '../../../../src/commands/fix/core/registry';
-import { createTestFixer, createTestIssue, CATEGORY, DIFFICULTY } from '../helpers';
 import type { QualityIssue } from '../../../../src/commands/fix/core/types';
+import { CATEGORY, createTestFixer, createTestIssue, DIFFICULTY } from '../helpers';
 
 describe('runner', () => {
-  let testRegistry: FixerRegistry;
+  let _testRegistry: FixerRegistry;
 
   beforeEach(() => {
     // Clear global registry for isolation
@@ -32,13 +34,13 @@ describe('runner', () => {
   describe('runFixerAnalysis()', () => {
     it('runs all fixers and returns combined issues', () => {
       const consoleFixer = createTestFixer('console', {
-        analyze: (content: string, file: string) => [
+        analyze: (_content: string, file: string) => [
           createTestIssue({ file, line: 1, message: 'console.log found' }),
         ],
       });
 
       const debuggerFixer = createTestFixer('debugger', {
-        analyze: (content: string, file: string) => [
+        analyze: (_content: string, file: string) => [
           createTestIssue({ file, line: 2, message: 'debugger found' }),
         ],
       });
@@ -56,7 +58,7 @@ describe('runner', () => {
 
     it('sets fixerId on all returned issues', () => {
       const fixer = createTestFixer('test-fixer', {
-        analyze: (content: string, file: string) => [
+        analyze: (_content: string, file: string) => [
           createTestIssue({ file, line: 1, message: 'issue 1' }),
           createTestIssue({ file, line: 2, message: 'issue 2' }),
         ],
@@ -67,12 +69,12 @@ describe('runner', () => {
       const result = runFixerAnalysis('test', 'test.ts');
 
       expect(result.issues).toHaveLength(2);
-      expect(result.issues.every(i => i.fixerId === 'test-fixer')).toBe(true);
+      expect(result.issues.every((i) => i.fixerId === 'test-fixer')).toBe(true);
     });
 
     it('filters issues using shouldSkip', () => {
       const fixer = createTestFixer('console', {
-        analyze: (content: string, file: string) => [
+        analyze: (_content: string, _file: string) => [
           createTestIssue({ file: 'src/code.ts', line: 1, message: 'console' }),
           createTestIssue({ file: 'src/test.spec.ts', line: 1, message: 'console' }),
         ],
@@ -89,15 +91,21 @@ describe('runner', () => {
     });
 
     it('filters by fixerIds option', () => {
-      globalRegistry.register(createTestFixer('console', {
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'console' })],
-      }));
-      globalRegistry.register(createTestFixer('debugger', {
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'debugger' })],
-      }));
-      globalRegistry.register(createTestFixer('alert', {
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'alert' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'console' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('debugger', {
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'debugger' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('alert', {
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'alert' })],
+        }),
+      );
 
       const result = runFixerAnalysis('test', 'test.ts', {
         fixerIds: ['console', 'debugger'],
@@ -109,14 +117,18 @@ describe('runner', () => {
     });
 
     it('filters by category option', () => {
-      globalRegistry.register(createTestFixer('console', {
-        category: CATEGORY.LINT,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'lint' })],
-      }));
-      globalRegistry.register(createTestFixer('any-type', {
-        category: CATEGORY.TYPE_SAFETY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'type-safety' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          category: CATEGORY.LINT,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'lint' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('any-type', {
+          category: CATEGORY.TYPE_SAFETY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'type-safety' })],
+        }),
+      );
 
       const result = runFixerAnalysis('test', 'test.ts', {
         category: 'lint',
@@ -127,14 +139,18 @@ describe('runner', () => {
     });
 
     it('filters by difficulty option', () => {
-      globalRegistry.register(createTestFixer('console', {
-        difficulty: DIFFICULTY.TRIVIAL,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
-      }));
-      globalRegistry.register(createTestFixer('srp', {
-        difficulty: DIFFICULTY.RISKY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          difficulty: DIFFICULTY.TRIVIAL,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('srp', {
+          difficulty: DIFFICULTY.RISKY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
+        }),
+      );
 
       const result = runFixerAnalysis('test', 'test.ts', {
         difficulty: 'trivial',
@@ -145,14 +161,18 @@ describe('runner', () => {
     });
 
     it('excludes risky fixers by default', () => {
-      globalRegistry.register(createTestFixer('console', {
-        difficulty: DIFFICULTY.TRIVIAL,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
-      }));
-      globalRegistry.register(createTestFixer('srp', {
-        difficulty: DIFFICULTY.RISKY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          difficulty: DIFFICULTY.TRIVIAL,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('srp', {
+          difficulty: DIFFICULTY.RISKY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
+        }),
+      );
 
       const result = runFixerAnalysis('test', 'test.ts');
 
@@ -161,10 +181,12 @@ describe('runner', () => {
     });
 
     it('includes risky fixers when includeRisky is true', () => {
-      globalRegistry.register(createTestFixer('srp', {
-        difficulty: DIFFICULTY.RISKY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('srp', {
+          difficulty: DIFFICULTY.RISKY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
+        }),
+      );
 
       const result = runFixerAnalysis('test', 'test.ts', {
         includeRisky: true,
@@ -174,14 +196,18 @@ describe('runner', () => {
     });
 
     it('uses cliOptions to filter enabled fixers', () => {
-      globalRegistry.register(createTestFixer('console', {
-        cliFlag: '--fix-console',
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'console' })],
-      }));
-      globalRegistry.register(createTestFixer('debugger', {
-        cliFlag: '--fix-debugger',
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'debugger' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          cliFlag: '--fix-console',
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'console' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('debugger', {
+          cliFlag: '--fix-debugger',
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'debugger' })],
+        }),
+      );
 
       const result = runFixerAnalysis('test', 'test.ts', {
         cliOptions: { fixConsole: true },
@@ -227,18 +253,24 @@ describe('runner', () => {
 
   describe('runTrivialFixers()', () => {
     it('runs only trivial difficulty fixers', () => {
-      globalRegistry.register(createTestFixer('console', {
-        difficulty: DIFFICULTY.TRIVIAL,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
-      }));
-      globalRegistry.register(createTestFixer('any-type', {
-        difficulty: DIFFICULTY.SAFE,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'safe' })],
-      }));
-      globalRegistry.register(createTestFixer('srp', {
-        difficulty: DIFFICULTY.RISKY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          difficulty: DIFFICULTY.TRIVIAL,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('any-type', {
+          difficulty: DIFFICULTY.SAFE,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'safe' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('srp', {
+          difficulty: DIFFICULTY.RISKY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
+        }),
+      );
 
       const result = runTrivialFixers('test', 'test.ts');
 
@@ -249,18 +281,24 @@ describe('runner', () => {
 
   describe('runSafeFixers()', () => {
     it('runs trivial and safe difficulty fixers', () => {
-      globalRegistry.register(createTestFixer('console', {
-        difficulty: DIFFICULTY.TRIVIAL,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
-      }));
-      globalRegistry.register(createTestFixer('any-type', {
-        difficulty: DIFFICULTY.SAFE,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'safe' })],
-      }));
-      globalRegistry.register(createTestFixer('srp', {
-        difficulty: DIFFICULTY.RISKY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          difficulty: DIFFICULTY.TRIVIAL,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'trivial' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('any-type', {
+          difficulty: DIFFICULTY.SAFE,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'safe' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('srp', {
+          difficulty: DIFFICULTY.RISKY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
+        }),
+      );
 
       const result = runSafeFixers('test', 'test.ts');
 
@@ -272,15 +310,21 @@ describe('runner', () => {
 
   describe('runSpecificFixers()', () => {
     it('runs only specified fixers by id', () => {
-      globalRegistry.register(createTestFixer('console', {
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'console' })],
-      }));
-      globalRegistry.register(createTestFixer('debugger', {
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'debugger' })],
-      }));
-      globalRegistry.register(createTestFixer('alert', {
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'alert' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'console' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('debugger', {
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'debugger' })],
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('alert', {
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'alert' })],
+        }),
+      );
 
       const result = runSpecificFixers('test', 'test.ts', ['console', 'debugger']);
 
@@ -289,10 +333,12 @@ describe('runner', () => {
     });
 
     it('includes risky fixers when explicitly specified', () => {
-      globalRegistry.register(createTestFixer('srp', {
-        difficulty: DIFFICULTY.RISKY,
-        analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
-      }));
+      globalRegistry.register(
+        createTestFixer('srp', {
+          difficulty: DIFFICULTY.RISKY,
+          analyze: () => [createTestIssue({ file: 'test.ts', message: 'risky' })],
+        }),
+      );
 
       const result = runSpecificFixers('test', 'test.ts', ['srp']);
 
@@ -318,7 +364,9 @@ describe('runner', () => {
     it('includes risky fixers when includeRisky is true', () => {
       const summary = getFixerSummary({ includeRisky: true });
 
-      expect(summary.willRun).toEqual(expect.arrayContaining(['console', 'debugger', 'any-type', 'srp']));
+      expect(summary.willRun).toEqual(
+        expect.arrayContaining(['console', 'debugger', 'any-type', 'srp']),
+      );
       expect(summary.willSkip).toEqual([]);
     });
 
@@ -344,14 +392,18 @@ describe('runner', () => {
 
     it('uses cliOptions to determine enabled fixers', () => {
       globalRegistry.clear();
-      globalRegistry.register(createTestFixer('console', {
-        cliFlag: '--fix-console',
-        difficulty: DIFFICULTY.TRIVIAL,
-      }));
-      globalRegistry.register(createTestFixer('debugger', {
-        cliFlag: '--fix-debugger',
-        difficulty: DIFFICULTY.TRIVIAL,
-      }));
+      globalRegistry.register(
+        createTestFixer('console', {
+          cliFlag: '--fix-console',
+          difficulty: DIFFICULTY.TRIVIAL,
+        }),
+      );
+      globalRegistry.register(
+        createTestFixer('debugger', {
+          cliFlag: '--fix-debugger',
+          difficulty: DIFFICULTY.TRIVIAL,
+        }),
+      );
 
       const summary = getFixerSummary({
         cliOptions: { fixConsole: true },

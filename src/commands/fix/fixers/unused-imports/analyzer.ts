@@ -5,14 +5,14 @@
  * Uses centralized AST utilities from @ast for accurate parsing.
  */
 
-import type { QualityIssue } from '../../core/types';
 import {
-  createSourceFile,
+  type createSourceFile,
   extractImports,
   type ImportInfo,
-  SyntaxKind,
   Node,
+  SyntaxKind,
 } from '../../../../lib/@ast';
+import type { QualityIssue } from '../../core/types';
 
 /**
  * Get all identifiers used in a source file (excluding imports)
@@ -100,49 +100,49 @@ export function analyzeUnusedImports(content: string, file: string): QualityIssu
       // Get all used identifiers in the file
       const usedIdentifiers = getUsedIdentifiers(sourceFile);
 
-    // Get imports with line content
-    const imports = getImportsWithContent(sourceFile, content);
+      // Get imports with line content
+      const imports = getImportsWithContent(sourceFile, content);
 
-    for (const imp of imports) {
-      // Find unused identifiers in this import
-      const unusedIdentifiers = imp.identifiers.filter((id) => !usedIdentifiers.has(id));
+      for (const imp of imports) {
+        // Find unused identifiers in this import
+        const unusedIdentifiers = imp.identifiers.filter((id) => !usedIdentifiers.has(id));
 
-      if (unusedIdentifiers.length === 0) continue;
+        if (unusedIdentifiers.length === 0) continue;
 
-      // All identifiers unused → entire import is unused
-      if (unusedIdentifiers.length === imp.identifiers.length) {
-        issues.push({
-          file,
-          line: imp.line,
-          severity: 'warning',
-          category: 'lint',
-          message: `Unused import: entire import from '${imp.source}' is unused`,
-          suggestion: 'Remove the import statement',
-          snippet: imp.lineContent.trim(),
-          fixerId: 'unused-imports',
-        });
-      } else {
-        // Some identifiers unused
-        for (const unusedId of unusedIdentifiers) {
+        // All identifiers unused → entire import is unused
+        if (unusedIdentifiers.length === imp.identifiers.length) {
           issues.push({
             file,
             line: imp.line,
             severity: 'warning',
             category: 'lint',
-            message: `Unused import: '${unusedId}' from '${imp.source}'`,
-            suggestion: `Remove '${unusedId}' from the import statement`,
+            message: `Unused import: entire import from '${imp.source}' is unused`,
+            suggestion: 'Remove the import statement',
             snippet: imp.lineContent.trim(),
             fixerId: 'unused-imports',
           });
+        } else {
+          // Some identifiers unused
+          for (const unusedId of unusedIdentifiers) {
+            issues.push({
+              file,
+              line: imp.line,
+              severity: 'warning',
+              category: 'lint',
+              message: `Unused import: '${unusedId}' from '${imp.source}'`,
+              suggestion: `Remove '${unusedId}' from the import statement`,
+              snippet: imp.lineContent.trim(),
+              fixerId: 'unused-imports',
+            });
+          }
         }
-      }
       }
 
       return issues;
     } finally {
       cleanup();
     }
-  } catch (error) {
+  } catch (_error) {
     // If ts-morph fails (invalid syntax), return empty
     // The file probably has syntax errors that need to be fixed first
     return [];

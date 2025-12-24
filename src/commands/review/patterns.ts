@@ -3,7 +3,7 @@
  * @description Security and performance pattern checks
  */
 
-import type { ReviewIssue, ReviewSeverity, ReviewCategory } from '../../types';
+import type { ReviewCategory, ReviewIssue, ReviewSeverity } from '../../types';
 
 /**
  * Pattern definition
@@ -157,12 +157,19 @@ export const STYLE_PATTERNS: ReviewPattern[] = [
 /**
  * All patterns combined
  */
-export const ALL_PATTERNS: ReviewPattern[] = [...SECURITY_PATTERNS, ...PERFORMANCE_PATTERNS, ...STYLE_PATTERNS];
+export const ALL_PATTERNS: ReviewPattern[] = [
+  ...SECURITY_PATTERNS,
+  ...PERFORMANCE_PATTERNS,
+  ...STYLE_PATTERNS,
+];
 
 /**
  * Check content against patterns
  */
-export function checkPatterns(content: string, patterns: ReviewPattern[] = ALL_PATTERNS): ReviewIssue[] {
+export function checkPatterns(
+  content: string,
+  patterns: ReviewPattern[] = ALL_PATTERNS,
+): ReviewIssue[] {
   const issues: ReviewIssue[] = [];
 
   for (const { pattern, category, severity, message, suggestion } of patterns) {

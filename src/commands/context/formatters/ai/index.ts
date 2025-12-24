@@ -3,25 +3,25 @@
  * @description AI-friendly XML formatter for context output
  */
 
-import type { AiContextData } from "../../types";
-import { getDomainKeywords } from "../../../../lib/domains";
+import { getDomainKeywords } from '../../../../lib/domains';
+import type { AiContextData } from '../../types';
 import {
-  formatTaskSection,
-  formatGitSection,
-  formatTreeSection,
-  formatSchemaSection,
-  formatRoutesSection,
-  formatFilesSection,
-  formatIoSchemasSection,
-  formatComponentsSection,
-  formatTestsSection,
-  formatHintsSection,
   formatApproachSection,
+  formatComponentsSection,
+  formatFilesSection,
+  formatGitSection,
+  formatHintsSection,
+  formatImportsSection,
+  formatIoSchemasSection,
   formatPreCommitSection,
   formatQualitySection,
+  formatRoutesSection,
+  formatSchemaSection,
+  formatTaskSection,
+  formatTestsSection,
+  formatTreeSection,
   formatTypesSection,
-  formatImportsSection,
-} from "./sections";
+} from './sections';
 
 /**
  * Format context as AI-ready structured XML prompt
@@ -30,7 +30,7 @@ export function formatAiPrompt(data: AiContextData): string {
   const lines: string[] = [];
   const domainKeywords = getDomainKeywords(data.context.domains, data.config);
 
-  lines.push("<context>");
+  lines.push('<context>');
 
   // Core sections
   formatTaskSection(lines, data);
@@ -58,9 +58,9 @@ export function formatAiPrompt(data: AiContextData): string {
 
   formatPreCommitSection(lines);
 
-  lines.push("</context>");
-  lines.push("");
-  lines.push("<!-- Copy this context to Claude/GPT for AI-assisted development -->");
+  lines.push('</context>');
+  lines.push('');
+  lines.push('<!-- Copy this context to Claude/GPT for AI-assisted development -->');
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

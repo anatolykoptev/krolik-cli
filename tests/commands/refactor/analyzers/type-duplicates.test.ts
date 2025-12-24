@@ -3,22 +3,18 @@
  * @description Unit tests for type-duplicates analyzer
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   findTypeDuplicates,
-  extractTypes,
   quickScanTypeDuplicates,
 } from '../../../../src/commands/refactor/analyzers/type-duplicates';
 import {
-  createTestProject,
-  withTempProject,
   generateInterface,
-  generateTypeAlias,
+  RECOMMENDATION,
   SAMPLE_INTERFACES,
   SAMPLE_TYPES,
-  assertTypeDuplicate,
-  RECOMMENDATION,
   TYPE_KIND,
+  withTempProject,
 } from '../helpers';
 
 // ============================================================================
@@ -28,13 +24,10 @@ import {
 describe('extractTypes', () => {
   describe('interface extraction', () => {
     it('extracts simple interface', async () => {
-      await withTempProject(
-        { 'test.ts': SAMPLE_INTERFACES.user },
-        async (root) => {
-          // TODO: Implement test
-          expect(true).toBe(true);
-        },
-      );
+      await withTempProject({ 'test.ts': SAMPLE_INTERFACES.user }, async (_root) => {
+        // TODO: Implement test
+        expect(true).toBe(true);
+      });
     });
 
     it('extracts interface with optional fields', async () => {
@@ -42,7 +35,7 @@ describe('extractTypes', () => {
         name: string;
         value?: number;
       }`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -53,7 +46,7 @@ describe('extractTypes', () => {
         handle(data: string): void;
         onError?(error: Error): void;
       }`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -64,7 +57,7 @@ describe('extractTypes', () => {
         export interface Exported { id: string; }
         interface Internal { id: string; }
       `;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -75,7 +68,7 @@ describe('extractTypes', () => {
         value: T;
         getValue(): T;
       }`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -84,7 +77,7 @@ describe('extractTypes', () => {
 
   describe('type alias extraction', () => {
     it('extracts simple type alias', async () => {
-      await withTempProject({ 'test.ts': SAMPLE_TYPES.id }, async (root) => {
+      await withTempProject({ 'test.ts': SAMPLE_TYPES.id }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -92,7 +85,7 @@ describe('extractTypes', () => {
 
     it('extracts union type alias', async () => {
       const code = `export type Status = 'pending' | 'active' | 'done';`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -100,7 +93,7 @@ describe('extractTypes', () => {
 
     it('extracts intersection type alias', async () => {
       const code = `export type Combined = TypeA & TypeB;`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -110,7 +103,7 @@ describe('extractTypes', () => {
   describe('edge cases', () => {
     it('handles empty interface', async () => {
       const code = `export interface Empty {}`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // TODO: Implement test
         expect(true).toBe(true);
       });
@@ -118,7 +111,7 @@ describe('extractTypes', () => {
 
     it('handles syntax errors gracefully', async () => {
       const code = `export interface Bad { invalid syntax }}}`;
-      await withTempProject({ 'test.ts': code }, async (root) => {
+      await withTempProject({ 'test.ts': code }, async (_root) => {
         // Should not crash, just skip the file
         expect(true).toBe(true);
       });
@@ -208,9 +201,7 @@ describe('findTypeDuplicates', () => {
         async (root) => {
           const duplicates = await findTypeDuplicates(`${root}/src`, root);
 
-          const identical = duplicates.find((d) =>
-            d.name.includes('[identical structure]'),
-          );
+          const identical = duplicates.find((d) => d.name.includes('[identical structure]'));
           expect(identical).toBeDefined();
           expect(identical?.similarity).toBe(1);
         },
@@ -337,29 +328,22 @@ describe('Security', () => {
   describe('path traversal prevention', () => {
     it('rejects paths outside project root', async () => {
       await withTempProject({ 'src/test.ts': 'export interface A {}' }, async (root) => {
-        await expect(
-          findTypeDuplicates('/etc', root),
-        ).rejects.toThrow(/Security/);
+        await expect(findTypeDuplicates('/etc', root)).rejects.toThrow(/Security/);
       });
     });
 
     it('rejects relative path escape attempts', async () => {
       await withTempProject({ 'src/test.ts': 'export interface A {}' }, async (root) => {
-        await expect(
-          findTypeDuplicates(`${root}/../../../etc`, root),
-        ).rejects.toThrow(/Security/);
+        await expect(findTypeDuplicates(`${root}/../../../etc`, root)).rejects.toThrow(/Security/);
       });
     });
 
     it('accepts valid paths within project', async () => {
-      await withTempProject(
-        { 'src/test.ts': 'export interface A {}' },
-        async (root) => {
-          // Should not throw
-          const duplicates = await findTypeDuplicates(`${root}/src`, root);
-          expect(Array.isArray(duplicates)).toBe(true);
-        },
-      );
+      await withTempProject({ 'src/test.ts': 'export interface A {}' }, async (root) => {
+        // Should not throw
+        const duplicates = await findTypeDuplicates(`${root}/src`, root);
+        expect(Array.isArray(duplicates)).toBe(true);
+      });
     });
   });
 

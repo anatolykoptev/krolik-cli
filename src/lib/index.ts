@@ -5,6 +5,7 @@
  * Flat namespace structure optimized for AI navigation:
  * - @agents - Agent marketplace utilities
  * - @ast - AST utilities (centralized ts-morph)
+ * - @cache - Caching utilities (file cache)
  * - @context - File type detection, skip logic
  * - @discovery - Project root, schemas, routes
  * - @formatters - XML, JSON, Markdown, Text
@@ -18,51 +19,40 @@
  * - @time - Timing utilities
  */
 
-// AST utilities (centralized ts-morph)
-export * from './@ast';
-
-// Formatters (XML, JSON, Markdown, Text)
-export * from './@formatters';
-
-// Discovery (project root, schemas, routes)
-export * from './@discovery';
-
-// Patterns (lint, hardcoded, complexity) - single source of truth
-export * from './@patterns';
-
-// Context (file type detection, skip logic)
-export * from './@context';
-
 // Agents marketplace utilities
 export * from './@agents';
-
-// Markdown utilities (frontmatter parsing)
-export * from './@markdown';
-
-// Input sanitization and validation
-export * from './@sanitize';
-
-// Logger
-export * from './@log';
-
-// Shell execution
-export * from './@shell';
-
-// File system
-export * from './@fs';
-
-// Git and GitHub (using barrel export from @git)
-export * from './@git';
-
-// Timing utilities
-export * from './@time';
-
+// AST utilities (centralized ts-morph)
+export * from './@ast';
+// Cache utilities (file cache)
+export * from './@cache';
+// Context (file type detection, skip logic)
+export * from './@context';
+// Discovery (project root, schemas, routes)
+export * from './@discovery';
+export type { SyncOptions, SyncResult } from './@docs';
 // Documentation injection
 export {
-  syncClaudeMd,
-  needsSync,
-  getSyncStatus,
   DOCS_VERSION,
   generateKrolikDocs,
+  getSyncStatus,
+  needsSync,
+  syncClaudeMd,
 } from './@docs';
-export type { SyncResult, SyncOptions } from './@docs';
+// Formatters (XML, JSON, Markdown, Text)
+export * from './@formatters';
+// File system
+export * from './@fs';
+// Git and GitHub (using barrel export from @git)
+export * from './@git';
+// Logger
+export * from './@log';
+// Markdown utilities (frontmatter parsing)
+export * from './@markdown';
+// Patterns (lint, hardcoded, complexity) - single source of truth
+export * from './@patterns';
+// Input sanitization and validation
+export * from './@sanitize';
+// Shell execution
+export * from './@shell';
+// Timing utilities
+export * from './@time';

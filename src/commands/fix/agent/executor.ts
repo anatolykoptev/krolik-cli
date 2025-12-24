@@ -11,17 +11,17 @@
  */
 
 import * as fs from 'node:fs';
+import { applyFix } from '../applier';
+import type { FileBackup } from '../composite';
+import { isTscAvailable, runTypeCheck } from '../strategies/shared';
+import type { FixOperation } from '../types';
 import type {
+  ExecutorOptions,
   ImprovementPlan,
+  PlanExecutionResult,
   PlanStep,
   StepExecutionResult,
-  PlanExecutionResult,
-  ExecutorOptions,
 } from './types';
-import type { FileBackup } from '../composite';
-import { applyFix } from '../applier';
-import { runTypeCheck, isTscAvailable } from '../strategies/shared';
-import type { FixOperation } from '../types';
 
 // ============================================================================
 // HELPERS
@@ -203,7 +203,7 @@ async function executeStep(
   try {
     // Backup files first
     for (const file of step.files) {
-      if (!backups.some(b => b.path === file)) {
+      if (!backups.some((b) => b.path === file)) {
         backups.push(backupFile(file));
       }
     }
@@ -212,16 +212,13 @@ async function executeStep(
     const operation = stepToOperation(step);
 
     if (operation) {
-      const result = applyFix(
-        operation,
-        {
-          file: operation.file,
-          line: operation.line ?? 0,
-          message: step.description,
-          category: 'agent',
-          severity: 'warning',
-        },
-      );
+      const result = applyFix(operation, {
+        file: operation.file,
+        line: operation.line ?? 0,
+        message: step.description,
+        category: 'agent',
+        severity: 'warning',
+      });
 
       if (!result.success) {
         step.status = 'failed';
@@ -259,7 +256,7 @@ async function executeStep(
       if (!verified) {
         // Rollback
         for (const file of step.files) {
-          const backup = backups.find(b => b.path === file);
+          const backup = backups.find((b) => b.path === file);
           if (backup) {
             restoreFile(backup);
           }
@@ -335,8 +332,8 @@ export async function executePlan(
     for (const step of sortedSteps) {
       // Check dependencies
       if (step.dependsOn && step.dependsOn.length > 0) {
-        const dependencyFailed = step.dependsOn.some(depNum => {
-          const depResult = results.find(r => r.step.number === depNum);
+        const dependencyFailed = step.dependsOn.some((depNum) => {
+          const depResult = results.find((r) => r.step.number === depNum);
           return depResult && !depResult.success;
         });
 
@@ -435,7 +432,7 @@ export async function executePlan(
     }
 
     return executionResult;
-  } catch (error) {
+  } catch (_error) {
     // Unexpected error - rollback
     for (const backup of [...backups].reverse()) {
       restoreFile(backup);
@@ -462,7 +459,7 @@ function sortStepsByDependencies(steps: PlanStep[]): PlanStep[] {
   const visited = new Set<number>();
   const visiting = new Set<number>();
 
-  const stepMap = new Map(steps.map(s => [s.number, s]));
+  const stepMap = new Map(steps.map((s) => [s.number, s]));
 
   function visit(step: PlanStep): void {
     if (visited.has(step.number)) return;

@@ -6,15 +6,15 @@
  * Uses ts-morph AST for accurate function/export detection.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
-import { createFixerMetadata } from '../../core/registry';
 import {
-  parseCode,
-  extractFunctions,
-  extractExports,
-  type FunctionInfo,
   type ExportInfo,
+  extractExports,
+  extractFunctions,
+  type FunctionInfo,
+  parseCode,
 } from '../../../../lib/@ast';
+import { createFixerMetadata } from '../../core/registry';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('srp', 'SRP Violations', 'srp', {
   description: 'Split files with too many responsibilities',
@@ -69,21 +69,32 @@ function analyzeFileMetricsRegex(content: string): FileMetrics {
 
   for (const line of lines) {
     // Count function declarations
-    const funcMatch = line.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\()/);
+    const funcMatch = line.match(
+      /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\()/,
+    );
     if (funcMatch) {
       functionNames.push(funcMatch[1] || funcMatch[2] || 'anonymous');
     }
 
     // Count exports
-    const exportMatch = line.match(/^export\s+(?:const|let|var|function|class|type|interface|enum)\s+(\w+)/);
-    if (exportMatch && exportMatch[1]) {
+    const exportMatch = line.match(
+      /^export\s+(?:const|let|var|function|class|type|interface|enum)\s+(\w+)/,
+    );
+    if (exportMatch?.[1]) {
       exportNames.push(exportMatch[1]);
     }
     if (/^export\s*\{/.test(line.trim())) {
       const match = line.match(/export\s*\{([^}]+)\}/);
       if (match) {
-        const items = match[1]!.split(',').map(s => s.trim().split(/\s+as\s+/)[0]?.trim());
-        items.forEach(item => { if (item) exportNames.push(item); });
+        const items = match[1]?.split(',').map((s) =>
+          s
+            .trim()
+            .split(/\s+as\s+/)[0]
+            ?.trim(),
+        );
+        items.forEach((item) => {
+          if (item) exportNames.push(item);
+        });
       }
     }
   }
@@ -166,8 +177,10 @@ function groupFunctionsByPrefix(names: string[]): Map<string, string[]> {
 
   for (const name of names) {
     // Extract prefix (get, set, create, update, delete, handle, on, use, etc.)
-    const prefixMatch = name.match(/^(get|set|create|update|delete|handle|on|use|is|has|can|should|validate|parse|format|render|load|save|fetch|find|build|make|init|reset|clear|add|remove)/i);
-    const prefix = prefixMatch ? prefixMatch[1]!.toLowerCase() : 'misc';
+    const prefixMatch = name.match(
+      /^(get|set|create|update|delete|handle|on|use|is|has|can|should|validate|parse|format|render|load|save|fetch|find|build|make|init|reset|clear|add|remove)/i,
+    );
+    const prefix = prefixMatch ? prefixMatch[1]?.toLowerCase() : 'misc';
 
     const existing = groups.get(prefix) ?? [];
     existing.push(name);
@@ -196,7 +209,9 @@ function generateSplitSuggestions(metrics: FileMetrics): string[] {
     suggestions.push('Suggested file split:');
     for (const [prefix, funcs] of significantGroups.slice(0, 4)) {
       const filename = prefix === 'misc' ? 'helpers.ts' : `${prefix}ers.ts`;
-      suggestions.push(`  • ${filename}: ${funcs.slice(0, 3).join(', ')}${funcs.length > 3 ? '...' : ''}`);
+      suggestions.push(
+        `  • ${filename}: ${funcs.slice(0, 3).join(', ')}${funcs.length > 3 ? '...' : ''}`,
+      );
     }
   }
 

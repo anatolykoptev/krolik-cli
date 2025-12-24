@@ -3,7 +3,7 @@
  * @description Path-based threshold configuration and overrides
  */
 
-import type { ThresholdOverride, Thresholds } from "../types";
+import type { ThresholdOverride, Thresholds } from '../types';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -31,7 +31,7 @@ export function getThresholdsForPath(
 
   for (const override of overrides) {
     // Simple glob matching: check if path starts with pattern (minus **)
-    const pattern = override.pattern.replace(/\*\*/g, "").replace(/\*/g, "");
+    const pattern = override.pattern.replace(/\*\*/g, '').replace(/\*/g, '');
     if (relativePath.startsWith(pattern) || relativePath.includes(pattern)) {
       result = { ...result, ...override.thresholds };
     }

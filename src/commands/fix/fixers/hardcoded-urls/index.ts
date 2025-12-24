@@ -5,8 +5,8 @@
  * Detects hardcoded URLs and extracts them to named constants.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('hardcoded-urls', 'Hardcoded URLs', 'hardcoded', {
   description: 'Extract hardcoded URLs to constants',
@@ -51,7 +51,7 @@ function analyzeUrls(content: string, file: string): QualityIssue[] {
       // Skip localhost and example URLs
       try {
         const parsed = new URL(url);
-        if (SKIP_HOSTS.some(h => parsed.hostname.includes(h))) continue;
+        if (SKIP_HOSTS.some((h) => parsed.hostname.includes(h))) continue;
       } catch {
         continue;
       }
@@ -72,10 +72,7 @@ function analyzeUrls(content: string, file: string): QualityIssue[] {
   return issues;
 }
 
-function fixUrlIssue(
-  issue: QualityIssue,
-  content: string,
-): FixOperation | null {
+function fixUrlIssue(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
   const lines = content.split('\n');
@@ -101,7 +98,7 @@ function fixUrlIssue(
     const pathParts = parsed.pathname.split('/').filter(Boolean);
 
     if (pathParts.length > 0 && pathParts[0] !== 'api') {
-      constName = `${host}_${pathParts[0]!.toUpperCase()}_URL`;
+      constName = `${host}_${pathParts[0]?.toUpperCase()}_URL`;
     } else {
       constName = `${host}_URL`;
     }
@@ -119,11 +116,7 @@ function fixUrlIssue(
     line: 1,
     endLine: issue.line,
     oldCode: lines.slice(0, issue.line).join('\n'),
-    newCode:
-      constDeclaration +
-      lines.slice(0, issue.line - 1).join('\n') +
-      '\n' +
-      newLine,
+    newCode: constDeclaration + lines.slice(0, issue.line - 1).join('\n') + '\n' + newLine,
   };
 }
 

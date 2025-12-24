@@ -13,11 +13,7 @@ import { countLines } from './line-utils';
 /**
  * Create a delete-line operation
  */
-export function createDeleteLine(
-  file: string,
-  line: number,
-  oldCode: string,
-): FixOperation {
+export function createDeleteLine(file: string, line: number, oldCode: string): FixOperation {
   return {
     action: 'delete-line',
     file,

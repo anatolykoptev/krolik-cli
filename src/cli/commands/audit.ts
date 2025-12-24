@@ -22,7 +22,9 @@ async function createContext(program: Command, options: CommandOptions) {
 export function registerAuditCommand(program: Command): void {
   program
     .command('audit')
-    .description('Code quality audit — generates AI-REPORT.md with issues, priorities, and action plan')
+    .description(
+      'Code quality audit — generates AI-REPORT.md with issues, priorities, and action plan',
+    )
     .option('--path <path>', 'Path to analyze (default: project root)')
     .option('--show-fixes', 'Show fix previews (diffs) for quick wins')
     .action(async (options: CommandOptions) => {

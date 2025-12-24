@@ -6,17 +6,17 @@
  * Phase 1: Only 100% identical types for safe auto-merge.
  */
 
-import * as path from 'path';
+import * as path from 'node:path';
+import { findFiles, readFile } from '../../../lib';
 import type { TypeDuplicateInfo } from '../core/types';
 import type {
-  TypeMigrationAction,
-  TypeMigrationPlan,
   ImportUpdateAction,
   TypeLocationInfo,
+  TypeMigrationAction,
+  TypeMigrationPlan,
   TypeMigrationPlanOptions,
 } from '../core/types-migration';
 import { DEFAULT_CANONICAL_CRITERIA } from '../core/types-migration';
-import { findFiles, readFile } from '../../../lib';
 
 // ============================================================================
 // PLAN CREATION
@@ -30,10 +30,7 @@ export async function createTypeMigrationPlan(
   projectRoot: string,
   options: TypeMigrationPlanOptions = {},
 ): Promise<TypeMigrationPlan> {
-  const {
-    onlyIdentical = true,
-    minSimilarity = 1.0,
-  } = options;
+  const { onlyIdentical = true, minSimilarity = 1.0 } = options;
 
   const actions: TypeMigrationAction[] = [];
   const importUpdates: ImportUpdateAction[] = [];
@@ -90,8 +87,8 @@ export async function createTypeMigrationPlan(
 
   // Calculate statistics
   const filesAffected = new Set([
-    ...actions.map(a => a.sourceFile),
-    ...importUpdates.map(u => u.file),
+    ...actions.map((a) => a.sourceFile),
+    ...importUpdates.map((u) => u.file),
   ]).size;
 
   return {
@@ -103,9 +100,9 @@ export async function createTypeMigrationPlan(
       filesAffected,
     },
     riskSummary: {
-      safe: actions.filter(a => a.risk === 'safe').length,
-      medium: actions.filter(a => a.risk === 'medium').length,
-      risky: actions.filter(a => a.risk === 'risky').length,
+      safe: actions.filter((a) => a.risk === 'safe').length,
+      medium: actions.filter((a) => a.risk === 'medium').length,
+      risky: actions.filter((a) => a.risk === 'risky').length,
     },
   };
 }
@@ -180,7 +177,7 @@ async function checkHasJSDoc(
 
     // Simple regex check for JSDoc before type/interface
     const jsdocPattern = new RegExp(
-      `\\/\\*\\*[\\s\\S]*?\\*/\\s*(export\\s+)?(interface|type)\\s+${typeName}\\b`
+      `\\/\\*\\*[\\s\\S]*?\\*/\\s*(export\\s+)?(interface|type)\\s+${typeName}\\b`,
     );
     return jsdocPattern.test(content);
   } catch {
@@ -202,9 +199,7 @@ async function checkHasJSDoc(
  * 4. Has JSDoc > no JSDoc
  * 5. Shorter path > longer path
  */
-function selectCanonicalLocation(
-  locations: TypeLocationInfo[],
-): TypeLocationInfo | undefined {
+function selectCanonicalLocation(locations: TypeLocationInfo[]): TypeLocationInfo | undefined {
   if (locations.length === 0) return undefined;
   if (locations.length === 1) return locations[0];
 
@@ -275,12 +270,16 @@ async function findTypeImporters(
     // Pattern: import { TypeName, ... } from './path/to/source'
     const importPatterns = [
       // Named import: import { TypeName } from './source'
-      new RegExp(`import\\s+(?:type\\s+)?\\{[^}]*\\b${typeName}\\b[^}]*\\}\\s+from\\s+['"][^'"]*${sourceBasename}['"]`),
+      new RegExp(
+        `import\\s+(?:type\\s+)?\\{[^}]*\\b${typeName}\\b[^}]*\\}\\s+from\\s+['"][^'"]*${sourceBasename}['"]`,
+      ),
       // Import type: import type { TypeName } from './source'
-      new RegExp(`import\\s+type\\s+\\{[^}]*\\b${typeName}\\b[^}]*\\}\\s+from\\s+['"][^'"]*${sourceBasename}['"]`),
+      new RegExp(
+        `import\\s+type\\s+\\{[^}]*\\b${typeName}\\b[^}]*\\}\\s+from\\s+['"][^'"]*${sourceBasename}['"]`,
+      ),
     ];
 
-    if (importPatterns.some(p => p.test(content))) {
+    if (importPatterns.some((p) => p.test(content))) {
       importers.push(relPath);
     }
   }
@@ -296,13 +295,11 @@ async function findTypeImporters(
  * Filter plan to only include safe actions
  */
 export function filterSafeTypeMigrations(plan: TypeMigrationPlan): TypeMigrationPlan {
-  const safeActions = plan.actions.filter(a => a.risk === 'safe');
-  const affectedSourceFiles = new Set(safeActions.map(a => a.sourceFile));
+  const safeActions = plan.actions.filter((a) => a.risk === 'safe');
+  const affectedSourceFiles = new Set(safeActions.map((a) => a.sourceFile));
 
   // Only include import updates for safe actions
-  const safeImportUpdates = plan.importUpdates.filter(u =>
-    affectedSourceFiles.has(u.oldSource)
-  );
+  const safeImportUpdates = plan.importUpdates.filter((u) => affectedSourceFiles.has(u.oldSource));
 
   return {
     actions: safeActions,
@@ -311,8 +308,8 @@ export function filterSafeTypeMigrations(plan: TypeMigrationPlan): TypeMigration
       typesToRemove: safeActions.length,
       importsToUpdate: safeImportUpdates.length,
       filesAffected: new Set([
-        ...safeActions.map(a => a.sourceFile),
-        ...safeImportUpdates.map(u => u.file),
+        ...safeActions.map((a) => a.sourceFile),
+        ...safeImportUpdates.map((u) => u.file),
       ]).size,
     },
     riskSummary: {

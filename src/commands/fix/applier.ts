@@ -5,9 +5,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { FixOperation, FixResult } from './types';
-import type { QualityIssue } from './types';
-import { fileCache } from './core/file-cache';
+import { fileCache } from '@/lib';
+import type { FixOperation, FixResult, QualityIssue } from './types';
 
 /**
  * Create backup of file
@@ -119,7 +118,7 @@ export function applyFix(
           }
         }
         // Find the original file in newFiles (it should contain re-exports)
-        const originalFileUpdate = operation.newFiles.find(f => f.path === file);
+        const originalFileUpdate = operation.newFiles.find((f) => f.path === file);
         newContent = originalFileUpdate?.content ?? content;
         break;
       }

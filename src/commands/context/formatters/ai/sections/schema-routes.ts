@@ -3,21 +3,17 @@
  * @description Schema and Routes section formatters
  */
 
-import type { AiContextData } from "../../../types";
-import type { RoutesOutput } from "../../../../routes/output";
-import type { InlineField } from "../../../../routes/inline-schema";
+import type { InlineField } from '../../../../routes/inline-schema';
+import type { RoutesOutput } from '../../../../routes/output';
+import type { AiContextData } from '../../../types';
+import { filterEnumsByModels, filterModelsByKeywords, filterRoutersByKeywords } from '../filters';
 import {
-  MAX_LIMIT,
-  MAX_ITEMS_MEDIUM,
-  MAX_ITEMS_LARGE,
-  MAX_SIZE,
   DEFAULT_PAGE_SIZE,
-} from "../helpers";
-import {
-  filterModelsByKeywords,
-  filterRoutersByKeywords,
-  filterEnumsByModels,
-} from "../filters";
+  MAX_ITEMS_LARGE,
+  MAX_ITEMS_MEDIUM,
+  MAX_LIMIT,
+  MAX_SIZE,
+} from '../helpers';
 
 /**
  * Format schema section
@@ -33,13 +29,13 @@ export function formatSchemaSection(
   const relevantModels = filterModelsByKeywords(schema.models, keywords);
   if (relevantModels.length === 0) return;
 
-  lines.push("  <schema>");
+  lines.push('  <schema>');
   formatModels(lines, relevantModels);
 
   if (relevantModels.length > 10) {
     lines.push(`    <!-- ${relevantModels.length - 10} more models in this domain -->`);
   }
-  lines.push("  </schema>");
+  lines.push('  </schema>');
 
   // Enums section
   const relevantEnums = filterEnumsByModels(schema.enums, relevantModels);
@@ -53,25 +49,41 @@ export function formatSchemaSection(
  */
 function formatModels(
   lines: string[],
-  models: AiContextData["schema"] extends infer S
+  models: AiContextData['schema'] extends infer S
     ? S extends { models: infer M }
       ? M
       : never
     : never,
 ): void {
-  for (const model of (models as Array<{ name: string; file: string; fields: Array<{ name: string; type: string; isArray?: boolean; isRequired?: boolean; isId?: boolean; isUnique?: boolean }>; relations: string[] }>).slice(0, 10)) {
+  for (const model of (
+    models as Array<{
+      name: string;
+      file: string;
+      fields: Array<{
+        name: string;
+        type: string;
+        isArray?: boolean;
+        isRequired?: boolean;
+        isId?: boolean;
+        isUnique?: boolean;
+      }>;
+      relations: string[];
+    }>
+  ).slice(0, 10)) {
     const totalFields = model.fields.length;
     const maxFields = totalFields <= DEFAULT_PAGE_SIZE ? totalFields : MAX_SIZE;
-    const fieldsAttr = totalFields > maxFields ? ` totalFields="${totalFields}"` : "";
+    const fieldsAttr = totalFields > maxFields ? ` totalFields="${totalFields}"` : '';
 
     lines.push(`    <model name="${model.name}" file="${model.file}"${fieldsAttr}>`);
     formatModelFields(lines, model.fields.slice(0, maxFields), model.relations);
 
     if (totalFields > maxFields) {
       const omittedCount = totalFields - maxFields;
-      lines.push(`      <omitted count="${omittedCount}">timestamps, metadata, internal flags</omitted>`);
+      lines.push(
+        `      <omitted count="${omittedCount}">timestamps, metadata, internal flags</omitted>`,
+      );
     }
-    lines.push("    </model>");
+    lines.push('    </model>');
   }
 }
 
@@ -92,34 +104,31 @@ function formatModelFields(
 ): void {
   for (const field of fields) {
     const attrs: string[] = [];
-    attrs.push(`type="${field.type}${field.isArray ? "[]" : ""}"`);
+    attrs.push(`type="${field.type}${field.isArray ? '[]' : ''}"`);
     if (!field.isRequired) attrs.push('optional="true"');
     if (field.isId) attrs.push('primary="true"');
     if (field.isUnique) attrs.push('unique="true"');
     if (relations.includes(field.type)) {
       attrs.push(`relation="${field.type}"`);
     }
-    lines.push(`      <field name="${field.name}" ${attrs.join(" ")}/>`);
+    lines.push(`      <field name="${field.name}" ${attrs.join(' ')}/>`);
   }
 }
 
 /**
  * Format enums section
  */
-function formatEnums(
-  lines: string[],
-  enums: Array<{ name: string; values: string[] }>,
-): void {
-  lines.push("  <enums>");
+function formatEnums(lines: string[], enums: Array<{ name: string; values: string[] }>): void {
+  lines.push('  <enums>');
   for (const e of enums.slice(0, MAX_SIZE)) {
-    const values = e.values.slice(0, 10).join(", ");
-    const more = e.values.length > 10 ? `, +${e.values.length - 10} more` : "";
+    const values = e.values.slice(0, 10).join(', ');
+    const more = e.values.length > 10 ? `, +${e.values.length - 10} more` : '';
     lines.push(`    <enum name="${e.name}">${values}${more}</enum>`);
   }
   if (enums.length > MAX_SIZE) {
     lines.push(`    <!-- ${enums.length - MAX_SIZE} more enums -->`);
   }
-  lines.push("  </enums>");
+  lines.push('  </enums>');
 }
 
 /**
@@ -143,28 +152,30 @@ export function formatRoutesSection(
   }
 
   if (relevantRouters.length > MAX_ITEMS_LARGE) {
-    lines.push(`    <!-- ${relevantRouters.length - MAX_ITEMS_LARGE} more routers in this domain -->`);
+    lines.push(
+      `    <!-- ${relevantRouters.length - MAX_ITEMS_LARGE} more routers in this domain -->`,
+    );
   }
-  lines.push("  </routes>");
+  lines.push('  </routes>');
 }
 
 /**
  * Format single router
  */
-function formatRouter(lines: string[], router: RoutesOutput["routers"][0]): void {
-  const routerName = router.file.replace(/\.ts$/, "");
+function formatRouter(lines: string[], router: RoutesOutput['routers'][0]): void {
+  const routerName = router.file.replace(/\.ts$/, '');
   lines.push(`    <router name="${routerName}" file="${router.file}.ts">`);
 
-  const queries = router.procedures.filter((p) => p.type === "query");
-  const mutations = router.procedures.filter((p) => p.type === "mutation");
+  const queries = router.procedures.filter((p) => p.type === 'query');
+  const mutations = router.procedures.filter((p) => p.type === 'mutation');
 
   // Queries
-  formatProcedures(lines, queries, "query", MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM);
+  formatProcedures(lines, queries, 'query', MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM);
 
   // Mutations
-  formatProcedures(lines, mutations, "mutation", MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM);
+  formatProcedures(lines, mutations, 'mutation', MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM);
 
-  lines.push("    </router>");
+  lines.push('    </router>');
 }
 
 /**
@@ -172,7 +183,7 @@ function formatRouter(lines: string[], router: RoutesOutput["routers"][0]): void
  */
 function formatProcedures(
   lines: string[],
-  procedures: RoutesOutput["routers"][0]["procedures"],
+  procedures: RoutesOutput['routers'][0]['procedures'],
   tag: string,
   threshold: number,
   maxItems: number,
@@ -193,11 +204,11 @@ function formatProcedures(
  */
 function formatProcedure(
   lines: string[],
-  proc: RoutesOutput["routers"][0]["procedures"][0],
+  proc: RoutesOutput['routers'][0]['procedures'][0],
   tag: string,
 ): void {
-  const prot = proc.isProtected ? ' protected="true"' : "";
-  const outputAttr = proc.outputSchema ? ` output="${proc.outputSchema}"` : "";
+  const prot = proc.isProtected ? ' protected="true"' : '';
+  const outputAttr = proc.outputSchema ? ` output="${proc.outputSchema}"` : '';
 
   if (proc.inputFields && proc.inputFields.length > 0) {
     const inputStr = formatInputFields(proc.inputFields);
@@ -207,7 +218,7 @@ function formatProcedure(
       ? ` input="${proc.inputSchema}"`
       : proc.hasInput
         ? ' input="true"'
-        : "";
+        : '';
     lines.push(`      <${tag}${prot}${inputAttr}${outputAttr}>${proc.name}</${tag}>`);
   }
 }
@@ -218,16 +229,14 @@ function formatProcedure(
 function formatInputFields(fields: InlineField[]): string {
   const formatted = fields.slice(0, MAX_LIMIT).map((f) => {
     let str = f.name;
-    if (!f.required) str += "?";
+    if (!f.required) str += '?';
     str += `: ${f.type}`;
     if (f.validation) str += ` (${f.validation})`;
     if (f.defaultValue) str += ` = ${f.defaultValue}`;
     return str;
   });
 
-  const suffix = fields.length > MAX_LIMIT
-    ? `, +${fields.length - MAX_LIMIT} more`
-    : "";
+  const suffix = fields.length > MAX_LIMIT ? `, +${fields.length - MAX_LIMIT} more` : '';
 
-  return formatted.join(", ") + suffix;
+  return formatted.join(', ') + suffix;
 }

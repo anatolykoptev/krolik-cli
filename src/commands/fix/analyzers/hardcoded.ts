@@ -1,11 +1,11 @@
 import {
   DETECTION_PATTERNS,
+  isAcceptableNumber,
   shouldSkipFile,
   shouldSkipLine,
-  isAcceptableNumber,
   shouldSkipUrl,
-} from "../../../lib/@patterns/hardcoded/index";
-import { HardcodedValue } from "../types";
+} from '../../../lib/@patterns/hardcoded/index';
+import type { HardcodedValue } from '../types';
 
 const MAX_CONTEXT_LENGTH = 80;
 
@@ -19,20 +19,20 @@ const MAX_CONTEXT_LENGTH = 80;
 function detectNumbers(line: string, lineNum: number): HardcodedValue[] {
   const values: HardcodedValue[] = [];
   // Strip trailing comments before matching
-  const codeOnly = line.replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "");
+  const codeOnly = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
   const matches = codeOnly.matchAll(DETECTION_PATTERNS.magicNumber);
 
   for (const match of matches) {
-    const num = parseInt(match[1] ?? "0", 10);
+    const num = parseInt(match[1] ?? '0', 10);
 
     // Skip acceptable numbers and array indices
     if (isAcceptableNumber(num)) continue;
     if (line.includes(`[${num}]`)) continue;
-    if (line.includes("timeout") || line.includes("delay")) continue;
+    if (line.includes('timeout') || line.includes('delay')) continue;
 
     values.push({
       value: num,
-      type: "number",
+      type: 'number',
       line: lineNum,
       context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
@@ -49,12 +49,12 @@ function detectUrls(line: string, lineNum: number): HardcodedValue[] {
   const matches = line.matchAll(DETECTION_PATTERNS.url);
 
   for (const match of matches) {
-    const url = match[2] ?? "";
+    const url = match[2] ?? '';
     if (shouldSkipUrl(url)) continue;
 
     values.push({
       value: url,
-      type: "url",
+      type: 'url',
       line: lineNum,
       context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
@@ -66,13 +66,9 @@ function detectUrls(line: string, lineNum: number): HardcodedValue[] {
 /**
  * Detect hardcoded hex colors in a line
  */
-function detectColors(
-  line: string,
-  lineNum: number,
-  filepath: string,
-): HardcodedValue[] {
+function detectColors(line: string, lineNum: number, filepath: string): HardcodedValue[] {
   // Skip tailwind config or CSS files
-  if (filepath.includes("tailwind") || filepath.endsWith(".css")) {
+  if (filepath.includes('tailwind') || filepath.endsWith('.css')) {
     return [];
   }
 
@@ -82,7 +78,7 @@ function detectColors(
   for (const match of matches) {
     values.push({
       value: match[0],
-      type: "color",
+      type: 'color',
       line: lineNum,
       context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
@@ -94,13 +90,9 @@ function detectColors(
 /**
  * Detect hardcoded Russian text (i18n issues)
  */
-function detectText(
-  line: string,
-  lineNum: number,
-  filepath: string,
-): HardcodedValue[] {
+function detectText(line: string, lineNum: number, filepath: string): HardcodedValue[] {
   // Skip test or story files
-  if (filepath.includes(".test.") || filepath.includes(".stories.")) {
+  if (filepath.includes('.test.') || filepath.includes('.stories.')) {
     return [];
   }
 
@@ -110,7 +102,7 @@ function detectText(
   for (const match of matches) {
     values.push({
       value: match[0].slice(1, -1), // Remove quotes
-      type: "string",
+      type: 'string',
       line: lineNum,
       context: line.trim().slice(0, MAX_CONTEXT_LENGTH),
     });
@@ -122,11 +114,7 @@ function detectText(
 /**
  * Process a single line for all hardcoded values
  */
-function processLine(
-  line: string,
-  lineNum: number,
-  filepath: string,
-): HardcodedValue[] {
+function processLine(line: string, lineNum: number, filepath: string): HardcodedValue[] {
   if (shouldSkipLine(line)) {
     return [];
   }
@@ -146,19 +134,16 @@ function processLine(
 /**
  * Detect hardcoded values in content
  */
-export function detectHardcodedValues(
-  content: string,
-  filepath: string,
-): HardcodedValue[] {
+export function detectHardcodedValues(content: string, filepath: string): HardcodedValue[] {
   if (shouldSkipFile(filepath)) {
     return [];
   }
 
-  const lines = content.split("\n");
+  const lines = content.split('\n');
   const values: HardcodedValue[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
+    const line = lines[i] ?? '';
     values.push(...processLine(line, i + 1, filepath));
   }
 

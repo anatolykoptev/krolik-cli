@@ -3,8 +3,8 @@
  * @description Review output formatters
  */
 
-import type { Logger, ReviewResult } from "../../types";
-import { escapeXml } from "../../lib";
+import { escapeXml } from '../../lib';
+import type { Logger, ReviewResult } from '../../types';
 
 /**
  * Group items by a key
@@ -29,68 +29,64 @@ export function printReview(review: ReviewResult, logger: Logger): void {
   console.log(`\x1b[2m${review.baseBranch} → ${review.headBranch}\x1b[0m\n`);
 
   // Summary
-  const riskIcon = { low: "🟢", medium: "🟡", high: "🔴" }[
-    review.summary.riskLevel
-  ];
-  console.log("=== Summary ===");
+  const riskIcon = { low: '🟢', medium: '🟡', high: '🔴' }[review.summary.riskLevel];
+  console.log('=== Summary ===');
   console.log(
     `Files: ${review.summary.totalFiles} | +${review.summary.additions} -${review.summary.deletions}`,
   );
   console.log(`Risk: ${riskIcon} ${review.summary.riskLevel.toUpperCase()}`);
-  if (review.summary.testsRequired) console.log("⚠️  Tests: REQUIRED");
-  if (review.summary.docsRequired) console.log("⚠️  Docs: REQUIRED");
-  console.log("");
+  if (review.summary.testsRequired) console.log('⚠️  Tests: REQUIRED');
+  if (review.summary.docsRequired) console.log('⚠️  Docs: REQUIRED');
+  console.log('');
 
   // Affected features
   if (review.affectedFeatures.length <= 0) return;
 
-  console.log("=== Affected Features ===");
+  console.log('=== Affected Features ===');
   for (const feature of review.affectedFeatures) {
     console.log(`  - ${feature}`);
   }
-  console.log("");
+  console.log('');
 
   // Files
-  console.log("=== Changed Files ===");
+  console.log('=== Changed Files ===');
   for (const file of review.files) {
-    const stats = file.binary
-      ? "binary"
-      : `+${file.additions} -${file.deletions}`;
+    const stats = file.binary ? 'binary' : `+${file.additions} -${file.deletions}`;
     const status = file.status[0]?.toUpperCase() ?? 'M';
     console.log(`  [${status}] ${file.path} (${stats})`);
   }
-  console.log("");
+  console.log('');
 
   // Issues
   if (review.issues.length > 0) {
-    console.log("=== Issues Found ===");
-    const grouped = groupBy(review.issues, "severity");
+    console.log('=== Issues Found ===');
+    const grouped = groupBy(review.issues, 'severity');
 
     if (grouped.error) {
-      console.log("\x1b[31mERRORS:\x1b[0m");
+      console.log('\x1b[31mERRORS:\x1b[0m');
       for (const issue of grouped.error) {
         console.log(`  [${issue.category}] ${issue.file}: ${issue.message}`);
       }
     }
 
     if (grouped.warning) {
-      console.log("\x1b[33mWARNINGS:\x1b[0m");
+      console.log('\x1b[33mWARNINGS:\x1b[0m');
       for (const issue of grouped.warning) {
         console.log(`  [${issue.category}] ${issue.file}: ${issue.message}`);
       }
     }
 
     if (grouped.info) {
-      console.log("\x1b[34mINFO:\x1b[0m");
+      console.log('\x1b[34mINFO:\x1b[0m');
       for (const issue of grouped.info) {
         console.log(`  [${issue.category}] ${issue.file}: ${issue.message}`);
       }
     }
   } else {
-    console.log("=== No Issues Found ===");
+    console.log('=== No Issues Found ===');
   }
 
-  console.log("");
+  console.log('');
 }
 
 /**
@@ -108,13 +104,17 @@ export function formatAI(review: ReviewResult): string {
 
   lines.push('<code-review>');
   lines.push(`  <title>${escapeXml(review.title)}</title>`);
-  lines.push(`  <branches base="${escapeXml(review.baseBranch)}" head="${escapeXml(review.headBranch)}" />`);
+  lines.push(
+    `  <branches base="${escapeXml(review.baseBranch)}" head="${escapeXml(review.headBranch)}" />`,
+  );
   lines.push('');
 
   // Summary
   lines.push('  <summary>');
   lines.push(`    <files count="${review.summary.totalFiles}" />`);
-  lines.push(`    <changes additions="${review.summary.additions}" deletions="${review.summary.deletions}" />`);
+  lines.push(
+    `    <changes additions="${review.summary.additions}" deletions="${review.summary.deletions}" />`,
+  );
   lines.push(`    <risk level="${review.summary.riskLevel}" />`);
   lines.push(`    <tests_required>${review.summary.testsRequired}</tests_required>`);
   lines.push(`    <docs_required>${review.summary.docsRequired}</docs_required>`);
@@ -134,7 +134,9 @@ export function formatAI(review: ReviewResult): string {
   // Changed files
   lines.push('  <changed-files>');
   for (const file of review.files) {
-    lines.push(`    <file path="${escapeXml(file.path)}" status="${file.status}" additions="${file.additions}" deletions="${file.deletions}" binary="${file.binary}" />`);
+    lines.push(
+      `    <file path="${escapeXml(file.path)}" status="${file.status}" additions="${file.additions}" deletions="${file.deletions}" binary="${file.binary}" />`,
+    );
   }
   lines.push('  </changed-files>');
   lines.push('');
@@ -147,7 +149,8 @@ export function formatAI(review: ReviewResult): string {
       lines.push(`      <file>${escapeXml(issue.file)}</file>`);
       if (issue.line) lines.push(`      <line>${issue.line}</line>`);
       lines.push(`      <message>${escapeXml(issue.message)}</message>`);
-      if (issue.suggestion) lines.push(`      <suggestion>${escapeXml(issue.suggestion)}</suggestion>`);
+      if (issue.suggestion)
+        lines.push(`      <suggestion>${escapeXml(issue.suggestion)}</suggestion>`);
       lines.push('    </issue>');
     }
     lines.push('  </issues>');
@@ -167,98 +170,84 @@ export function formatMarkdown(review: ReviewResult): string {
   const lines: string[] = [];
 
   lines.push(`# ${review.title}`);
-  lines.push("");
+  lines.push('');
   lines.push(`> \`${review.baseBranch}\` → \`${review.headBranch}\``);
-  lines.push("");
+  lines.push('');
 
   // Summary
-  const riskBadge = { low: "🟢 Low", medium: "🟡 Medium", high: "🔴 High" }[
+  const riskBadge = { low: '🟢 Low', medium: '🟡 Medium', high: '🔴 High' }[
     review.summary.riskLevel
   ];
 
-  lines.push("## Summary");
-  lines.push("");
-  lines.push("| Metric | Value |");
-  lines.push("|--------|-------|");
+  lines.push('## Summary');
+  lines.push('');
+  lines.push('| Metric | Value |');
+  lines.push('|--------|-------|');
   lines.push(`| Files | ${review.summary.totalFiles} |`);
   lines.push(`| Additions | +${review.summary.additions} |`);
   lines.push(`| Deletions | -${review.summary.deletions} |`);
   lines.push(`| Risk Level | ${riskBadge} |`);
-  lines.push(
-    `| Tests Required | ${review.summary.testsRequired ? "⚠️ Yes" : "✅ No"} |`,
-  );
-  lines.push(
-    `| Docs Required | ${review.summary.docsRequired ? "⚠️ Yes" : "✅ No"} |`,
-  );
-  lines.push("");
+  lines.push(`| Tests Required | ${review.summary.testsRequired ? '⚠️ Yes' : '✅ No'} |`);
+  lines.push(`| Docs Required | ${review.summary.docsRequired ? '⚠️ Yes' : '✅ No'} |`);
+  lines.push('');
 
   // Features
   if (review.affectedFeatures.length > 0) {
-    lines.push("## Affected Features");
-    lines.push("");
+    lines.push('## Affected Features');
+    lines.push('');
     for (const feature of review.affectedFeatures) {
       lines.push(`- ${feature}`);
     }
-    lines.push("");
+    lines.push('');
   }
 
   // Files
-  lines.push("## Changed Files");
-  lines.push("");
+  lines.push('## Changed Files');
+  lines.push('');
   for (const file of review.files) {
-    const stats = file.binary
-      ? "(binary)"
-      : `+${file.additions} -${file.deletions}`;
-    const icon = { added: "🆕", modified: "📝", deleted: "🗑️", renamed: "📋" }[
-      file.status
-    ];
+    const stats = file.binary ? '(binary)' : `+${file.additions} -${file.deletions}`;
+    const icon = { added: '🆕', modified: '📝', deleted: '🗑️', renamed: '📋' }[file.status];
     lines.push(`- ${icon} \`${file.path}\` ${stats}`);
   }
-  lines.push("");
+  lines.push('');
 
   // Issues
   if (review.issues.length > 0) {
-    lines.push("## Issues");
-    lines.push("");
-    const grouped = groupBy(review.issues, "severity");
+    lines.push('## Issues');
+    lines.push('');
+    const grouped = groupBy(review.issues, 'severity');
 
     if (grouped.error) {
-      lines.push("### 🔴 Errors");
-      lines.push("");
+      lines.push('### 🔴 Errors');
+      lines.push('');
       for (const issue of grouped.error) {
-        lines.push(
-          `- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`,
-        );
+        lines.push(`- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`);
       }
-      lines.push("");
+      lines.push('');
     }
 
     if (grouped.warning) {
-      lines.push("### 🟡 Warnings");
-      lines.push("");
+      lines.push('### 🟡 Warnings');
+      lines.push('');
       for (const issue of grouped.warning) {
-        lines.push(
-          `- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`,
-        );
+        lines.push(`- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`);
       }
-      lines.push("");
+      lines.push('');
     }
 
     if (grouped.info) {
-      lines.push("### 🔵 Info");
-      lines.push("");
+      lines.push('### 🔵 Info');
+      lines.push('');
       for (const issue of grouped.info) {
-        lines.push(
-          `- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`,
-        );
+        lines.push(`- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`);
       }
-      lines.push("");
+      lines.push('');
     }
   }
 
-  lines.push("---");
-  lines.push("");
-  lines.push("*Generated by krolik-cli*");
+  lines.push('---');
+  lines.push('');
+  lines.push('*Generated by krolik-cli*');
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

@@ -34,21 +34,14 @@ export interface JsonFormatOptions {
  * formatJson({ name: 'John', age: 30 })
  * // Returns: '{\n  "name": "John",\n  "age": 30\n}'
  */
-export function formatJson<T>(
-  data: T,
-  options: JsonFormatOptions = {},
-): string {
+export function formatJson<T>(data: T, options: JsonFormatOptions = {}): string {
   const { indent = 2, sortKeys = false, maxDepth, replacer } = options;
 
   // Handle circular references and max depth
-  const processedData = maxDepth
-    ? limitDepth(data, maxDepth)
-    : data;
+  const processedData = maxDepth ? limitDepth(data, maxDepth) : data;
 
   // Sort keys if requested
-  const sortedData = sortKeys
-    ? sortObjectKeys(processedData)
-    : processedData;
+  const sortedData = sortKeys ? sortObjectKeys(processedData) : processedData;
 
   return JSON.stringify(sortedData, replacer as never, indent);
 }
@@ -167,8 +160,6 @@ export function isValidJson(str: string): boolean {
 /**
  * Merge multiple JSON objects
  */
-export function mergeJson<T extends Record<string, unknown>>(
-  ...objects: Partial<T>[]
-): T {
+export function mergeJson<T extends Record<string, unknown>>(...objects: Partial<T>[]): T {
   return objects.reduce((acc, obj) => ({ ...acc, ...obj }), {}) as T;
 }

@@ -8,45 +8,43 @@
  * - Paths: CLAUDE_DIR, KROLIK_DIR, etc.
  */
 
+// Config
+export {
+  getMcpServer,
+  getMcpServersByCategory,
+  getPlugin,
+  getPluginsByType,
+  getRequiredMcpServers,
+  MCP_SERVERS,
+  PLUGINS,
+} from './config';
+// Paths
+export {
+  AGENTS_DIR,
+  AGENTS_PLUGINS_DIR,
+  CLAUDE_DIR,
+  CLAUDE_GLOBAL_CONFIG,
+  getMarketplacePath,
+  getPluginInstallPath,
+  getProjectConfigPath,
+  INSTALLED_PLUGINS_PATH,
+  KNOWN_MARKETPLACES_PATH,
+  KROLIK_DIR,
+  MARKETPLACES_DIR,
+  PLUGINS_DIR,
+  REQUIRED_DIRS,
+} from './paths';
 // Types
 export type {
-  SetupOptions,
-  PluginType,
-  PluginConfig,
+  DiagnosticsResult,
+  InstallerOptions,
+  InstallResult,
   McpCategory,
   McpScope,
   McpServerConfig,
+  PluginConfig,
+  PluginType,
   RepoStats,
+  SetupOptions,
   VersionInfo,
-  InstallResult,
-  DiagnosticsResult,
-  InstallerOptions,
 } from './types';
-
-// Config
-export {
-  PLUGINS,
-  MCP_SERVERS,
-  getPlugin,
-  getPluginsByType,
-  getMcpServer,
-  getMcpServersByCategory,
-  getRequiredMcpServers,
-} from './config';
-
-// Paths
-export {
-  CLAUDE_DIR,
-  PLUGINS_DIR,
-  MARKETPLACES_DIR,
-  KNOWN_MARKETPLACES_PATH,
-  INSTALLED_PLUGINS_PATH,
-  KROLIK_DIR,
-  AGENTS_DIR,
-  AGENTS_PLUGINS_DIR,
-  CLAUDE_GLOBAL_CONFIG,
-  getProjectConfigPath,
-  getMarketplacePath,
-  getPluginInstallPath,
-  REQUIRED_DIRS,
-} from './paths';

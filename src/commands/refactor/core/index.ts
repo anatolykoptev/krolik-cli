@@ -14,29 +14,29 @@
 // ============================================================================
 
 export type {
+  // Barrel
+  BarrelExport,
+  DirectoryInfo,
   // Duplicate detection
   DuplicateInfo,
   FunctionSignature,
-  TypeDuplicateInfo,
-  // Structure analysis
-  StructureAnalysis,
-  StructureIssue,
-  StructureIssueType,
   // Migration
   MigrationAction,
   MigrationActionType,
   MigrationPlan,
-  RiskLevel,
-  // Analysis
-  RefactorAnalysis,
-  // Barrel
-  BarrelExport,
   // Namespace
   NamespaceCategory,
-  DirectoryInfo,
+  // Analysis
+  RefactorAnalysis,
+  RiskLevel,
   // Standards
   StandardCheck,
   StandardsCompliance,
+  // Structure analysis
+  StructureAnalysis,
+  StructureIssue,
+  StructureIssueType,
+  TypeDuplicateInfo,
 } from './types';
 
 // ============================================================================
@@ -44,35 +44,35 @@ export type {
 // ============================================================================
 
 export type {
-  // Project context
-  ProjectType,
-  TechStack,
-  EntryPoints,
-  ProjectContext,
-  // Architecture
-  ViolationType,
-  ArchViolation,
-  LayerComplianceInfo,
-  ArchHealth,
-  // Domains
-  FileMoveInfo,
-  DomainInfo,
   // Navigation
   AddNewCodeHints,
-  FilePatternInfo,
-  ImportConventions,
-  NamingConventions,
   AiNavigation,
-  // Recommendations
-  RecommendationCategory,
+  ArchHealth,
+  ArchViolation,
+  DomainInfo,
   EffortLevel,
-  Recommendation,
   // Enhanced migration
   EnhancedMigrationAction,
-  ExecutionStep,
   EnhancedMigrationPlan,
   // Enhanced analysis
   EnhancedRefactorAnalysis,
+  EntryPoints,
+  ExecutionStep,
+  // Domains
+  FileMoveInfo,
+  FilePatternInfo,
+  ImportConventions,
+  LayerComplianceInfo,
+  NamingConventions,
+  ProjectContext,
+  // Project context
+  ProjectType,
+  Recommendation,
+  // Recommendations
+  RecommendationCategory,
+  TechStack,
+  // Architecture
+  ViolationType,
 } from './types-ai';
 
 // ============================================================================
@@ -80,10 +80,10 @@ export type {
 // ============================================================================
 
 export type {
+  AnalysisOptions,
+  MigrationOptions,
   OutputFormat,
   RefactorOptions,
-  MigrationOptions,
-  AnalysisOptions,
 } from './options';
 
 export {
@@ -96,12 +96,12 @@ export {
 // ============================================================================
 
 export {
-  NAMESPACE_KEYWORDS,
-  NAMESPACE_INFO,
   ALLOWED_DEPS,
   detectCategory,
-  isDependencyAllowed,
   getLayerNumber,
+  isDependencyAllowed,
+  NAMESPACE_INFO,
+  NAMESPACE_KEYWORDS,
 } from './constants';
 
 // ============================================================================
@@ -109,24 +109,22 @@ export {
 // ============================================================================
 
 export type {
-  TypeMigrationActionType,
-  TypeMigrationAction,
-  ImportUpdateAction,
-  TypeMigrationPlan,
-  TypeLocationInfo,
   CanonicalSelectionCriteria,
-  TypeMigrationResult,
-  TypeMigrationExecutionResult,
-  TypeMigrationPlanOptions,
+  ImportUpdateAction,
+  TypeLocationInfo,
+  TypeMigrationAction,
+  TypeMigrationActionType,
   TypeMigrationExecutionOptions,
+  TypeMigrationExecutionResult,
+  TypeMigrationPlan,
+  TypeMigrationPlanOptions,
+  TypeMigrationResult,
 } from './types-migration';
 
-export {
-  DEFAULT_CANONICAL_CRITERIA,
-} from './types-migration';
+export { DEFAULT_CANONICAL_CRITERIA } from './types-migration';
 
 // ============================================================================
 // FILE CACHE
 // ============================================================================
 
-export { clearFileCache, getCachedFiles, type FindFilesOptions } from './file-cache';
+export { clearFileCache, type FindFilesOptions, getCachedFiles } from './file-cache';

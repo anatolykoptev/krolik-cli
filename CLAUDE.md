@@ -123,6 +123,39 @@ type Result<T, E = Error> =
   | { success: false; error: E };
 ```
 
+## AST System (ts-morph)
+
+**ALWAYS use the unified pool from `lib/@ast` to prevent memory leaks.**
+
+```typescript
+// ✅ RECOMMENDED: Auto-cleanup callback pattern
+import { withSourceFile } from '@/lib/@ast';
+
+const count = withSourceFile(content, 'temp.ts', (sourceFile) => {
+  return sourceFile.getFunctions().length;
+});
+
+// ✅ ADVANCED: Manual project management
+import { getProject, releaseProject } from '@/lib/@ast';
+
+const project = getProject({ tsConfigPath: './tsconfig.json' });
+try {
+  // ... use project
+} finally {
+  releaseProject(project);
+}
+
+// ❌ DEPRECATED: Direct project creation (memory leaks!)
+import { createProject } from '@/lib/@ast';  // DON'T USE
+const project = createProject();  // Creates new instance every time
+```
+
+**Key points:**
+- Pool reuses Project instances to avoid memory leaks
+- `withSourceFile()` is preferred for single-file operations
+- `getProject()` + `releaseProject()` for multi-file operations
+- Old `createProject()` is deprecated but kept for backward compatibility
+
 ## Workflows
 
 ```bash

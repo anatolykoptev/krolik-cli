@@ -3,9 +3,9 @@
  * @description Setup command types
  */
 
-import type { CommandContext } from '../../../types';
 import type { RepoStats } from '../../../lib/@agents';
 import type { VersionInfo } from '../../../lib/@git';
+import type { CommandContext } from '../../../types';
 
 // Re-export shared types from lib
 export type { RepoStats, VersionInfo };

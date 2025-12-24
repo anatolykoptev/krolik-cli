@@ -3,29 +3,21 @@
  * @description File discovery based on domains
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { DiscoveredFiles } from "../types";
-import { getDomainPatterns } from "./patterns";
-import { findFilesMatching } from "./files";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { DiscoveredFiles } from '../types';
+import { findFilesMatching } from './files';
+import { getDomainPatterns } from './patterns';
 
-const ZOD_DIRS = [
-  "packages/shared/src/schemas",
-  "src/schemas",
-  "src/lib/schemas",
-];
+const ZOD_DIRS = ['packages/shared/src/schemas', 'src/schemas', 'src/lib/schemas'];
 
-const COMPONENT_DIRS = [
-  "apps/web/components/Business",
-  "apps/web/components",
-  "src/components",
-];
+const COMPONENT_DIRS = ['apps/web/components/Business', 'apps/web/components', 'src/components'];
 
 const TEST_DIRS = [
-  "packages/api/src/routers/__tests__",
-  "apps/web/__tests__",
-  "__tests__",
-  "tests",
+  'packages/api/src/routers/__tests__',
+  'apps/web/__tests__',
+  '__tests__',
+  'tests',
 ];
 
 /**
@@ -77,15 +69,12 @@ function searchDirs(
 /**
  * Discover relevant files based on domains
  */
-export function discoverFiles(
-  projectRoot: string,
-  domains: string[],
-): DiscoveredFiles {
+export function discoverFiles(projectRoot: string, domains: string[]): DiscoveredFiles {
   const patterns = collectPatterns(domains);
 
   return {
-    zodSchemas: searchDirs(projectRoot, ZOD_DIRS, patterns.zod, ".ts"),
-    components: searchDirs(projectRoot, COMPONENT_DIRS, patterns.components, ".tsx"),
-    tests: searchDirs(projectRoot, TEST_DIRS, patterns.tests, ".test.ts"),
+    zodSchemas: searchDirs(projectRoot, ZOD_DIRS, patterns.zod, '.ts'),
+    components: searchDirs(projectRoot, COMPONENT_DIRS, patterns.components, '.tsx'),
+    tests: searchDirs(projectRoot, TEST_DIRS, patterns.tests, '.test.ts'),
   };
 }

@@ -3,14 +3,14 @@
  * @description React component file parser
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { ComponentInfo } from "./types";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { ComponentInfo } from './types';
 
 const MAX_IMPORTS = 10;
 const MAX_HOOKS = 5;
 const MAX_FIELDS = 10;
-const BUILT_IN_HOOKS = ["useCallback", "useEffect", "useMemo", "useState", "useRef"];
+const BUILT_IN_HOOKS = ['useCallback', 'useEffect', 'useMemo', 'useState', 'useRef'];
 
 /**
  * Extract relevant imports from content
@@ -21,10 +21,14 @@ function extractImports(content: string): string[] {
   let match: RegExpExecArray | null;
 
   while ((match = importRegex.exec(content)) !== null) {
-    const source = match[2] ?? "";
-    if (source.includes("react") || source.includes("next")) continue;
+    const source = match[2] ?? '';
+    if (source.includes('react') || source.includes('next')) continue;
 
-    const items = match[1]?.split(",").map((s) => s.trim()).filter(Boolean) ?? [];
+    const items =
+      match[1]
+        ?.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean) ?? [];
     imports.push(...items);
   }
 
@@ -65,13 +69,13 @@ function extractFeatures(content: string): string[] {
 function analyzeComponent(filePath: string): ComponentInfo | null {
   let content: string;
   try {
-    content = fs.readFileSync(filePath, "utf-8");
+    content = fs.readFileSync(filePath, 'utf-8');
   } catch {
     return null;
   }
 
   const fileName = path.basename(filePath);
-  const componentName = fileName.replace(/\.tsx?$/, "");
+  const componentName = fileName.replace(/\.tsx?$/, '');
   const isClient = content.includes("'use client'") || content.includes('"use client"');
 
   const purpose = extractPurpose(content);
@@ -83,7 +87,7 @@ function analyzeComponent(filePath: string): ComponentInfo | null {
   const result: ComponentInfo = {
     name: componentName,
     file: fileName,
-    type: isClient ? "client" : "server",
+    type: isClient ? 'client' : 'server',
     imports: extractImports(content),
     hooks: extractHooks(content),
   };
@@ -140,7 +144,7 @@ function extractFormFields(content: string): string[] {
     const stateFields = stateObj.match(/(\w+)\s*:/g);
     if (stateFields) {
       for (const f of stateFields) {
-        const fieldName = f.replace(/\s*:$/, "");
+        const fieldName = f.replace(/\s*:$/, '');
         if (fieldName && !fields.includes(fieldName) && fieldName.length > 1) {
           fields.push(fieldName);
         }
@@ -155,17 +159,17 @@ function extractFormFields(content: string): string[] {
  * Detect state management pattern
  */
 function detectStateManagement(content: string): string | undefined {
-  if (content.includes("useForm") || content.includes("react-hook-form")) {
-    return "react-hook-form";
+  if (content.includes('useForm') || content.includes('react-hook-form')) {
+    return 'react-hook-form';
   }
-  if (content.includes("useState")) {
-    return "useState";
+  if (content.includes('useState')) {
+    return 'useState';
   }
-  if (content.includes("useReducer")) {
-    return "useReducer";
+  if (content.includes('useReducer')) {
+    return 'useReducer';
   }
-  if (content.includes("zustand") || content.includes("create(")) {
-    return "zustand";
+  if (content.includes('zustand') || content.includes('create(')) {
+    return 'zustand';
   }
   return undefined;
 }
@@ -175,17 +179,14 @@ function detectStateManagement(content: string): string | undefined {
  */
 function detectErrorHandling(content: string): string | undefined {
   const errorPatterns: string[] = [];
-  if (content.includes("try") && content.includes("catch"))
-    errorPatterns.push("try-catch");
-  if (content.includes("onError") || content.includes("error:"))
-    errorPatterns.push("callback");
-  if (content.includes("toast.error") || content.includes("showError"))
-    errorPatterns.push("toast");
-  if (content.includes("setError") || content.includes("formState.errors"))
-    errorPatterns.push("form-errors");
-  if (content.includes("ErrorBoundary")) errorPatterns.push("boundary");
+  if (content.includes('try') && content.includes('catch')) errorPatterns.push('try-catch');
+  if (content.includes('onError') || content.includes('error:')) errorPatterns.push('callback');
+  if (content.includes('toast.error') || content.includes('showError')) errorPatterns.push('toast');
+  if (content.includes('setError') || content.includes('formState.errors'))
+    errorPatterns.push('form-errors');
+  if (content.includes('ErrorBoundary')) errorPatterns.push('boundary');
   if (errorPatterns.length > 0) {
-    return errorPatterns.join(", ");
+    return errorPatterns.join(', ');
   }
   return undefined;
 }
@@ -201,10 +202,7 @@ function matchesPatterns(fileName: string, patterns: string[]): boolean {
 /**
  * Parse React component files to extract metadata
  */
-export function parseComponents(
-  componentsDir: string,
-  patterns: string[],
-): ComponentInfo[] {
+export function parseComponents(componentsDir: string, patterns: string[]): ComponentInfo[] {
   const results: ComponentInfo[] = [];
 
   if (!fs.existsSync(componentsDir)) return results;
@@ -221,13 +219,13 @@ export function parseComponents(
       const fullPath = path.join(dir, entry.name);
 
       // Recurse into non-hidden directories
-      if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
         scanDir(fullPath);
         continue;
       }
 
       // Skip non-tsx files
-      if (!entry.isFile() || !entry.name.endsWith(".tsx")) continue;
+      if (!entry.isFile() || !entry.name.endsWith('.tsx')) continue;
 
       // Skip files not matching patterns
       if (!matchesPatterns(entry.name, patterns)) continue;

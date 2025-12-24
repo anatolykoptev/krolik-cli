@@ -3,7 +3,7 @@
  * @description Tests for debugger fixer
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { debuggerFixer } from '../../../../src/commands/fix/fixers/debugger';
 import { createTestIssue } from '../helpers';
 
@@ -299,7 +299,7 @@ try {
     it('returns null when file is missing', () => {
       const content = 'debugger;';
       const issue = {
-        file: '',  // Empty file path
+        file: '', // Empty file path
         line: 1,
         severity: 'warning' as const,
         category: 'lint' as const,
@@ -376,7 +376,7 @@ function complexFunc() {
     });
 
     it('handles very long lines', () => {
-      const longLine = 'const x = ' + '1 + '.repeat(100) + '1; debugger;';
+      const longLine = `const x = ${'1 + '.repeat(100)}1; debugger;`;
       const issues = debuggerFixer.analyze(longLine, 'test.ts');
 
       expect(issues).toHaveLength(1);

@@ -3,7 +3,7 @@
  * @description Tests for console fixer
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { consoleFixer } from '../../../../src/commands/fix/fixers/console';
 import { createTestIssue } from '../helpers';
 
@@ -87,7 +87,7 @@ console.error("third");
     });
 
     it('ignores console in template literals', () => {
-      const content = 'const msg = `don\'t use console.log`;';
+      const content = "const msg = `don't use console.log`;";
       const issues = consoleFixer.analyze(content, 'test.ts');
 
       expect(issues).toHaveLength(0);
@@ -151,7 +151,7 @@ console.log(
 
     it('ignores console property access (not methods)', () => {
       const content = 'const level = console.level;';
-      const issues = consoleFixer.analyze(content, 'test.ts');
+      const _issues = consoleFixer.analyze(content, 'test.ts');
 
       // This might detect it since we're looking for console. patterns
       // The fix() method should handle this properly
@@ -266,7 +266,7 @@ console.log(
     it('returns null when file is missing', () => {
       const content = 'console.log("test");';
       const issue = {
-        file: '',  // Empty file path
+        file: '', // Empty file path
         line: 1,
         severity: 'warning' as const,
         category: 'lint' as const,
@@ -298,7 +298,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(true);
     });
@@ -309,7 +309,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(true);
     });
@@ -320,7 +320,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(true);
     });
@@ -331,7 +331,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(true);
     });
@@ -342,7 +342,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(true);
     });
@@ -353,7 +353,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(false);
     });
@@ -364,7 +364,7 @@ console.log(
         line: 1,
       });
 
-      const shouldSkip = consoleFixer.shouldSkip!(issue, '');
+      const shouldSkip = consoleFixer.shouldSkip?.(issue, '');
 
       expect(shouldSkip).toBe(false);
     });

@@ -50,24 +50,12 @@ export const DEBUG_CONSOLE_METHODS = [
 /**
  * File patterns where console output is intentional
  */
-export const CLI_FILE_PATTERNS = [
-  '/cli/',
-  '/commands/',
-  '/bin/',
-  'cli.ts',
-  'cli.js',
-] as const;
+export const CLI_FILE_PATTERNS = ['/cli/', '/commands/', '/bin/', 'cli.ts', 'cli.js'] as const;
 
 /**
  * File patterns for test files
  */
-export const TEST_FILE_PATTERNS = [
-  '.test.',
-  '.spec.',
-  '__tests__',
-  '/test/',
-  '/tests/',
-] as const;
+export const TEST_FILE_PATTERNS = ['.test.', '.spec.', '__tests__', '/test/', '/tests/'] as const;
 
 /**
  * File patterns for output/logger files

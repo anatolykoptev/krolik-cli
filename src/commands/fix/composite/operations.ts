@@ -8,20 +8,20 @@
  * - Extract: Extract code to new file with re-exports
  */
 
-import * as path from 'node:path';
-import { SyntaxKind } from 'ts-morph';
-import { Glob } from 'glob';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Glob } from 'glob';
+import { SyntaxKind } from 'ts-morph';
+import { escapeRegex } from '../../../lib/@sanitize/regex';
+import type { FixOperation } from '../types';
 import type {
-  CompositeTransform,
   CompositeStep,
-  RenameConfig,
-  MoveConfig,
+  CompositeTransform,
   ExtractConfig,
+  MoveConfig,
+  RenameConfig,
   VerificationConfig,
 } from './types';
-import type { FixOperation } from '../types';
-import { escapeRegex } from '../../../lib/@sanitize/regex';
 
 // ============================================================================
 // HELPERS
@@ -115,11 +115,7 @@ export function createRenameTransform(
 /**
  * Create rename operations for a single file
  */
-function createRenameOperations(
-  file: string,
-  from: string,
-  to: string,
-): FixOperation[] {
+function createRenameOperations(file: string, from: string, to: string): FixOperation[] {
   const operations: FixOperation[] = [];
 
   try {
@@ -137,7 +133,7 @@ function createRenameOperations(
           const newLineText = lineText.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
 
           // Avoid duplicates for same line
-          if (!operations.some(op => op.line === line)) {
+          if (!operations.some((op) => op.line === line)) {
             operations.push({
               file,
               action: 'replace-line',
@@ -173,22 +169,14 @@ function createRenameOperations(
 /**
  * Create import rename operations
  */
-function createImportRenameOperations(
-  file: string,
-  from: string,
-  to: string,
-): FixOperation[] {
+function createImportRenameOperations(file: string, from: string, to: string): FixOperation[] {
   return createRenameOperations(file, from, to);
 }
 
 /**
  * Find files that import a specific export from a file
  */
-function findFilesImporting(
-  files: string[],
-  sourceFile: string,
-  exportName: string,
-): string[] {
+function findFilesImporting(files: string[], sourceFile: string, exportName: string): string[] {
   const importing: string[] = [];
   const sourceBasename = path.basename(sourceFile, path.extname(sourceFile));
 
@@ -307,23 +295,20 @@ function updateImportPaths(content: string, from: string, to: string): string {
   const toDir = path.dirname(to);
 
   // Adjust relative imports based on new location
-  return content.replace(
-    /from\s+['"](\.[^'"]+)['"]/g,
-    (_, importPath) => {
-      // Resolve the absolute path of the import from old location
-      const absoluteImport = path.resolve(fromDir, importPath);
+  return content.replace(/from\s+['"](\.[^'"]+)['"]/g, (_, importPath) => {
+    // Resolve the absolute path of the import from old location
+    const absoluteImport = path.resolve(fromDir, importPath);
 
-      // Calculate new relative path from new location
-      let newRelative = path.relative(toDir, absoluteImport);
+    // Calculate new relative path from new location
+    let newRelative = path.relative(toDir, absoluteImport);
 
-      // Ensure it starts with ./ or ../
-      if (!newRelative.startsWith('.')) {
-        newRelative = './' + newRelative;
-      }
+    // Ensure it starts with ./ or ../
+    if (!newRelative.startsWith('.')) {
+      newRelative = `./${newRelative}`;
+    }
 
-      return `from '${newRelative}'`;
-    },
-  );
+    return `from '${newRelative}'`;
+  });
 }
 
 /**
@@ -371,8 +356,8 @@ function createUpdateImportOperations(
     const newRelative = path.relative(fileDir, newPath).replace(/\\/g, '/');
 
     // Fix relative path format
-    const oldImport = oldRelative.startsWith('.') ? oldRelative : './' + oldRelative;
-    const newImport = newRelative.startsWith('.') ? newRelative : './' + newRelative;
+    const oldImport = oldRelative.startsWith('.') ? oldRelative : `./${oldRelative}`;
+    const newImport = newRelative.startsWith('.') ? newRelative : `./${newRelative}`;
 
     lines.forEach((line, i) => {
       // Check if line imports from old path
@@ -441,7 +426,7 @@ export function createExtractTransform(
   // Step 2: Update source file (remove extracted, add re-export)
   let updatedSource = remainingContent;
   if (reexport && exportStatement) {
-    updatedSource += '\n' + exportStatement;
+    updatedSource += `\n${exportStatement}`;
   }
 
   steps.push({
@@ -495,69 +480,69 @@ function extractItems(
     const extractedParts: string[] = [];
     const removedRanges: Array<{ start: number; end: number }> = [];
 
-  // Find and extract each item
-  for (const item of items) {
-    // Try function
-    const func = source.getFunction(item);
-    if (func) {
-      extractedParts.push(func.getText());
-      removedRanges.push({
-        start: func.getStart(),
-        end: func.getEnd(),
-      });
-      continue;
-    }
-
-    // Try type alias
-    const typeAlias = source.getTypeAlias(item);
-    if (typeAlias) {
-      extractedParts.push(typeAlias.getText());
-      removedRanges.push({
-        start: typeAlias.getStart(),
-        end: typeAlias.getEnd(),
-      });
-      continue;
-    }
-
-    // Try interface
-    const iface = source.getInterface(item);
-    if (iface) {
-      extractedParts.push(iface.getText());
-      removedRanges.push({
-        start: iface.getStart(),
-        end: iface.getEnd(),
-      });
-      continue;
-    }
-
-    // Try variable
-    const variable = source.getVariableDeclaration(item);
-    if (variable) {
-      const stmt = variable.getFirstAncestorByKind(SyntaxKind.VariableStatement);
-      if (stmt) {
-        extractedParts.push(stmt.getText());
+    // Find and extract each item
+    for (const item of items) {
+      // Try function
+      const func = source.getFunction(item);
+      if (func) {
+        extractedParts.push(func.getText());
         removedRanges.push({
-          start: stmt.getStart(),
-          end: stmt.getEnd(),
+          start: func.getStart(),
+          end: func.getEnd(),
         });
+        continue;
+      }
+
+      // Try type alias
+      const typeAlias = source.getTypeAlias(item);
+      if (typeAlias) {
+        extractedParts.push(typeAlias.getText());
+        removedRanges.push({
+          start: typeAlias.getStart(),
+          end: typeAlias.getEnd(),
+        });
+        continue;
+      }
+
+      // Try interface
+      const iface = source.getInterface(item);
+      if (iface) {
+        extractedParts.push(iface.getText());
+        removedRanges.push({
+          start: iface.getStart(),
+          end: iface.getEnd(),
+        });
+        continue;
+      }
+
+      // Try variable
+      const variable = source.getVariableDeclaration(item);
+      if (variable) {
+        const stmt = variable.getFirstAncestorByKind(SyntaxKind.VariableStatement);
+        if (stmt) {
+          extractedParts.push(stmt.getText());
+          removedRanges.push({
+            start: stmt.getStart(),
+            end: stmt.getEnd(),
+          });
+        }
       }
     }
-  }
 
-  // Build extracted content
-  const extractedContent = extractedParts.join('\n\n');
+    // Build extracted content
+    const extractedContent = extractedParts.join('\n\n');
 
-  // Build remaining content (remove extracted ranges)
-  let remaining = content;
-  // Sort ranges in reverse order to preserve positions
-  removedRanges.sort((a, b) => b.start - a.start);
+    // Build remaining content (remove extracted ranges)
+    let remaining = content;
+    // Sort ranges in reverse order to preserve positions
+    removedRanges.sort((a, b) => b.start - a.start);
 
-  for (const range of removedRanges) {
-    remaining = remaining.slice(0, range.start) + remaining.slice(range.end);
-  }
+    for (const range of removedRanges) {
+      remaining = remaining.slice(0, range.start) + remaining.slice(range.end);
+    }
 
     // Create export statement
-    const relativePath = './' + path.basename(targetFile, path.extname(targetFile));
+    const relativePath = `./${path.basename(targetFile, path.extname(targetFile))}`;
     const exportStatement = `export { ${items.join(', ')} } from '${relativePath}';`;
 
     return {

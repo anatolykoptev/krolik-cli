@@ -9,27 +9,25 @@
  * - Utils: ensureDirectories, getAgentsVersion, getAgentsRepoStats
  */
 
-// Utils
-export {
-  ensureDirectories,
-  isGitAvailable,
-  registerMarketplace,
-  registerPlugin,
-  getAgentsVersion,
-  getAgentsRepoStats,
-  ensureClaudeMemDataDir,
-} from './utils';
-
-// MCP Plugin installer
-export { installMcpPlugin, updateMcpPlugin } from './mcp-plugin';
-
 // Agents installer
 export { installAgentsRepo, updateAgentsRepo } from './agents';
 
+// MCP Plugin installer
+export { installMcpPlugin, updateMcpPlugin } from './mcp-plugin';
 // MCP Server installer
 export {
   getInstalledMcpServers,
-  isMcpServerInstalled,
-  installMcpServer,
   installAllMcpServers,
+  installMcpServer,
+  isMcpServerInstalled,
 } from './mcp-server';
+// Utils
+export {
+  ensureClaudeMemDataDir,
+  ensureDirectories,
+  getAgentsRepoStats,
+  getAgentsVersion,
+  isGitAvailable,
+  registerMarketplace,
+  registerPlugin,
+} from './utils';

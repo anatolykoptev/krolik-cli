@@ -3,7 +3,14 @@
  * @description Default configuration values
  */
 
-import type { ResolvedConfig, PathConfig, FeatureConfig, PrismaConfig, TrpcConfig, TemplateConfig } from '../types';
+import type {
+  FeatureConfig,
+  PathConfig,
+  PrismaConfig,
+  ResolvedConfig,
+  TemplateConfig,
+  TrpcConfig,
+} from '../types';
 
 /**
  * Default path configuration

@@ -3,10 +3,10 @@
  * @description Fix generator for high cyclomatic complexity
  */
 
-import type { FixOperation } from '../../types';
 import { reduceNesting } from '../../ast-utils/index';
-import { findRefactorings, detectIfChain, generateLookupMap } from '../../refactorings';
-import { splitLines, createFullFileReplace, createReplaceRange } from '../shared';
+import { detectIfChain, findRefactorings, generateLookupMap } from '../../refactorings';
+import type { FixOperation } from '../../types';
+import { createFullFileReplace, createReplaceRange, splitLines } from '../shared';
 import { findFunctionEnd } from './helpers';
 import { MIN_IF_CHAIN_LENGTH } from './patterns';
 
@@ -67,9 +67,7 @@ function tryIfChainConversion(
     return null;
   }
 
-  const originalCode = lines
-    .slice(chain.startLine - 1, chain.endLine)
-    .join('\n');
+  const originalCode = lines.slice(chain.startLine - 1, chain.endLine).join('\n');
 
   const newCode = generateLookupMap(chain);
 

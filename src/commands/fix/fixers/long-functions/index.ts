@@ -6,13 +6,13 @@
  * Uses ts-morph AST for accurate function detection.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
-import { createFixerMetadata } from '../../core/registry';
 import {
-  parseCode,
-  extractFunctions,
   type FunctionInfo as ASTFunctionInfo,
+  extractFunctions,
+  parseCode,
 } from '../../../../lib/@ast';
+import { createFixerMetadata } from '../../core/registry';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('long-functions', 'Long Functions', 'complexity', {
   description: 'Split long functions into smaller ones',
@@ -69,7 +69,9 @@ function findFunctionsRegex(content: string): FunctionInfo[] {
     const line = lines[i] ?? '';
 
     // Detect function start
-    const funcMatch = line.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\(|(\w+)\s*(?:=|:)\s*(?:async\s*)?\([^)]*\)\s*(?:=>|{))/);
+    const funcMatch = line.match(
+      /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\(|(\w+)\s*(?:=|:)\s*(?:async\s*)?\([^)]*\)\s*(?:=>|{))/,
+    );
 
     if (funcMatch && !currentFunction) {
       const name = funcMatch[1] || funcMatch[2] || funcMatch[3] || 'anonymous';
@@ -134,13 +136,13 @@ function analyzeLongFunctions(content: string, file: string): QualityIssue[] {
  * Section separator patterns to detect logical blocks
  */
 const SECTION_PATTERNS = [
-  /^\/\/\s*={3,}/,           // // ===
-  /^\/\/\s*-{3,}/,           // // ---
-  /^\/\/\s*#{3,}/,           // // ###
-  /^\/\/\s*MARK:\s*/i,       // // MARK:
-  /^\/\/\s*SECTION:\s*/i,    // // SECTION:
-  /^\/\/\s*STEP\s*\d*:/i,    // // STEP 1:
-  /^\/\/\s*\d+\.\s+/,        // // 1. Do something
+  /^\/\/\s*={3,}/, // // ===
+  /^\/\/\s*-{3,}/, // // ---
+  /^\/\/\s*#{3,}/, // // ###
+  /^\/\/\s*MARK:\s*/i, // // MARK:
+  /^\/\/\s*SECTION:\s*/i, // // SECTION:
+  /^\/\/\s*STEP\s*\d*:/i, // // STEP 1:
+  /^\/\/\s*\d+\.\s+/, // // 1. Do something
 ];
 
 interface Section {
@@ -162,7 +164,7 @@ function findSections(lines: string[], startLine: number, endLine: number): Sect
     const trimmed = line.trim();
 
     // Check if this is a section separator
-    const isSeparator = SECTION_PATTERNS.some(p => p.test(trimmed));
+    const isSeparator = SECTION_PATTERNS.some((p) => p.test(trimmed));
 
     if (isSeparator) {
       // Save previous section
@@ -191,7 +193,7 @@ function findSections(lines: string[], startLine: number, endLine: number): Sect
     sections.push(currentSection);
   }
 
-  return sections.filter(s => s.content.length >= 3); // Only sections with 3+ lines
+  return sections.filter((s) => s.content.length >= 3); // Only sections with 3+ lines
 }
 
 /**
@@ -199,16 +201,14 @@ function findSections(lines: string[], startLine: number, endLine: number): Sect
  */
 function generateHelperName(funcName: string, sectionName: string): string {
   // Clean up section name
-  const cleaned = sectionName
-    .replace(/^_+|_+$/g, '')
-    .replace(/_+/g, '_');
+  const cleaned = sectionName.replace(/^_+|_+$/g, '').replace(/_+/g, '_');
 
   if (!cleaned) return `${funcName}Helper`;
 
   // Capitalize first letter of each word
   const camelCase = cleaned
     .split('_')
-    .map((word, i) => i === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word, i) => (i === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)))
     .join('');
 
   return `${funcName}_${camelCase}`;
@@ -221,7 +221,7 @@ function fixLongFunctionIssue(issue: QualityIssue, content: string): FixOperatio
 
   // Find the function at this line using AST
   const functions = findFunctions(content, issue.file);
-  const targetFunc = functions.find(f => f.startLine === issue.line);
+  const targetFunc = functions.find((f) => f.startLine === issue.line);
 
   if (!targetFunc) return null;
 
@@ -239,7 +239,7 @@ function fixLongFunctionIssue(issue: QualityIssue, content: string): FixOperatio
 
       // Create helper function
       const helperBody = section.content
-        .map(l => l.startsWith('  ') ? l.slice(2) : l)
+        .map((l) => (l.startsWith('  ') ? l.slice(2) : l))
         .join('\n')
         .trim();
 

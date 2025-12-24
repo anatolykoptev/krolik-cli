@@ -3,15 +3,15 @@
  * @description Re-exports all section formatters
  */
 
-export { formatTaskSection, formatGitSection, formatTreeSection } from "./task-git";
-export { formatSchemaSection, formatRoutesSection } from "./schema-routes";
-export { formatFilesSection, formatIoSchemasSection } from "./files";
 export {
-  formatComponentsSection,
-  formatTestsSection,
-  formatHintsSection,
   formatApproachSection,
+  formatComponentsSection,
+  formatHintsSection,
   formatPreCommitSection,
   formatQualitySection,
-} from "./details";
-export { formatTypesSection, formatImportsSection } from "./types-imports";
+  formatTestsSection,
+} from './details';
+export { formatFilesSection, formatIoSchemasSection } from './files';
+export { formatRoutesSection, formatSchemaSection } from './schema-routes';
+export { formatGitSection, formatTaskSection, formatTreeSection } from './task-git';
+export { formatImportsSection, formatTypesSection } from './types-imports';

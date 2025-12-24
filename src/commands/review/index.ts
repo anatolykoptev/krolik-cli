@@ -3,14 +3,26 @@
  * @description AI-assisted code review command
  */
 
-import type { CommandContext, ReviewResult, FileChange, ReviewIssue, OutputFormat } from '../../types';
-import { getChangedFiles, getStagedChanges, getPRInfo, getFileChanges, getReviewBranches } from './diff';
-import { analyzeAddedLines } from './patterns';
-import { assessRisk, needsTests, needsDocs, detectAffectedFeatures } from './risk';
-import { printReview, formatJson, formatMarkdown, formatAI } from './output';
-import { findAgentsPath, loadAgentByName } from '../agent/loader';
-import { buildAgentContext, formatContextForPrompt } from '../agent/context';
 import { escapeXml } from '../../lib';
+import type {
+  CommandContext,
+  FileChange,
+  OutputFormat,
+  ReviewIssue,
+  ReviewResult,
+} from '../../types';
+import { buildAgentContext, formatContextForPrompt } from '../agent/context';
+import { findAgentsPath, loadAgentByName } from '../agent/loader';
+import {
+  getChangedFiles,
+  getFileChanges,
+  getPRInfo,
+  getReviewBranches,
+  getStagedChanges,
+} from './diff';
+import { formatAI, formatJson, formatMarkdown, printReview } from './output';
+import { analyzeAddedLines } from './patterns';
+import { assessRisk, detectAffectedFeatures, needsDocs, needsTests } from './risk';
 
 /**
  * Review command options
@@ -270,8 +282,8 @@ function buildDiffContext(review: ReviewResult): string {
   return lines.join('\n');
 }
 
+export type { ReviewPattern } from './patterns';
 // Re-export for external use
 export { analyzeAddedLines, checkPatterns } from './patterns';
-export { assessRisk, needsTests, needsDocs, detectAffectedFeatures } from './risk';
-export type { ReviewPattern } from './patterns';
 export type { RiskLevel } from './risk';
+export { assessRisk, detectAffectedFeatures, needsDocs, needsTests } from './risk';

@@ -6,33 +6,32 @@
  * to prevent injection attacks and ensure safe command execution.
  */
 
-// Regex escaping utilities
-export { escapeRegex, escapeReplacement, literalReplacer } from './regex';
+// Shell escaping
+export { escapeDoubleQuotes, escapeShellArg, isValidCommandName } from './escape';
 
 // Path validation utilities
 export {
-  normalizeToRelative,
-  validatePathWithinProject,
-  validatePathOrThrow,
   isPathSafe,
+  normalizeToRelative,
   type PathValidationResult,
+  validatePathOrThrow,
+  validatePathWithinProject,
 } from './path';
-
-// Shell escaping
-export { escapeShellArg, escapeDoubleQuotes, isValidCommandName } from './escape';
+// Regex escaping utilities
+export { escapeRegex, escapeReplacement, literalReplacer } from './regex';
 
 // String and number validation
 export {
+  isValidEmail,
+  isValidUrl,
+  parseBoolean,
+  sanitizeEmail,
   sanitizeFeatureName,
-  sanitizePathComponent,
   sanitizeIdentifier,
   sanitizeIssueNumber,
+  sanitizePathComponent,
   sanitizePort,
   sanitizePositiveInt,
-  isValidUrl,
   sanitizeUrl,
-  isValidEmail,
-  sanitizeEmail,
-  parseBoolean,
   type ValidationResult,
 } from './validation';

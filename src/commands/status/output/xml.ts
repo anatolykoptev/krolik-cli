@@ -32,7 +32,8 @@ function xmlTechStack(techStack: StatusResult['techStack']): string[] {
   lines.push(`    <language>${techStack.language}</language>`);
   lines.push(`    <package-manager>${techStack.packageManager}</package-manager>`);
   if (techStack.ui.length > 0) lines.push(`    <ui>${techStack.ui.join(', ')}</ui>`);
-  if (techStack.database.length > 0) lines.push(`    <database>${techStack.database.join(', ')}</database>`);
+  if (techStack.database.length > 0)
+    lines.push(`    <database>${techStack.database.join(', ')}</database>`);
   if (techStack.api.length > 0) lines.push(`    <api>${techStack.api.join(', ')}</api>`);
   lines.push('  </tech-stack>', '');
   return lines;
@@ -123,7 +124,10 @@ function xmlWorkspaces(workspaces: StatusResult['workspaces']): string[] {
 function xmlBranchContext(ctx: StatusResult['branchContext']): string[] {
   if (!ctx) return [];
   const issueAttr = ctx.issueNumber ? ` issue="${ctx.issueNumber}"` : '';
-  const lines: string[] = ['', `  <branch-context name="${ctx.name}" type="${ctx.type}"${issueAttr}>`];
+  const lines: string[] = [
+    '',
+    `  <branch-context name="${ctx.name}" type="${ctx.type}"${issueAttr}>`,
+  ];
   if (ctx.description) lines.push(`    <description>${ctx.description}</description>`);
   lines.push('  </branch-context>');
   return lines;
@@ -173,7 +177,9 @@ function xmlDoNot(status: StatusResult): string[] {
     'Do not leave console.log in production code',
   ];
   if (status.git.behind && status.git.behind > 0) {
-    rules.push(`Do not commit before pulling latest changes (you are behind by ${status.git.behind} commits)`);
+    rules.push(
+      `Do not commit before pulling latest changes (you are behind by ${status.git.behind} commits)`,
+    );
   }
   if (status.typecheck.status === 'failed') {
     rules.push('Do not add new features until TypeScript errors are fixed');
@@ -186,7 +192,9 @@ function xmlSuggestions(status: StatusResult): string[] {
   const lines: string[] = ['', '  <suggestions>'];
 
   if (status.aiRules && status.aiRules.length > 0) {
-    lines.push(`    <action priority="critical">Read AI rules files before proceeding: ${status.aiRules.map((r) => r.relativePath).join(', ')}</action>`);
+    lines.push(
+      `    <action priority="critical">Read AI rules files before proceeding: ${status.aiRules.map((r) => r.relativePath).join(', ')}</action>`,
+    );
   }
   if (status.health === 'error') {
     if (status.typecheck.status === 'failed') {
@@ -198,24 +206,38 @@ function xmlSuggestions(status: StatusResult): string[] {
   }
   if (status.git.hasChanges) {
     if (status.git.staged > 0) {
-      lines.push(`    <action priority="high">Commit staged changes (${status.git.staged} files ready)</action>`);
+      lines.push(
+        `    <action priority="high">Commit staged changes (${status.git.staged} files ready)</action>`,
+      );
     } else {
-      lines.push(`    <action priority="medium">Review and stage changes: ${status.git.modified} modified, ${status.git.untracked} untracked files</action>`);
+      lines.push(
+        `    <action priority="medium">Review and stage changes: ${status.git.modified} modified, ${status.git.untracked} untracked files</action>`,
+      );
       if (status.git.modified + status.git.untracked > 10) {
-        lines.push('    <action priority="medium">Consider splitting changes into smaller commits</action>');
+        lines.push(
+          '    <action priority="medium">Consider splitting changes into smaller commits</action>',
+        );
       }
     }
   }
   if (status.git.ahead && status.git.ahead > 0) {
-    lines.push(`    <action priority="medium">Push ${status.git.ahead} unpushed commit(s) to remote</action>`);
+    lines.push(
+      `    <action priority="medium">Push ${status.git.ahead} unpushed commit(s) to remote</action>`,
+    );
   }
   if (status.git.behind && status.git.behind > 0) {
-    lines.push(`    <action priority="high">Pull ${status.git.behind} new commit(s) from remote before continuing</action>`);
+    lines.push(
+      `    <action priority="high">Pull ${status.git.behind} new commit(s) from remote before continuing</action>`,
+    );
   }
   if (status.todos.count > 30) {
     lines.push('    <action priority="low">Review and clean up TODOs</action>');
   }
-  if (status.health === 'good' && !status.git.hasChanges && (!status.aiRules || status.aiRules.length === 0)) {
+  if (
+    status.health === 'good' &&
+    !status.git.hasChanges &&
+    (!status.aiRules || status.aiRules.length === 0)
+  ) {
     lines.push('    <action>Project is ready for development</action>');
   }
 
@@ -271,9 +293,10 @@ export interface ReportSummary {
  * Designed to give AI maximum context with clear instructions
  */
 export function formatReportOutput(status: StatusResult, summary: ReportSummary): string {
-  const criticalWarning = summary.critical > 0
-    ? `\n  ⚠️  ${summary.critical} CRITICAL issue(s) require immediate attention!`
-    : '';
+  const criticalWarning =
+    summary.critical > 0
+      ? `\n  ⚠️  ${summary.critical} CRITICAL issue(s) require immediate attention!`
+      : '';
 
   const healthEmoji = status.health === 'good' ? '✅' : status.health === 'warning' ? '⚠️' : '❌';
 
@@ -308,7 +331,10 @@ export function formatReportOutput(status: StatusResult, summary: ReportSummary)
   </quick_wins>
 
   <hotspot_files description="Files with most issues">
-${summary.hotspotFiles.slice(0, 3).map((f) => `    <file>${f}</file>`).join('\n')}
+${summary.hotspotFiles
+  .slice(0, 3)
+  .map((f) => `    <file>${f}</file>`)
+  .join('\n')}
   </hotspot_files>
 </report-summary>
 

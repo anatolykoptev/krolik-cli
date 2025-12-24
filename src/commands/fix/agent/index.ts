@@ -40,32 +40,31 @@
  * ```
  */
 
-// Types
-export type {
-  StepPriority,
-  StepStatus,
-  StepAction,
-  PlanStep,
-  ImprovementPlan,
-  ExecutionMode,
-  StepExecutionResult,
-  PlanExecutionResult,
-  PlanFormat,
-  ParseResult,
-  StepProgressCallback,
-  ConfirmCallback,
-  ExecutorOptions,
-} from './types';
-
-// Parser
-export {
-  detectFormat,
-  parsePlanFile,
-  parsePlan,
-} from './parser';
-
 // Executor
 export {
   executePlan,
   previewPlan,
 } from './executor';
+
+// Parser
+export {
+  detectFormat,
+  parsePlan,
+  parsePlanFile,
+} from './parser';
+// Types
+export type {
+  ConfirmCallback,
+  ExecutionMode,
+  ExecutorOptions,
+  ImprovementPlan,
+  ParseResult,
+  PlanExecutionResult,
+  PlanFormat,
+  PlanStep,
+  StepAction,
+  StepExecutionResult,
+  StepPriority,
+  StepProgressCallback,
+  StepStatus,
+} from './types';

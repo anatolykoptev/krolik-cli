@@ -3,7 +3,7 @@
  * @description Plugin and MCP server configurations
  */
 
-import type { PluginConfig, McpServerConfig } from './types';
+import type { McpServerConfig, PluginConfig } from './types';
 
 /**
  * Available plugins registry

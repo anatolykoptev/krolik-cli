@@ -3,8 +3,8 @@
  * @description Fix generator for deep nesting issues
  */
 
-import type { FixOperation } from '../../types';
 import { reduceNesting } from '../../ast-utils/index';
+import type { FixOperation } from '../../types';
 import { createFullFileReplace } from '../shared';
 
 // ============================================================================

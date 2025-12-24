@@ -9,35 +9,33 @@
  * import { findProjectRoot, findSchemaDir, findRoutersDir } from '@/lib/@discovery';
  */
 
+export type { MonorepoInfo, ProjectInfo } from './project';
 // Project discovery
 export {
-  findProjectRoot,
-  findPackageJson,
-  findGitRoot,
   detectMonorepo,
+  findGitRoot,
+  findPackageJson,
+  findProjectRoot,
   getProjectInfo,
 } from './project';
-export type { MonorepoInfo, ProjectInfo } from './project';
-
-// Schema discovery (Prisma, Zod)
-export {
-  findSchemaDir,
-  findPrismaSchema,
-  findPrismaSchemaFiles,
-  findZodSchemasDir,
-  findZodSchemas,
-  discoverSchemas,
-} from './schema';
-export type { SchemaInfo } from './schema';
-
+export type { ApiRoutesInfo, ApiType } from './routes';
 // Route discovery (tRPC, Next.js, Express)
 export {
-  findRoutersDir,
-  findTrpcRouters,
+  discoverApiRoutes,
+  findExpressRoutes,
+  findExpressRoutesDir,
   findNextjsApiDir,
   findNextjsApiRoutes,
-  findExpressRoutesDir,
-  findExpressRoutes,
-  discoverApiRoutes,
+  findRoutersDir,
+  findTrpcRouters,
 } from './routes';
-export type { ApiType, ApiRoutesInfo } from './routes';
+export type { SchemaInfo } from './schema';
+// Schema discovery (Prisma, Zod)
+export {
+  discoverSchemas,
+  findPrismaSchema,
+  findPrismaSchemaFiles,
+  findSchemaDir,
+  findZodSchemas,
+  findZodSchemasDir,
+} from './schema';

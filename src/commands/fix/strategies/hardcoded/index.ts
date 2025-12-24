@@ -13,10 +13,9 @@
  * - Formats output with Prettier
  */
 
-import type { QualityIssue } from '../../types';
-import type { FixOperation, FixStrategy } from '../../types';
-import { FIXABLE_PATTERNS, ALLOWED_NUMBERS } from './constants';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
 import { looksLikeTimestamp } from './ast-utils';
+import { ALLOWED_NUMBERS, FIXABLE_PATTERNS } from './constants';
 import { generateNumberFix, generateUrlFix } from './generators';
 
 // ============================================================================
@@ -68,8 +67,8 @@ export const hardcodedStrategy: FixStrategy = {
   },
 };
 
-// Re-export for external use
-export { KNOWN_CONSTANTS, ALLOWED_NUMBERS, KEYWORD_TO_NAME } from './constants';
-export { generateConstName } from './naming';
 export { extractASTContext } from './ast-utils';
+// Re-export for external use
+export { ALLOWED_NUMBERS, KEYWORD_TO_NAME, KNOWN_CONSTANTS } from './constants';
 export { generateNumberFix, generateUrlFix } from './generators';
+export { generateConstName } from './naming';

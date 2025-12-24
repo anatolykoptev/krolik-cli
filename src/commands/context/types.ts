@@ -3,16 +3,16 @@
  * @description Type definitions for context module
  */
 
-import type { ContextResult, KrolikConfig, OutputFormat } from "../../types";
-import type { SchemaOutput } from "../schema/output";
-import type { RoutesOutput } from "../routes/output";
+import type { ContextResult, KrolikConfig, OutputFormat } from '../../types';
+import type { RoutesOutput } from '../routes/output';
+import type { SchemaOutput } from '../schema/output';
 import type {
-  ZodSchemaInfo,
   ComponentInfo,
-  TestInfo,
   ExtractedType,
   ImportRelation,
-} from "./parsers";
+  TestInfo,
+  ZodSchemaInfo,
+} from './parsers';
 
 /**
  * Context command options

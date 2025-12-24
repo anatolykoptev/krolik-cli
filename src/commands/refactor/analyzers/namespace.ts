@@ -16,10 +16,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type {
-  NamespaceCategory,
-  DirectoryInfo,
-} from '../core';
+import type { DirectoryInfo, NamespaceCategory } from '../core';
 
 // ============================================================================
 // TYPES (namespace-specific)
@@ -79,51 +76,180 @@ const CATEGORY_PRIORITY: NamespaceCategory[] = [
 
 const NAMESPACE_KEYWORDS: Record<NamespaceCategory, string[]> = {
   core: [
-    'core', 'auth', 'session', 'user', 'config', 'routes', 'router', 'trpc',
-    'middleware', 'api', 'server', 'client', 'context', 'providers',
-    'constants', 'env', 'i18n', 'locale', 'theme', 'settings',
-    'cli', 'commands', 'bin', 'shell', 'process', 'logger', 'log',
-    'git', 'github', 'vcs', 'fs', 'filesystem', 'io',
+    'core',
+    'auth',
+    'session',
+    'user',
+    'config',
+    'routes',
+    'router',
+    'trpc',
+    'middleware',
+    'api',
+    'server',
+    'client',
+    'context',
+    'providers',
+    'constants',
+    'env',
+    'i18n',
+    'locale',
+    'theme',
+    'settings',
+    'cli',
+    'commands',
+    'bin',
+    'shell',
+    'process',
+    'logger',
+    'log',
+    'git',
+    'github',
+    'vcs',
+    'fs',
+    'filesystem',
+    'io',
   ],
   domain: [
-    'domain', 'booking', 'event', 'place', 'venue', 'ticket', 'order', 'payment',
-    'review', 'rating', 'customer', 'crm', 'calendar', 'schedule',
-    'business', 'admin', 'dashboard', 'panel', 'notification', 'dal',
-    'stores', 'state', 'data', 'analysis', 'analyzer', 'checker', 'linter',
-    'quality', 'metrics',
+    'domain',
+    'booking',
+    'event',
+    'place',
+    'venue',
+    'ticket',
+    'order',
+    'payment',
+    'review',
+    'rating',
+    'customer',
+    'crm',
+    'calendar',
+    'schedule',
+    'business',
+    'admin',
+    'dashboard',
+    'panel',
+    'notification',
+    'dal',
+    'stores',
+    'state',
+    'data',
+    'analysis',
+    'analyzer',
+    'checker',
+    'linter',
+    'quality',
+    'metrics',
   ],
   integrations: [
-    'integrations', 'integration', 'storage', 'upload', 'email', 'sms', 'push',
-    'analytics', 'tracking', 'stripe', 'yookassa', 'paypal', 'twilio', 'sendgrid',
-    'firebase', 's3', 'cloudinary', 'maps', 'google', 'facebook', 'oauth', 'external',
-    'mcp', 'lsp', 'ai', 'llm', 'openai', 'anthropic',
+    'integrations',
+    'integration',
+    'storage',
+    'upload',
+    'email',
+    'sms',
+    'push',
+    'analytics',
+    'tracking',
+    'stripe',
+    'yookassa',
+    'paypal',
+    'twilio',
+    'sendgrid',
+    'firebase',
+    's3',
+    'cloudinary',
+    'maps',
+    'google',
+    'facebook',
+    'oauth',
+    'external',
+    'mcp',
+    'lsp',
+    'ai',
+    'llm',
+    'openai',
+    'anthropic',
   ],
   ui: [
-    'ui', 'hooks', 'components', 'layout', 'modal', 'dialog', 'form',
-    'button', 'input', 'table', 'card', 'icon', 'animation', 'motion',
-    'output', 'printer', 'terminal', 'console', 'chalk', 'colors',
+    'ui',
+    'hooks',
+    'components',
+    'layout',
+    'modal',
+    'dialog',
+    'form',
+    'button',
+    'input',
+    'table',
+    'card',
+    'icon',
+    'animation',
+    'motion',
+    'output',
+    'printer',
+    'terminal',
+    'console',
+    'chalk',
+    'colors',
   ],
   utils: [
-    'utils', 'util', 'helpers', 'common', 'shared', 'tools',
-    'date', 'string', 'array', 'object', 'validation', 'sanitize',
-    'ast', 'parser', 'lexer', 'tokenizer', 'transformer', 'visitor',
-    'formatters', 'format', 'formatting', 'text', 'markdown',
-    'discovery', 'finder', 'glob', 'pattern', 'search',
-    'timing', 'perf', 'measure', 'benchmark',
+    'utils',
+    'util',
+    'helpers',
+    'common',
+    'shared',
+    'tools',
+    'date',
+    'string',
+    'array',
+    'object',
+    'validation',
+    'sanitize',
+    'ast',
+    'parser',
+    'lexer',
+    'tokenizer',
+    'transformer',
+    'visitor',
+    'formatters',
+    'format',
+    'formatting',
+    'text',
+    'markdown',
+    'discovery',
+    'finder',
+    'glob',
+    'pattern',
+    'search',
+    'timing',
+    'perf',
+    'measure',
+    'benchmark',
   ],
   seo: [
-    'seo', 'metadata', 'schema', 'jsonld', 'opengraph', 'sitemap',
-    'robots', 'indexnow', 'structured-data',
+    'seo',
+    'metadata',
+    'schema',
+    'jsonld',
+    'opengraph',
+    'sitemap',
+    'robots',
+    'indexnow',
+    'structured-data',
   ],
   unknown: [],
 };
 
-export const NAMESPACE_INFO: Record<NamespaceCategory, {
-  description: string;
-  layer: string;
-  dependsOn: string[];
-  usedBy: string[];
-}> = {
+export const NAMESPACE_INFO: Record<
+  NamespaceCategory,
+  {
+    description: string;
+    layer: string;
+    dependsOn: string[];
+    usedBy: string[];
+  }
+> = {
   core: {
     description: 'Foundation layer: auth, config, utilities',
     layer: 'Pure utilities, configuration, authentication',
@@ -201,7 +327,8 @@ function countTsFiles(dir: string): number {
 function getSubdirs(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
 
-  return fs.readdirSync(dir, { withFileTypes: true })
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && !SKIP_DIRS.includes(e.name))
     .map((e) => e.name);
 }
@@ -315,7 +442,7 @@ export function generateNamespaceMigrationPlan(
     if (!byCategory.has(dir.category)) {
       byCategory.set(dir.category, []);
     }
-    byCategory.get(dir.category)!.push(dir);
+    byCategory.get(dir.category)?.push(dir);
   }
 
   for (const [category, dirs] of byCategory) {
@@ -370,7 +497,8 @@ export function analyzeNamespaceStructure(
     };
   }
 
-  const entries = fs.readdirSync(libDir, { withFileTypes: true })
+  const entries = fs
+    .readdirSync(libDir, { withFileTypes: true })
     .filter((e) => e.isDirectory() && !SKIP_DIRS.includes(e.name));
 
   const directories = entries.map((e) =>

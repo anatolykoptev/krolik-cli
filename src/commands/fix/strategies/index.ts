@@ -11,11 +11,11 @@
  */
 
 import type { FixStrategy, QualityIssue } from '../types';
-import { lintStrategy } from './lint';
-import { typeSafetyStrategy } from './type-safety';
 import { complexityStrategy } from './complexity';
-import { srpStrategy } from './srp';
 import { hardcodedStrategy } from './hardcoded';
+import { lintStrategy } from './lint';
+import { srpStrategy } from './srp';
+import { typeSafetyStrategy } from './type-safety';
 
 /**
  * All available fix strategies
@@ -33,16 +33,13 @@ export const ALL_STRATEGIES: FixStrategy[] = [
  */
 export type FindStrategyResult =
   | { status: 'found'; strategy: FixStrategy }
-  | { status: 'no-strategy' }       // No strategy handles this category
-  | { status: 'context-skipped' };  // Strategy exists but skipped by context
+  | { status: 'no-strategy' } // No strategy handles this category
+  | { status: 'context-skipped' }; // Strategy exists but skipped by context
 
 /**
  * Find strategy that can handle an issue
  */
-export function findStrategy(
-  issue: QualityIssue,
-  content: string,
-): FixStrategy | null {
+export function findStrategy(issue: QualityIssue, content: string): FixStrategy | null {
   for (const strategy of ALL_STRATEGIES) {
     if (strategy.categories.includes(issue.category) && strategy.canFix(issue, content)) {
       return strategy;
@@ -54,14 +51,9 @@ export function findStrategy(
 /**
  * Find strategy with detailed result
  */
-export function findStrategyDetailed(
-  issue: QualityIssue,
-  content: string,
-): FindStrategyResult {
+export function findStrategyDetailed(issue: QualityIssue, content: string): FindStrategyResult {
   // First check if any strategy handles this category
-  const categoryStrategies = ALL_STRATEGIES.filter((s) =>
-    s.categories.includes(issue.category),
-  );
+  const categoryStrategies = ALL_STRATEGIES.filter((s) => s.categories.includes(issue.category));
 
   if (categoryStrategies.length === 0) {
     return { status: 'no-strategy' };
@@ -78,9 +70,9 @@ export function findStrategyDetailed(
   return { status: 'context-skipped' };
 }
 
+export { complexityStrategy } from './complexity';
+export { hardcodedStrategy } from './hardcoded';
 // Re-export individual strategies
 export { lintStrategy } from './lint';
-export { typeSafetyStrategy } from './type-safety';
-export { complexityStrategy } from './complexity';
 export { srpStrategy } from './srp';
-export { hardcodedStrategy } from './hardcoded';
+export { typeSafetyStrategy } from './type-safety';

@@ -3,9 +3,9 @@
  * @description Test file parser
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { TestInfo } from "./types";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { TestInfo } from './types';
 
 const MAX_TESTS_PER_DESCRIBE = 10;
 const DESCRIBE_SEARCH_LENGTH = 2000;
@@ -15,10 +15,10 @@ const DESCRIBE_SEARCH_LENGTH = 2000;
  */
 function analyzeTest(filePath: string): TestInfo | null {
   try {
-    const content = fs.readFileSync(filePath, "utf-8");
+    const content = fs.readFileSync(filePath, 'utf-8');
     const fileName = path.basename(filePath);
 
-    const describes: TestInfo["describes"] = [];
+    const describes: TestInfo['describes'] = [];
 
     // Match describe blocks
     const describeRegex = /describe\(['"](.+?)['"],\s*\(\)\s*=>\s*\{/g;
@@ -36,10 +36,7 @@ function analyzeTest(filePath: string): TestInfo | null {
 
       // Reset and search for it blocks within ~2000 chars
       const startPos = descMatch.index;
-      const searchContent = content.slice(
-        startPos,
-        startPos + DESCRIBE_SEARCH_LENGTH,
-      );
+      const searchContent = content.slice(startPos, startPos + DESCRIBE_SEARCH_LENGTH);
 
       while ((itMatch = itRegex.exec(searchContent)) !== null) {
         if (itMatch[1]) tests.push(itMatch[1]);
@@ -75,10 +72,7 @@ function matchesPatterns(fileName: string, patterns: string[]): boolean {
  * Check if entry is a test file
  */
 function isTestFile(entry: fs.Dirent): boolean {
-  return (
-    entry.isFile() &&
-    (entry.name.endsWith(".test.ts") || entry.name.endsWith(".test.tsx"))
-  );
+  return entry.isFile() && (entry.name.endsWith('.test.ts') || entry.name.endsWith('.test.tsx'));
 }
 
 /**
@@ -94,7 +88,7 @@ function processEntry(
   const fullPath = path.join(dir, entry.name);
 
   // Recurse into subdirectories
-  if (entry.isDirectory() && !entry.name.startsWith(".")) {
+  if (entry.isDirectory() && !entry.name.startsWith('.')) {
     scanDir(fullPath);
     return;
   }
@@ -113,10 +107,7 @@ function processEntry(
 /**
  * Parse test files to extract describe/it blocks
  */
-export function parseTestFiles(
-  testsDir: string,
-  patterns: string[],
-): TestInfo[] {
+export function parseTestFiles(testsDir: string, patterns: string[]): TestInfo[] {
   const results: TestInfo[] = [];
 
   if (!fs.existsSync(testsDir)) return results;

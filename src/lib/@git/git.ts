@@ -3,7 +3,7 @@
  * @description Git operations utilities
  */
 
-import { tryExec, execLines, shellOpts } from "../@shell/shell";
+import { execLines, shellOpts, tryExec } from '../@shell/shell';
 
 const MAGIC_3_VALUE = 3;
 
@@ -45,15 +45,15 @@ export interface GitAheadBehind {
  * Check if current directory is a git repository
  */
 export function isGitRepo(cwd?: string): boolean {
-  const result = tryExec("git rev-parse --is-inside-work-tree", shellOpts(cwd));
-  return result.success && result.output === "true";
+  const result = tryExec('git rev-parse --is-inside-work-tree', shellOpts(cwd));
+  return result.success && result.output === 'true';
 }
 
 /**
  * Get current branch name
  */
 export function getCurrentBranch(cwd?: string): string | null {
-  const result = tryExec("git branch --show-current", shellOpts(cwd));
+  const result = tryExec('git branch --show-current', shellOpts(cwd));
   return result.success ? result.output : null;
 }
 
@@ -65,15 +65,15 @@ export function getDefaultBranch(cwd?: string): string {
     'git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed "s@^refs/remotes/origin/@@"',
     shellOpts(cwd),
   );
-  return result.success && result.output ? result.output : "main";
+  return result.success && result.output ? result.output : 'main';
 }
 
 /**
  * Get git status (modified, untracked, staged files)
  */
 export function getStatus(cwd?: string): GitStatus {
-  const result = tryExec("git status --porcelain", shellOpts(cwd));
-  const lines = result.success ? result.output.split("\n").filter(Boolean) : [];
+  const result = tryExec('git status --porcelain', shellOpts(cwd));
+  const lines = result.success ? result.output.split('\n').filter(Boolean) : [];
 
   const modified: string[] = [];
   const untracked: string[] = [];
@@ -83,13 +83,13 @@ export function getStatus(cwd?: string): GitStatus {
     const status = line.slice(0, 2);
     const file = line.slice(MAGIC_3);
 
-    if (status.startsWith("?")) {
+    if (status.startsWith('?')) {
       untracked.push(file);
-    } else if (status[0] !== " ") {
+    } else if (status[0] !== ' ') {
       staged.push(file);
     }
 
-    if (status[1] === "M" || status[0] === "M") {
+    if (status[1] === 'M' || status[0] === 'M') {
       modified.push(file);
     }
   }
@@ -109,10 +109,10 @@ export function getRecentCommits(count = 5, cwd?: string): GitCommit[] {
   const lines = execLines(`git log --oneline -${count}`, shellOpts(cwd));
 
   return lines.map((line) => {
-    const [hash, ...messageParts] = line.split(" ");
+    const [hash, ...messageParts] = line.split(' ');
     return {
-      hash: hash ?? "",
-      message: messageParts.join(" "),
+      hash: hash ?? '',
+      message: messageParts.join(' '),
     };
   });
 }
@@ -122,7 +122,7 @@ export function getRecentCommits(count = 5, cwd?: string): GitCommit[] {
  */
 export function getAheadBehind(cwd?: string): GitAheadBehind | null {
   const result = tryExec(
-    "git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null",
+    'git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null',
     shellOpts(cwd),
   );
 
@@ -130,7 +130,7 @@ export function getAheadBehind(cwd?: string): GitAheadBehind | null {
     return null;
   }
 
-  const [ahead, behind] = result.output.split("\t").map(Number);
+  const [ahead, behind] = result.output.split('\t').map(Number);
   return { ahead: ahead ?? 0, behind: behind ?? 0 };
 }
 
@@ -142,24 +142,21 @@ export function getDiffStats(
   head: string,
   cwd?: string,
 ): Array<{ path: string; additions: number; deletions: number }> {
-  const result = tryExec(
-    `git diff --numstat ${base}...${head}`,
-    shellOpts(cwd),
-  );
+  const result = tryExec(`git diff --numstat ${base}...${head}`, shellOpts(cwd));
 
   if (!result.success || !result.output) {
     return [];
   }
 
   return result.output
-    .split("\n")
+    .split('\n')
     .filter(Boolean)
     .map((line) => {
-      const [adds, dels, filepath] = line.split("\t");
+      const [adds, dels, filepath] = line.split('\t');
       return {
-        path: filepath ?? "",
-        additions: adds === "-" ? 0 : Number.parseInt(adds ?? "0", 10),
-        deletions: dels === "-" ? 0 : Number.parseInt(dels ?? "0", 10),
+        path: filepath ?? '',
+        additions: adds === '-' ? 0 : Number.parseInt(adds ?? '0', 10),
+        deletions: dels === '-' ? 0 : Number.parseInt(dels ?? '0', 10),
       };
     });
 }
@@ -167,26 +164,18 @@ export function getDiffStats(
 /**
  * Get file diff
  */
-export function getFileDiff(
-  base: string,
-  head: string,
-  filepath: string,
-  cwd?: string,
-): string {
-  const result = tryExec(
-    `git diff ${base}...${head} -- "${filepath}"`,
-    shellOpts(cwd),
-  );
-  return result.success ? result.output : "";
+export function getFileDiff(base: string, head: string, filepath: string, cwd?: string): string {
+  const result = tryExec(`git diff ${base}...${head} -- "${filepath}"`, shellOpts(cwd));
+  return result.success ? result.output : '';
 }
 
 /**
  * Get staged diff
  */
 export function getStagedDiff(filepath?: string, cwd?: string): string {
-  const fileArg = filepath ? `-- "${filepath}"` : "";
+  const fileArg = filepath ? `-- "${filepath}"` : '';
   const result = tryExec(`git diff --cached ${fileArg}`, shellOpts(cwd));
-  return result.success ? result.output : "";
+  return result.success ? result.output : '';
 }
 
 /**
@@ -202,36 +191,34 @@ export function getDiff(options?: {
 
   let cmd: string;
   if (staged) {
-    cmd = "git diff --cached";
+    cmd = 'git diff --cached';
   } else if (base && head) {
     cmd = `git diff ${base}...${head}`;
   } else if (base) {
     cmd = `git diff ${base}`;
   } else {
-    cmd = "git diff";
+    cmd = 'git diff';
   }
 
   const result = tryExec(cmd, shellOpts(cwd));
-  return result.success ? result.output : "";
+  return result.success ? result.output : '';
 }
 
 /**
  * Get list of staged files with their status
  */
-export function getStagedFiles(
-  cwd?: string,
-): Array<{ path: string; status: string }> {
-  const result = tryExec("git diff --cached --name-status", shellOpts(cwd));
+export function getStagedFiles(cwd?: string): Array<{ path: string; status: string }> {
+  const result = tryExec('git diff --cached --name-status', shellOpts(cwd));
   if (!result.success || !result.output) return [];
 
   return result.output
-    .split("\n")
+    .split('\n')
     .filter(Boolean)
     .map((line) => {
-      const [status, ...pathParts] = line.split("\t");
+      const [status, ...pathParts] = line.split('\t');
       return {
-        status: status ?? "M",
-        path: pathParts.join("\t"),
+        status: status ?? 'M',
+        path: pathParts.join('\t'),
       };
     });
 }
@@ -240,35 +227,24 @@ export function getStagedFiles(
  * Get list of changed files (unstaged)
  */
 export function getChangedFiles(cwd?: string): string[] {
-  const result = tryExec("git diff --name-only", shellOpts(cwd));
+  const result = tryExec('git diff --name-only', shellOpts(cwd));
   if (!result.success || !result.output) return [];
-  return result.output.split("\n").filter(Boolean);
+  return result.output.split('\n').filter(Boolean);
 }
 
 /**
  * Get files changed between two refs
  */
-export function getChangedFilesBetween(
-  base: string,
-  head: string,
-  cwd?: string,
-): string[] {
-  const result = tryExec(
-    `git diff --name-only ${base}...${head}`,
-    shellOpts(cwd),
-  );
+export function getChangedFilesBetween(base: string, head: string, cwd?: string): string[] {
+  const result = tryExec(`git diff --name-only ${base}...${head}`, shellOpts(cwd));
   if (!result.success || !result.output) return [];
-  return result.output.split("\n").filter(Boolean);
+  return result.output.split('\n').filter(Boolean);
 }
 
 /**
  * Get the merge base between two refs
  */
-export function getMergeBase(
-  ref1: string,
-  ref2: string,
-  cwd?: string,
-): string | null {
+export function getMergeBase(ref1: string, ref2: string, cwd?: string): string | null {
   const result = tryExec(`git merge-base ${ref1} ${ref2}`, shellOpts(cwd));
   return result.success ? result.output : null;
 }

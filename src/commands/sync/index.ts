@@ -7,7 +7,7 @@
  */
 
 import chalk from 'chalk';
-import { syncClaudeMd, getSyncStatus, DOCS_VERSION } from '../../lib';
+import { DOCS_VERSION, getSyncStatus, syncClaudeMd } from '../../lib';
 import type { CommandContext } from '../../types';
 
 interface SyncOptions {
@@ -19,9 +19,7 @@ interface SyncOptions {
 /**
  * Run sync command
  */
-export async function runSync(
-  context: CommandContext & { options: SyncOptions }
-): Promise<void> {
+export async function runSync(context: CommandContext & { options: SyncOptions }): Promise<void> {
   const { config, logger, options } = context;
 
   // Status mode

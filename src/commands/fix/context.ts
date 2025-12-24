@@ -20,14 +20,14 @@ export type ProjectType = 'cli' | 'web' | 'api' | 'library' | 'unknown';
  * File purpose classification
  */
 export type FilePurpose =
-  | 'output'      // Outputs to console (CLI formatters)
-  | 'test'        // Test file
-  | 'config'      // Configuration
-  | 'types'       // Type definitions
-  | 'util'        // Utility functions
-  | 'component'   // React component
-  | 'router'      // API router
-  | 'command'     // CLI command entry
+  | 'output' // Outputs to console (CLI formatters)
+  | 'test' // Test file
+  | 'config' // Configuration
+  | 'types' // Type definitions
+  | 'util' // Utility functions
+  | 'component' // React component
+  | 'router' // API router
+  | 'command' // CLI command entry
   | 'unknown';
 
 /**
@@ -138,16 +138,13 @@ const PURPOSE_MATCHERS: PurposeMatcher[] = [
     purpose: 'router',
     matchBasename: (name) => name.includes('router'),
     matchDirname: (dir) => dir.includes('/routers'),
-    matchContent: (content) =>
-      content.includes('createTRPCRouter') || content.includes('Router()'),
+    matchContent: (content) => content.includes('createTRPCRouter') || content.includes('Router()'),
   },
   // React components
   {
     purpose: 'component',
     matchContent: (content) =>
-      content.includes('React') ||
-      content.includes('jsx') ||
-      content.includes('useState'),
+      content.includes('React') || content.includes('jsx') || content.includes('useState'),
     matchPath: (filePath) => filePath.endsWith('.tsx'),
   },
   // Utility files
@@ -208,18 +205,18 @@ export function isCliOutput(content: string, line: number): boolean {
 
   // Formatting output patterns
   const outputPatterns = [
-    /console\.log\(['"`]═/,           // Box drawing
-    /console\.log\(['"`]─/,           // Lines
-    /console\.log\(['"`]│/,           // Vertical lines
-    /console\.log\(['"`]\s*$/,        // Empty line for spacing
-    /console\.log\(['"`]✓/,           // Check marks
-    /console\.log\(['"`]✗/,           // X marks
-    /console\.log\(['"`]⚠/,           // Warning symbols
-    /console\.log\(['"`]❌/,          // Error symbols
-    /console\.log\(['"`]✅/,          // Success symbols
-    /console\.log\(format/,           // Using formatters
-    /console\.log\(chalk/,            // Using chalk
-    /console\.log\(.*\.join/,         // Joining arrays for output
+    /console\.log\(['"`]═/, // Box drawing
+    /console\.log\(['"`]─/, // Lines
+    /console\.log\(['"`]│/, // Vertical lines
+    /console\.log\(['"`]\s*$/, // Empty line for spacing
+    /console\.log\(['"`]✓/, // Check marks
+    /console\.log\(['"`]✗/, // X marks
+    /console\.log\(['"`]⚠/, // Warning symbols
+    /console\.log\(['"`]❌/, // Error symbols
+    /console\.log\(['"`]✅/, // Success symbols
+    /console\.log\(format/, // Using formatters
+    /console\.log\(chalk/, // Using chalk
+    /console\.log\(.*\.join/, // Joining arrays for output
   ];
 
   // Check if matches output patterns
@@ -295,11 +292,7 @@ export function buildFixContext(
 /**
  * Should we skip fixing console.log in this context?
  */
-export function shouldSkipConsoleFix(
-  context: FixContext,
-  content: string,
-  line: number,
-): boolean {
+export function shouldSkipConsoleFix(context: FixContext, content: string, line: number): boolean {
   // Never remove console in test files
   if (context.isTestFile) {
     return true;

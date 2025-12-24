@@ -3,8 +3,8 @@
  * @description Detects console.* statements in code
  */
 
+import { isInsideComment, isInsideString } from '../../core/string-utils';
 import type { QualityIssue } from '../../core/types';
-import { isInsideString, isInsideComment } from '../../core/string-utils';
 
 /**
  * Console methods to detect
@@ -14,10 +14,7 @@ const CONSOLE_METHODS = ['log', 'warn', 'error', 'info', 'debug', 'trace', 'dir'
 /**
  * Pattern to match console.X( calls
  */
-const CONSOLE_PATTERN = new RegExp(
-  `console\\.(${CONSOLE_METHODS.join('|')})\\s*\\(`,
-  'g'
-);
+const CONSOLE_PATTERN = new RegExp(`console\\.(${CONSOLE_METHODS.join('|')})\\s*\\(`, 'g');
 
 /**
  * Analyze content for console statements

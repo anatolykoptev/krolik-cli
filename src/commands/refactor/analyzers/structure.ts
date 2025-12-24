@@ -3,9 +3,9 @@
  * @description Analyze module structure for consistency
  */
 
-import * as path from 'path';
+import * as path from 'node:path';
+import { exists, findFiles, getSubdirectories } from '../../../lib';
 import type { StructureAnalysis, StructureIssue } from '../core';
-import { findFiles, getSubdirectories, exists } from '../../../lib';
 
 // ============================================================================
 // CONSTANTS
@@ -35,10 +35,7 @@ const SCORE_PENALTIES = {
 /**
  * Analyze structure of a lib-like directory
  */
-export function analyzeStructure(
-  targetPath: string,
-  _projectRoot: string,
-): StructureAnalysis {
+export function analyzeStructure(targetPath: string, _projectRoot: string): StructureAnalysis {
   const issues: StructureIssue[] = [];
   const flatFiles: string[] = [];
   const namespacedFolders: string[] = [];
@@ -162,9 +159,7 @@ export function analyzeStructure(
 /**
  * Suggest groupings for flat files based on naming patterns
  */
-function suggestGroupings(
-  files: string[],
-): Array<{ file: string; suggestedNamespace: string }> {
+function suggestGroupings(files: string[]): Array<{ file: string; suggestedNamespace: string }> {
   const suggestions: Array<{ file: string; suggestedNamespace: string }> = [];
 
   const patterns: Record<string, string[]> = {
@@ -302,10 +297,7 @@ function calculateScore(
   let score = 100;
 
   // Deduct for issues
-  score -= issues.reduce(
-    (total, issue) => total + SCORE_PENALTIES[issue.severity],
-    0,
-  );
+  score -= issues.reduce((total, issue) => total + SCORE_PENALTIES[issue.severity], 0);
 
   // Bonus for well-organized structure
   if (namespacedCount > 0 && flatFilesCount <= STRUCTURE_THRESHOLDS.MAX_FLAT_FILES) {

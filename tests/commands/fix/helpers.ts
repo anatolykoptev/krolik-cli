@@ -3,19 +3,19 @@
  * @description Test utilities for fix command tests
  */
 
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import type {
+  FixAction,
+  FixDifficulty,
   Fixer,
   FixerMetadata,
-  QualityIssue,
-  QualityCategory,
-  QualitySeverity,
-  FixDifficulty,
   FixOperation,
-  FixAction,
+  QualityCategory,
+  QualityIssue,
+  QualitySeverity,
 } from '../../../src/commands/fix/core/types';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
 
 /**
  * Create a mock fixer for testing
@@ -32,7 +32,7 @@ export function createTestFixer(
     analyze: Fixer['analyze'];
     fix: Fixer['fix'];
     shouldSkip: Fixer['shouldSkip'];
-  }> = {}
+  }> = {},
 ): Fixer {
   const metadata: FixerMetadata = {
     id,
@@ -56,9 +56,7 @@ export function createTestFixer(
 /**
  * Create a mock quality issue for testing
  */
-export function createTestIssue(
-  options: Partial<QualityIssue> & { file: string }
-): QualityIssue {
+export function createTestIssue(options: Partial<QualityIssue> & { file: string }): QualityIssue {
   return {
     file: options.file,
     line: options.line ?? 1,
@@ -77,7 +75,7 @@ export function createTestIssue(
 export function createTestOperation(
   action: FixAction,
   file: string,
-  options: Partial<Omit<FixOperation, 'action' | 'file'>> = {}
+  options: Partial<Omit<FixOperation, 'action' | 'file'>> = {},
 ): FixOperation {
   return {
     action,
@@ -98,11 +96,14 @@ export function createTestOperation(
  */
 export function withTempFile<T>(
   content: string,
-  fn: (filepath: string) => T | Promise<T>
+  fn: (filepath: string) => T | Promise<T>,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const tmpDir = os.tmpdir();
-    const tmpFile = path.join(tmpDir, `krolik-test-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`);
+    const tmpFile = path.join(
+      tmpDir,
+      `krolik-test-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`,
+    );
 
     fs.writeFileSync(tmpFile, content, 'utf-8');
 
@@ -111,8 +112,7 @@ export function withTempFile<T>(
         if (fs.existsSync(tmpFile)) {
           fs.unlinkSync(tmpFile);
         }
-      } catch (err) {
-      }
+      } catch (_err) {}
     };
 
     try {
@@ -120,11 +120,11 @@ export function withTempFile<T>(
 
       if (result instanceof Promise) {
         result
-          .then(value => {
+          .then((value) => {
             cleanup();
             resolve(value);
           })
-          .catch(err => {
+          .catch((err) => {
             cleanup();
             reject(err);
           });
@@ -144,10 +144,13 @@ export function withTempFile<T>(
  */
 export async function withTempFiles<T>(
   files: Record<string, string>,
-  fn: (filepaths: Record<string, string>) => T | Promise<T>
+  fn: (filepaths: Record<string, string>) => T | Promise<T>,
 ): Promise<T> {
   const tmpDir = os.tmpdir();
-  const testDir = path.join(tmpDir, `krolik-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const testDir = path.join(
+    tmpDir,
+    `krolik-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   fs.mkdirSync(testDir, { recursive: true });
 
   const filepaths: Record<string, string> = {};
@@ -168,8 +171,7 @@ export async function withTempFiles<T>(
       if (fs.existsSync(testDir)) {
         fs.rmSync(testDir, { recursive: true, force: true });
       }
-    } catch (err) {
-    }
+    } catch (_err) {}
   };
 
   try {
@@ -186,11 +188,9 @@ export async function withTempFiles<T>(
  * Create test file content with specific pattern
  */
 export function createTestContent(
-  lines: Array<string | { line: string; marker?: string }>
+  lines: Array<string | { line: string; marker?: string }>,
 ): string {
-  return lines
-    .map(item => (typeof item === 'string' ? item : item.line))
-    .join('\n');
+  return lines.map((item) => (typeof item === 'string' ? item : item.line)).join('\n');
 }
 
 /**
@@ -198,7 +198,7 @@ export function createTestContent(
  */
 export function assertFixOperation(
   operation: FixOperation | null,
-  expected: Partial<FixOperation> & { action: FixAction }
+  expected: Partial<FixOperation> & { action: FixAction },
 ): asserts operation is FixOperation {
   if (!operation) {
     throw new Error('Expected fix operation but got null');

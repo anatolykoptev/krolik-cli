@@ -3,8 +3,8 @@
  * @description KROLIK CLI entry point
  */
 
-import { createLogger } from '../lib/@log';
 import { createProgram } from '../cli/program';
+import { createLogger } from '../lib/@log';
 
 /**
  * Main entry point

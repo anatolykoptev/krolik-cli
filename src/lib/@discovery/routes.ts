@@ -30,12 +30,7 @@ const TRPC_CANDIDATES = [
 ];
 
 /** Common Next.js API route locations */
-const NEXTJS_API_CANDIDATES = [
-  'src/app/api',
-  'app/api',
-  'src/pages/api',
-  'pages/api',
-];
+const NEXTJS_API_CANDIDATES = ['src/app/api', 'app/api', 'src/pages/api', 'pages/api'];
 
 /** Common Express/Fastify route locations */
 const EXPRESS_CANDIDATES = [
@@ -57,15 +52,10 @@ const EXPRESS_CANDIDATES = [
  * @param customPath - Optional custom path to check first
  * @returns Path to routers directory or null
  */
-export function findRoutersDir(
-  projectRoot: string,
-  customPath?: string,
-): string | null {
+export function findRoutersDir(projectRoot: string, customPath?: string): string | null {
   // Check custom path first
   if (customPath) {
-    const fullPath = path.isAbsolute(customPath)
-      ? customPath
-      : path.join(projectRoot, customPath);
+    const fullPath = path.isAbsolute(customPath) ? customPath : path.join(projectRoot, customPath);
 
     if (fs.existsSync(fullPath)) {
       return fullPath;

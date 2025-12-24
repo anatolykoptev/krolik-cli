@@ -8,34 +8,30 @@
  * - Skip logic for lint/console checks
  */
 
-// Types
-export type { FileType, FileContext, FileContextOptions } from './types';
-
 // File type detectors
 export {
-  CLI_FILE_PATTERNS,
-  TEST_FILE_PATTERNS,
-  CONFIG_FILE_PATTERNS,
-  OUTPUT_FILE_PATTERNS,
-  COMPONENT_FILE_PATTERNS,
-  HOOK_FILE_PATTERNS,
-  UTIL_FILE_PATTERNS,
   API_FILE_PATTERNS,
-  SCHEMA_FILE_PATTERNS,
-  isCliFile,
-  isTestFile,
-  isConfigFile,
-  isOutputFile,
-  isComponentFile,
-  isHookFile,
-  isUtilFile,
-  isApiFile,
-  isSchemaFile,
+  CLI_FILE_PATTERNS,
+  COMPONENT_FILE_PATTERNS,
+  CONFIG_FILE_PATTERNS,
   detectFileType,
+  HOOK_FILE_PATTERNS,
+  isApiFile,
+  isCliFile,
+  isComponentFile,
+  isConfigFile,
+  isHookFile,
+  isOutputFile,
+  isSchemaFile,
+  isTestFile,
+  isUtilFile,
+  OUTPUT_FILE_PATTERNS,
+  SCHEMA_FILE_PATTERNS,
   shouldSkipConsole,
   shouldSkipLint,
+  TEST_FILE_PATTERNS,
+  UTIL_FILE_PATTERNS,
 } from './detectors';
-
 // File context builder
 export {
   buildFileContext,
@@ -43,3 +39,5 @@ export {
   contextAllowsConsole,
   contextRequiresStrictLint,
 } from './file-context';
+// Types
+export type { FileContext, FileContextOptions, FileType } from './types';

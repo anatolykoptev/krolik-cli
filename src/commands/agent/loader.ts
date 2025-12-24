@@ -8,28 +8,21 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { AgentDefinition, AgentCategory } from './types';
-import { getCategoryForPlugin } from './categories';
-
 // Import shared utilities from lib
 import {
-  getKrolikHome,
+  AGENTS_REPO_URL,
   getAgentsHome,
   getAgentsPluginsDir,
-  AGENTS_REPO_URL,
+  getKrolikHome,
 } from '../../lib/@agents';
-import {
-  isGitAvailable,
-  getGitVersion,
-  cloneRepo,
-  pullRepo,
-} from '../../lib/@git';
-
+import { cloneRepo, getGitVersion, isGitAvailable, pullRepo } from '../../lib/@git';
 import { parseFrontmatter as parseMarkdownFrontmatter } from '../../lib/@markdown';
+import { getCategoryForPlugin } from './categories';
+import type { AgentCategory, AgentDefinition } from './types';
 
+export type { RepoStats } from '../../lib/@agents';
 // Re-export shared utilities for backward compatibility
 export { getRepoStats } from '../../lib/@agents';
-export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@git';
 
 /**
@@ -80,7 +73,11 @@ export function updateAgentsRepo(): { success: boolean; updated: boolean; error?
   const agentsHome = getAgentsHome();
 
   if (!fs.existsSync(path.join(agentsHome, '.git'))) {
-    return { success: false, updated: false, error: 'Agents not installed. Run krolik agent --install first.' };
+    return {
+      success: false,
+      updated: false,
+      error: 'Agents not installed. Run krolik agent --install first.',
+    };
   }
 
   const result = pullRepo(agentsHome);
@@ -234,9 +231,7 @@ export function searchAgents(agentsPath: string, query: string): AgentDefinition
 /**
  * Get agent count by category
  */
-export function getAgentCountByCategory(
-  agentsPath: string,
-): Record<AgentCategory, number> {
+export function getAgentCountByCategory(agentsPath: string): Record<AgentCategory, number> {
   const allAgents = loadAllAgents(agentsPath);
   const counts: Record<string, number> = {};
 

@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { findProjectRoot, loadConfig, clearConfigCache, defineConfig } from '../../src/config/loader';
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  clearConfigCache,
+  defineConfig,
+  findProjectRoot,
+  loadConfig,
+} from '../../src/config/loader';
 
 describe('config/loader', () => {
   beforeEach(() => {

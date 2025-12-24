@@ -108,7 +108,9 @@ async function generateFixPreviews(
 
   for (const win of report.quickWins) {
     if (previewCount >= maxPreviews) {
-      lines.push(`  <note>... and ${report.quickWins.length - previewCount} more auto-fixable issues</note>`);
+      lines.push(
+        `  <note>... and ${report.quickWins.length - previewCount} more auto-fixable issues</note>`,
+      );
       break;
     }
 
@@ -120,9 +122,7 @@ async function generateFixPreviews(
       if (fixer) {
         try {
           // Read file content
-          const content = fs.existsSync(issue.file)
-            ? fs.readFileSync(issue.file, 'utf-8')
-            : '';
+          const content = fs.existsSync(issue.file) ? fs.readFileSync(issue.file, 'utf-8') : '';
 
           if (content) {
             const fixOp = await fixer.fix(
@@ -138,9 +138,11 @@ async function generateFixPreviews(
               content,
             );
 
-            if (fixOp && fixOp.oldCode) {
+            if (fixOp?.oldCode) {
               const relativePath = issue.file.replace(/.*\/krolik-cli\//, '');
-              lines.push(`  <fix file="${relativePath}:${issue.line || 0}" action="${fixOp.action}">`);
+              lines.push(
+                `  <fix file="${relativePath}:${issue.line || 0}" action="${fixOp.action}">`,
+              );
               lines.push(`    <message>${issue.message}</message>`);
               lines.push('    <diff>');
               lines.push(`- ${fixOp.oldCode.trim()}`);

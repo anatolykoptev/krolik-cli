@@ -4,11 +4,11 @@
  */
 
 import * as fs from 'node:fs';
+import { MCP_SERVERS, PLUGINS } from '../core/config';
+import { AGENTS_PLUGINS_DIR, MARKETPLACES_DIR } from '../core/paths';
 import type { DiagnosticsResult } from '../core/types';
-import { PLUGINS, MCP_SERVERS } from '../core/config';
-import { MARKETPLACES_DIR, AGENTS_PLUGINS_DIR } from '../core/paths';
-import { getAgentsVersion, getAgentsRepoStats } from '../installers/utils';
 import { getInstalledMcpServers } from '../installers/mcp-server';
+import { getAgentsRepoStats, getAgentsVersion } from '../installers/utils';
 
 /**
  * Run diagnostics and return results
@@ -57,7 +57,9 @@ export function runDiagnostics(): DiagnosticsResult {
 
   for (const server of MCP_SERVERS) {
     const isInstalled = installedServers.some(
-      (s) => s.toLowerCase() === server.id.toLowerCase() || s.toLowerCase().includes(server.id.toLowerCase()),
+      (s) =>
+        s.toLowerCase() === server.id.toLowerCase() ||
+        s.toLowerCase().includes(server.id.toLowerCase()),
     );
 
     if (!isInstalled) {
@@ -103,7 +105,9 @@ export function printDiagnostics(): void {
     console.log('     Claude Code plugins with specialized agents');
     if (diag.plugins.agents.stats) {
       const s = diag.plugins.agents.stats;
-      console.log(`     Components: ${s.plugins} plugins, ${s.agents} agents, ${s.commands} commands, ${s.skills} skills`);
+      console.log(
+        `     Components: ${s.plugins} plugins, ${s.agents} agents, ${s.commands} commands, ${s.skills} skills`,
+      );
     }
   } else {
     console.log('  ⬜ wshobson-agents');
@@ -130,7 +134,9 @@ export function printDiagnostics(): void {
 
     for (const server of servers) {
       const isInstalled = diag.mcpServers.installed.some(
-        (s) => s.toLowerCase() === server.id.toLowerCase() || s.toLowerCase().includes(server.id.toLowerCase()),
+        (s) =>
+          s.toLowerCase() === server.id.toLowerCase() ||
+          s.toLowerCase().includes(server.id.toLowerCase()),
       );
       const status = isInstalled ? '✅' : '⬜';
       console.log(`    ${status} ${server.id}`);
@@ -144,7 +150,7 @@ export function printDiagnostics(): void {
 
   // Recommendations
   if (diag.recommendations.length > 0) {
-    console.log('\n' + '━'.repeat(60));
+    console.log(`\n${'━'.repeat(60)}`);
     console.log('\n💡 RECOMMENDATIONS\n');
     console.log('  Run these commands to complete your setup:\n');
     for (const rec of diag.recommendations.slice(0, 5)) {
@@ -157,7 +163,7 @@ export function printDiagnostics(): void {
     console.log('  Or install everything at once:');
     console.log('    krolik setup --all');
   } else {
-    console.log('\n' + '━'.repeat(60));
+    console.log(`\n${'━'.repeat(60)}`);
     console.log('\n✅ All components installed!\n');
   }
 

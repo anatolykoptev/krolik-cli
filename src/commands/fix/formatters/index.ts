@@ -4,4 +4,4 @@
  */
 
 export { formatPlanForAI } from './plan-ai';
-export { formatPlan, formatResults, generateUnifiedDiff, formatSimpleDiff } from './plan-text';
+export { formatPlan, formatResults, formatSimpleDiff, generateUnifiedDiff } from './plan-text';

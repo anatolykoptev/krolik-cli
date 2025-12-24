@@ -3,11 +3,7 @@
  * @description Human-readable text output formatter
  */
 
-import type {
-  RefactorAnalysis,
-  MigrationPlan,
-  StructureAnalysis,
-} from '../core';
+import type { MigrationPlan, RefactorAnalysis, StructureAnalysis } from '../core';
 
 // ============================================================================
 // MAIN FORMATTER
@@ -62,14 +58,8 @@ function formatDuplicatesSection(lines: string[], analysis: RefactorAnalysis): v
     for (const dup of analysis.duplicates) {
       lines.push('');
       const icon =
-        dup.recommendation === 'merge'
-          ? '🔴'
-          : dup.recommendation === 'rename'
-            ? '🟡'
-            : '🟢';
-      lines.push(
-        `  ${icon} ${dup.name} (${(dup.similarity * 100).toFixed(0)}% similar)`,
-      );
+        dup.recommendation === 'merge' ? '🔴' : dup.recommendation === 'rename' ? '🟡' : '🟢';
+      lines.push(`  ${icon} ${dup.name} (${(dup.similarity * 100).toFixed(0)}% similar)`);
       lines.push(`     Recommendation: ${dup.recommendation.toUpperCase()}`);
       for (const loc of dup.locations) {
         const exp = loc.exported ? ' [exported]' : '';
@@ -93,12 +83,9 @@ function formatTypeDuplicatesSection(lines: string[], analysis: RefactorAnalysis
     for (const dup of analysis.typeDuplicates) {
       lines.push('');
       const icon =
-        dup.recommendation === 'merge'
-          ? '🔴'
-          : dup.recommendation === 'rename'
-            ? '🟡'
-            : '🟢';
-      const kindLabel = dup.kind === 'interface' ? '[interface]' : dup.kind === 'type' ? '[type]' : '[mixed]';
+        dup.recommendation === 'merge' ? '🔴' : dup.recommendation === 'rename' ? '🟡' : '🟢';
+      const kindLabel =
+        dup.kind === 'interface' ? '[interface]' : dup.kind === 'type' ? '[type]' : '[mixed]';
       lines.push(
         `  ${icon} ${dup.name} ${kindLabel} (${(dup.similarity * 100).toFixed(0)}% similar)`,
       );
@@ -130,12 +117,7 @@ function formatStructureSection(lines: string[], analysis: RefactorAnalysis): vo
     lines.push('');
     lines.push('Issues:');
     for (const issue of analysis.structure.issues) {
-      const icon =
-        issue.severity === 'error'
-          ? '❌'
-          : issue.severity === 'warning'
-            ? '⚠️ '
-            : 'ℹ️ ';
+      const icon = issue.severity === 'error' ? '❌' : issue.severity === 'warning' ? '⚠️ ' : 'ℹ️ ';
       lines.push(`  ${icon} [${issue.type}] ${issue.message}`);
       if (issue.fix) {
         lines.push(`      Fix: ${issue.fix}`);
@@ -155,12 +137,8 @@ function formatMigrationSection(lines: string[], analysis: RefactorAnalysis): vo
   if (analysis.migration.actions.length === 0) {
     lines.push('  ✅ No migrations needed');
   } else {
-    lines.push(
-      `  📦 Files affected: ${analysis.migration.filesAffected}`,
-    );
-    lines.push(
-      `  🔗 Imports to update: ${analysis.migration.importsToUpdate}`,
-    );
+    lines.push(`  📦 Files affected: ${analysis.migration.filesAffected}`);
+    lines.push(`  🔗 Imports to update: ${analysis.migration.importsToUpdate}`);
     lines.push('');
     lines.push('  Risk summary:');
     lines.push(`    🟢 Safe: ${analysis.migration.riskSummary.safe}`);
@@ -170,8 +148,7 @@ function formatMigrationSection(lines: string[], analysis: RefactorAnalysis): vo
     lines.push('  Actions:');
 
     for (const action of analysis.migration.actions) {
-      const riskIcon =
-        action.risk === 'safe' ? '🟢' : action.risk === 'medium' ? '🟡' : '🔴';
+      const riskIcon = action.risk === 'safe' ? '🟢' : action.risk === 'medium' ? '🟡' : '🔴';
       const arrow = action.target ? ` → ${action.target}` : '';
       lines.push(`    ${riskIcon} [${action.type}] ${action.source}${arrow}`);
     }
@@ -254,8 +231,7 @@ export function formatMigrationPreview(plan: MigrationPlan): string {
   for (const [type, actions] of byType) {
     lines.push(`  📁 ${type.toUpperCase()} (${actions.length})`);
     for (const action of actions) {
-      const riskIcon =
-        action.risk === 'safe' ? '🟢' : action.risk === 'medium' ? '🟡' : '🔴';
+      const riskIcon = action.risk === 'safe' ? '🟢' : action.risk === 'medium' ? '🟡' : '🔴';
       if (action.target) {
         lines.push(`     ${riskIcon} ${action.source} → ${action.target}`);
       } else {

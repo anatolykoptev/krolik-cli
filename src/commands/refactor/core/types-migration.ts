@@ -15,9 +15,9 @@ import type { RiskLevel } from './types';
  * Type migration action types
  */
 export type TypeMigrationActionType =
-  | 'remove-type'      // Remove type from source file
-  | 'add-import'       // Add import to file that used local type
-  | 'update-import';   // Update import path in dependent file
+  | 'remove-type' // Remove type from source file
+  | 'add-import' // Add import to file that used local type
+  | 'update-import'; // Update import path in dependent file
 
 /**
  * Type migration action

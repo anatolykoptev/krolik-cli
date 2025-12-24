@@ -6,13 +6,8 @@
  * file patterns, import conventions, and naming conventions.
  */
 
-import * as path from 'path';
-import type {
-  AiNavigation,
-  AddNewCodeHints,
-  FilePatternInfo,
-  ProjectContext,
-} from '../core';
+import * as path from 'node:path';
+import type { AddNewCodeHints, AiNavigation, FilePatternInfo, ProjectContext } from '../core';
 
 // ============================================================================
 // ADD NEW CODE HINTS
@@ -37,10 +32,7 @@ function getCliHints(lib: string): AddNewCodeHints {
 /**
  * Generate hints for web/API projects
  */
-function getWebHints(
-  lib: string,
-  projectContext: ProjectContext,
-): AddNewCodeHints {
+function getWebHints(lib: string, projectContext: ProjectContext): AddNewCodeHints {
   return {
     serverLogic: `${lib}/@core/ or ${lib}/@domain/`,
     clientHook: `${lib}/@ui/hooks/`,
@@ -142,9 +134,7 @@ export function generateAiNavigation(
   const isCli = projectContext.type === 'cli';
 
   // Where to add new code
-  const addNewCode = isCli
-    ? getCliHints(lib)
-    : getWebHints(lib, projectContext);
+  const addNewCode = isCli ? getCliHints(lib) : getWebHints(lib, projectContext);
 
   // File patterns
   const filePatterns: FilePatternInfo[] = getBasePatterns();

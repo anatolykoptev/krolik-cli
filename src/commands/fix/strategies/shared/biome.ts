@@ -8,9 +8,9 @@
  * - Format via `biome format --write`
  */
 
-import { execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
-import * as path from 'node:path';
+import { execSync, type SpawnSyncReturns, spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 // ============================================================================
 // TYPES
@@ -104,7 +104,7 @@ function extractBiomeError(result: SpawnSyncReturns<string>): string {
     return `Process killed by signal: ${result.signal}`;
   }
   if (result.stderr) {
-    const firstLine = result.stderr.split('\n').find(line => line.trim());
+    const firstLine = result.stderr.split('\n').find((line) => line.trim());
     if (firstLine) return firstLine;
   }
   return `Exit code: ${result.status}`;
@@ -123,25 +123,18 @@ function extractBiomeError(result: SpawnSyncReturns<string>): string {
  * @param targetPath - Specific path to check (optional, defaults to ".")
  * @returns Result with number of files fixed
  */
-export function biomeAutoFix(
-  projectRoot: string,
-  targetPath?: string,
-): BiomeResult {
+export function biomeAutoFix(projectRoot: string, targetPath?: string): BiomeResult {
   const biome = getBiomePath(projectRoot);
   const target = targetPath || '.';
 
   try {
     // Run biome check --apply (fixes lint + format + imports)
-    const result = spawnSync(
-      biome,
-      ['check', '--apply', '--no-errors-on-unmatched', target],
-      {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        stdio: 'pipe',
-        maxBuffer: 10 * 1024 * 1024, // 10MB
-      },
-    );
+    const result = spawnSync(biome, ['check', '--apply', '--no-errors-on-unmatched', target], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      maxBuffer: 10 * 1024 * 1024, // 10MB
+    });
 
     // Parse output for fixed files count
     const output = result.stdout + result.stderr;
@@ -182,10 +175,7 @@ export function biomeAutoFix(
  * @param projectRoot - Root directory of the project
  * @param targetPath - Specific path to check
  */
-export function biomeLint(
-  projectRoot: string,
-  targetPath?: string,
-): BiomeCheckResult {
+export function biomeLint(projectRoot: string, targetPath?: string): BiomeCheckResult {
   const biome = getBiomePath(projectRoot);
   const target = targetPath || '.';
 
@@ -228,24 +218,17 @@ export function biomeLint(
 /**
  * Run Biome lint with auto-fix
  */
-export function biomeLintFix(
-  projectRoot: string,
-  targetPath?: string,
-): BiomeResult {
+export function biomeLintFix(projectRoot: string, targetPath?: string): BiomeResult {
   const biome = getBiomePath(projectRoot);
   const target = targetPath || '.';
 
   try {
-    const result = spawnSync(
-      biome,
-      ['lint', '--apply', '--no-errors-on-unmatched', target],
-      {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        stdio: 'pipe',
-        maxBuffer: 10 * 1024 * 1024,
-      },
-    );
+    const result = spawnSync(biome, ['lint', '--apply', '--no-errors-on-unmatched', target], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      maxBuffer: 10 * 1024 * 1024,
+    });
 
     const output = result.stdout + result.stderr;
     const fixedMatch = output.match(/Fixed (\d+) file/);
@@ -276,24 +259,17 @@ export function biomeLintFix(
 /**
  * Run Biome format with auto-fix
  */
-export function biomeFormat(
-  projectRoot: string,
-  targetPath?: string,
-): BiomeResult {
+export function biomeFormat(projectRoot: string, targetPath?: string): BiomeResult {
   const biome = getBiomePath(projectRoot);
   const target = targetPath || '.';
 
   try {
-    const result = spawnSync(
-      biome,
-      ['format', '--write', '--no-errors-on-unmatched', target],
-      {
-        cwd: projectRoot,
-        encoding: 'utf8',
-        stdio: 'pipe',
-        maxBuffer: 10 * 1024 * 1024,
-      },
-    );
+    const result = spawnSync(biome, ['format', '--write', '--no-errors-on-unmatched', target], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      maxBuffer: 10 * 1024 * 1024,
+    });
 
     const output = result.stdout + result.stderr;
     const formattedMatch = output.match(/Formatted (\d+) file/);
@@ -323,10 +299,7 @@ export function biomeFormat(
 /**
  * Run Biome organize imports
  */
-export function biomeOrganizeImports(
-  projectRoot: string,
-  targetPath?: string,
-): BiomeResult {
+export function biomeOrganizeImports(projectRoot: string, targetPath?: string): BiomeResult {
   const biome = getBiomePath(projectRoot);
   const target = targetPath || '.';
 
@@ -374,14 +347,9 @@ export function biomeOrganizeImports(
 /**
  * Fix a single file with Biome
  */
-export function biomeFixFile(
-  projectRoot: string,
-  filePath: string,
-): BiomeResult {
+export function biomeFixFile(projectRoot: string, filePath: string): BiomeResult {
   // Resolve to absolute path if relative
-  const absolutePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.join(projectRoot, filePath);
+  const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
 
   if (!fs.existsSync(absolutePath)) {
     return {
@@ -398,13 +366,8 @@ export function biomeFixFile(
 /**
  * Check a single file with Biome
  */
-export function biomeCheckFile(
-  projectRoot: string,
-  filePath: string,
-): BiomeCheckResult {
-  const absolutePath = path.isAbsolute(filePath)
-    ? filePath
-    : path.join(projectRoot, filePath);
+export function biomeCheckFile(projectRoot: string, filePath: string): BiomeCheckResult {
+  const absolutePath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
 
   if (!fs.existsSync(absolutePath)) {
     return {
@@ -442,11 +405,7 @@ function parseBiomeOutput(output: string): BiomeDiagnostic[] {
     const code = parts[0] || 'unknown';
     const message = parts.slice(1).join(' ') || code;
 
-    const severity = code.includes('error')
-      ? 'error'
-      : code.includes('warn')
-        ? 'warning'
-        : 'info';
+    const severity = code.includes('error') ? 'error' : code.includes('warn') ? 'warning' : 'info';
 
     diagnostics.push({
       file,

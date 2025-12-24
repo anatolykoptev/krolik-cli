@@ -3,8 +3,8 @@
  * @description Component, Test, Hints, Approach, and PreCommit section formatters
  */
 
-import type { AiContextData } from "../../../types";
-import { escapeXml, MAX_ITEMS_SMALL, MAX_ITEMS_MEDIUM, MAX_ITEMS_LARGE } from "../helpers";
+import type { AiContextData } from '../../../types';
+import { escapeXml, MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM, MAX_ITEMS_SMALL } from '../helpers';
 
 /**
  * Format components detail section
@@ -13,14 +13,14 @@ export function formatComponentsSection(lines: string[], data: AiContextData): v
   const { componentDetails } = data;
   if (!componentDetails || componentDetails.length === 0) return;
 
-  lines.push("  <components-detail>");
+  lines.push('  <components-detail>');
   for (const comp of componentDetails.slice(0, MAX_ITEMS_LARGE)) {
     formatComponentDetail(lines, comp);
   }
   if (componentDetails.length > MAX_ITEMS_LARGE) {
     lines.push(`    <!-- +${componentDetails.length - MAX_ITEMS_LARGE} more components -->`);
   }
-  lines.push("  </components-detail>");
+  lines.push('  </components-detail>');
 }
 
 /**
@@ -28,7 +28,7 @@ export function formatComponentsSection(lines: string[], data: AiContextData): v
  */
 function formatComponentDetail(
   lines: string[],
-  comp: NonNullable<AiContextData["componentDetails"]>[0],
+  comp: NonNullable<AiContextData['componentDetails']>[0],
 ): void {
   lines.push(`    <component name="${comp.name}" type="${comp.type}">`);
 
@@ -36,25 +36,25 @@ function formatComponentDetail(
     lines.push(`      <purpose>${escapeXml(comp.purpose)}</purpose>`);
   }
   if (comp.fields && comp.fields.length > 0) {
-    lines.push(`      <fields>${comp.fields.join(", ")}</fields>`);
+    lines.push(`      <fields>${comp.fields.join(', ')}</fields>`);
   }
   if (comp.state) {
     lines.push(`      <state>${comp.state}</state>`);
   }
   if (comp.hooks.length > 0) {
-    lines.push(`      <hooks>${comp.hooks.join(", ")}</hooks>`);
+    lines.push(`      <hooks>${comp.hooks.join(', ')}</hooks>`);
   }
   if (comp.imports.length > 0) {
-    lines.push(`      <imports>${comp.imports.slice(0, MAX_ITEMS_LARGE).join(", ")}</imports>`);
+    lines.push(`      <imports>${comp.imports.slice(0, MAX_ITEMS_LARGE).join(', ')}</imports>`);
   }
   if (comp.errorHandling) {
     lines.push(`      <error-handling>${comp.errorHandling}</error-handling>`);
   }
   if (comp.features && comp.features.length > 0) {
-    lines.push(`      <features>${comp.features.join(", ")}</features>`);
+    lines.push(`      <features>${comp.features.join(', ')}</features>`);
   }
 
-  lines.push("    </component>");
+  lines.push('    </component>');
 }
 
 /**
@@ -64,11 +64,11 @@ export function formatTestsSection(lines: string[], data: AiContextData): void {
   const { testDetails } = data;
   if (!testDetails || testDetails.length === 0) return;
 
-  lines.push("  <tests-detail>");
+  lines.push('  <tests-detail>');
   for (const test of testDetails.slice(0, MAX_ITEMS_MEDIUM)) {
     formatTestDetail(lines, test);
   }
-  lines.push("  </tests-detail>");
+  lines.push('  </tests-detail>');
 }
 
 /**
@@ -76,7 +76,7 @@ export function formatTestsSection(lines: string[], data: AiContextData): void {
  */
 function formatTestDetail(
   lines: string[],
-  test: NonNullable<AiContextData["testDetails"]>[0],
+  test: NonNullable<AiContextData['testDetails']>[0],
 ): void {
   lines.push(`    <test file="${test.file}">`);
 
@@ -90,10 +90,10 @@ function formatTestDetail(
     if (desc.tests.length > MAX_ITEMS_LARGE) {
       lines.push(`        <!-- +${desc.tests.length - MAX_ITEMS_LARGE} more tests -->`);
     }
-    lines.push("      </describe>");
+    lines.push('      </describe>');
   }
 
-  lines.push("    </test>");
+  lines.push('    </test>');
 }
 
 /**
@@ -103,11 +103,11 @@ export function formatHintsSection(lines: string[], data: AiContextData): void {
   const { hints } = data;
   if (!hints || Object.keys(hints).length === 0) return;
 
-  lines.push("  <context-hints>");
+  lines.push('  <context-hints>');
   for (const [key, value] of Object.entries(hints)) {
     lines.push(`    <hint key="${key}">${escapeXml(value)}</hint>`);
   }
-  lines.push("  </context-hints>");
+  lines.push('  </context-hints>');
 }
 
 /**
@@ -117,31 +117,31 @@ export function formatApproachSection(lines: string[], data: AiContextData): voi
   const { context } = data;
   if (context.approach.length === 0) return;
 
-  lines.push("  <approach>");
+  lines.push('  <approach>');
   let priority = 1;
 
   for (const step of context.approach) {
-    const cleanStep = step.replace(/^\d+\.\s*/, "");
+    const cleanStep = step.replace(/^\d+\.\s*/, '');
     // Skip typecheck/lint step (handled in pre-commit)
-    if (cleanStep.includes("typecheck") && cleanStep.includes("lint")) continue;
+    if (cleanStep.includes('typecheck') && cleanStep.includes('lint')) continue;
 
     lines.push(`    <step priority="${priority}">${cleanStep}</step>`);
     priority++;
   }
 
-  lines.push("  </approach>");
+  lines.push('  </approach>');
 }
 
 /**
  * Format pre-commit section
  */
 export function formatPreCommitSection(lines: string[]): void {
-  lines.push("  <pre-commit>");
-  lines.push("    <check>pnpm typecheck</check>");
-  lines.push("    <check>pnpm lint:fix</check>");
-  lines.push("    <check>pnpm test -- ${domain}</check>");
-  lines.push("    <check>pnpm build</check>");
-  lines.push("  </pre-commit>");
+  lines.push('  <pre-commit>');
+  lines.push('    <check>pnpm typecheck</check>');
+  lines.push('    <check>pnpm lint:fix</check>');
+  lines.push('    <check>pnpm test -- ${domain}</check>');
+  lines.push('    <check>pnpm build</check>');
+  lines.push('  </pre-commit>');
 }
 
 /**
@@ -151,15 +151,17 @@ export function formatQualitySection(lines: string[], data: AiContextData): void
   const { qualityIssues, qualitySummary } = data;
   if (!qualityIssues || qualityIssues.length === 0) return;
 
-  lines.push("  <quality-issues>");
+  lines.push('  <quality-issues>');
 
   // Summary
   if (qualitySummary) {
-    lines.push(`    <summary total="${qualitySummary.totalIssues}" auto-fixable="${qualitySummary.autoFixable}">`);
+    lines.push(
+      `    <summary total="${qualitySummary.totalIssues}" auto-fixable="${qualitySummary.autoFixable}">`,
+    );
     for (const [category, count] of Object.entries(qualitySummary.byCategory)) {
       lines.push(`      <category name="${category}" count="${count}"/>`);
     }
-    lines.push("    </summary>");
+    lines.push('    </summary>');
   }
 
   // Issues grouped by file
@@ -175,21 +177,23 @@ export function formatQualitySection(lines: string[], data: AiContextData): void
     for (const issue of issues.slice(0, MAX_ITEMS_MEDIUM)) {
       const fixable = issue.autoFixable ? ' fixable="true"' : '';
       const fixerId = issue.fixerId ? ` fixer="${issue.fixerId}"` : '';
-      lines.push(`      <issue line="${issue.line || 0}" severity="${issue.severity}" category="${issue.category}"${fixable}${fixerId}>`);
+      lines.push(
+        `      <issue line="${issue.line || 0}" severity="${issue.severity}" category="${issue.category}"${fixable}${fixerId}>`,
+      );
       lines.push(`        ${escapeXml(issue.message)}`);
-      lines.push("      </issue>");
+      lines.push('      </issue>');
     }
     if (issues.length > MAX_ITEMS_MEDIUM) {
       lines.push(`      <!-- +${issues.length - MAX_ITEMS_MEDIUM} more issues -->`);
     }
-    lines.push("    </file>");
+    lines.push('    </file>');
   }
 
   // Quick fix hint
-  const fixableCount = qualityIssues.filter(i => i.autoFixable).length;
+  const fixableCount = qualityIssues.filter((i) => i.autoFixable).length;
   if (fixableCount > 0) {
     lines.push(`    <hint>Run 'krolik fix --quick' to auto-fix ${fixableCount} issues</hint>`);
   }
 
-  lines.push("  </quality-issues>");
+  lines.push('  </quality-issues>');
 }

@@ -4,8 +4,8 @@
  */
 
 import type { Logger } from '../../types';
-import type { PrismaModel, PrismaEnum } from './parser';
-import { groupByFile, groupByDomain } from './grouping';
+import { groupByDomain, groupByFile } from './grouping';
+import type { PrismaEnum, PrismaModel } from './parser';
 
 /**
  * Schema result type
@@ -33,7 +33,8 @@ export function printSchema(
   for (const [group, models] of grouped) {
     console.log(`\x1b[36m${group}\x1b[0m`);
     for (const model of models) {
-      const relInfo = model.relations.length > 0 ? ` \x1b[2m→ ${model.relations.join(', ')}\x1b[0m` : '';
+      const relInfo =
+        model.relations.length > 0 ? ` \x1b[2m→ ${model.relations.join(', ')}\x1b[0m` : '';
       console.log(`  \x1b[32m${model.name}\x1b[0m (${model.fields.length} fields)${relInfo}`);
     }
     console.log('');
@@ -85,7 +86,9 @@ export function formatAI(data: SchemaOutput): string {
         if (field.isArray) attrs.push('array');
         const attrStr = attrs.length > 0 ? ` attrs="${attrs.join(',')}"` : '';
         const defaultStr = field.default ? ` default="${field.default}"` : '';
-        lines.push(`        <field name="${field.name}" type="${field.type}"${attrStr}${defaultStr} />`);
+        lines.push(
+          `        <field name="${field.name}" type="${field.type}"${attrStr}${defaultStr} />`,
+        );
       }
       lines.push('      </fields>');
       lines.push('    </model>');
@@ -147,7 +150,9 @@ export function formatMarkdown(data: SchemaOutput): string {
         if (field.default) notes.push(`Default: ${field.default}`);
 
         const typeStr = `${field.type}${field.isArray ? '[]' : ''}`;
-        lines.push(`| ${field.name} | ${typeStr} | ${field.isRequired ? 'Yes' : 'No'} | ${notes.join(', ')} |`);
+        lines.push(
+          `| ${field.name} | ${typeStr} | ${field.isRequired ? 'Yes' : 'No'} | ${notes.join(', ')} |`,
+        );
       }
 
       lines.push('');

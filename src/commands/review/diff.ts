@@ -3,8 +3,16 @@
  * @description Git diff analysis utilities
  */
 
+import {
+  getCurrentBranch,
+  getDefaultBranch,
+  getDiff,
+  getFileDiff,
+  getPR,
+  getStagedDiff,
+  tryExec,
+} from '../../lib';
 import type { FileChange } from '../../types';
-import { getDiff, getFileDiff, getStagedDiff, getDefaultBranch, getCurrentBranch, getPR, tryExec } from '../../lib';
 
 /**
  * PR information for review
@@ -34,8 +42,15 @@ export function getPRInfo(prNumber: number, cwd?: string): PRInfo | null {
 /**
  * Get changed files between refs
  */
-export function getChangedFiles(baseBranch: string, headBranch: string, cwd?: string): FileChange[] {
-  const numstatResult = tryExec(`git diff --numstat ${baseBranch}...${headBranch}`, { ...(cwd ? { cwd } : {}), silent: true });
+export function getChangedFiles(
+  baseBranch: string,
+  headBranch: string,
+  cwd?: string,
+): FileChange[] {
+  const numstatResult = tryExec(`git diff --numstat ${baseBranch}...${headBranch}`, {
+    ...(cwd ? { cwd } : {}),
+    silent: true,
+  });
   if (!numstatResult.success || !numstatResult.output) return [];
 
   const files: FileChange[] = [];
@@ -55,7 +70,10 @@ export function getChangedFiles(baseBranch: string, headBranch: string, cwd?: st
   }
 
   // Get actual status (added/modified/deleted/renamed)
-  const statusResult = tryExec(`git diff --name-status ${baseBranch}...${headBranch}`, { ...(cwd ? { cwd } : {}), silent: true });
+  const statusResult = tryExec(`git diff --name-status ${baseBranch}...${headBranch}`, {
+    ...(cwd ? { cwd } : {}),
+    silent: true,
+  });
   if (statusResult.success && statusResult.output) {
     for (const line of statusResult.output.split('\n').filter(Boolean)) {
       const [status, ...pathParts] = line.split('\t');

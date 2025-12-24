@@ -9,10 +9,10 @@
  */
 
 import {
-  Node,
-  SyntaxKind,
-  type SourceFile,
   DiagnosticCategory,
+  Node,
+  type SourceFile,
+  SyntaxKind,
   VariableDeclarationKind,
 } from 'ts-morph';
 
@@ -50,10 +50,7 @@ export interface SyntaxError {
  * @example
  * const funcDecl = findAncestor(node, SyntaxKind.FunctionDeclaration);
  */
-export function findAncestor(
-  node: Node,
-  kind: SyntaxKind,
-): Node | undefined {
+export function findAncestor(node: Node, kind: SyntaxKind): Node | undefined {
   let current: Node | undefined = node.getParent();
 
   while (current) {
@@ -88,10 +85,7 @@ export function findAncestorWhere(
 /**
  * Get all descendants of specific kind
  */
-export function getDescendants(
-  node: Node,
-  kind: SyntaxKind,
-): Node[] {
+export function getDescendants(node: Node, kind: SyntaxKind): Node[] {
   return node.getDescendantsOfKind(kind);
 }
 
@@ -235,9 +229,7 @@ export function getCodeContext(node: Node): CodeContext {
  */
 export function hasValidSyntax(sourceFile: SourceFile): boolean {
   const diagnostics = sourceFile.getPreEmitDiagnostics();
-  const syntaxErrors = diagnostics.filter(
-    (d) => d.getCategory() === DiagnosticCategory.Error,
-  );
+  const syntaxErrors = diagnostics.filter((d) => d.getCategory() === DiagnosticCategory.Error);
 
   return syntaxErrors.length === 0;
 }
@@ -249,15 +241,11 @@ export function hasValidSyntax(sourceFile: SourceFile): boolean {
  */
 export function getSyntaxErrors(sourceFile: SourceFile): SyntaxError[] {
   const diagnostics = sourceFile.getPreEmitDiagnostics();
-  const errors = diagnostics.filter(
-    (d) => d.getCategory() === DiagnosticCategory.Error,
-  );
+  const errors = diagnostics.filter((d) => d.getCategory() === DiagnosticCategory.Error);
 
   return errors.map((error) => {
     const start = error.getStart();
-    const lineAndCol = start
-      ? sourceFile.getLineAndColumnAtPos(start)
-      : { line: 0, column: 0 };
+    const lineAndCol = start ? sourceFile.getLineAndColumnAtPos(start) : { line: 0, column: 0 };
 
     return {
       line: lineAndCol.line,

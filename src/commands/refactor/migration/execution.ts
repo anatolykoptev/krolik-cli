@@ -5,21 +5,21 @@
  * Executes migration actions: move, merge, delete, create-barrel, update-imports
  */
 
-import * as path from 'path';
-import type { MigrationAction, MigrationPlan } from '../core';
-import { validatePath, safeDelete, createBackup } from './security';
-import { updateImports, updateInternalImports } from './imports';
-import { updateBarrelFile } from './barrel';
+import * as path from 'node:path';
 import {
+  ensureDir,
+  exists,
   findFiles,
+  isDirectory,
+  logger,
   readFile,
   writeFile,
-  exists,
-  ensureDir,
-  logger,
-  isDirectory,
 } from '../../../lib';
-import type { MigrationOptions } from "../core/options";
+import type { MigrationAction, MigrationPlan } from '../core';
+import type { MigrationOptions } from '../core/options';
+import { updateBarrelFile } from './barrel';
+import { updateImports, updateInternalImports } from './imports';
+import { createBackup, safeDelete, validatePath } from './security';
 
 // Type alias for backwards compatibility (exported for public API)
 export type MigrationExecutionOptions = MigrationOptions;
@@ -136,7 +136,13 @@ async function executeMove(
   // Update imports in affected files
   let updatedCount = 0;
   for (const affected of action.affectedImports) {
-    const result = await updateImports(affected, action.source, action.target!, projectRoot, libPath);
+    const result = await updateImports(
+      affected,
+      action.source,
+      action.target!,
+      projectRoot,
+      libPath,
+    );
     if (result.changed) updatedCount++;
     if (!result.success) {
       logger.warn(`Failed to update imports in ${affected}: ${result.errors.join(', ')}`);
@@ -220,7 +226,13 @@ async function executeMerge(
 
   let updatedCount = 0;
   for (const affected of action.affectedImports) {
-    const result = await updateImports(affected, action.source, action.target!, projectRoot, libPath);
+    const result = await updateImports(
+      affected,
+      action.source,
+      action.target!,
+      projectRoot,
+      libPath,
+    );
     if (result.changed) updatedCount++;
   }
 
@@ -315,7 +327,13 @@ async function executeUpdateImports(
 
   let updated = 0;
   for (const affected of action.affectedImports) {
-    const result = await updateImports(affected, action.source, action.target!, projectRoot, libPath);
+    const result = await updateImports(
+      affected,
+      action.source,
+      action.target!,
+      projectRoot,
+      libPath,
+    );
     if (result.changed) updated++;
   }
 

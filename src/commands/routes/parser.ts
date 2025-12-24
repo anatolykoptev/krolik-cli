@@ -47,7 +47,9 @@ export function parseRouterFile(filePath: string): TrpcRouter | null {
   const subRouters: string[] = [];
 
   // Find router definition
-  const routerMatch = content.match(/(?:export\s+const\s+)?(\w+Router)\s*=\s*(?:create)?(?:T|t)rpc(?:Router)?/);
+  const routerMatch = content.match(
+    /(?:export\s+const\s+)?(\w+Router)\s*=\s*(?:create)?(?:T|t)rpc(?:Router)?/,
+  );
   const routerName = routerMatch?.[1] || `${fileName}Router`;
 
   // Parse procedures with access level
@@ -90,8 +92,12 @@ function parseProcedures(content: string, procedures: TrpcProcedure[]): void {
 
     // Get the text after the procedure declaration (up to next procedure or end)
     const startPos = match.index + match[0].length;
-    const nextProcMatch = content.slice(startPos).match(/\n\s*\w+\s*:\s*(protected|public|admin)Procedure/);
-    const endPos = nextProcMatch ? startPos + nextProcMatch.index! : Math.min(startPos + 2000, content.length);
+    const nextProcMatch = content
+      .slice(startPos)
+      .match(/\n\s*\w+\s*:\s*(protected|public|admin)Procedure/);
+    const endPos = nextProcMatch
+      ? startPos + nextProcMatch.index!
+      : Math.min(startPos + 2000, content.length);
     const procBlock = content.slice(startPos, endPos);
 
     // Determine procedure type

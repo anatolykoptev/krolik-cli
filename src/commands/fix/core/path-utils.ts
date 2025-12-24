@@ -10,9 +10,9 @@
 
 // Re-export from shared module for backward compatibility
 export {
-  validatePathWithinProject,
-  validatePathOrThrow,
-  normalizeToRelative,
   isPathSafe,
+  normalizeToRelative,
   type PathValidationResult,
+  validatePathOrThrow,
+  validatePathWithinProject,
 } from '../../../lib/@sanitize/path';

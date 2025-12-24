@@ -8,11 +8,7 @@
  * - Variable usage
  */
 
-import {
-  Node,
-  SyntaxKind,
-  type SourceFile,
-} from 'ts-morph';
+import { Node, type SourceFile, SyntaxKind } from 'ts-morph';
 
 // ============================================================================
 // TYPES
@@ -124,9 +120,7 @@ export function extractImports(sourceFile: SourceFile): ImportInfo[] {
  * Get all imported module names
  */
 export function getImportedModules(sourceFile: SourceFile): string[] {
-  return sourceFile
-    .getImportDeclarations()
-    .map((imp) => imp.getModuleSpecifierValue());
+  return sourceFile.getImportDeclarations().map((imp) => imp.getModuleSpecifierValue());
 }
 
 // ============================================================================
@@ -265,12 +259,50 @@ export function findUsedVariables(code: string): string[] {
 
   // Keywords to exclude
   const keywords = new Set([
-    'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue',
-    'return', 'throw', 'try', 'catch', 'finally', 'new', 'delete', 'typeof',
-    'instanceof', 'in', 'void', 'this', 'super', 'class', 'extends', 'function',
-    'const', 'let', 'var', 'import', 'export', 'default', 'from', 'as',
-    'async', 'await', 'yield', 'true', 'false', 'null', 'undefined',
-    'NaN', 'Infinity', 'arguments', 'eval',
+    'if',
+    'else',
+    'for',
+    'while',
+    'do',
+    'switch',
+    'case',
+    'break',
+    'continue',
+    'return',
+    'throw',
+    'try',
+    'catch',
+    'finally',
+    'new',
+    'delete',
+    'typeof',
+    'instanceof',
+    'in',
+    'void',
+    'this',
+    'super',
+    'class',
+    'extends',
+    'function',
+    'const',
+    'let',
+    'var',
+    'import',
+    'export',
+    'default',
+    'from',
+    'as',
+    'async',
+    'await',
+    'yield',
+    'true',
+    'false',
+    'null',
+    'undefined',
+    'NaN',
+    'Infinity',
+    'arguments',
+    'eval',
   ]);
 
   let match;
@@ -328,10 +360,7 @@ export function findDeclaredVariables(code: string): string[] {
 /**
  * Find variables that are modified (assigned to) in a code block
  */
-export function findModifiedVariables(
-  code: string,
-  declaredVars: string[],
-): string[] {
+export function findModifiedVariables(code: string, declaredVars: string[]): string[] {
   const modified = new Set<string>();
 
   // Assignment patterns

@@ -5,10 +5,10 @@
 
 import type { Logger, StatusResult } from '../../../types';
 import {
-  icon,
-  formatAheadBehind,
   buildStackSummary,
+  formatAheadBehind,
   formatDuration,
+  icon,
   MAX_PAGE_SIZE,
 } from './shared';
 
@@ -50,7 +50,9 @@ function printChecksSection(status: StatusResult, logger: Logger): void {
   logger.info(`${icon(typecheckOk)} Typecheck: ${status.typecheck.status}${typecheckSuffix}`);
 
   const lintOk = status.lint.errors === 0;
-  logger.info(`${icon(lintOk)} Lint: ${status.lint.warnings} warnings, ${status.lint.errors} errors`);
+  logger.info(
+    `${icon(lintOk)} Lint: ${status.lint.warnings} warnings, ${status.lint.errors} errors`,
+  );
 
   const todoIcon = status.todos.count > MAX_PAGE_SIZE ? '⚠️ ' : status.todos.count > 0 ? '📝' : '✅';
   logger.info(`${todoIcon} TODOs: ${status.todos.count}`);
@@ -59,7 +61,9 @@ function printChecksSection(status: StatusResult, logger: Logger): void {
 /** Print extended info sections */
 function printExtendedSections(status: StatusResult): void {
   if (status.fileStats?.sourceFiles && status.fileStats.sourceFiles > 0) {
-    console.log(`📁 Files: ${status.fileStats.sourceFiles} source, ${status.fileStats.testFiles} tests`);
+    console.log(
+      `📁 Files: ${status.fileStats.sourceFiles} source, ${status.fileStats.testFiles} tests`,
+    );
   }
 
   if (status.workspaces && status.workspaces.length > 0) {
@@ -69,7 +73,9 @@ function printExtendedSections(status: StatusResult): void {
   }
 
   if (status.aiRules && status.aiRules.length > 0) {
-    console.log(`📋 AI Rules: ${status.aiRules.length} files (${status.aiRules.map((r) => r.relativePath).join(', ')})`);
+    console.log(
+      `📋 AI Rules: ${status.aiRules.length} files (${status.aiRules.map((r) => r.relativePath).join(', ')})`,
+    );
   }
 
   if (status.branchContext) {
@@ -89,7 +95,9 @@ function printVerboseSections(status: StatusResult, logger: Logger, verbose: boo
     console.log('');
     console.log('\x1b[2m─── Recent Commits ───\x1b[0m');
     for (const commit of status.recentCommits) {
-      console.log(`  \x1b[33m${commit.hash}\x1b[0m ${commit.message} \x1b[2m(${commit.relativeDate})\x1b[0m`);
+      console.log(
+        `  \x1b[33m${commit.hash}\x1b[0m ${commit.message} \x1b[2m(${commit.relativeDate})\x1b[0m`,
+      );
     }
   }
 
@@ -104,7 +112,9 @@ function printVerboseSections(status: StatusResult, logger: Logger, verbose: boo
 function printHealthSummary(status: StatusResult, logger: Logger): void {
   console.log('');
   const healthIcon = status.health === 'good' ? '🟢' : status.health === 'warning' ? '🟡' : '🔴';
-  logger.info(`${healthIcon} Health: ${status.health.toUpperCase()} (${formatDuration(status.durationMs)})`);
+  logger.info(
+    `${healthIcon} Health: ${status.health.toUpperCase()} (${formatDuration(status.durationMs)})`,
+  );
 }
 
 // ============================================================================
@@ -114,11 +124,7 @@ function printHealthSummary(status: StatusResult, logger: Logger): void {
 /**
  * Print status in text format to console
  */
-export function printStatus(
-  status: StatusResult,
-  logger: Logger,
-  verbose = false,
-): void {
+export function printStatus(status: StatusResult, logger: Logger, verbose = false): void {
   logger.section('Project Status');
   printPackageSection(status);
   printTechStackSection(status);

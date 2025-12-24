@@ -6,9 +6,9 @@
  * Uses AST for safe transformations.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
 import { isInsideString } from '../../core/string-utils';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('magic-numbers', 'Magic Numbers', 'hardcoded', {
   description: 'Extract magic numbers to named constants',
@@ -68,7 +68,10 @@ function analyzeMagicNumbers(content: string, file: string): QualityIssue[] {
       if (/timeout|delay|interval/i.test(codeOnly)) continue;
 
       // Skip port numbers and common HTTP codes
-      if ([80, 443, 8080, 3000, 5000, 200, 201, 204, 301, 302, 400, 401, 403, 404, 500].includes(num)) continue;
+      if (
+        [80, 443, 8080, 3000, 5000, 200, 201, 204, 301, 302, 400, 401, 403, 404, 500].includes(num)
+      )
+        continue;
 
       issues.push({
         file,
@@ -126,7 +129,7 @@ function fixMagicNumberIssue(issue: QualityIssue, content: string): FixOperation
     line: 1,
     endLine: issue.line,
     oldCode: lines.slice(0, issue.line).join('\n'),
-    newCode: constDeclaration + lines.slice(0, issue.line - 1).join('\n') + '\n' + newLine,
+    newCode: `${constDeclaration + lines.slice(0, issue.line - 1).join('\n')}\n${newLine}`,
   };
 }
 

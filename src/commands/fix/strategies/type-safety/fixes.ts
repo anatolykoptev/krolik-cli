@@ -3,19 +3,9 @@
  * @description Fix generators for type-safety issues
  */
 
-import type { QualityIssue } from '../../types';
-import type { FixOperation } from '../../types';
-import {
-  getLineContext,
-  lineContains,
-  createDeleteLine,
-  createReplaceLine,
-} from '../shared';
-import {
-  TS_IGNORE_PATTERNS,
-  TS_NOCHECK_PATTERNS,
-  ANY_TYPE_PATTERNS,
-} from './constants';
+import type { FixOperation, QualityIssue } from '../../types';
+import { createDeleteLine, createReplaceLine, getLineContext, lineContains } from '../shared';
+import { ANY_TYPE_PATTERNS, TS_IGNORE_PATTERNS, TS_NOCHECK_PATTERNS } from './constants';
 
 // ============================================================================
 // TS-EXPECT-ERROR FIX
@@ -27,10 +17,7 @@ import {
  * Removes @ts-expect-error comments which suppress type errors.
  * Better to fix the actual type error than suppress it.
  */
-export function fixTsIgnore(
-  issue: QualityIssue,
-  content: string,
-): FixOperation | null {
+export function fixTsIgnore(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
   const lineCtx = getLineContext(content, issue.line);
@@ -67,10 +54,7 @@ export function fixTsIgnore(
  * Removes @ts-nocheck which disables type checking for entire file.
  * This should never be used in production code.
  */
-export function fixTsNocheck(
-  issue: QualityIssue,
-  content: string,
-): FixOperation | null {
+export function fixTsNocheck(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
   const lineCtx = getLineContext(content, issue.line);
@@ -94,10 +78,7 @@ export function fixTsNocheck(
  * Replaces `: any` with `: unknown` which is safer.
  * `unknown` requires type narrowing before use, unlike `any`.
  */
-export function fixAnyType(
-  issue: QualityIssue,
-  content: string,
-): FixOperation | null {
+export function fixAnyType(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
   const lineCtx = getLineContext(content, issue.line);

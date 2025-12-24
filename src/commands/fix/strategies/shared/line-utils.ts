@@ -33,10 +33,7 @@ export function splitLines(content: string): string[] {
  * Get line context from content at a specific line number
  * Returns null if line doesn't exist
  */
-export function getLineContext(
-  content: string,
-  lineNumber: number,
-): LineContext | null {
+export function getLineContext(content: string, lineNumber: number): LineContext | null {
   if (lineNumber < 1) return null;
 
   const lines = splitLines(content);
@@ -57,11 +54,7 @@ export function getLineContext(
  * Get multiple lines from content
  * startLine and endLine are 1-based
  */
-export function getLines(
-  content: string,
-  startLine: number,
-  endLine: number,
-): string[] {
+export function getLines(content: string, startLine: number, endLine: number): string[] {
   const lines = splitLines(content);
   return lines.slice(startLine - 1, endLine);
 }
@@ -112,11 +105,7 @@ export function lineContains(line: string, patterns: string[]): boolean {
  */
 export function isComment(line: string): boolean {
   const trimmed = line.trim();
-  return (
-    trimmed.startsWith('//') ||
-    trimmed.startsWith('/*') ||
-    trimmed.startsWith('*')
-  );
+  return trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*');
 }
 
 /**

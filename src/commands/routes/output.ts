@@ -3,8 +3,8 @@
  * @description Routes output formatters
  */
 
-import type { Logger } from "../../types";
-import type { TrpcRouter } from "./parser";
+import type { Logger } from '../../types';
+import type { TrpcRouter } from './parser';
 
 /**
  * Routes analysis result
@@ -33,8 +33,8 @@ export function calculateStats(routers: TrpcRouter[]): RoutesOutput {
   for (const router of routers) {
     totalProcedures += router.procedures.length;
     for (const proc of router.procedures) {
-      if (proc.type === "query") queries++;
-      if (proc.type === "mutation") mutations++;
+      if (proc.type === 'query') queries++;
+      if (proc.type === 'mutation') mutations++;
       if (proc.isProtected) protectedCount++;
     }
   }
@@ -46,10 +46,8 @@ export function calculateStats(routers: TrpcRouter[]): RoutesOutput {
  * Print routes to console
  */
 export function printRoutes(data: RoutesOutput, logger: Logger): void {
-  logger.section("tRPC Routes");
-  logger.info(
-    `Found ${data.routers.length} routers with ${data.totalProcedures} procedures\n`,
-  );
+  logger.section('tRPC Routes');
+  logger.info(`Found ${data.routers.length} routers with ${data.totalProcedures} procedures\n`);
   console.log(
     `  Queries: ${data.queries} | Mutations: ${data.mutations} | Protected: ${data.protectedCount}\n`,
   );
@@ -58,26 +56,23 @@ export function printRoutes(data: RoutesOutput, logger: Logger): void {
     const procList = router.procedures
       .slice(0, SLICE_ARG1_VALUE)
       .map((p) => {
-        const icon =
-          p.type === "query" ? "Q" : p.type === "mutation" ? "M" : "S";
-        const prot = p.isProtected ? "*" : "";
+        const icon = p.type === 'query' ? 'Q' : p.type === 'mutation' ? 'M' : 'S';
+        const prot = p.isProtected ? '*' : '';
         return `${icon}:${p.name}${prot}`;
       })
-      .join(", ");
+      .join(', ');
 
     const more =
       router.procedures.length > SLICE_ARG1_VALUE
         ? ` +${router.procedures.length - MAX_LENGTH} more`
-        : "";
+        : '';
 
     console.log(`\x1b[36m${router.file}\x1b[0m (${router.procedures.length})`);
     console.log(`  \x1b[2m${procList}${more}\x1b[0m`);
-    console.log("");
+    console.log('');
   }
 
-  console.log(
-    "\x1b[2mLegend: Q=query, M=mutation, S=subscription, *=protected\x1b[0m\n",
-  );
+  console.log('\x1b[2mLegend: Q=query, M=mutation, S=subscription, *=protected\x1b[0m\n');
 }
 
 /**
@@ -94,7 +89,9 @@ export function formatAI(data: RoutesOutput): string {
   const lines: string[] = [];
 
   lines.push('<trpc-routes>');
-  lines.push(`  <stats routers="${data.routers.length}" procedures="${data.totalProcedures}" queries="${data.queries}" mutations="${data.mutations}" protected="${data.protectedCount}" />`);
+  lines.push(
+    `  <stats routers="${data.routers.length}" procedures="${data.totalProcedures}" queries="${data.queries}" mutations="${data.mutations}" protected="${data.protectedCount}" />`,
+  );
   lines.push('');
 
   const grouped = groupByDomain(data.routers);
@@ -108,7 +105,9 @@ export function formatAI(data: RoutesOutput): string {
       for (const proc of router.procedures) {
         const protAttr = proc.isProtected ? ' protected="true"' : '';
         const inputAttr = proc.hasInput ? ' has_input="true"' : '';
-        lines.push(`      <procedure name="${proc.name}" type="${proc.type}"${protAttr}${inputAttr} />`);
+        lines.push(
+          `      <procedure name="${proc.name}" type="${proc.type}"${protAttr}${inputAttr} />`,
+        );
       }
       lines.push('    </router>');
     }
@@ -126,15 +125,15 @@ export function formatAI(data: RoutesOutput): string {
  */
 export function formatMarkdown(data: RoutesOutput): string {
   const lines: string[] = [
-    "# API Routes (tRPC)",
-    "",
-    `> Auto-generated: ${new Date().toISOString().split("T")[0]}`,
-    "",
+    '# API Routes (tRPC)',
+    '',
+    `> Auto-generated: ${new Date().toISOString().split('T')[0]}`,
+    '',
     `**Routers:** ${data.routers.length} | **Procedures:** ${data.totalProcedures}`,
     `**Queries:** ${data.queries} | **Mutations:** ${data.mutations} | **Protected:** ${data.protectedCount}`,
-    "",
-    "---",
-    "",
+    '',
+    '---',
+    '',
   ];
 
   // Group by domain
@@ -144,33 +143,33 @@ export function formatMarkdown(data: RoutesOutput): string {
     if (routers.length === 0) continue;
 
     lines.push(`## ${domain}`);
-    lines.push("");
+    lines.push('');
 
     for (const router of routers) {
       lines.push(`### ${router.file}`);
       if (router.description) {
         lines.push(`> ${router.description}`);
       }
-      lines.push("");
+      lines.push('');
 
-      lines.push("| Procedure | Type | Protected | Input |");
-      lines.push("|-----------|------|-----------|-------|");
+      lines.push('| Procedure | Type | Protected | Input |');
+      lines.push('|-----------|------|-----------|-------|');
 
       for (const proc of router.procedures) {
         lines.push(
-          `| ${proc.name} | ${proc.type} | ${proc.isProtected ? "Yes" : "No"} | ${proc.hasInput ? "Yes" : "No"} |`,
+          `| ${proc.name} | ${proc.type} | ${proc.isProtected ? 'Yes' : 'No'} | ${proc.hasInput ? 'Yes' : 'No'} |`,
         );
       }
 
-      lines.push("");
+      lines.push('');
     }
   }
 
-  lines.push("---");
-  lines.push("");
-  lines.push("*Generated by krolik-cli*");
+  lines.push('---');
+  lines.push('');
+  lines.push('*Generated by krolik-cli*');
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -186,28 +185,20 @@ function groupByDomain(routers: TrpcRouter[]): Record<string, TrpcRouter[]> {
   };
 
   for (const router of routers) {
-    if (router.file.startsWith("business")) {
-      domains["Business"]!.push(router);
+    if (router.file.startsWith('business')) {
+      domains.Business?.push(router);
     } else if (
-      ["user", "favorites", "userLists", "userTodos"].some((k) =>
-        router.file.includes(k),
-      )
+      ['user', 'favorites', 'userLists', 'userTodos'].some((k) => router.file.includes(k))
     ) {
-      domains["User"]!.push(router);
+      domains.User?.push(router);
+    } else if (['places', 'events', 'reviews', 'search'].some((k) => router.file.includes(k))) {
+      domains.Content?.push(router);
     } else if (
-      ["places", "events", "reviews", "search"].some((k) =>
-        router.file.includes(k),
-      )
+      ['social', 'activity', 'referral', 'interactions'].some((k) => router.file.includes(k))
     ) {
-      domains["Content"]!.push(router);
-    } else if (
-      ["social", "activity", "referral", "interactions"].some((k) =>
-        router.file.includes(k),
-      )
-    ) {
-      domains["Social"]!.push(router);
+      domains.Social?.push(router);
     } else {
-      domains["System"]!.push(router);
+      domains.System?.push(router);
     }
   }
 

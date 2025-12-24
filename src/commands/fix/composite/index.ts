@@ -33,36 +33,35 @@
  * ```
  */
 
-// Types
-export type {
-  CompositeOperationType,
-  CompositeStep,
-  CompositeTransform,
-  RenameConfig,
-  MoveConfig,
-  ExtractConfig,
-  CustomConfig,
-  VerificationConfig,
-  Transaction,
-  TransactionState,
-  FileBackup,
-  StepResult,
-  CompositeResult,
-  VerificationResult,
-} from './types';
+// High-level operations
+export {
+  createExtractTransform,
+  createMoveTransform,
+  createRenameTransform,
+} from './operations';
 
 // Transaction management
 export {
   beginTransaction,
-  rollbackTransaction,
   commitTransaction,
-  executeCompositeTransform,
   dryRunCompositeTransform,
+  executeCompositeTransform,
+  rollbackTransaction,
 } from './transaction';
-
-// High-level operations
-export {
-  createRenameTransform,
-  createMoveTransform,
-  createExtractTransform,
-} from './operations';
+// Types
+export type {
+  CompositeOperationType,
+  CompositeResult,
+  CompositeStep,
+  CompositeTransform,
+  CustomConfig,
+  ExtractConfig,
+  FileBackup,
+  MoveConfig,
+  RenameConfig,
+  StepResult,
+  Transaction,
+  TransactionState,
+  VerificationConfig,
+  VerificationResult,
+} from './types';

@@ -5,8 +5,8 @@
  * Updates barrel files after file migrations.
  */
 
-import * as path from 'path';
-import { readFile, writeFile, exists, escapeRegex } from '../../../lib';
+import * as path from 'node:path';
+import { escapeRegex, exists, readFile, writeFile } from '../../../lib';
 
 // ============================================================================
 // BARREL FILE UPDATE
@@ -35,10 +35,7 @@ export async function updateBarrelFile(
     const newImportPath = to.replace('.ts', '').replace(/\\/g, '/');
 
     // Update export statements
-    const oldPattern = new RegExp(
-      `(from\\s+['"]\\.\\/?)${escapeRegex(oldImportPath)}(['"])`,
-      'g'
-    );
+    const oldPattern = new RegExp(`(from\\s+['"]\\.\\/?)${escapeRegex(oldImportPath)}(['"])`, 'g');
     content = content.replace(oldPattern, `$1${newImportPath}$2`);
   }
 
@@ -48,10 +45,7 @@ export async function updateBarrelFile(
 /**
  * Generate barrel content for a directory
  */
-export function generateBarrelContent(
-  dirName: string,
-  exports: string[],
-): string {
+export function generateBarrelContent(dirName: string, exports: string[]): string {
   return `/**
  * @module ${dirName}
  * @description Auto-generated barrel export

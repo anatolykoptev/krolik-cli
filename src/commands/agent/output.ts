@@ -4,9 +4,9 @@
  */
 
 import chalk from 'chalk';
-import type { AgentDefinition, AgentCategory, AgentResult, RepoStats } from './types';
-import { AGENT_CATEGORIES } from './categories';
 import { escapeXml, truncate } from '../../lib';
+import { AGENT_CATEGORIES } from './categories';
+import type { AgentCategory, AgentDefinition, AgentResult, RepoStats } from './types';
 
 /**
  * Format agent list as text
@@ -23,7 +23,11 @@ export function formatAgentListText(
   // Show repository stats if available
   if (stats) {
     lines.push(chalk.dim('Repository:'));
-    lines.push(chalk.dim(`  ${stats.plugins} plugins | ${stats.agents} agents | ${stats.commands} commands | ${stats.skills} skills`));
+    lines.push(
+      chalk.dim(
+        `  ${stats.plugins} plugins | ${stats.agents} agents | ${stats.commands} commands | ${stats.skills} skills`,
+      ),
+    );
     lines.push('');
   }
 
@@ -203,7 +207,9 @@ export function formatResultAI(result: AgentResult): string {
   if (result.suggestions && result.suggestions.length > 0) {
     lines.push('  <suggestions>');
     for (const suggestion of result.suggestions) {
-      lines.push(`    <suggestion priority="${suggestion.priority}" effort="${suggestion.effort}">`);
+      lines.push(
+        `    <suggestion priority="${suggestion.priority}" effort="${suggestion.effort}">`,
+      );
       lines.push(`      <title>${escapeXml(suggestion.title)}</title>`);
       lines.push(`      <description>${escapeXml(suggestion.description)}</description>`);
       lines.push('    </suggestion>');
@@ -219,4 +225,3 @@ export function formatResultAI(result: AgentResult): string {
 
   return lines.join('\n');
 }
-

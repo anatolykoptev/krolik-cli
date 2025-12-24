@@ -36,9 +36,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type {
   ImprovementPlan,
-  PlanStep,
   ParseResult,
   PlanFormat,
+  PlanStep,
   StepAction,
   StepPriority,
 } from './types';
@@ -286,9 +286,7 @@ function extractCodeBlocks(content: string): string[] {
     const code = match[1]?.trim();
     if (code) {
       // Remove "// Before" and "// After" comments
-      const cleanCode = code
-        .replace(/^\/\/\s*(Before|After)\s*\n/gm, '')
-        .trim();
+      const cleanCode = code.replace(/^\/\/\s*(Before|After)\s*\n/gm, '').trim();
       blocks.push(cleanCode);
     }
   }
@@ -346,11 +344,7 @@ function parseJsonPlan(content: string): ParseResult {
           number: step.number ?? index + 1,
           action: parseAction(step.action ?? 'fix'),
           description: step.description ?? '',
-          files: Array.isArray(step.files)
-            ? step.files
-            : step.file
-              ? [step.file]
-              : [],
+          files: Array.isArray(step.files) ? step.files : step.file ? [step.file] : [],
           line: step.line,
           endLine: step.endLine,
           originalCode: step.originalCode,
@@ -420,10 +414,20 @@ function parseYamlPlan(content: string): ParseResult {
 
       if (currentStep) {
         if (line.includes('description:')) {
-          currentStep.description = line.split(':').slice(1).join(':').trim().replace(/^["']|["']$/g, '');
+          currentStep.description = line
+            .split(':')
+            .slice(1)
+            .join(':')
+            .trim()
+            .replace(/^["']|["']$/g, '');
         }
         if (line.includes('file:')) {
-          const file = line.split(':').slice(1).join(':').trim().replace(/^["']|["']$/g, '');
+          const file = line
+            .split(':')
+            .slice(1)
+            .join(':')
+            .trim()
+            .replace(/^["']|["']$/g, '');
           currentStep.files = [file];
         }
         if (line.includes('action:')) {
@@ -443,7 +447,7 @@ function parseYamlPlan(content: string): ParseResult {
         codeContent = '';
       } else if (inCodeBlock) {
         if (line.startsWith('  ') || line.startsWith('\t')) {
-          codeContent += line.trimStart() + '\n';
+          codeContent += `${line.trimStart()}\n`;
         } else {
           inCodeBlock = false;
           if (currentStep) {
@@ -489,11 +493,7 @@ function parseYamlPlan(content: string): ParseResult {
 /**
  * Build plan with calculated summary
  */
-function buildPlan(
-  title: string,
-  description: string,
-  steps: PlanStep[],
-): ImprovementPlan {
+function buildPlan(title: string, description: string, steps: PlanStep[]): ImprovementPlan {
   // Calculate summary
   const byPriority: Record<StepPriority, number> = {
     critical: 0,
@@ -533,7 +533,7 @@ function buildPlan(
   const estimatedEffort =
     effortMinutes < 60
       ? `${effortMinutes} min`
-      : `${Math.round(effortMinutes / 60 * 10) / 10} hours`;
+      : `${Math.round((effortMinutes / 60) * 10) / 10} hours`;
 
   return {
     id: `plan-${Date.now().toString(36)}`,

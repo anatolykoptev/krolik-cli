@@ -3,51 +3,37 @@
  * @description AI context generation command
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { CommandContext, ContextResult, KrolikConfig } from "../../types";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
-  getIssue,
   getCurrentBranch,
-  getStatus,
-  getRecentCommits,
   getDiff,
+  getIssue,
+  getRecentCommits,
+  getStatus,
   isGitRepo,
-} from "../../lib";
-import {
-  detectDomains,
-  findRelatedFiles,
-  getApproaches,
-  generateChecklist,
-} from "./domains";
-import {
-  printContext,
-  formatJson,
-  formatMarkdown,
-  formatAiPrompt,
-} from "./formatters";
-import type {
-  ContextOptions,
-  AiContextData,
-  GitContextInfo,
-} from "./types";
+} from '../../lib';
+import type { CommandContext, ContextResult, KrolikConfig } from '../../types';
+import { analyzeRoutes } from '../routes';
+import { analyzeSchema } from '../schema';
+import { detectDomains, findRelatedFiles, generateChecklist, getApproaches } from './domains';
+import { formatAiPrompt, formatJson, formatMarkdown, printContext } from './formatters';
 import {
   DOMAIN_FILE_PATTERNS,
   discoverFiles,
-  findSchemaDir,
   findRoutersDir,
+  findSchemaDir,
   generateProjectTree,
-} from "./helpers";
-import { analyzeSchema } from "../schema";
-import { analyzeRoutes } from "../routes";
+} from './helpers';
 import {
-  parseZodSchemas,
+  buildImportGraph,
+  generateContextHints,
   parseComponents,
   parseTestFiles,
-  generateContextHints,
   parseTypesInDir,
-  buildImportGraph,
-} from "./parsers";
+  parseZodSchemas,
+} from './parsers';
+import type { AiContextData, ContextOptions, GitContextInfo } from './types';
 
 const MAX_COMMITS = 5;
 
@@ -82,14 +68,12 @@ export function generateContext(
 /**
  * Run context command
  */
-export async function runContext(
-  ctx: CommandContext & { options: ContextOptions },
-): Promise<void> {
+export async function runContext(ctx: CommandContext & { options: ContextOptions }): Promise<void> {
   const { config, logger, options } = ctx;
   const projectRoot = config.projectRoot ?? process.cwd();
 
-  let task = options.feature || options.file || "General development context";
-  let issueData: ContextResult["issue"] | undefined;
+  let task = options.feature || options.file || 'General development context';
+  let issueData: ContextResult['issue'] | undefined;
 
   // Fetch issue if provided
   if (options.issue) {
@@ -105,9 +89,7 @@ export async function runContext(
         };
         task = issue.title;
       } else {
-        logger.warn(
-          `Could not fetch issue #${issueNum}. Check gh auth status.`,
-        );
+        logger.warn(`Could not fetch issue #${issueNum}. Check gh auth status.`);
         task = `Issue #${issueNum}`;
       }
     }
@@ -225,12 +207,12 @@ function parseZodSchemasFromDirs(
   aiData: AiContextData,
 ): void {
   const zodDirs = [
-    "packages/shared/src/schemas",
-    "packages/shared/src/validation",
-    "packages/db/src/schemas",
-    "packages/api/src/lib",
-    "src/schemas",
-    "src/lib/schemas",
+    'packages/shared/src/schemas',
+    'packages/shared/src/validation',
+    'packages/db/src/schemas',
+    'packages/api/src/lib',
+    'src/schemas',
+    'src/lib/schemas',
   ];
 
   for (const dir of zodDirs) {
@@ -257,16 +239,13 @@ function parseComponentsFromDirs(
     return patterns ? patterns.components : [d];
   });
 
-  const componentDirs = ["apps/web/components", "src/components"];
+  const componentDirs = ['apps/web/components', 'src/components'];
   for (const dir of componentDirs) {
     const fullPath = path.join(projectRoot, dir);
     if (fs.existsSync(fullPath)) {
       const components = parseComponents(fullPath, componentPatterns);
       if (components.length > 0) {
-        aiData.componentDetails = [
-          ...(aiData.componentDetails || []),
-          ...components,
-        ];
+        aiData.componentDetails = [...(aiData.componentDetails || []), ...components];
       }
     }
   }
@@ -275,21 +254,17 @@ function parseComponentsFromDirs(
 /**
  * Parse tests from standard directories
  */
-function parseTestsFromDirs(
-  projectRoot: string,
-  domains: string[],
-  aiData: AiContextData,
-): void {
+function parseTestsFromDirs(projectRoot: string, domains: string[], aiData: AiContextData): void {
   const testPatterns = domains.flatMap((d) => {
     const patterns = DOMAIN_FILE_PATTERNS[d.toLowerCase()];
     return patterns ? patterns.tests : [d.toLowerCase()];
   });
 
   const testDirs = [
-    "packages/api/src/routers/__tests__",
-    "apps/web/__tests__",
-    "__tests__",
-    "tests",
+    'packages/api/src/routers/__tests__',
+    'apps/web/__tests__',
+    '__tests__',
+    'tests',
   ];
 
   for (const dir of testDirs) {
@@ -306,24 +281,20 @@ function parseTestsFromDirs(
 /**
  * Parse TypeScript types and import graph
  */
-function parseTypesAndImports(
-  projectRoot: string,
-  domains: string[],
-  aiData: AiContextData,
-): void {
+function parseTypesAndImports(projectRoot: string, domains: string[], aiData: AiContextData): void {
   // Filter out generic domains that won't match file names
-  const GENERIC_DOMAINS = ["general", "development", "context", "feature"];
+  const GENERIC_DOMAINS = ['general', 'development', 'context', 'feature'];
   const typePatterns = domains
     .map((d) => d.toLowerCase())
     .filter((d) => !GENERIC_DOMAINS.some((g) => d.includes(g)));
 
   // Directories to scan for types
   const typeDirs = [
-    "packages/shared/src/types",
-    "packages/api/src/types",
-    "apps/web/types",
-    "src/types",
-    "types",
+    'packages/shared/src/types',
+    'packages/api/src/types',
+    'apps/web/types',
+    'src/types',
+    'types',
   ];
 
   for (const dir of typeDirs) {
@@ -337,11 +308,7 @@ function parseTypesAndImports(
   }
 
   // Build import graph for domain-related files
-  const importDirs = [
-    "packages/api/src/routers",
-    "apps/web/components",
-    "src/commands",
-  ];
+  const importDirs = ['packages/api/src/routers', 'apps/web/components', 'src/commands'];
 
   for (const dir of importDirs) {
     const fullPath = path.join(projectRoot, dir);
@@ -363,7 +330,7 @@ function buildGitInfo(projectRoot: string): GitContextInfo {
   const commits = getRecentCommits(MAX_COMMITS, projectRoot);
 
   const gitInfo: GitContextInfo = {
-    branch: branch ?? "unknown",
+    branch: branch ?? 'unknown',
     changedFiles: [
       ...status.modified,
       ...status.staged.filter((f) => !status.modified.includes(f)),
@@ -393,7 +360,7 @@ async function addQualityIssues(
   aiData: AiContextData,
 ): Promise<void> {
   try {
-    const { generateAIReportFromAnalysis } = await import("../fix/reporter");
+    const { generateAIReportFromAnalysis } = await import('../fix/reporter');
 
     // Generate audit report
     const report = await generateAIReportFromAnalysis(projectRoot);
@@ -402,13 +369,14 @@ async function addQualityIssues(
     const relatedSet = new Set(relatedFiles.map((f) => path.resolve(projectRoot, f)));
     const allIssues = report.quickWins.map((qw) => qw.issue);
 
-    const filteredIssues = relatedSet.size > 0
-      ? allIssues.filter((issue) => relatedSet.has(issue.file))
-      : allIssues.slice(0, 20); // Limit to 20 if no filter
+    const filteredIssues =
+      relatedSet.size > 0
+        ? allIssues.filter((issue) => relatedSet.has(issue.file))
+        : allIssues.slice(0, 20); // Limit to 20 if no filter
 
     // Convert to context format
     aiData.qualityIssues = filteredIssues.map((issue) => ({
-      file: issue.file.replace(projectRoot + "/", ""),
+      file: issue.file.replace(`${projectRoot}/`, ''),
       ...(issue.line !== undefined && { line: issue.line }),
       category: issue.category,
       message: issue.message,
@@ -433,11 +401,11 @@ async function addQualityIssues(
   }
 }
 
-// Re-export types and functions
-export type { ContextOptions } from "./types";
 export {
   detectDomains,
   findRelatedFiles,
-  getApproaches,
   generateChecklist,
-} from "./domains";
+  getApproaches,
+} from './domains';
+// Re-export types and functions
+export type { ContextOptions } from './types';

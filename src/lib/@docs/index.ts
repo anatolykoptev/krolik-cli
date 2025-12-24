@@ -7,17 +7,17 @@
  */
 
 export {
-  syncClaudeMd,
-  needsSync,
   getSyncStatus,
-  type SyncResult,
+  needsSync,
   type SyncOptions,
+  type SyncResult,
+  syncClaudeMd,
 } from './inject';
 
 export {
   DOCS_VERSION,
-  KROLIK_SECTION_START,
-  KROLIK_SECTION_END,
   generateKrolikDocs,
   generateMinimalClaudeMd,
+  KROLIK_SECTION_END,
+  KROLIK_SECTION_START,
 } from './template';

@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { Fixer, FixerMetadata, QualityCategory, FixDifficulty } from './types';
+import type { FixDifficulty, Fixer, FixerMetadata, QualityCategory } from './types';
 
 /**
  * CLI option generated from fixer metadata
@@ -104,21 +104,21 @@ export class FixerRegistry {
    * Get fixers by category
    */
   byCategory(category: QualityCategory): Fixer[] {
-    return this.all().filter(f => f.metadata.category === category);
+    return this.all().filter((f) => f.metadata.category === category);
   }
 
   /**
    * Get fixers by difficulty
    */
   byDifficulty(difficulty: FixDifficulty): Fixer[] {
-    return this.all().filter(f => f.metadata.difficulty === difficulty);
+    return this.all().filter((f) => f.metadata.difficulty === difficulty);
   }
 
   /**
    * Get fixers by tag
    */
   byTag(tag: string): Fixer[] {
-    return this.all().filter(f => f.metadata.tags?.includes(tag));
+    return this.all().filter((f) => f.metadata.tags?.includes(tag));
   }
 
   /**
@@ -135,21 +135,19 @@ export class FixerRegistry {
     let result = this.all();
 
     if (filter.ids?.length) {
-      result = result.filter(f => filter.ids!.includes(f.metadata.id));
+      result = result.filter((f) => filter.ids?.includes(f.metadata.id));
     }
 
     if (filter.category) {
-      result = result.filter(f => f.metadata.category === filter.category);
+      result = result.filter((f) => f.metadata.category === filter.category);
     }
 
     if (filter.difficulty) {
-      result = result.filter(f => f.metadata.difficulty === filter.difficulty);
+      result = result.filter((f) => f.metadata.difficulty === filter.difficulty);
     }
 
     if (filter.tags?.length) {
-      result = result.filter(f =>
-        filter.tags!.some(tag => f.metadata.tags?.includes(tag))
-      );
+      result = result.filter((f) => filter.tags?.some((tag) => f.metadata.tags?.includes(tag)));
     }
 
     return result;
@@ -191,7 +189,7 @@ export class FixerRegistry {
     }
 
     // Apply logic
-    return allFixers.filter(fixer => {
+    return allFixers.filter((fixer) => {
       const explicit = enabledMap.get(fixer.metadata.id);
 
       // If explicitly disabled, skip
@@ -210,7 +208,7 @@ export class FixerRegistry {
    * Generate CLI options from fixer metadata
    */
   getCLIOptions(): CLIOption[] {
-    return this.all().map(fixer => ({
+    return this.all().map((fixer) => ({
       flag: fixer.metadata.cliFlag,
       negateFlag: fixer.metadata.negateFlag,
       description: fixer.metadata.description,
@@ -222,7 +220,7 @@ export class FixerRegistry {
    * Get metadata for all fixers (for help text generation)
    */
   getMetadata(): FixerMetadata[] {
-    return this.all().map(f => f.metadata);
+    return this.all().map((f) => f.metadata);
   }
 
   /**
@@ -271,7 +269,7 @@ export function createFixerMetadata(
   id: string,
   name: string,
   category: QualityCategory,
-  options: Partial<Omit<FixerMetadata, 'id' | 'name' | 'category'>> = {}
+  options: Partial<Omit<FixerMetadata, 'id' | 'name' | 'category'>> = {},
 ): FixerMetadata {
   return {
     id,

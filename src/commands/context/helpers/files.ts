@@ -3,14 +3,14 @@
  * @description File search utilities
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 /**
  * Check if entry should be skipped during scan
  */
 function shouldSkipEntry(name: string): boolean {
-  return name.startsWith(".") || name === "node_modules";
+  return name.startsWith('.') || name === 'node_modules';
 }
 
 /**
@@ -24,12 +24,7 @@ function matchesPattern(fileName: string, patterns: string[]): boolean {
 /**
  * Recursively scan directory for matching files
  */
-function scanDirectory(
-  dir: string,
-  patterns: string[],
-  ext: string,
-  results: string[],
-): void {
+function scanDirectory(dir: string, patterns: string[], ext: string, results: string[]): void {
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -57,11 +52,7 @@ function scanDirectory(
 /**
  * Find files matching patterns in a directory (recursive)
  */
-export function findFilesMatching(
-  dir: string,
-  patterns: string[],
-  ext: string,
-): string[] {
+export function findFilesMatching(dir: string, patterns: string[], ext: string): string[] {
   const results: string[] = [];
   scanDirectory(dir, patterns, ext, results);
   return results;

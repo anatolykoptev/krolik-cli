@@ -3,8 +3,8 @@
  * @description Colored console logging with multiple output styles
  */
 
-import chalk from "chalk";
-import type { Logger, LogLevel } from "../../types";
+import chalk from 'chalk';
+import type { Logger, LogLevel } from '../../types';
 
 /**
  * Logger options
@@ -33,7 +33,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
  * Create a logger instance
  */
 export function createLogger(options: LoggerOptions = {}): Logger {
-  const { level = "info", colors = true, write = console.log } = options;
+  const { level = 'info', colors = true, write = console.log } = options;
 
   const shouldLog = (msgLevel: LogLevel): boolean => {
     return LOG_LEVELS[msgLevel] >= LOG_LEVELS[level];
@@ -59,59 +59,56 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 
   return {
     debug(message: string): void {
-      if (shouldLog("debug")) {
+      if (shouldLog('debug')) {
         write(format.debug(message));
       }
     },
 
     info(message: string): void {
-      if (shouldLog("info")) {
+      if (shouldLog('info')) {
         write(format.info(message));
       }
     },
 
     warn(message: string): void {
-      if (shouldLog("warn")) {
+      if (shouldLog('warn')) {
         write(format.warn(message));
       }
     },
 
     error(message: string): void {
-      if (shouldLog("error")) {
+      if (shouldLog('error')) {
         write(format.error(message));
       }
     },
 
     success(message: string): void {
-      if (shouldLog("info")) {
+      if (shouldLog('info')) {
         write(format.success(message));
       }
     },
 
     section(title: string): void {
-      if (shouldLog("info")) {
-        write("");
-        write(format.header("═".repeat(60)));
+      if (shouldLog('info')) {
+        write('');
+        write(format.header('═'.repeat(60)));
         write(format.header(`  ${title}`));
-        write(format.header("═".repeat(60)));
-        write("");
+        write(format.header('═'.repeat(60)));
+        write('');
       }
     },
 
-    box(
-      lines: string[],
-      type: "info" | "success" | "warning" | "error" = "info",
-    ): void {
-      if (!shouldLog("info")) return;
+    box(lines: string[], type: 'info' | 'success' | 'warning' | 'error' = 'info'): void {
+      if (!shouldLog('info')) return;
 
       const maxLen = Math.max(...lines.map((l) => l.length));
-      const border = "─".repeat(maxLen + 2);
+      const border = '─'.repeat(maxLen + 2);
       const colorFn =
-        type === "success"
+        type === 'success'
           ? format.success
-          : type === "warning"
+          : type === 'warning'
             ? format.warn
-            : type === "error"
+            : type === 'error'
               ? format.error
               : format.info;
       write(colorFn(`┌${border}┐`));

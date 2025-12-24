@@ -16,14 +16,14 @@ import type { FixOperation } from '../types';
  * Supported composite operation types
  */
 export type CompositeOperationType =
-  | 'rename'          // Rename identifier across files
-  | 'move'            // Move file/function to new location
-  | 'extract'         // Extract code into new file/function
-  | 'inline'          // Inline code from imported module
-  | 'update-exports'  // Update barrel exports
-  | 'update-imports'  // Update import paths
-  | 'delete'          // Delete file/export
-  | 'custom';         // Custom operation with fix operations
+  | 'rename' // Rename identifier across files
+  | 'move' // Move file/function to new location
+  | 'extract' // Extract code into new file/function
+  | 'inline' // Inline code from imported module
+  | 'update-exports' // Update barrel exports
+  | 'update-imports' // Update import paths
+  | 'delete' // Delete file/export
+  | 'custom'; // Custom operation with fix operations
 
 /**
  * Single operation within a composite transform
@@ -135,11 +135,11 @@ export interface VerificationConfig {
  * Transaction state
  */
 export type TransactionState =
-  | 'pending'      // Not started
-  | 'in_progress'  // Executing steps
-  | 'committed'    // All steps succeeded
-  | 'rolled_back'  // Rolled back due to failure
-  | 'failed';      // Failed with no rollback possible
+  | 'pending' // Not started
+  | 'in_progress' // Executing steps
+  | 'committed' // All steps succeeded
+  | 'rolled_back' // Rolled back due to failure
+  | 'failed'; // Failed with no rollback possible
 
 /**
  * File backup for rollback

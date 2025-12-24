@@ -9,76 +9,71 @@
  * - Difficulty: getFixDifficulty, isTrivialFix
  */
 
-// Types
-export type {
-  QualitySeverity,
-  QualityCategory,
-  QualityIssue,
-  FixAction,
-  FixOperation,
-  FixResult,
-  FixDifficulty,
-  FixerMetadata,
-  Fixer,
-  FixStrategy,
-  SplitSuggestion,
-  FunctionInfo,
-  FileAnalysis,
-  HardcodedValue,
-  RecommendationItem,
-  QualityReport,
-} from './types';
-
-// Registry
+// File cache (re-exported from unified lib/@cache)
 export {
-  FixerRegistry,
-  registry,
-  createFixerMetadata,
-  type CLIOption,
-  type FixerFilter,
-} from './registry';
-
-// Options
-export {
-  type Thresholds,
-  DEFAULT_THRESHOLDS,
-  type ThresholdOverride,
-  type QualityOptions,
-  type FixOptions,
-  hasExplicitFixerFlags,
-  getEnabledFixerIds,
-} from './options';
-
+  FileCache,
+  type FileCacheStats,
+  fileCache,
+  formatCacheStats,
+} from '@/lib';
 // Difficulty
 export {
-  getFixDifficulty,
-  isTrivialFix,
-  isSafeFix,
   filterByDifficulty,
+  getFixDifficulty,
+  isSafeFix,
+  isTrivialFix,
   sortByDifficulty,
 } from './difficulty';
 
-// Runner
+// Options
 export {
-  runFixerAnalysis,
-  runTrivialFixers,
-  runSafeFixers,
-  runSpecificFixers,
-  getFixerSummary,
-  type FixerRunnerOptions,
-  type FixerRunResult,
-} from './runner';
-
+  DEFAULT_THRESHOLDS,
+  type FixOptions,
+  getEnabledFixerIds,
+  hasExplicitFixerFlags,
+  type QualityOptions,
+  type ThresholdOverride,
+  type Thresholds,
+} from './options';
 // Path utilities
 export {
-  validatePathWithinProject,
   type PathValidationResult,
+  validatePathWithinProject,
 } from './path-utils';
-
-// File cache
+// Registry
 export {
-  FileCache,
-  fileCache,
-  formatCacheStats,
-  type FileCacheStats,
-} from './file-cache';
+  type CLIOption,
+  createFixerMetadata,
+  type FixerFilter,
+  FixerRegistry,
+  registry,
+} from './registry';
+// Runner
+export {
+  type FixerRunnerOptions,
+  type FixerRunResult,
+  getFixerSummary,
+  runFixerAnalysis,
+  runSafeFixers,
+  runSpecificFixers,
+  runTrivialFixers,
+} from './runner';
+// Types
+export type {
+  FileAnalysis,
+  FixAction,
+  FixDifficulty,
+  Fixer,
+  FixerMetadata,
+  FixOperation,
+  FixResult,
+  FixStrategy,
+  FunctionInfo,
+  HardcodedValue,
+  QualityCategory,
+  QualityIssue,
+  QualityReport,
+  QualitySeverity,
+  RecommendationItem,
+  SplitSuggestion,
+} from './types';

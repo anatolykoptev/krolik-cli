@@ -6,8 +6,8 @@
  * Smart behavior: skips CLI output files and test files.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 import { analyzeConsole } from './analyzer';
 import { fixConsoleIssue } from './fixer';
 

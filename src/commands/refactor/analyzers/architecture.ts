@@ -5,19 +5,11 @@
  * Analyzes layer violations, circular dependencies, and dependency graphs.
  */
 
-import * as path from 'path';
-import type {
-  ArchHealth,
-  ArchViolation,
-  NamespaceCategory,
-} from '../core';
-import {
-  NAMESPACE_INFO,
-  ALLOWED_DEPS,
-  detectCategory,
-} from '../core';
-import { getSubdirectories } from './helpers';
+import * as path from 'node:path';
 import { exists, findFiles, readFile } from '../../../lib';
+import type { ArchHealth, ArchViolation, NamespaceCategory } from '../core';
+import { ALLOWED_DEPS, detectCategory, NAMESPACE_INFO } from '../core';
+import { getSubdirectories } from './helpers';
 
 // ============================================================================
 // TYPES
@@ -36,9 +28,7 @@ interface DirectoryWithCategory {
 /**
  * Get all directories with their detected categories
  */
-export function getDirectoriesWithCategories(
-  targetPath: string,
-): DirectoryWithCategory[] {
+export function getDirectoriesWithCategories(targetPath: string): DirectoryWithCategory[] {
   const result: DirectoryWithCategory[] = [];
 
   if (!exists(targetPath)) return result;
@@ -60,10 +50,7 @@ export function getDirectoriesWithCategories(
 /**
  * Analyze dependencies of a directory
  */
-export function analyzeDependencies(
-  dirPath: string,
-  allDirs: DirectoryWithCategory[],
-): string[] {
+export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCategory[]): string[] {
   const deps = new Set<string>();
 
   const files = findFiles(dirPath, {
@@ -86,10 +73,7 @@ export function analyzeDependencies(
         if (libMatch) {
           const depName = libMatch[1];
           const depDir = allDirs.find(
-            (d) =>
-              d.name === depName ||
-              d.name === `@${depName}` ||
-              `@${d.name}` === depName,
+            (d) => d.name === depName || d.name === `@${depName}` || `@${d.name}` === depName,
           );
           if (depDir && depDir.path !== dirPath) {
             deps.add(depDir.name);
@@ -109,9 +93,7 @@ export function analyzeDependencies(
 /**
  * Find circular dependencies in a dependency graph
  */
-export function findCircularDeps(
-  graph: Record<string, string[]>,
-): string[][] {
+export function findCircularDeps(graph: Record<string, string[]>): string[][] {
   const cycles: string[][] = [];
   const visited = new Set<string>();
   const recursionStack = new Set<string>();
@@ -205,10 +187,7 @@ function checkLayerViolations(
 /**
  * Analyze architecture health of a target directory
  */
-export function analyzeArchHealth(
-  targetPath: string,
-  _projectRoot: string,
-): ArchHealth {
+export function analyzeArchHealth(targetPath: string, _projectRoot: string): ArchHealth {
   const violations: ArchViolation[] = [];
   const dependencyGraph: Record<string, string[]> = {};
   const layerCompliance: ArchHealth['layerCompliance'] = {};

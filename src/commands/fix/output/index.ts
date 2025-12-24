@@ -3,5 +3,5 @@
  * @description Report formatters for quality analysis
  */
 
-export { formatText } from './text';
 export { formatAI } from './ai';
+export { formatText } from './text';

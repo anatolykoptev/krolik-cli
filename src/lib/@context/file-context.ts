@@ -4,16 +4,16 @@
  */
 
 import { relative } from 'node:path';
-import type { FileContext, FileContextOptions } from './types';
 import {
   detectFileType,
   isCliFile,
-  isTestFile,
   isConfigFile,
   isOutputFile,
+  isTestFile,
   shouldSkipConsole,
   shouldSkipLint,
 } from './detectors';
+import type { FileContext, FileContextOptions } from './types';
 
 /**
  * Build file context for quality analysis and fixing

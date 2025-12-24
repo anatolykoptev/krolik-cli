@@ -20,18 +20,18 @@ export type QualitySeverity = 'error' | 'warning' | 'info';
  * Categories of quality issues
  */
 export type QualityCategory =
-  | 'srp'           // Single Responsibility Principle
-  | 'hardcoded'     // Magic numbers, hardcoded strings
-  | 'complexity'    // Function/file complexity
+  | 'srp' // Single Responsibility Principle
+  | 'hardcoded' // Magic numbers, hardcoded strings
+  | 'complexity' // Function/file complexity
   | 'mixed-concerns' // UI + logic mixed
-  | 'size'          // File too large
+  | 'size' // File too large
   | 'documentation' // Missing JSDoc on exports
-  | 'type-safety'   // any, as, @ts-ignore usage
-  | 'circular-dep'  // Circular dependencies
-  | 'lint'          // Universal lint rules (no-console, no-debugger, etc.)
-  | 'composite'     // Composite transform operations
-  | 'agent'         // AI agent operations
-  | 'refine';       // @namespace structure violations
+  | 'type-safety' // any, as, @ts-ignore usage
+  | 'circular-dep' // Circular dependencies
+  | 'lint' // Universal lint rules (no-console, no-debugger, etc.)
+  | 'composite' // Composite transform operations
+  | 'agent' // AI agent operations
+  | 'refine'; // @namespace structure violations
 
 /**
  * A single quality issue found in a file
@@ -245,8 +245,8 @@ export type FixAction =
   | 'wrap-function'
   | 'extract-function'
   | 'split-file'
-  | 'move-file'       // For refine: move to @namespace
-  | 'create-barrel';  // For refine: create index.ts
+  | 'move-file' // For refine: move to @namespace
+  | 'create-barrel'; // For refine: create index.ts
 
 /**
  * A single fix operation
@@ -287,7 +287,10 @@ export interface FixStrategy {
   /** Check if this strategy can fix the issue */
   canFix(issue: QualityIssue, content: string): boolean;
   /** Generate fix operation (async to support formatting) */
-  generateFix(issue: QualityIssue, content: string): Promise<FixOperation | null> | FixOperation | null;
+  generateFix(
+    issue: QualityIssue,
+    content: string,
+  ): Promise<FixOperation | null> | FixOperation | null;
 }
 
 /**
@@ -355,7 +358,7 @@ export interface FixOptions {
   fixAlert?: boolean;
 
   // Type-safety fixers
-  /** Fix @ts-ignore comments */
+  /** Fix @ts-expect-error comments */
   fixTsIgnore?: boolean;
   /** Fix `any` type usage */
   fixAny?: boolean;
@@ -447,11 +450,17 @@ function isFixerEnabledByRegistry(fixerId: string, options: FixOptions): boolean
 // FIXER MATCHING CONFIGURATION
 // ============================================================================
 
-type FixerOptionKey = keyof Pick<FixOptions,
-  | 'fixConsole' | 'fixDebugger' | 'fixAlert'
-  | 'fixTsIgnore' | 'fixAny'
-  | 'fixComplexity' | 'fixLongFunctions'
-  | 'fixMagicNumbers' | 'fixUrls'
+type FixerOptionKey = keyof Pick<
+  FixOptions,
+  | 'fixConsole'
+  | 'fixDebugger'
+  | 'fixAlert'
+  | 'fixTsIgnore'
+  | 'fixAny'
+  | 'fixComplexity'
+  | 'fixLongFunctions'
+  | 'fixMagicNumbers'
+  | 'fixUrls'
   | 'fixSrp'
 >;
 
@@ -503,24 +512,19 @@ function hasExplicitFixerFlags(options: FixOptions): boolean {
 /**
  * Find matching fixer for an issue
  */
-function findMatchingFixer(
-  category: QualityCategory,
-  message: string,
-): FixerMatcher | undefined {
+function findMatchingFixer(category: QualityCategory, message: string): FixerMatcher | undefined {
   const msg = message.toLowerCase();
-  return FIXER_MATCHERS.find(matcher =>
-    matcher.category === category &&
-    (matcher.patterns.length === 0 || matcher.patterns.some(p => msg.includes(p)))
+  return FIXER_MATCHERS.find(
+    (matcher) =>
+      matcher.category === category &&
+      (matcher.patterns.length === 0 || matcher.patterns.some((p) => msg.includes(p))),
   );
 }
 
 /**
  * Check if fixer is enabled based on option value and explicit flags
  */
-function isFixerOptionEnabled(
-  optionValue: boolean | undefined,
-  hasExplicit: boolean,
-): boolean {
+function isFixerOptionEnabled(optionValue: boolean | undefined, hasExplicit: boolean): boolean {
   if (optionValue === false) return false;
   if (hasExplicit) return !!optionValue;
   return true;
@@ -548,5 +552,5 @@ export function filterIssuesByFixerFlags(
   issues: QualityIssue[],
   options: FixOptions,
 ): QualityIssue[] {
-  return issues.filter(issue => isFixerEnabled(issue, options));
+  return issues.filter((issue) => isFixerEnabled(issue, options));
 }

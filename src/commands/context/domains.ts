@@ -5,10 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import {
-  DOMAIN_FILES,
-  DOMAIN_APPROACHES,
-} from '../../config/domains';
+import { DOMAIN_APPROACHES, DOMAIN_FILES } from '../../config/domains';
 import { detectDomainsFromText } from '../../lib/domains';
 import type { KrolikConfig } from '../../types';
 
@@ -58,7 +55,9 @@ export function getApproaches(domains: string[]): string[] {
     }
   }
 
-  approaches.push(`${approaches.length + 1}. Run \`pnpm typecheck && pnpm lint\` before committing`);
+  approaches.push(
+    `${approaches.length + 1}. Run \`pnpm typecheck && pnpm lint\` before committing`,
+  );
 
   return approaches;
 }

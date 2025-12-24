@@ -5,9 +5,9 @@
 
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
-import type { InstallerOptions, InstallResult } from '../core/types';
 import { getMcpServer, getRequiredMcpServers, MCP_SERVERS } from '../core/config';
 import { CLAUDE_GLOBAL_CONFIG, getProjectConfigPath } from '../core/paths';
+import type { InstallerOptions, InstallResult } from '../core/types';
 
 /**
  * Get installed MCP servers from Claude settings
@@ -73,7 +73,9 @@ export function getInstalledMcpServers(): string[] {
 export function isMcpServerInstalled(serverId: string): boolean {
   const installed = getInstalledMcpServers();
   return installed.some(
-    (s) => s.toLowerCase() === serverId.toLowerCase() || s.toLowerCase().includes(serverId.toLowerCase()),
+    (s) =>
+      s.toLowerCase() === serverId.toLowerCase() ||
+      s.toLowerCase().includes(serverId.toLowerCase()),
   );
 }
 
@@ -106,7 +108,9 @@ export async function installMcpServer(
   }
 
   if (dryRun) {
-    logger.info(`     [DRY RUN] Would run: claude mcp add ${server.name} -- ${server.command} ${server.args.join(' ')}`);
+    logger.info(
+      `     [DRY RUN] Would run: claude mcp add ${server.name} -- ${server.command} ${server.args.join(' ')}`,
+    );
     return { success: true, message: 'Dry run' };
   }
 

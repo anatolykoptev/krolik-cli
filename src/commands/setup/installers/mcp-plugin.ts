@@ -5,10 +5,10 @@
 
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
-import type { InstallerOptions, InstallResult, PluginConfig } from '../core/types';
 import { getPlugin } from '../core/config';
 import { getMarketplacePath, getPluginInstallPath } from '../core/paths';
-import { registerMarketplace, registerPlugin, ensureClaudeMemDataDir } from './utils';
+import type { InstallerOptions, InstallResult, PluginConfig } from '../core/types';
+import { ensureClaudeMemDataDir, registerMarketplace, registerPlugin } from './utils';
 
 /**
  * Install an MCP plugin (clone + npm install + build)
@@ -113,7 +113,7 @@ export async function updateMcpPlugin(
   const { dryRun, logger } = opts;
   const marketplaceDir = getMarketplacePath(plugin.marketplace);
 
-  if (!fs.existsSync(marketplaceDir + '/.git')) {
+  if (!fs.existsSync(`${marketplaceDir}/.git`)) {
     return { success: false, error: 'Not installed' };
   }
 

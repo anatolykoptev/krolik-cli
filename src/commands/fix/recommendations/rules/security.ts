@@ -31,7 +31,8 @@ export const SECURITY_RULES: Recommendation[] = [
     check: (content, analysis) => {
       if (analysis.fileType !== 'router') return false;
       const hasInput = content.includes('.input(') || content.includes('req.body');
-      const hasValidation = content.includes('z.') || content.includes('yup.') || content.includes('validate');
+      const hasValidation =
+        content.includes('z.') || content.includes('yup.') || content.includes('validate');
       return hasInput && !hasValidation;
     },
   },

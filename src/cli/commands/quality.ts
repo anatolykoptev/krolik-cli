@@ -26,7 +26,9 @@ export function registerQualityCommand(program: Command): void {
     .description('[DEPRECATED] Use "audit" instead. Analyze code quality.')
     .option('--path <path>', 'Path to analyze (default: project root)')
     .action(async (options: CommandOptions) => {
-      console.log('\x1b[33m⚠️  "quality" command is deprecated. Use "krolik audit" instead.\x1b[0m\n');
+      console.log(
+        '\x1b[33m⚠️  "quality" command is deprecated. Use "krolik audit" instead.\x1b[0m\n',
+      );
       const { runAudit } = await import('../../commands/audit');
       const ctx = await createContext(program, options);
       await runAudit(ctx);

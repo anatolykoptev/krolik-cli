@@ -3,16 +3,16 @@
  * @description Formatters for AI Report output
  */
 
-import type {
-  AIReport,
-  IssueGroup,
-  EnrichedIssue,
-  ActionStep,
-  PriorityLevel,
-  FileContext,
-} from './types';
-import { normalizePath } from './grouping';
 import { escapeXml } from '../../../lib';
+import { normalizePath } from './grouping';
+import type {
+  ActionStep,
+  AIReport,
+  EnrichedIssue,
+  FileContext,
+  IssueGroup,
+  PriorityLevel,
+} from './types';
 
 // ============================================================================
 // MARKDOWN FORMATTER
@@ -68,7 +68,9 @@ export function formatAsMarkdown(report: AIReport): string {
     lines.push('');
     lines.push('## ⚠️ AI Rules (Read First!)');
     lines.push('');
-    lines.push('> **IMPORTANT:** Before starting any work, read these files for project-specific rules and conventions.');
+    lines.push(
+      '> **IMPORTANT:** Before starting any work, read these files for project-specific rules and conventions.',
+    );
     lines.push('');
     for (const rule of report.aiRules) {
       lines.push(`- \`${rule.path}\` (${rule.scope})`);
@@ -83,7 +85,9 @@ export function formatAsMarkdown(report: AIReport): string {
     lines.push('## Git Status');
     lines.push('');
     lines.push(`- **Branch:** \`${report.git.branch}\``);
-    lines.push(`- **Changes:** ${report.git.modified} modified, ${report.git.untracked} untracked, ${report.git.staged} staged`);
+    lines.push(
+      `- **Changes:** ${report.git.modified} modified, ${report.git.untracked} untracked, ${report.git.staged} staged`,
+    );
     lines.push('');
     if (report.git.recentCommits.length > 0) {
       lines.push('### Recent Commits');
@@ -101,9 +105,14 @@ export function formatAsMarkdown(report: AIReport): string {
     lines.push('');
     lines.push('## 🎯 Next Action');
     lines.push('');
-    const priorityIcon = report.nextAction.priority === 'critical' ? '🔴' :
-      report.nextAction.priority === 'high' ? '🟠' :
-      report.nextAction.priority === 'medium' ? '🟡' : '🟢';
+    const priorityIcon =
+      report.nextAction.priority === 'critical'
+        ? '🔴'
+        : report.nextAction.priority === 'high'
+          ? '🟠'
+          : report.nextAction.priority === 'medium'
+            ? '🟡'
+            : '🟢';
     lines.push(`**${priorityIcon} ${report.nextAction.action}**`);
     if (report.nextAction.reason) {
       lines.push('');
@@ -135,7 +144,9 @@ export function formatAsMarkdown(report: AIReport): string {
 
     for (const win of report.quickWins) {
       const loc = win.issue.line ? `:${win.issue.line}` : '';
-      lines.push(`- [ ] \`${win.issue.file}${loc}\` — ${win.issue.message} (${win.effort.timeLabel})`);
+      lines.push(
+        `- [ ] \`${win.issue.file}${loc}\` — ${win.issue.message} (${win.effort.timeLabel})`,
+      );
     }
     lines.push('');
   }
@@ -215,7 +226,9 @@ function formatFileContext(ctx: FileContext): string[] {
   lines.push('');
   lines.push(`- **Purpose**: ${ctx.purpose}`);
   lines.push(`- **Type**: ${ctx.type}`);
-  lines.push(`- **Metrics**: ${ctx.metrics.lines} lines, ${ctx.metrics.functions} functions, avg complexity ${ctx.metrics.avgComplexity}`);
+  lines.push(
+    `- **Metrics**: ${ctx.metrics.lines} lines, ${ctx.metrics.functions} functions, avg complexity ${ctx.metrics.avgComplexity}`,
+  );
   lines.push('');
 
   if (ctx.exports.length > 0) {
@@ -224,7 +237,7 @@ function formatFileContext(ctx: FileContext): string[] {
   }
 
   if (ctx.imports.length > 0) {
-    lines.push(`**Imports**: ${ctx.imports.map(i => `\`${i}\``).join(', ')}`);
+    lines.push(`**Imports**: ${ctx.imports.map((i) => `\`${i}\``).join(', ')}`);
     lines.push('');
   }
 
@@ -242,7 +255,9 @@ function formatGroup(group: IssueGroup): string[] {
   lines.push(`### ${icon} ${group.title}`);
   lines.push('');
   lines.push(`> ${group.description}`);
-  lines.push(`> **Effort**: ${group.totalEffort.timeLabel} | **Auto-fixable**: ${group.autoFixableCount}/${group.count}`);
+  lines.push(
+    `> **Effort**: ${group.totalEffort.timeLabel} | **Auto-fixable**: ${group.autoFixableCount}/${group.count}`,
+  );
   lines.push('');
 
   // Show all CRITICAL/HIGH, limit LOW/MEDIUM to 5
@@ -309,7 +324,9 @@ function formatActionStep(step: ActionStep): string[] {
     } else {
       // HIGH/MEDIUM/LOW: collapsible snippet (saves space)
       lines.push('<details>');
-      lines.push(`<summary>📝 Show code context (${snippetLines} line${snippetLines > 1 ? 's' : ''})</summary>`);
+      lines.push(
+        `<summary>📝 Show code context (${snippetLines} line${snippetLines > 1 ? 's' : ''})</summary>`,
+      );
       lines.push('');
       lines.push('```typescript');
       lines.push(cleanSnippet);
@@ -411,7 +428,9 @@ export function formatAsXml(report: AIReport): string {
   lines.push(`    <total-issues>${report.summary.totalIssues}</total-issues>`);
   lines.push(`    <auto-fixable>${report.summary.autoFixableIssues}</auto-fixable>`);
   lines.push(`    <manual-required>${report.summary.manualIssues}</manual-required>`);
-  lines.push(`    <total-effort minutes="${report.summary.totalEffortMinutes}">${report.summary.totalEffortLabel}</total-effort>`);
+  lines.push(
+    `    <total-effort minutes="${report.summary.totalEffortMinutes}">${report.summary.totalEffortLabel}</total-effort>`,
+  );
   lines.push('  </summary>');
   lines.push('');
 
@@ -433,7 +452,9 @@ export function formatAsXml(report: AIReport): string {
     lines.push('  <action-plan>');
     for (const step of report.actionPlan) {
       const loc = step.line ? `:${step.line}` : '';
-      lines.push(`    <step id="${step.id}" action="${step.action}" file="${step.file}${loc}" effort="${step.effort.timeLabel}">`);
+      lines.push(
+        `    <step id="${step.id}" action="${step.action}" file="${step.file}${loc}" effort="${step.effort.timeLabel}">`,
+      );
       lines.push(`      <description>${escapeXml(step.description)}</description>`);
       if (step.suggestion) {
         lines.push(`      <suggestion reason="${escapeXml(step.suggestion.reason)}">`);
@@ -449,4 +470,3 @@ export function formatAsXml(report: AIReport): string {
 
   return lines.join('\n');
 }
-

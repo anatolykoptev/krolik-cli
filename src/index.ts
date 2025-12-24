@@ -17,33 +17,29 @@
  */
 
 // Configuration
-export { defineConfig, loadConfig, getConfig } from './config';
+export { defineConfig, getConfig, loadConfig } from './config';
+export { findFiles, readFile, writeFile } from './lib/@fs';
+export { getCurrentBranch, getStatus, isGitRepo } from './lib/@git';
 
+// Library utilities (for advanced usage)
+export { createLogger } from './lib/@log';
+export { exec, execLines, tryExec } from './lib/@shell';
 // Types
-export type {
-  KrolikConfig,
-  RabbitConfig,
-  ResolvedConfig,
-  PathConfig,
-  FeatureConfig,
-  PrismaConfig,
-  TrpcConfig,
-  TemplateConfig,
-} from './types';
-
 // Command types
 export type {
   CommandContext,
   CommandResult,
-  StatusResult,
-  ReviewResult,
-  SchemaResult,
-  RoutesResult,
+  FeatureConfig,
+  KrolikConfig,
   Logger,
+  PathConfig,
+  PrismaConfig,
+  RabbitConfig,
+  ResolvedConfig,
+  ReviewResult,
+  RoutesResult,
+  SchemaResult,
+  StatusResult,
+  TemplateConfig,
+  TrpcConfig,
 } from './types';
-
-// Library utilities (for advanced usage)
-export { createLogger } from './lib/@log';
-export { exec, tryExec, execLines } from './lib/@shell';
-export { findFiles, readFile, writeFile } from './lib/@fs';
-export { isGitRepo, getCurrentBranch, getStatus } from './lib/@git';

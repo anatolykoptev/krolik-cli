@@ -30,7 +30,10 @@ export function registerContextCommand(program: Command): void {
     .option('--domain-history', 'Include git history filtered by domain files')
     .option('--show-deps', 'Show domain dependencies from package.json')
     .option('--with-audit', 'Include quality issues for related files')
-    .option('--full', 'Enable all enrichment options (--include-code --domain-history --show-deps --with-audit)')
+    .option(
+      '--full',
+      'Enable all enrichment options (--include-code --domain-history --show-deps --with-audit)',
+    )
     .action(async (options: CommandOptions) => {
       const { runContext } = await import('../../commands/context');
       // --full enables --with-audit

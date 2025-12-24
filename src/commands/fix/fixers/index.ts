@@ -29,29 +29,25 @@ import type { Fixer } from '../core/types';
 // IMPORT ALL FIXERS
 // ============================================================================
 
+import { alertFixer } from './alert';
+import { anyTypeFixer } from './any-type';
+// Complexity fixers (risky - require review)
+import { complexityFixer } from './complexity';
 // Lint fixers (trivial - safe to auto-apply)
 import { consoleFixer } from './console';
 import { debuggerFixer } from './debugger';
-import { alertFixer } from './alert';
-import { unusedImportsFixer } from './unused-imports';
-
-// Type-safety fixers (safe)
-import { tsIgnoreFixer } from './ts-ignore';
-import { anyTypeFixer } from './any-type';
 import { equalityFixer } from './equality';
 import { evalFixer } from './eval';
-
+import { hardcodedUrlsFixer } from './hardcoded-urls';
+import { longFunctionsFixer } from './long-functions';
 // Hardcoded value fixers (safe)
 import { magicNumbersFixer } from './magic-numbers';
-import { hardcodedUrlsFixer } from './hardcoded-urls';
-
-// Complexity fixers (risky - require review)
-import { complexityFixer } from './complexity';
-import { longFunctionsFixer } from './long-functions';
-
+import { refineFixer } from './refine';
 // Architecture fixers (risky)
 import { srpFixer } from './srp';
-import { refineFixer } from './refine';
+// Type-safety fixers (safe)
+import { tsIgnoreFixer } from './ts-ignore';
+import { unusedImportsFixer } from './unused-imports';
 
 // ============================================================================
 // FIXER LIST
@@ -99,7 +95,15 @@ export const fixersByCategory = {
  */
 export const fixersByDifficulty = {
   trivial: [consoleFixer, debuggerFixer, alertFixer],
-  safe: [tsIgnoreFixer, anyTypeFixer, equalityFixer, evalFixer, unusedImportsFixer, magicNumbersFixer, hardcodedUrlsFixer],
+  safe: [
+    tsIgnoreFixer,
+    anyTypeFixer,
+    equalityFixer,
+    evalFixer,
+    unusedImportsFixer,
+    magicNumbersFixer,
+    hardcodedUrlsFixer,
+  ],
   risky: [complexityFixer, longFunctionsFixer, srpFixer, refineFixer],
 };
 
@@ -124,21 +128,21 @@ registerAllFixers();
 // Re-export registry for convenience
 export { registry };
 
+export { alertFixer } from './alert';
+export { anyTypeFixer } from './any-type';
+export { complexityFixer } from './complexity';
 // Export individual fixers
 export { consoleFixer } from './console';
 export { debuggerFixer } from './debugger';
-export { alertFixer } from './alert';
-export { tsIgnoreFixer } from './ts-ignore';
-export { anyTypeFixer } from './any-type';
 export { equalityFixer } from './equality';
 export { evalFixer } from './eval';
-export { unusedImportsFixer } from './unused-imports';
-export { magicNumbersFixer } from './magic-numbers';
 export { hardcodedUrlsFixer } from './hardcoded-urls';
-export { complexityFixer } from './complexity';
 export { longFunctionsFixer } from './long-functions';
-export { srpFixer } from './srp';
+export { magicNumbersFixer } from './magic-numbers';
 export { refineFixer } from './refine';
+export { srpFixer } from './srp';
+export { tsIgnoreFixer } from './ts-ignore';
+export { unusedImportsFixer } from './unused-imports';
 
 // Utility functions
 export function getFixerById(id: string): Fixer | undefined {

@@ -3,12 +3,12 @@
  * @description Markdown utilities (frontmatter parsing, etc.)
  */
 
-export type { FrontmatterResult, CommonFrontmatter } from './frontmatter';
+export type { CommonFrontmatter, FrontmatterResult } from './frontmatter';
 export {
-  parseFrontmatter,
-  parseCommonFrontmatter,
+  createFrontmatter,
   getFrontmatterValue,
   hasFrontmatter,
+  parseCommonFrontmatter,
+  parseFrontmatter,
   stripFrontmatter,
-  createFrontmatter,
 } from './frontmatter';

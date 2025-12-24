@@ -6,8 +6,15 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CommandContext, OutputFormat } from '../../types';
+import {
+  calculateStats,
+  formatAI,
+  formatJson,
+  formatMarkdown,
+  printRoutes,
+  type RoutesOutput,
+} from './output';
 import { parseRoutersDirectory } from './parser';
-import { printRoutes, formatJson, formatMarkdown, formatAI, calculateStats, type RoutesOutput } from './output';
 
 /**
  * Routes command options
@@ -39,11 +46,11 @@ function findRoutersDir(projectRoot: string, configRoutersDir?: string): string 
 
   // Common tRPC router locations
   const candidates = [
-    'packages/api/src/routers',   // Monorepo
-    'src/server/routers',         // Next.js
-    'src/routers',                // Simple
-    'server/routers',             // Alternative
-    'src/trpc/routers',           // tRPC specific
+    'packages/api/src/routers', // Monorepo
+    'src/server/routers', // Next.js
+    'src/routers', // Simple
+    'server/routers', // Alternative
+    'src/trpc/routers', // tRPC specific
   ];
 
   for (const candidate of candidates) {
@@ -100,6 +107,6 @@ export async function runRoutes(ctx: CommandContext & { options: RoutesOptions }
   console.log(formatAI(result));
 }
 
-// Re-export types
-export type { TrpcRouter, TrpcProcedure } from './parser';
 export type { RoutesOutput } from './output';
+// Re-export types
+export type { TrpcProcedure, TrpcRouter } from './parser';

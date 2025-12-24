@@ -3,15 +3,15 @@
  * @description Tests for string/comment detection utilities
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  isInsideString,
-  isInsideLineComment,
-  isInsideComment,
-  isInsideStringOrComment,
-  getLineNumber,
-  getLineContent,
   escapeRegex,
+  getLineContent,
+  getLineNumber,
+  isInsideComment,
+  isInsideLineComment,
+  isInsideString,
+  isInsideStringOrComment,
 } from '../../../../src/commands/fix/core/string-utils';
 
 describe('string-utils', () => {

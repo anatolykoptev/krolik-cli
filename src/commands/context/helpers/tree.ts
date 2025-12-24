@@ -3,40 +3,27 @@
  * @description Project tree generation
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { ProjectTree } from "../types";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { ProjectTree } from '../types';
 
 const MAX_DEPTH = 3;
 const MAX_EXTENSIONS = 3;
 
 const EXCLUDE_DIRS = new Set([
-  "node_modules",
-  ".git",
-  ".next",
-  "dist",
-  "build",
-  ".turbo",
-  "coverage",
-  ".pnpm",
+  'node_modules',
+  '.git',
+  '.next',
+  'dist',
+  'build',
+  '.turbo',
+  'coverage',
+  '.pnpm',
 ]);
 
-const IMPORTANT_DIRS = new Set([
-  "src",
-  "apps",
-  "packages",
-  "lib",
-  "components",
-  "pages",
-  "api",
-]);
+const IMPORTANT_DIRS = new Set(['src', 'apps', 'packages', 'lib', 'components', 'pages', 'api']);
 
-const KEY_FILES = new Set([
-  "package.json",
-  "tsconfig.json",
-  "CLAUDE.md",
-  "README.md",
-]);
+const KEY_FILES = new Set(['package.json', 'tsconfig.json', 'CLAUDE.md', 'README.md']);
 
 interface TreeState {
   lines: string[];
@@ -48,7 +35,7 @@ interface TreeState {
  * Check if directory should be included
  */
 function shouldIncludeDir(name: string): boolean {
-  return !EXCLUDE_DIRS.has(name) && !name.startsWith(".");
+  return !EXCLUDE_DIRS.has(name) && !name.startsWith('.');
 }
 
 /**
@@ -69,7 +56,7 @@ function sortDirs(dirs: fs.Dirent[]): fs.Dirent[] {
  */
 function getExtensionsSummary(files: fs.Dirent[]): string {
   const exts = [...new Set(files.map((f) => path.extname(f.name)).filter(Boolean))];
-  return exts.slice(0, MAX_EXTENSIONS).join(", ");
+  return exts.slice(0, MAX_EXTENSIONS).join(', ');
 }
 
 /**
@@ -80,8 +67,8 @@ function formatDirEntry(
   name: string,
   isLast: boolean,
 ): { line: string; subPrefix: string } {
-  const connector = isLast ? "└── " : "├── ";
-  const subPrefix = isLast ? "    " : "│   ";
+  const connector = isLast ? '└── ' : '├── ';
+  const subPrefix = isLast ? '    ' : '│   ';
   return {
     line: `${prefix}${connector}${name}/`,
     subPrefix: prefix + subPrefix,
@@ -91,12 +78,7 @@ function formatDirEntry(
 /**
  * Process files at current level
  */
-function processFiles(
-  state: TreeState,
-  files: fs.Dirent[],
-  prefix: string,
-  depth: number,
-): void {
+function processFiles(state: TreeState, files: fs.Dirent[], prefix: string, depth: number): void {
   if (files.length === 0) return;
 
   if (depth > 0) {
@@ -118,12 +100,7 @@ function processFiles(
 /**
  * Scan directory recursively
  */
-function scanDir(
-  state: TreeState,
-  dir: string,
-  prefix: string,
-  depth: number,
-): void {
+function scanDir(state: TreeState, dir: string, prefix: string, depth: number): void {
   if (depth > MAX_DEPTH) return;
 
   let entries: fs.Dirent[];
@@ -134,7 +111,7 @@ function scanDir(
   }
 
   const dirs = sortDirs(entries.filter((e) => e.isDirectory() && shouldIncludeDir(e.name)));
-  const files = entries.filter((e) => e.isFile() && !e.name.startsWith("."));
+  const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.'));
 
   // Process directories
   for (let i = 0; i < dirs.length; i++) {
@@ -159,15 +136,15 @@ function scanDir(
  */
 export function generateProjectTree(projectRoot: string): ProjectTree {
   const state: TreeState = {
-    lines: [path.basename(projectRoot) + "/"],
+    lines: [`${path.basename(projectRoot)}/`],
     totalFiles: 0,
     totalDirs: 0,
   };
 
-  scanDir(state, projectRoot, "", 0);
+  scanDir(state, projectRoot, '', 0);
 
   return {
-    structure: state.lines.join("\n"),
+    structure: state.lines.join('\n'),
     totalFiles: state.totalFiles,
     totalDirs: state.totalDirs,
   };

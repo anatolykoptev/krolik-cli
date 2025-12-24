@@ -117,6 +117,10 @@ export function pullRepo(repoPath: string): { success: boolean; updated: boolean
 
     return { success: true, updated: true };
   } catch (error) {
-    return { success: false, updated: false, error: error instanceof Error ? error.message : String(error) };
+    return {
+      success: false,
+      updated: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }

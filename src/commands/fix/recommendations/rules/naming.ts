@@ -21,7 +21,8 @@ export const NAMING_RULES: Recommendation[] = [
     description: 'Use handleClick, onSubmit instead of click, submit for event handlers',
     category: 'naming',
     severity: 'suggestion',
-    antiPattern: /(?:onClick|onSubmit|onChange|onFocus|onBlur)\s*=\s*\{?\s*(?!handle|on)[a-z]\w*\}?/,
+    antiPattern:
+      /(?:onClick|onSubmit|onChange|onFocus|onBlur)\s*=\s*\{?\s*(?!handle|on)[a-z]\w*\}?/,
   },
   {
     id: 'naming-constants-uppercase',

@@ -3,7 +3,7 @@
  * @description GitHub CLI (gh) wrapper utilities
  */
 
-import { tryExec, execLines, shellOpts } from '../@shell/shell';
+import { execLines, shellOpts, tryExec } from '../@shell/shell';
 
 /**
  * GitHub issue information
@@ -52,7 +52,10 @@ export function isGhAuthenticated(): boolean {
  * Get current repository info (owner/repo)
  */
 export function getRepoInfo(cwd?: string): { owner: string; repo: string } | null {
-  const result = tryExec('gh repo view --json owner,name -q ".owner.login + \\"/\\" + .name"', shellOpts(cwd));
+  const result = tryExec(
+    'gh repo view --json owner,name -q ".owner.login + \\"/\\" + .name"',
+    shellOpts(cwd),
+  );
   if (!result.success || !result.output) return null;
 
   const [owner, repo] = result.output.split('/');

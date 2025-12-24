@@ -46,7 +46,10 @@ export function truncateMiddle(text: string, maxLength: number): string {
 /**
  * Truncate lines, keeping first N
  */
-export function truncateLines(text: string, maxLines: number): { text: string; truncated: boolean } {
+export function truncateLines(
+  text: string,
+  maxLines: number,
+): { text: string; truncated: boolean } {
   const lines = text.split('\n');
 
   if (lines.length <= maxLines) {
@@ -54,7 +57,7 @@ export function truncateLines(text: string, maxLines: number): { text: string; t
   }
 
   return {
-    text: lines.slice(0, maxLines).join('\n') + '\n... (truncated)',
+    text: `${lines.slice(0, maxLines).join('\n')}\n... (truncated)`,
     truncated: true,
   };
 }
@@ -93,10 +96,7 @@ export function center(text: string, width: number, char: string = ' '): string 
 /**
  * Align columns in multi-line text
  */
-export function alignColumns(
-  rows: string[][],
-  separator: string = '  ',
-): string {
+export function alignColumns(rows: string[][], separator: string = '  '): string {
   if (rows.length === 0) return '';
 
   // Calculate max width for each column
@@ -229,9 +229,7 @@ export function dedent(text: string): string {
   }
 
   // Remove that indentation from all lines
-  return lines
-    .map((line) => (line.trim() === '' ? '' : line.slice(minIndent)))
-    .join('\n');
+  return lines.map((line) => (line.trim() === '' ? '' : line.slice(minIndent))).join('\n');
 }
 
 /**

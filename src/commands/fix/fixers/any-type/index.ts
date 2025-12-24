@@ -5,9 +5,9 @@
  * Detects `any` type usage and replaces with `unknown`.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
 import { createFixerMetadata } from '../../core/registry';
-import { isInsideString, isInsideComment } from '../../core/string-utils';
+import { isInsideComment, isInsideString } from '../../core/string-utils';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('any-type', 'Any Type Usage', 'type-safety', {
   description: 'Replace `any` with `unknown`',
@@ -18,10 +18,10 @@ export const metadata = createFixerMetadata('any-type', 'Any Type Usage', 'type-
 });
 
 const ANY_PATTERNS = [
-  /:\s*any\s*[;,)>\]=]/g,     // : any; or : any, or : any) etc
-  /as\s+any\b/g,               // as any
-  /<any>/g,                    // <any>
-  /:\s*any\[\]/g,              // : any[]
+  /:\s*any\s*[;,)>\]=]/g, // : any; or : any, or : any) etc
+  /as\s+any\b/g, // as any
+  /<any>/g, // <any>
+  /:\s*any\[\]/g, // : any[]
 ];
 
 function analyzeAnyType(content: string, file: string): QualityIssue[] {

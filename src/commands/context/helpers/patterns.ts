@@ -14,29 +14,29 @@ export interface DomainPatterns {
  */
 export const DOMAIN_FILE_PATTERNS: Record<string, DomainPatterns> = {
   booking: {
-    zod: ["booking", "availability", "schedule"],
-    components: ["Booking", "Calendar", "Schedule", "Availability"],
-    tests: ["booking", "availability"],
+    zod: ['booking', 'availability', 'schedule'],
+    components: ['Booking', 'Calendar', 'Schedule', 'Availability'],
+    tests: ['booking', 'availability'],
   },
   events: {
-    zod: ["event", "ticket", "venue"],
-    components: ["Event", "Ticket", "Venue", "Ticketing"],
-    tests: ["event", "ticket"],
+    zod: ['event', 'ticket', 'venue'],
+    components: ['Event', 'Ticket', 'Venue', 'Ticketing'],
+    tests: ['event', 'ticket'],
   },
   crm: {
-    zod: ["customer", "interaction", "lead", "crm"],
-    components: ["Customer", "CRM", "Lead", "Interaction"],
-    tests: ["customer", "crm"],
+    zod: ['customer', 'interaction', 'lead', 'crm'],
+    components: ['Customer', 'CRM', 'Lead', 'Interaction'],
+    tests: ['customer', 'crm'],
   },
   places: {
-    zod: ["place", "business", "location"],
-    components: ["Place", "Business", "Location"],
-    tests: ["place", "business"],
+    zod: ['place', 'business', 'location'],
+    components: ['Place', 'Business', 'Location'],
+    tests: ['place', 'business'],
   },
   users: {
-    zod: ["user", "auth", "profile"],
-    components: ["User", "Auth", "Profile"],
-    tests: ["user", "auth"],
+    zod: ['user', 'auth', 'profile'],
+    components: ['User', 'Auth', 'Profile'],
+    tests: ['user', 'auth'],
   },
 };
 

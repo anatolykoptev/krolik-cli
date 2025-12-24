@@ -3,8 +3,8 @@
  * @description Path utilities for agents marketplace
  */
 
-import * as path from 'node:path';
 import { homedir } from 'node:os';
+import * as path from 'node:path';
 
 /**
  * Agents repository constants

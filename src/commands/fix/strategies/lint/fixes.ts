@@ -8,19 +8,18 @@
  * - Only fixes actual statement nodes
  */
 
-import type { QualityIssue } from '../../types';
-import type { FixOperation } from '../../types';
 import type { FixContext } from '../../context';
 import { shouldSkipConsoleFix } from '../../context';
+import type { FixOperation, QualityIssue } from '../../types';
 import {
-  getLineContext,
-  lineStartsWith,
-  lineEndsWith,
   createDeleteLine,
   createReplaceLine,
-  hasDebuggerStatementAtLine,
-  hasConsoleCallAtLine,
+  getLineContext,
   hasAlertCallAtLine,
+  hasConsoleCallAtLine,
+  hasDebuggerStatementAtLine,
+  lineEndsWith,
+  lineStartsWith,
 } from '../shared';
 import { DEBUGGER_LINE_PATTERNS } from './constants';
 
@@ -84,10 +83,7 @@ export function fixConsole(
  * Uses AST to detect real DebuggerStatement nodes,
  * avoiding false positives from 'debugger' in strings/regex.
  */
-export function fixDebugger(
-  issue: QualityIssue,
-  content: string,
-): FixOperation | null {
+export function fixDebugger(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
   // AST check: is there a real debugger statement at this line?
@@ -121,10 +117,7 @@ export function fixDebugger(
  *
  * Uses AST to detect real alert() calls.
  */
-export function fixAlert(
-  issue: QualityIssue,
-  content: string,
-): FixOperation | null {
+export function fixAlert(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
   // AST check: is there a real alert call at this line?
@@ -136,10 +129,7 @@ export function fixAlert(
   if (!lineCtx) return null;
 
   // If line is just alert(), delete it
-  if (
-    lineStartsWith(lineCtx.line, ['alert(']) &&
-    lineEndsWith(lineCtx.line, [');', ')'])
-  ) {
+  if (lineStartsWith(lineCtx.line, ['alert(']) && lineEndsWith(lineCtx.line, [');', ')'])) {
     return createDeleteLine(issue.file, issue.line, lineCtx.line);
   }
 

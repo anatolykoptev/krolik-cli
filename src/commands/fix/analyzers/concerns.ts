@@ -10,7 +10,13 @@ import type { QualityIssue } from '../types';
  */
 const CONCERN_PATTERNS = {
   ui: [/className\s*=/, /style\s*=/, /<\w+.*>/, /return\s*\(/, /useState|useEffect|useRef/],
-  logic: [/async\s+function/, /await\s+/, /fetch\(/, /prisma\./, /\.create\(|\.update\(|\.delete\(/],
+  logic: [
+    /async\s+function/,
+    /await\s+/,
+    /fetch\(/,
+    /prisma\./,
+    /\.create\(|\.update\(|\.delete\(/,
+  ],
   validation: [/z\.\w+\(/, /\.parse\(/, /\.safeParse\(/, /yup\./],
   api: [/router\s*\(/, /procedure\s*\(/, /createTRPCRouter/, /mutation\s*\(/, /query\s*\(/],
 };

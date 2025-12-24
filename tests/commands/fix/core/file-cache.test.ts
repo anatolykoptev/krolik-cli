@@ -3,11 +3,11 @@
  * @description Tests for FileCache class
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { FileCache, formatCacheStats } from '../../../../src/commands/fix/core/file-cache';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { FileCache, formatCacheStats } from '../../../../src/lib/@cache/file-cache';
 
 describe('FileCache', () => {
   let cache: FileCache;
@@ -47,7 +47,7 @@ describe('FileCache', () => {
     });
 
     it('normalizes paths to absolute', () => {
-      const relativePath = path.relative(process.cwd(), testFile);
+      const _relativePath = path.relative(process.cwd(), testFile);
       process.chdir(path.dirname(testFile));
 
       cache.get(path.basename(testFile));

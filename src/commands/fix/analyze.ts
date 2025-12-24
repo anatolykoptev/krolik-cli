@@ -7,27 +7,24 @@
  * - QualityReportWithContents - extended report with file contents
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { glob } from "glob";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { glob } from 'glob';
+import { fileCache } from '@/lib';
+import { analyzeFile } from './analyzers';
+import { validatePathWithinProject } from './core/path-utils';
+
+// New fixer architecture
+import { type FixerRunnerOptions, runFixerAnalysis } from './core/runner';
+import { checkRecommendations, type RecommendationResult } from './recommendations';
 import type {
-  QualityReport,
   FileAnalysis,
   QualityIssue,
   QualityOptions,
+  QualityReport,
   RecommendationItem,
-} from "./types";
-import { analyzeFile } from "./analyzers";
-import {
-  checkRecommendations,
-  type RecommendationResult,
-} from "./recommendations";
-
-// New fixer architecture
-import { runFixerAnalysis, type FixerRunnerOptions } from "./core/runner";
-import { validatePathWithinProject } from "./core/path-utils";
-import { fileCache } from "./core/file-cache";
-import "./fixers"; // Auto-register all fixers
+} from './types';
+import './fixers'; // Auto-register all fixers
 
 const TOP_RECOMMENDATIONS_LIMIT = 15;
 const DEFAULT_PAGE_SIZE = 20;
@@ -73,7 +70,7 @@ export async function analyzeQuality(
   const isFile = targetStats?.isFile() ?? false;
 
   // Find all TypeScript/JavaScript files
-  let patterns = ["**/*.ts", "**/*.tsx"];
+  let patterns = ['**/*.ts', '**/*.tsx'];
   let searchDir = targetPath;
 
   // If path points to a specific file, adjust accordingly
@@ -83,21 +80,16 @@ export async function analyzeQuality(
   }
 
   const ignore = [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/.next/**",
-    "**/coverage/**",
-    "**/*.d.ts",
-    "**/generated/**",
+    '**/node_modules/**',
+    '**/dist/**',
+    '**/.next/**',
+    '**/coverage/**',
+    '**/*.d.ts',
+    '**/generated/**',
   ];
 
   if (!options.includeTests) {
-    ignore.push(
-      "**/*.test.ts",
-      "**/*.test.tsx",
-      "**/*.spec.ts",
-      "**/__tests__/**",
-    );
+    ignore.push('**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/__tests__/**');
   }
 
   const files = await glob(patterns, {
@@ -130,9 +122,7 @@ export async function analyzeQuality(
       const fixerResult = runFixerAnalysis(content, file, fixerOptions);
 
       // Merge issues (deduplicate by same file:line:message)
-      const existingKeys = new Set(
-        analysis.issues.map(i => `${i.file}:${i.line}:${i.message}`)
-      );
+      const existingKeys = new Set(analysis.issues.map((i) => `${i.file}:${i.line}:${i.message}`));
 
       for (const issue of fixerResult.issues) {
         const key = `${issue.file}:${issue.line}:${issue.message}`;
@@ -154,43 +144,30 @@ export async function analyzeQuality(
   // Filter issues by category/severity if specified
   let filteredIssues = allIssues;
   if (options.category) {
-    filteredIssues = filteredIssues.filter(
-      (i) => i.category === options.category,
-    );
+    filteredIssues = filteredIssues.filter((i) => i.category === options.category);
   }
   if (options.severity) {
-    filteredIssues = filteredIssues.filter(
-      (i) => i.severity === options.severity,
-    );
+    filteredIssues = filteredIssues.filter((i) => i.severity === options.severity);
   }
 
   // Calculate summary
   const summary = {
-    errors: filteredIssues.filter((i) => i.severity === "error").length,
-    warnings: filteredIssues.filter((i) => i.severity === "warning").length,
-    infos: filteredIssues.filter((i) => i.severity === "info").length,
+    errors: filteredIssues.filter((i) => i.severity === 'error').length,
+    warnings: filteredIssues.filter((i) => i.severity === 'warning').length,
+    infos: filteredIssues.filter((i) => i.severity === 'info').length,
     byCategory: {
-      srp: filteredIssues.filter((i) => i.category === "srp").length,
-      hardcoded: filteredIssues.filter((i) => i.category === "hardcoded")
-        .length,
-      complexity: filteredIssues.filter((i) => i.category === "complexity")
-        .length,
-      "mixed-concerns": filteredIssues.filter(
-        (i) => i.category === "mixed-concerns",
-      ).length,
-      size: filteredIssues.filter((i) => i.category === "size").length,
-      documentation: filteredIssues.filter(
-        (i) => i.category === "documentation",
-      ).length,
-      "type-safety": filteredIssues.filter((i) => i.category === "type-safety")
-        .length,
-      "circular-dep": filteredIssues.filter(
-        (i) => i.category === "circular-dep",
-      ).length,
-      lint: filteredIssues.filter((i) => i.category === "lint").length,
-      composite: filteredIssues.filter((i) => i.category === "composite").length,
-      agent: filteredIssues.filter((i) => i.category === "agent").length,
-      refine: filteredIssues.filter((i) => i.category === "refine").length,
+      srp: filteredIssues.filter((i) => i.category === 'srp').length,
+      hardcoded: filteredIssues.filter((i) => i.category === 'hardcoded').length,
+      complexity: filteredIssues.filter((i) => i.category === 'complexity').length,
+      'mixed-concerns': filteredIssues.filter((i) => i.category === 'mixed-concerns').length,
+      size: filteredIssues.filter((i) => i.category === 'size').length,
+      documentation: filteredIssues.filter((i) => i.category === 'documentation').length,
+      'type-safety': filteredIssues.filter((i) => i.category === 'type-safety').length,
+      'circular-dep': filteredIssues.filter((i) => i.category === 'circular-dep').length,
+      lint: filteredIssues.filter((i) => i.category === 'lint').length,
+      composite: filteredIssues.filter((i) => i.category === 'composite').length,
+      agent: filteredIssues.filter((i) => i.category === 'agent').length,
+      refine: filteredIssues.filter((i) => i.category === 'refine').length,
     },
   };
 
@@ -203,19 +180,15 @@ export async function analyzeQuality(
     .slice(0, DEFAULT_PAGE_SIZE);
 
   // Find files that need refactoring
-  const needsRefactoring: QualityReport["needsRefactoring"] = [];
+  const needsRefactoring: QualityReport['needsRefactoring'] = [];
 
   for (const analysis of analyses) {
-    const fileIssues = analysis.issues.filter((i) => i.severity !== "info");
+    const fileIssues = analysis.issues.filter((i) => i.severity !== 'info');
     if (fileIssues.length >= 2) {
       needsRefactoring.push({
         file: analysis.relativePath,
-        reason: fileIssues.map((i) => i.category).join(", "),
-        suggestions: [
-          ...new Set(
-            fileIssues.map((i) => i.suggestion).filter(Boolean) as string[],
-          ),
-        ],
+        reason: fileIssues.map((i) => i.category).join(', '),
+        suggestions: [...new Set(fileIssues.map((i) => i.suggestion).filter(Boolean) as string[])],
       });
     }
   }
@@ -232,10 +205,7 @@ export async function analyzeQuality(
   }
 
   // Aggregate recommendations by id with counts
-  const recCounts = new Map<
-    string,
-    { rec: RecommendationResult; count: number }
-  >();
+  const recCounts = new Map<string, { rec: RecommendationResult; count: number }>();
   for (const rec of allRecommendations) {
     const existing = recCounts.get(rec.recommendation.id);
     if (existing) {
@@ -250,13 +220,12 @@ export async function analyzeQuality(
     .sort((a, b) => {
       // Sort by severity first, then by count
       const severityOrder = {
-        "best-practice": 0,
+        'best-practice': 0,
         recommendation: 1,
         suggestion: 2,
       };
       const sevDiff =
-        severityOrder[a.rec.recommendation.severity] -
-        severityOrder[b.rec.recommendation.severity];
+        severityOrder[a.rec.recommendation.severity] - severityOrder[b.rec.recommendation.severity];
       if (sevDiff !== 0) return sevDiff;
       return b.count - a.count;
     })

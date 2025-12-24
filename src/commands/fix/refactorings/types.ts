@@ -6,7 +6,7 @@ export interface IfChainInfo {
   conditions: Array<{
     check: string; // e.g., "trimmed.includes('valid')"
     result: string; // e.g., "'validateInput'"
-    checkType: "includes" | "startsWith" | "endsWith" | "equals" | "other";
+    checkType: 'includes' | 'startsWith' | 'endsWith' | 'equals' | 'other';
     searchValue?: string | undefined; // extracted value being searched
   }>;
   defaultResult?: string | undefined;
@@ -33,11 +33,7 @@ export interface CodeSection {
 }
 
 export interface RefactoringResult {
-  type:
-    | "if-chain-to-map"
-    | "switch-to-map"
-    | "extract-section"
-    | "guard-clause";
+  type: 'if-chain-to-map' | 'switch-to-map' | 'extract-section' | 'guard-clause';
   originalCode: string;
   newCode: string;
   startLine: number;

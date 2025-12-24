@@ -7,13 +7,9 @@
  * Uses ts-morph AST for accurate function detection.
  */
 
-import type { Fixer, QualityIssue, FixOperation } from '../../core/types';
+import { extractFunctions, type FunctionInfo, parseCode } from '../../../../lib/@ast';
 import { createFixerMetadata } from '../../core/registry';
-import {
-  parseCode,
-  extractFunctions,
-  type FunctionInfo,
-} from '../../../../lib/@ast';
+import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('complexity', 'High Complexity', 'complexity', {
   description: 'Refactor high complexity functions',
@@ -33,7 +29,7 @@ const COMPLEXITY_PATTERNS = [
   /\bswitch\s*\(/g,
   /\bcase\s+/g,
   /\bcatch\s*\(/g,
-  /\?\s*[^:]+:/g,  // ternary
+  /\?\s*[^:]+:/g, // ternary
   /&&/g,
   /\|\|/g,
 ];
@@ -103,7 +99,9 @@ function findFunctionsRegex(content: string): FunctionBlock[] {
     const line = lines[i] ?? '';
 
     // Detect function start
-    const funcMatch = line.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\(|(\w+)\s*(?:=|:)\s*(?:async\s*)?\([^)]*\)\s*(?:=>|{))/);
+    const funcMatch = line.match(
+      /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\(|(\w+)\s*(?:=|:)\s*(?:async\s*)?\([^)]*\)\s*(?:=>|{))/,
+    );
 
     if (funcMatch && !currentFunction) {
       const name = funcMatch[1] || funcMatch[2] || funcMatch[3] || 'anonymous';
@@ -167,7 +165,11 @@ function analyzeComplexity(content: string, file: string): QualityIssue[] {
 /**
  * Analyze switch statements for potential object mapping refactor
  */
-function findSwitchBlocks(lines: string[], startLine: number, endLine: number): { line: number; cases: number }[] {
+function findSwitchBlocks(
+  lines: string[],
+  startLine: number,
+  endLine: number,
+): { line: number; cases: number }[] {
   const switches: { line: number; cases: number }[] = [];
   let inSwitch = false;
   let switchLine = 0;
@@ -207,7 +209,11 @@ function findSwitchBlocks(lines: string[], startLine: number, endLine: number): 
 /**
  * Find deeply nested if-else chains
  */
-function findNestedIfElse(lines: string[], startLine: number, endLine: number): { line: number; depth: number }[] {
+function findNestedIfElse(
+  lines: string[],
+  startLine: number,
+  endLine: number,
+): { line: number; depth: number }[] {
   const chains: { line: number; depth: number }[] = [];
   let maxDepth = 0;
   let chainStartLine = 0;
@@ -265,7 +271,7 @@ function analyzeComplexitySources(lines: string[], startLine: number, endLine: n
   }
 
   if (nestedIfs.length > 0) {
-    const maxDepth = Math.max(...nestedIfs.map(n => n.depth));
+    const maxDepth = Math.max(...nestedIfs.map((n) => n.depth));
     suggestions.push(`• Reduce nesting (depth ${maxDepth}) using early returns/guard clauses`);
   }
 
@@ -274,7 +280,9 @@ function analyzeComplexitySources(lines: string[], startLine: number, endLine: n
   }
 
   if (logicalOpCount > 5) {
-    suggestions.push(`• Extract complex conditions (${logicalOpCount} logical ops) to named functions`);
+    suggestions.push(
+      `• Extract complex conditions (${logicalOpCount} logical ops) to named functions`,
+    );
   }
 
   return suggestions;
@@ -287,7 +295,7 @@ function fixComplexityIssue(issue: QualityIssue, content: string): FixOperation 
 
   // Find the function at this line using AST
   const functions = findFunctionsWithComplexity(content, issue.file);
-  const targetFunc = functions.find(f => f.startLine === issue.line);
+  const targetFunc = functions.find((f) => f.startLine === issue.line);
 
   if (!targetFunc) return null;
 

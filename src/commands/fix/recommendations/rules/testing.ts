@@ -30,7 +30,8 @@ export const TESTING_RULES: Recommendation[] = [
   {
     id: 'testing-meaningful-names',
     title: 'Use descriptive test names',
-    description: 'Test names should describe expected behavior: "should return user when ID exists"',
+    description:
+      'Test names should describe expected behavior: "should return user when ID exists"',
     category: 'testing',
     severity: 'suggestion',
     check: (content, analysis) => {
@@ -64,7 +65,8 @@ export const TESTING_RULES: Recommendation[] = [
     check: (content, analysis) => {
       if (analysis.fileType !== 'test') return false;
       const hasExternalCalls = /(?:fetch|axios|prisma|supabase)\s*[.(]/.test(content);
-      const hasMock = content.includes('mock') || content.includes('Mock') || content.includes('jest.fn');
+      const hasMock =
+        content.includes('mock') || content.includes('Mock') || content.includes('jest.fn');
       return hasExternalCalls && !hasMock;
     },
   },

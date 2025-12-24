@@ -4,15 +4,15 @@
  */
 
 import type { Recommendation } from '../types';
-import { NAMING_RULES } from './naming';
-import { STRUCTURE_RULES } from './structure';
-import { TYPESCRIPT_RULES } from './typescript';
-import { REACT_RULES } from './react';
-import { PERFORMANCE_RULES } from './performance';
-import { IMPORTS_RULES } from './imports';
-import { TESTING_RULES } from './testing';
 import { ASYNC_RULES } from './async';
+import { IMPORTS_RULES } from './imports';
+import { NAMING_RULES } from './naming';
+import { PERFORMANCE_RULES } from './performance';
+import { REACT_RULES } from './react';
 import { SECURITY_RULES } from './security';
+import { STRUCTURE_RULES } from './structure';
+import { TESTING_RULES } from './testing';
+import { TYPESCRIPT_RULES } from './typescript';
 
 /**
  * All recommendations combined

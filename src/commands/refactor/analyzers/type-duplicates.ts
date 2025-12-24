@@ -8,10 +8,16 @@
  * - Similar interfaces (>80% field overlap)
  */
 
-import { createHash } from 'crypto';
-import * as path from 'path';
+import { createHash } from 'node:crypto';
+import * as path from 'node:path';
 import { findFiles, logger, readFile, validatePathWithinProject } from '../../../lib';
-import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
+import {
+  getProject,
+  type Project,
+  releaseProject,
+  type SourceFile,
+  SyntaxKind,
+} from '../../../lib/@ast';
 import type { TypeDuplicateInfo } from '../core/types';
 import { findTsConfig } from './helpers';
 
@@ -52,7 +58,7 @@ export interface FindTypeDuplicatesOptions {
   /** Include interfaces (default: true) */
   includeInterfaces?: boolean;
   /** Shared ts-morph Project instance (optional, for performance) */
-  project?: ReturnType<typeof import('../../../lib/@ast').createProject>;
+  project?: Project;
 }
 
 // ============================================================================
@@ -278,176 +284,185 @@ export async function findTypeDuplicates(
   }
 
   // Create ts-morph project
-  // Use shared project if provided, otherwise create a new one
+  // Use shared project if provided, otherwise get from pool
   // Support monorepo by finding tsconfig in package or project root
   const project =
     options.project ??
     (() => {
       const tsConfigPath = findTsConfig(targetPath, projectRoot);
-      return tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+      return tsConfigPath ? getProject({ tsConfigPath }) : getProject({});
     })();
+
+  const shouldReleaseProject = !options.project;
 
   // Extract all types
   const allTypes: TypeSignature[] = [];
 
-  for (const file of files) {
-    try {
-      const content = readFile(file);
-      if (!content) continue;
-      if (content.length > LIMITS.MAX_FILE_SIZE) continue;
+  try {
+    for (const file of files) {
+      try {
+        const content = readFile(file);
+        if (!content) continue;
+        if (content.length > LIMITS.MAX_FILE_SIZE) continue;
 
-      let sourceFile = project.getSourceFile(file);
-      if (!sourceFile) {
-        sourceFile = project.createSourceFile(file, content, { overwrite: true });
+        let sourceFile = project.getSourceFile(file);
+        if (!sourceFile) {
+          sourceFile = project.createSourceFile(file, content, { overwrite: true });
+        }
+
+        const relPath = path.relative(projectRoot, file);
+        const types = extractTypes(sourceFile, relPath);
+
+        // Filter by kind
+        const filteredTypes = types.filter((t) => {
+          if (t.kind === 'interface' && !includeInterfaces) return false;
+          if (t.kind === 'type' && !includeTypes) return false;
+          return true;
+        });
+
+        allTypes.push(...filteredTypes);
+      } catch (error) {
+        if (verbose) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+        }
+      }
+    }
+
+    // Group by name (same name in multiple files)
+    const byName = new Map<string, TypeSignature[]>();
+    for (const type of allTypes) {
+      const existing = byName.get(type.name) ?? [];
+      existing.push(type);
+      byName.set(type.name, existing);
+    }
+
+    // Find duplicates by name
+    for (const [name, types] of byName) {
+      if (types.length < 2) continue;
+
+      // Calculate similarity
+      let minSimilarity = 1;
+
+      // Short-circuit for 2-element groups
+      if (types.length === 2) {
+        const t1 = types[0];
+        const t2 = types[1];
+        if (t1 && t2) {
+          minSimilarity = calculateTypeSimilarity(t1, t2);
+        }
+      } else {
+        for (let i = 0; i < types.length - 1; i++) {
+          for (let j = i + 1; j < types.length; j++) {
+            const ti = types[i];
+            const tj = types[j];
+            if (ti && tj) {
+              const sim = calculateTypeSimilarity(ti, tj);
+              minSimilarity = Math.min(minSimilarity, sim);
+
+              // Early exit when below threshold - can't improve
+              if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) break;
+            }
+          }
+          // Early exit outer loop if already below threshold
+          if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) break;
+        }
       }
 
-      const relPath = path.relative(projectRoot, file);
-      const types = extractTypes(sourceFile, relPath);
+      // Determine kind
+      const kinds = new Set(types.map((t) => t.kind));
+      const kind = kinds.size === 1 ? [...kinds][0]! : 'mixed';
 
-      // Filter by kind
-      const filteredTypes = types.filter((t) => {
-        if (t.kind === 'interface' && !includeInterfaces) return false;
-        if (t.kind === 'type' && !includeTypes) return false;
-        return true;
+      // Recommendation
+      let recommendation: 'merge' | 'rename' | 'keep-both' = 'keep-both';
+      if (minSimilarity > SIMILARITY_THRESHOLDS.MERGE) {
+        recommendation = 'merge';
+      } else if (minSimilarity > SIMILARITY_THRESHOLDS.RENAME) {
+        recommendation = 'rename';
+      }
+
+      // Analyze differences for interfaces
+      let commonFields: string[] | undefined;
+      let difference: string | undefined;
+
+      if (kind === 'interface' && types.length === 2 && types[0] && types[1]) {
+        const diff = analyzeFieldDifference(types[0], types[1]);
+        commonFields = diff.common;
+        if (diff.onlyIn1.length > 0 || diff.onlyIn2.length > 0) {
+          difference = `Only in ${types[0].file}: ${diff.onlyIn1.join(', ') || 'none'}; Only in ${types[1].file}: ${diff.onlyIn2.join(', ') || 'none'}`;
+        }
+      }
+
+      const duplicateInfo: TypeDuplicateInfo = {
+        name,
+        kind,
+        locations: types.map((t) => ({
+          file: t.file,
+          line: t.line,
+          exported: t.exported,
+          name: t.name,
+        })),
+        similarity: minSimilarity,
+        recommendation,
+      };
+
+      if (commonFields) duplicateInfo.commonFields = commonFields;
+      if (difference) duplicateInfo.difference = difference;
+
+      duplicates.push(duplicateInfo);
+    }
+
+    // Find types with identical structures but different names
+    const byHash = new Map<string, TypeSignature[]>();
+    for (const type of allTypes) {
+      // Skip empty structures
+      if (type.normalizedStructure.length < 5) continue;
+
+      const existing = byHash.get(type.structureHash) ?? [];
+      existing.push(type);
+      byHash.set(type.structureHash, existing);
+    }
+
+    for (const [, types] of byHash) {
+      if (types.length < 2) continue;
+
+      // Skip if all have same name (already caught above)
+      const uniqueNames = new Set(types.map((t) => t.name));
+      if (uniqueNames.size === 1) continue;
+
+      // Sort names for consistent output
+      const sortedNames = [...uniqueNames].sort((a, b) => {
+        const aExported = types.some((t) => t.name === a && t.exported);
+        const bExported = types.some((t) => t.name === b && t.exported);
+        if (aExported && !bExported) return -1;
+        if (!aExported && bExported) return 1;
+        return a.localeCompare(b);
       });
 
-      allTypes.push(...filteredTypes);
-    } catch (error) {
-      if (verbose) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
-      }
-    }
-  }
+      const kinds = new Set(types.map((t) => t.kind));
+      const kind = kinds.size === 1 ? [...kinds][0]! : 'mixed';
 
-  // Group by name (same name in multiple files)
-  const byName = new Map<string, TypeSignature[]>();
-  for (const type of allTypes) {
-    const existing = byName.get(type.name) ?? [];
-    existing.push(type);
-    byName.set(type.name, existing);
-  }
-
-  // Find duplicates by name
-  for (const [name, types] of byName) {
-    if (types.length < 2) continue;
-
-    // Calculate similarity
-    let minSimilarity = 1;
-
-    // Short-circuit for 2-element groups
-    if (types.length === 2) {
-      const t1 = types[0];
-      const t2 = types[1];
-      if (t1 && t2) {
-        minSimilarity = calculateTypeSimilarity(t1, t2);
-      }
-    } else {
-      for (let i = 0; i < types.length - 1; i++) {
-        for (let j = i + 1; j < types.length; j++) {
-          const ti = types[i];
-          const tj = types[j];
-          if (ti && tj) {
-            const sim = calculateTypeSimilarity(ti, tj);
-            minSimilarity = Math.min(minSimilarity, sim);
-
-            // Early exit when below threshold - can't improve
-            if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) break;
-          }
-        }
-        // Early exit outer loop if already below threshold
-        if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) break;
-      }
+      duplicates.push({
+        name: `[identical structure] ${sortedNames.join(' / ')}`,
+        kind,
+        locations: types.map((t) => ({
+          file: t.file,
+          line: t.line,
+          exported: t.exported,
+          name: t.name,
+        })),
+        similarity: 1,
+        recommendation: 'merge',
+      });
     }
 
-    // Determine kind
-    const kinds = new Set(types.map((t) => t.kind));
-    const kind = kinds.size === 1 ? [...kinds][0]! : 'mixed';
-
-    // Recommendation
-    let recommendation: 'merge' | 'rename' | 'keep-both' = 'keep-both';
-    if (minSimilarity > SIMILARITY_THRESHOLDS.MERGE) {
-      recommendation = 'merge';
-    } else if (minSimilarity > SIMILARITY_THRESHOLDS.RENAME) {
-      recommendation = 'rename';
+    return duplicates;
+  } finally {
+    // Release project back to pool if we created it
+    if (shouldReleaseProject) {
+      releaseProject(project);
     }
-
-    // Analyze differences for interfaces
-    let commonFields: string[] | undefined;
-    let difference: string | undefined;
-
-    if (kind === 'interface' && types.length === 2 && types[0] && types[1]) {
-      const diff = analyzeFieldDifference(types[0], types[1]);
-      commonFields = diff.common;
-      if (diff.onlyIn1.length > 0 || diff.onlyIn2.length > 0) {
-        difference = `Only in ${types[0].file}: ${diff.onlyIn1.join(', ') || 'none'}; Only in ${types[1].file}: ${diff.onlyIn2.join(', ') || 'none'}`;
-      }
-    }
-
-    const duplicateInfo: TypeDuplicateInfo = {
-      name,
-      kind,
-      locations: types.map((t) => ({
-        file: t.file,
-        line: t.line,
-        exported: t.exported,
-        name: t.name,
-      })),
-      similarity: minSimilarity,
-      recommendation,
-    };
-
-    if (commonFields) duplicateInfo.commonFields = commonFields;
-    if (difference) duplicateInfo.difference = difference;
-
-    duplicates.push(duplicateInfo);
   }
-
-  // Find types with identical structures but different names
-  const byHash = new Map<string, TypeSignature[]>();
-  for (const type of allTypes) {
-    // Skip empty structures
-    if (type.normalizedStructure.length < 5) continue;
-
-    const existing = byHash.get(type.structureHash) ?? [];
-    existing.push(type);
-    byHash.set(type.structureHash, existing);
-  }
-
-  for (const [, types] of byHash) {
-    if (types.length < 2) continue;
-
-    // Skip if all have same name (already caught above)
-    const uniqueNames = new Set(types.map((t) => t.name));
-    if (uniqueNames.size === 1) continue;
-
-    // Sort names for consistent output
-    const sortedNames = [...uniqueNames].sort((a, b) => {
-      const aExported = types.some((t) => t.name === a && t.exported);
-      const bExported = types.some((t) => t.name === b && t.exported);
-      if (aExported && !bExported) return -1;
-      if (!aExported && bExported) return 1;
-      return a.localeCompare(b);
-    });
-
-    const kinds = new Set(types.map((t) => t.kind));
-    const kind = kinds.size === 1 ? [...kinds][0]! : 'mixed';
-
-    duplicates.push({
-      name: `[identical structure] ${sortedNames.join(' / ')}`,
-      kind,
-      locations: types.map((t) => ({
-        file: t.file,
-        line: t.line,
-        exported: t.exported,
-        name: t.name,
-      })),
-      similarity: 1,
-      recommendation: 'merge',
-    });
-  }
-
-  return duplicates;
 }
 
 /**

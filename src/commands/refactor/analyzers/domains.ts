@@ -5,11 +5,11 @@
  * Classifies directories into domains and calculates coherence scores.
  */
 
-import * as path from 'path';
-import type { DomainInfo, NamespaceCategory } from '../core';
-import { NAMESPACE_INFO, detectCategory } from '../core';
-import { getSubdirectories } from './helpers';
+import * as path from 'node:path';
 import { exists, findFiles } from '../../../lib';
+import type { DomainInfo, NamespaceCategory } from '../core';
+import { detectCategory, NAMESPACE_INFO } from '../core';
+import { getSubdirectories } from './helpers';
 
 // ============================================================================
 // COHERENCE CALCULATION
@@ -22,7 +22,11 @@ import { exists, findFiles } from '../../../lib';
 function calculateCoherence(
   fileNames: string[],
   domainCategory: NamespaceCategory,
-): { coherence: number; matching: string[]; shouldMove: Array<{ file: string; suggestedDomain: string }> } {
+): {
+  coherence: number;
+  matching: string[];
+  shouldMove: Array<{ file: string; suggestedDomain: string }>;
+} {
   if (fileNames.length === 0) {
     return { coherence: 1, matching: [], shouldMove: [] };
   }

@@ -6,7 +6,7 @@
 
 ```
 fix/
-├── core/         # Infrastructure (types, registry, runner, cache, AST pool)
+├── core/         # Infrastructure (types, registry, runner, cache)
 ├── fixers/       # ⭐ ADD NEW FIXERS HERE
 ├── analyzers/    # Analysis functions
 ```
@@ -15,7 +15,7 @@ fix/
 
 ```typescript
 import { fileCache } from '../core/file-cache';
-import { withSourceFile } from '../core/ast-pool';
+import { withSourceFile } from '@/lib/@ast';  // ✅ Unified AST pool from lib
 import { isInsideString } from '../core/string-utils';
 import { validatePathWithinProject } from '../core/path-utils';
 

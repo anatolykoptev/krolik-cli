@@ -6,7 +6,13 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { findFiles, logger, readFile } from '../../../lib';
-import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
+import {
+  getProject,
+  type Project,
+  releaseProject,
+  type SourceFile,
+  SyntaxKind,
+} from '../../../lib/@ast';
 import type { DuplicateInfo, FunctionSignature } from '../core';
 import { findTsConfig } from './helpers';
 import { extractFunctionsSwc } from './swc-parser';
@@ -44,7 +50,7 @@ export interface FindDuplicatesOptions {
   /** Use fast SWC parser instead of ts-morph (default: true) */
   useFastParser?: boolean;
   /** Shared ts-morph Project instance (optional, for performance) */
-  project?: ReturnType<typeof createProject>;
+  project?: Project;
 }
 
 // ============================================================================
@@ -281,8 +287,8 @@ export async function findDuplicates(
 
         // Convert SWC functions to FunctionSignature format
         for (const swcFunc of swcFunctions) {
-          const content2 = readFile(file) ?? '';
-          const bodyText = content2.slice(0, 500); // Approximate body for normalization
+          // Extract actual function body using SWC-provided offsets
+          const bodyText = content.slice(swcFunc.bodyStart, swcFunc.bodyEnd);
           const normalizedBody = normalizeBody(bodyText);
           const tokens = new Set(normalizedBody.split(/\s+/).filter((t) => t.length > 0));
 
@@ -307,42 +313,51 @@ export async function findDuplicates(
     }
   } else {
     // Slow path: use ts-morph for full type information
-    // Use shared project if provided, otherwise create a new one
+    // Use shared project if provided, otherwise get from pool
     const project =
       options.project ??
       (() => {
         const tsConfigPath = findTsConfig(targetPath, projectRoot);
-        return tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+        return tsConfigPath ? getProject({ tsConfigPath }) : getProject({});
       })();
 
-    for (const file of files) {
-      try {
-        const content = readFile(file);
-        if (!content) continue;
+    const shouldReleaseProject = !options.project;
 
-        // Skip large files
-        if (content.length > LIMITS.MAX_FILE_SIZE) {
-          if (verbose) {
-            logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
+    try {
+      for (const file of files) {
+        try {
+          const content = readFile(file);
+          if (!content) continue;
+
+          // Skip large files
+          if (content.length > LIMITS.MAX_FILE_SIZE) {
+            if (verbose) {
+              logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
+            }
+            continue;
           }
-          continue;
-        }
 
-        // Add source file to project if not already there
-        let sourceFile = project.getSourceFile(file);
-        if (!sourceFile) {
-          sourceFile = project.createSourceFile(file, content, { overwrite: true });
-        }
+          // Add source file to project if not already there
+          let sourceFile = project.getSourceFile(file);
+          if (!sourceFile) {
+            sourceFile = project.createSourceFile(file, content, { overwrite: true });
+          }
 
-        const relPath = path.relative(projectRoot, file);
-        const functions = extractFunctions(sourceFile, relPath);
-        allFunctions.push(...functions);
-      } catch (error) {
-        if (verbose) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+          const relPath = path.relative(projectRoot, file);
+          const functions = extractFunctions(sourceFile, relPath);
+          allFunctions.push(...functions);
+        } catch (error) {
+          if (verbose) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+          }
+          // Continue processing other files
         }
-        // Continue processing other files
+      }
+    } finally {
+      // Release project back to pool if we created it
+      if (shouldReleaseProject) {
+        releaseProject(project);
       }
     }
   }

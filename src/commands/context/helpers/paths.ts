@@ -6,4 +6,4 @@
  * New code should import directly from '@/lib/@discovery'.
  */
 
-export { findSchemaDir, findRoutersDir } from '@/lib';
+export { findRoutersDir, findSchemaDir } from '@/lib';

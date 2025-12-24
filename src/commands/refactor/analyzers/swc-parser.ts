@@ -24,6 +24,10 @@ export interface SwcFunctionInfo {
   paramCount: number;
   isAsync: boolean;
   isExported: boolean;
+  /** Start offset of function body in source */
+  bodyStart: number;
+  /** End offset of function body in source */
+  bodyEnd: number;
 }
 
 /**
@@ -183,5 +187,7 @@ function createFunctionInfo(
     paramCount: params.length,
     isAsync: (func as { async?: boolean }).async ?? false,
     isExported,
+    bodyStart: start,
+    bodyEnd: end,
   };
 }

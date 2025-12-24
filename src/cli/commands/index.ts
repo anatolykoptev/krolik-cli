@@ -4,23 +4,23 @@
  */
 
 import type { Command } from 'commander';
-import { registerStatusCommand } from './status';
-import { registerAuditCommand } from './audit';
-import { registerReviewCommand } from './review';
-import { registerSchemaCommand } from './schema';
-import { registerRoutesCommand } from './routes';
-import { registerContextCommand } from './context';
-import { registerIssueCommand } from './issue';
-import { registerCodegenCommand } from './codegen';
-import { registerSecurityCommand } from './security';
-import { registerRefactorCommand } from './refactor';
-import { registerFixCommand } from './fix';
-import { registerQualityCommand } from './quality';
-import { registerInitCommand } from './init';
-import { registerSyncCommand } from './sync';
-import { registerMcpCommand } from './mcp';
-import { registerSetupCommand } from './setup';
 import { registerAgentCommand } from './agent';
+import { registerAuditCommand } from './audit';
+import { registerCodegenCommand } from './codegen';
+import { registerContextCommand } from './context';
+import { registerFixCommand } from './fix';
+import { registerInitCommand } from './init';
+import { registerIssueCommand } from './issue';
+import { registerMcpCommand } from './mcp';
+import { registerQualityCommand } from './quality';
+import { registerRefactorCommand } from './refactor';
+import { registerReviewCommand } from './review';
+import { registerRoutesCommand } from './routes';
+import { registerSchemaCommand } from './schema';
+import { registerSecurityCommand } from './security';
+import { registerSetupCommand } from './setup';
+import { registerStatusCommand } from './status';
+import { registerSyncCommand } from './sync';
 
 /**
  * Register all commands on the program

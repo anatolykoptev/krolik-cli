@@ -9,7 +9,7 @@
  * 4. Nested ifs → combine with &&
  */
 
-import { Node, SyntaxKind, type Block, type IfStatement } from 'ts-morph';
+import { type Block, type IfStatement, Node, SyntaxKind } from 'ts-morph';
 import type { ReduceNestingResult } from './types';
 
 const MIN_STATEMENTS_TO_TRANSFORM = 3;
@@ -35,40 +35,37 @@ const OPERATOR_INVERSIONS: Record<string, string> = {
 function invertCondition(condition: string): string {
   try {
     const { astPool } = require('../core/ast-pool');
-    const [sourceFile, cleanup] = astPool.createSourceFile(
-      `const x = ${condition};`,
-      'temp.ts'
-    );
+    const [sourceFile, cleanup] = astPool.createSourceFile(`const x = ${condition};`, 'temp.ts');
 
     try {
       const varDecl = sourceFile.getVariableDeclarations()[0];
       const init = varDecl?.getInitializer();
 
-    if (!init) {
-      return `!(${condition})`;
-    }
-
-    // Handle prefix ! operator
-    if (Node.isPrefixUnaryExpression(init)) {
-      const operator = init.getOperatorToken();
-      if (operator === SyntaxKind.ExclamationToken) {
-        return init.getOperand().getText();
+      if (!init) {
+        return `!(${condition})`;
       }
-    }
 
-    // Handle binary comparison operators
-    if (Node.isBinaryExpression(init)) {
-      const operator = init.getOperatorToken().getText();
-      const left = init.getLeft().getText();
-      const right = init.getRight().getText();
-
-      if (OPERATOR_INVERSIONS[operator]) {
-        // For && and ||, use simple negation (De Morgan's law is complex)
-        if (operator === '&&' || operator === '||') {
-          return `!(${condition})`;
+      // Handle prefix ! operator
+      if (Node.isPrefixUnaryExpression(init)) {
+        const operator = init.getOperatorToken();
+        if (operator === SyntaxKind.ExclamationToken) {
+          return init.getOperand().getText();
         }
-        return `${left} ${OPERATOR_INVERSIONS[operator]} ${right}`;
       }
+
+      // Handle binary comparison operators
+      if (Node.isBinaryExpression(init)) {
+        const operator = init.getOperatorToken().getText();
+        const left = init.getLeft().getText();
+        const right = init.getRight().getText();
+
+        if (OPERATOR_INVERSIONS[operator]) {
+          // For && and ||, use simple negation (De Morgan's law is complex)
+          if (operator === '&&' || operator === '||') {
+            return `!(${condition})`;
+          }
+          return `${left} ${OPERATOR_INVERSIONS[operator]} ${right}`;
+        }
       }
 
       return `!(${condition})`;
@@ -211,7 +208,7 @@ function reduceLoopNesting(body: Block): number {
 
     const condition = ifStmt.getExpression().getText();
     const invertedCondition = invertCondition(condition);
-    const innerCode = thenStatements.map(s => s.getText()).join('\n');
+    const innerCode = thenStatements.map((s) => s.getText()).join('\n');
 
     ifStmt.replaceWithText(`if (${invertedCondition}) continue;\n\n${innerCode}`);
     changes++;
@@ -244,64 +241,64 @@ export function reduceNesting(
       let changesCount = 0;
       const functions = getAllFunctions(sourceFile);
 
-    for (const func of functions) {
-      const body = getBody(func);
-      if (!body) continue;
+      for (const func of functions) {
+        const body = getBody(func);
+        if (!body) continue;
 
-      // Skip if targeting specific line and function isn't there
-      if (targetLine !== undefined) {
-        const startLine = func.getStartLineNumber();
-        const endLine = func.getEndLineNumber();
-        if (targetLine < startLine || targetLine > endLine) continue;
-      }
+        // Skip if targeting specific line and function isn't there
+        if (targetLine !== undefined) {
+          const startLine = func.getStartLineNumber();
+          const endLine = func.getEndLineNumber();
+          if (targetLine < startLine || targetLine > endLine) continue;
+        }
 
-      const statements = body.getStatements();
+        const statements = body.getStatements();
 
-      // Process if statements from end to start (reverse iteration)
-      for (let i = statements.length - 1; i >= 0; i--) {
-        const stmt = statements[i];
-        if (!stmt || !Node.isIfStatement(stmt)) continue;
+        // Process if statements from end to start (reverse iteration)
+        for (let i = statements.length - 1; i >= 0; i--) {
+          const stmt = statements[i];
+          if (!stmt || !Node.isIfStatement(stmt)) continue;
 
-        const ifStmt = stmt as IfStatement;
-        const thenBlock = ifStmt.getThenStatement();
-        const elseBlock = ifStmt.getElseStatement();
+          const ifStmt = stmt as IfStatement;
+          const thenBlock = ifStmt.getThenStatement();
+          const elseBlock = ifStmt.getElseStatement();
 
-        // Pattern 1: if with no else, wrapping significant code
-        if (!elseBlock && Node.isBlock(thenBlock)) {
-          const thenStatements = thenBlock.getStatements();
+          // Pattern 1: if with no else, wrapping significant code
+          if (!elseBlock && Node.isBlock(thenBlock)) {
+            const thenStatements = thenBlock.getStatements();
 
-          if (thenStatements.length >= MIN_STATEMENTS_TO_TRANSFORM) {
-            const condition = ifStmt.getExpression().getText();
-            const invertedCondition = invertCondition(condition);
-            const innerCode = thenStatements.map(s => s.getText()).join('\n');
+            if (thenStatements.length >= MIN_STATEMENTS_TO_TRANSFORM) {
+              const condition = ifStmt.getExpression().getText();
+              const invertedCondition = invertCondition(condition);
+              const innerCode = thenStatements.map((s) => s.getText()).join('\n');
 
-            ifStmt.replaceWithText(`if (${invertedCondition}) return;\n\n${innerCode}`);
-            changesCount++;
+              ifStmt.replaceWithText(`if (${invertedCondition}) return;\n\n${innerCode}`);
+              changesCount++;
+            }
+          }
+
+          // Pattern 2: if-else where else is just return
+          if (elseBlock && Node.isBlock(elseBlock)) {
+            const elseStatements = elseBlock.getStatements();
+            if (elseStatements.length === 1 && elseStatements[0]?.getText().startsWith('return')) {
+              const condition = ifStmt.getExpression().getText();
+              const invertedCondition = invertCondition(condition);
+              const returnStmt = elseStatements[0].getText();
+
+              const thenCode = Node.isBlock(thenBlock)
+                ? thenBlock
+                    .getStatements()
+                    .map((s) => s.getText())
+                    .join('\n')
+                : thenBlock.getText();
+
+              ifStmt.replaceWithText(`if (${invertedCondition}) ${returnStmt}\n\n${thenCode}`);
+              changesCount++;
+            }
           }
         }
 
-        // Pattern 2: if-else where else is just return
-        if (elseBlock && Node.isBlock(elseBlock)) {
-          const elseStatements = elseBlock.getStatements();
-          if (
-            elseStatements.length === 1 &&
-            elseStatements[0]?.getText().startsWith('return')
-          ) {
-            const condition = ifStmt.getExpression().getText();
-            const invertedCondition = invertCondition(condition);
-            const returnStmt = elseStatements[0].getText();
-
-            const thenCode = Node.isBlock(thenBlock)
-              ? thenBlock.getStatements().map(s => s.getText()).join('\n')
-              : thenBlock.getText();
-
-            ifStmt.replaceWithText(`if (${invertedCondition}) ${returnStmt}\n\n${thenCode}`);
-            changesCount++;
-          }
-        }
-      }
-
-      // Apply additional patterns
+        // Apply additional patterns
         changesCount += reduceLoopNesting(body);
         changesCount += combineNestedIfs(body);
       }

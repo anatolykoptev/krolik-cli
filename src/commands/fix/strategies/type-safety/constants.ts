@@ -49,11 +49,11 @@ export const TS_NOCHECK_PATTERNS = {
  * and should be replaced with 'unknown' for better type safety.
  */
 export const ANY_TYPE_PATTERNS = [
-  /:\s*any\b/g,           // : any
-  /:\s*any\[\]/g,         // : any[]
-  /:\s*any\s*\|/g,        // : any |
-  /\|\s*any\b/g,          // | any
-  /<any>/g,               // <any>
-  /<any,/g,               // <any,
-  /,\s*any>/g,            // , any>
+  /:\s*any\b/g, // : any
+  /:\s*any\[\]/g, // : any[]
+  /:\s*any\s*\|/g, // : any |
+  /\|\s*any\b/g, // | any
+  /<any>/g, // <any>
+  /<any,/g, // <any,
+  /,\s*any>/g, // , any>
 ] as const;

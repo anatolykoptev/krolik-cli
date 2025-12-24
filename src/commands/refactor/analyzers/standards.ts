@@ -10,13 +10,8 @@
  */
 
 import * as path from 'node:path';
-import type {
-  StandardCheck,
-  StandardsCompliance,
-  DirectoryInfo,
-  ProjectContext,
-} from '../core';
-import { findFiles, exists, readFile } from '../../../lib';
+import { exists, findFiles, readFile } from '../../../lib';
+import type { DirectoryInfo, ProjectContext, StandardCheck, StandardsCompliance } from '../core';
 
 // ============================================================================
 // MAIN ENTRY
@@ -52,9 +47,7 @@ export function checkStandards(
 }
 
 function calcCategoryScore(checks: StandardCheck[], prefix: string): number {
-  const categoryChecks = checks.filter((c) =>
-    c.name.toLowerCase().includes(prefix),
-  );
+  const categoryChecks = checks.filter((c) => c.name.toLowerCase().includes(prefix));
   if (categoryChecks.length === 0) return 100;
   const passed = categoryChecks.filter((c) => c.passed).length;
   return Math.round((passed / categoryChecks.length) * 100);
@@ -145,10 +138,7 @@ function checkBarrelExports(projectRoot: string, directories: DirectoryInfo[]): 
 // NAMING STANDARDS
 // ============================================================================
 
-function checkNamingStandards(
-  projectRoot: string,
-  directories: DirectoryInfo[],
-): StandardCheck[] {
+function checkNamingStandards(projectRoot: string, directories: DirectoryInfo[]): StandardCheck[] {
   const checks: StandardCheck[] = [];
 
   // Consistent file naming
@@ -171,14 +161,19 @@ function checkNamingStandards(
     name: 'Naming: directory names',
     description: 'Directories use kebab-case or @namespace pattern',
     passed: allKebab,
-    details: allKebab ? 'All directories correctly named' : 'Some directories use non-standard naming',
+    details: allKebab
+      ? 'All directories correctly named'
+      : 'Some directories use non-standard naming',
     autoFixable: true,
   });
 
   return checks;
 }
 
-function analyzeFileNaming(projectRoot: string): { isConsistent: boolean; dominant: string | null } {
+function analyzeFileNaming(projectRoot: string): {
+  isConsistent: boolean;
+  dominant: string | null;
+} {
   const srcDir = path.join(projectRoot, 'src');
   if (!exists(srcDir)) {
     return { isConsistent: true, dominant: null };
@@ -235,9 +230,7 @@ function checkDependencyStandards(projectRoot: string): StandardCheck[] {
   // No deprecated packages
   const pkg = readPackageJson(projectRoot);
   const deprecated = ['request', 'moment', 'lodash'];
-  const hasDeprecated = deprecated.some(
-    (d) => pkg?.dependencies?.[d] || pkg?.devDependencies?.[d],
-  );
+  const hasDeprecated = deprecated.some((d) => pkg?.dependencies?.[d] || pkg?.devDependencies?.[d]);
   checks.push({
     name: 'Dependencies: no deprecated packages',
     description: 'Project avoids known deprecated packages',
@@ -332,11 +325,14 @@ function checkTsDocCoverage(projectRoot: string): boolean {
   const srcDir = path.join(projectRoot, 'src');
   if (!exists(srcDir)) return false;
 
-  const files = findFiles(srcDir, { extensions: ['.ts', '.tsx'], skipDirs: ['node_modules'] }).slice(0, 10);
+  const files = findFiles(srcDir, {
+    extensions: ['.ts', '.tsx'],
+    skipDirs: ['node_modules'],
+  }).slice(0, 10);
 
   for (const file of files) {
     const content = readFile(file);
-    if (content && content.includes('/**') && content.includes('*/')) {
+    if (content?.includes('/**') && content.includes('*/')) {
       return true;
     }
   }

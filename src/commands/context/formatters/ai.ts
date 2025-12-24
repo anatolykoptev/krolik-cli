@@ -3,4 +3,4 @@
  * @description Re-export from modular ai/ folder
  */
 
-export { formatAiPrompt } from "./ai/index";
+export { formatAiPrompt } from './ai/index';

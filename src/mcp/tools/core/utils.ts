@@ -3,7 +3,7 @@
  * @description Shared utilities for tool handlers
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,6 +19,7 @@ const CLI_PATH = path.resolve(__dirname, 'cli.js');
 // ============================================================================
 
 export const TIMEOUT_60S = 60000;
+export const TIMEOUT_120S = 120000;
 
 // ============================================================================
 // INPUT SANITIZATION (Security: prevent command injection)
@@ -69,20 +70,86 @@ export function escapeShellArg(arg: string): string {
 // ============================================================================
 
 /**
- * Execute krolik CLI command
+ * Parse command string into array of arguments
+ * Handles quoted strings and escaped characters properly
+ */
+function parseCommandArgs(command: string): string[] {
+  const args: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let quoteChar = '';
+
+  for (let i = 0; i < command.length; i++) {
+    const char = command[i];
+    const nextChar = command[i + 1];
+
+    if (char === '\\' && nextChar) {
+      // Escaped character
+      current += nextChar;
+      i++; // Skip next character
+    } else if ((char === '"' || char === "'") && !inQuotes) {
+      // Start of quoted string
+      inQuotes = true;
+      quoteChar = char;
+    } else if (char === quoteChar && inQuotes) {
+      // End of quoted string
+      inQuotes = false;
+      quoteChar = '';
+    } else if (char === ' ' && !inQuotes) {
+      // Space outside quotes - argument separator
+      if (current.length > 0) {
+        args.push(current);
+        current = '';
+      }
+    } else {
+      // Regular character
+      current += char;
+    }
+  }
+
+  // Add final argument if any
+  if (current.length > 0) {
+    args.push(current);
+  }
+
+  return args;
+}
+
+/**
+ * Execute krolik CLI command using spawnSync for better security
+ * @param args - Command arguments as a string (e.g., "status --fast")
+ * @param projectRoot - Working directory for the command
+ * @param timeout - Maximum execution time in milliseconds
+ * @returns Command output or error message
  */
 export function runKrolik(args: string, projectRoot: string, timeout = 30000): string {
-  try {
-    // Use node with absolute path to CLI instead of npx (package not published)
-    const output = execSync(`node "${CLI_PATH}" ${args}`, {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-      timeout,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return output;
-  } catch (error: unknown) {
-    const err = error as { stdout?: string; stderr?: string; message?: string };
-    return err.stdout || err.stderr || err.message || 'Unknown error';
+  // Parse command string into array of arguments
+  const argArray = parseCommandArgs(args);
+
+  // Use node with absolute path to CLI instead of npx (package not published)
+  const result = spawnSync('node', [CLI_PATH, ...argArray], {
+    cwd: projectRoot,
+    encoding: 'utf-8',
+    timeout,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  // Handle spawn errors (e.g., node executable not found)
+  if (result.error) {
+    return `Error: ${result.error.message}`;
   }
+
+  // Handle timeout
+  if (result.signal === 'SIGTERM') {
+    return `Error: Command timed out after ${timeout}ms`;
+  }
+
+  // If command failed, return stderr or stdout with error info
+  if (result.status !== 0) {
+    const errorOutput = result.stderr || result.stdout || `Exit code: ${result.status}`;
+    return errorOutput;
+  }
+
+  // Success - return stdout
+  return result.stdout || '';
 }

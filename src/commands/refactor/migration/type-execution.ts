@@ -6,18 +6,24 @@
  * Uses ts-morph for precise AST manipulation.
  */
 
-import * as path from 'path';
-import { Project, SyntaxKind, SourceFile } from 'ts-morph';
+import * as path from 'node:path';
+import { exists } from '../../../lib';
+import {
+  getProject,
+  type Project,
+  releaseProject,
+  type SourceFile,
+  SyntaxKind,
+} from '../../../lib/@ast';
 import type {
-  TypeMigrationAction,
-  TypeMigrationPlan,
   ImportUpdateAction,
-  TypeMigrationResult,
-  TypeMigrationExecutionResult,
+  TypeMigrationAction,
   TypeMigrationExecutionOptions,
+  TypeMigrationExecutionResult,
+  TypeMigrationPlan,
+  TypeMigrationResult,
 } from '../core/types-migration';
 import { createBackup } from './security';
-import { exists } from '../../../lib';
 
 // ============================================================================
 // PLAN EXECUTION
@@ -42,74 +48,77 @@ export async function executeTypeMigrationPlan(
     };
   }
 
-  // Create ts-morph project
-  const project = new Project({
-    tsConfigFilePath: path.join(projectRoot, 'tsconfig.json'),
-    skipAddingFilesFromTsConfig: true,
-  });
+  // Get ts-morph project from pool
+  const tsConfigPath = path.join(projectRoot, 'tsconfig.json');
+  const project = exists(tsConfigPath) ? getProject({ tsConfigPath }) : getProject();
 
-  // Add all affected files to project
-  const affectedFiles = new Set<string>();
-  for (const action of plan.actions) {
-    affectedFiles.add(path.join(projectRoot, action.sourceFile));
-  }
-  for (const update of plan.importUpdates) {
-    affectedFiles.add(path.join(projectRoot, update.file));
-  }
-
-  for (const file of affectedFiles) {
-    if (exists(file)) {
-      project.addSourceFileAtPath(file);
+  try {
+    // Add all affected files to project
+    const affectedFiles = new Set<string>();
+    for (const action of plan.actions) {
+      affectedFiles.add(path.join(projectRoot, action.sourceFile));
     }
-  }
-
-  // Execute type removal actions
-  for (const action of plan.actions) {
-    if (verbose) {
-      console.log(`Processing: ${action.typeName} in ${action.sourceFile}`);
+    for (const update of plan.importUpdates) {
+      affectedFiles.add(path.join(projectRoot, update.file));
     }
 
-    const result = await executeTypeRemoval(action, project, projectRoot, {
-      dryRun,
-      backup,
-    });
-    results.push(result);
-
-    if (!result.success && stopOnError) {
-      break;
-    }
-  }
-
-  // Execute import updates
-  for (const update of plan.importUpdates) {
-    if (verbose) {
-      console.log(`Updating import: ${update.typeName} in ${update.file}`);
+    for (const file of affectedFiles) {
+      if (exists(file)) {
+        project.addSourceFileAtPath(file);
+      }
     }
 
-    const result = await executeImportUpdate(update, project, projectRoot, { dryRun });
-    results.push(result);
+    // Execute type removal actions
+    for (const action of plan.actions) {
+      if (verbose) {
+        console.log(`Processing: ${action.typeName} in ${action.sourceFile}`);
+      }
 
-    if (!result.success && stopOnError) {
-      break;
+      const result = await executeTypeRemoval(action, project, projectRoot, {
+        dryRun,
+        backup,
+      });
+      results.push(result);
+
+      if (!result.success && stopOnError) {
+        break;
+      }
     }
+
+    // Execute import updates
+    for (const update of plan.importUpdates) {
+      if (verbose) {
+        console.log(`Updating import: ${update.typeName} in ${update.file}`);
+      }
+
+      const result = await executeImportUpdate(update, project, projectRoot, { dryRun });
+      results.push(result);
+
+      if (!result.success && stopOnError) {
+        break;
+      }
+    }
+
+    // Save all modified files
+    if (!dryRun) {
+      await project.save();
+    }
+
+    const summary = {
+      succeeded: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      skipped: 0,
+    };
+
+    return {
+      success: summary.failed === 0,
+      results,
+      summary,
+    };
+  } finally {
+    // Release project back to pool
+    releaseProject(project);
   }
-
-  // Save all modified files
-  if (!dryRun) {
-    await project.save();
-  }
-
-  const summary = {
-    succeeded: results.filter(r => r.success).length,
-    failed: results.filter(r => !r.success).length,
-    skipped: 0,
-  };
-
-  return {
-    success: summary.failed === 0,
-    results,
-    summary,
-  };
 }
 
 // ============================================================================
@@ -203,8 +212,10 @@ function findLocalTypeUsages(sourceFile: SourceFile, typeName: string): number[]
         const line = node.getStartLineNumber();
         // Check if this is not the declaration itself
         const parent = node.getParent();
-        if (parent?.getKind() !== SyntaxKind.InterfaceDeclaration &&
-            parent?.getKind() !== SyntaxKind.TypeAliasDeclaration) {
+        if (
+          parent?.getKind() !== SyntaxKind.InterfaceDeclaration &&
+          parent?.getKind() !== SyntaxKind.TypeAliasDeclaration
+        ) {
           usages.push(line);
         }
       }
@@ -229,7 +240,7 @@ function addImportForType(
 
   // Normalize path
   if (!relativePath.startsWith('.')) {
-    relativePath = './' + relativePath;
+    relativePath = `./${relativePath}`;
   }
   relativePath = relativePath.replace(/\.ts$/, '');
 
@@ -242,7 +253,7 @@ function addImportForType(
   if (existingImport) {
     // Add type to existing import
     const namedImports = existingImport.getNamedImports();
-    const hasType = namedImports.some(ni => ni.getName() === typeName);
+    const hasType = namedImports.some((ni) => ni.getName() === typeName);
     if (!hasType) {
       existingImport.addNamedImport(typeName);
     }
@@ -320,7 +331,7 @@ async function executeImportUpdate(
       if (moduleSpec.includes(oldBasename)) {
         // Check if this import includes our type
         const namedImports = imp.getNamedImports();
-        const typeImport = namedImports.find(ni => ni.getName() === update.typeName);
+        const typeImport = namedImports.find((ni) => ni.getName() === update.typeName);
 
         if (typeImport) {
           // Remove type from this import
@@ -380,7 +391,7 @@ function calculateRelativePath(fromFile: string, toFile: string): string {
 
   // Ensure starts with ./
   if (!relativePath.startsWith('.')) {
-    relativePath = './' + relativePath;
+    relativePath = `./${relativePath}`;
   }
 
   // Remove .ts extension

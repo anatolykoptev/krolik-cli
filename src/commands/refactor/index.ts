@@ -682,7 +682,6 @@ async function runTypecheck(projectRoot: string): Promise<TypecheckResult> {
   return new Promise((resolve) => {
     const child = spawn('pnpm', ['run', 'typecheck'], {
       cwd: projectRoot,
-      shell: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

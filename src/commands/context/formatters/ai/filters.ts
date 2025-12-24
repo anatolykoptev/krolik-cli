@@ -3,9 +3,9 @@
  * @description Filter functions for AI context data
  */
 
-import type { SchemaOutput } from "../../../schema/output";
-import type { RoutesOutput } from "../../../routes/output";
-import { DEFAULT_PAGE_SIZE, MAX_SIZE } from "./helpers";
+import type { RoutesOutput } from '../../../routes/output';
+import type { SchemaOutput } from '../../../schema/output';
+import { DEFAULT_PAGE_SIZE, MAX_SIZE } from './helpers';
 
 // Priority scores for keyword matching
 const PRIORITY_PRIMARY = 2;
@@ -15,9 +15,9 @@ const PRIORITY_SECONDARY = 1;
  * Filter models by resolved keywords
  */
 export function filterModelsByKeywords(
-  models: SchemaOutput["models"],
+  models: SchemaOutput['models'],
   keywords: { primary: string[]; secondary: string[] },
-): SchemaOutput["models"] {
+): SchemaOutput['models'] {
   const allKeywords = [...keywords.primary, ...keywords.secondary];
   if (allKeywords.length === 0) return models.slice(0, DEFAULT_PAGE_SIZE);
 
@@ -31,9 +31,9 @@ export function filterModelsByKeywords(
  * Filter routers by resolved keywords with priority sorting
  */
 export function filterRoutersByKeywords(
-  routers: RoutesOutput["routers"],
+  routers: RoutesOutput['routers'],
   keywords: { primary: string[]; secondary: string[] },
-): RoutesOutput["routers"] {
+): RoutesOutput['routers'] {
   if (keywords.primary.length === 0 && keywords.secondary.length === 0) {
     return routers.slice(0, MAX_SIZE);
   }
@@ -56,9 +56,9 @@ export function filterRoutersByKeywords(
  * Filter enums by types used in models
  */
 export function filterEnumsByModels(
-  enums: SchemaOutput["enums"],
-  models: SchemaOutput["models"],
-): SchemaOutput["enums"] {
+  enums: SchemaOutput['enums'],
+  models: SchemaOutput['models'],
+): SchemaOutput['enums'] {
   const usedTypes = new Set<string>();
   for (const model of models) {
     for (const field of model.fields) {

@@ -6,10 +6,10 @@
  * Uses shared context from @lib/@context
  */
 
-import type { QualityIssue } from "../types";
-import { LINT_RULES, type LintRule } from "../../../lib/@patterns/lint";
-import { isCliFile } from "../../../lib/@context";
-import { DEFAULT_MAX_NESTING } from "../../../lib/@patterns/complexity";
+import { isCliFile } from '../../../lib/@context';
+import { DEFAULT_MAX_NESTING } from '../../../lib/@patterns/complexity';
+import { LINT_RULES, type LintRule } from '../../../lib/@patterns/lint';
+import type { QualityIssue } from '../types';
 
 /**
  * Lint check options
@@ -38,17 +38,17 @@ function checkNestingDepth(
   maxDepth: number = DEFAULT_MAX_NESTING,
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split("\n");
+  const lines = content.split('\n');
   let currentDepth = 0;
   const reported = new Set<number>();
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
+    const line = lines[i] ?? '';
 
     // Count braces in line
     for (const char of line) {
-      if (char === "{") currentDepth++;
-      if (char === "}") currentDepth--;
+      if (char === '{') currentDepth++;
+      if (char === '}') currentDepth--;
     }
 
     // Report excessive depth (once per function)
@@ -56,11 +56,10 @@ function checkNestingDepth(
       issues.push({
         file: filepath,
         line: i + 1,
-        severity: currentDepth > maxDepth + 2 ? "error" : "warning",
-        category: "complexity",
+        severity: currentDepth > maxDepth + 2 ? 'error' : 'warning',
+        category: 'complexity',
         message: `Excessive nesting depth: ${currentDepth} (max: ${maxDepth})`,
-        suggestion:
-          "Extract nested logic into separate functions or use early returns",
+        suggestion: 'Extract nested logic into separate functions or use early returns',
         snippet: line.trim().slice(0, 60),
       });
       reported.add(Math.floor(i / 10));
@@ -90,12 +89,12 @@ function isInsideComment(line: string, matchIndex: number): boolean {
   const beforeMatch = line.slice(0, matchIndex);
 
   // Find // or /* but make sure it's not inside a string
-  const commentPos = beforeMatch.indexOf("//");
+  const commentPos = beforeMatch.indexOf('//');
   if (commentPos !== -1 && !isInsideString(line, commentPos)) {
     return true;
   }
 
-  const blockPos = beforeMatch.indexOf("/*");
+  const blockPos = beforeMatch.indexOf('/*');
   if (blockPos !== -1 && !isInsideString(line, blockPos)) {
     return true;
   }
@@ -108,7 +107,7 @@ function isInsideComment(line: string, matchIndex: number): boolean {
  */
 function isInsideString(line: string, matchIndex: number): boolean {
   let inString = false;
-  let stringChar = "";
+  let stringChar = '';
   let inRegex = false;
   let escaped = false;
 
@@ -121,34 +120,34 @@ function isInsideString(line: string, matchIndex: number): boolean {
       continue;
     }
 
-    if (char === "\\") {
+    if (char === '\\') {
       escaped = true;
       continue;
     }
 
     // String handling
     if (!inRegex) {
-      if (!inString && (char === '"' || char === "'" || char === "`")) {
+      if (!inString && (char === '"' || char === "'" || char === '`')) {
         inString = true;
         stringChar = char;
       } else if (inString && char === stringChar) {
         inString = false;
-        stringChar = "";
+        stringChar = '';
       }
     }
 
     // Regex handling - only when not in string
     // Regex starts with / when preceded by: = ( , [ ! & | : ; { } or start of line
-    if (!inString && !inRegex && char === "/") {
+    if (!inString && !inRegex && char === '/') {
       const prevNonSpace = line.slice(0, i).trimEnd().slice(-1);
       if (
         !prevNonSpace ||
-        "=([,!&|:;{}".includes(prevNonSpace) ||
-        line.slice(0, i).trimEnd().endsWith("return")
+        '=([,!&|:;{}'.includes(prevNonSpace) ||
+        line.slice(0, i).trimEnd().endsWith('return')
       ) {
         inRegex = true;
       }
-    } else if (inRegex && char === "/") {
+    } else if (inRegex && char === '/') {
       inRegex = false;
     }
   }
@@ -165,14 +164,14 @@ function checkLintRules(
   options: LintOptions = {},
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split("\n");
+  const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? "";
+    const line = lines[i] ?? '';
     const trimmed = line.trim();
 
     // Skip full-line comments
-    if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
 
     for (const rule of LINT_RULES) {
       if (shouldSkipForRule(filepath, rule)) continue;
@@ -195,7 +194,7 @@ function checkLintRules(
           file: filepath,
           line: i + 1,
           severity: rule.severity,
-          category: "lint",
+          category: 'lint',
           message: rule.message,
           suggestion: rule.suggestion,
           snippet: trimmed.slice(0, 60),

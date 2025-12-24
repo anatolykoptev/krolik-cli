@@ -6,12 +6,7 @@
  * domain classification, and enhanced migration planning.
  */
 
-import type {
-  NamespaceCategory,
-  MigrationAction,
-  MigrationPlan,
-  RefactorAnalysis,
-} from './types';
+import type { MigrationAction, MigrationPlan, NamespaceCategory, RefactorAnalysis } from './types';
 
 // ============================================================================
 // PROJECT CONTEXT
@@ -20,14 +15,7 @@ import type {
 /**
  * Project type classification
  */
-export type ProjectType =
-  | 'cli'
-  | 'web-app'
-  | 'api'
-  | 'library'
-  | 'monorepo'
-  | 'mobile'
-  | 'unknown';
+export type ProjectType = 'cli' | 'web-app' | 'api' | 'library' | 'monorepo' | 'mobile' | 'unknown';
 
 /**
  * Tech stack detection result

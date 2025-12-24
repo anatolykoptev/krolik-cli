@@ -3,31 +3,28 @@
  * @description Git and GitHub utilities
  */
 
-// Local git operations (project repository)
-export * from './local';
-
-// Remote git operations (external repositories)
-export * from './remote';
-
-// GitHub CLI wrapper
-export * from './github';
-
 // Backup utilities
 export {
+  applyStash,
+  type CommitPushResult,
+  cleanupBackup,
+  commitAndPushChanges,
   createBackupBranch,
   deleteBackupBranch,
-  restoreFromBackup,
-  fullRestore,
-  cleanupBackup,
-  hasUncommittedChanges,
-  stashChanges,
-  applyStash,
-  popStash,
   dropStash,
-  isGitRepoForBackup,
-  getCurrentBranchForBackup,
-  commitAndPushChanges,
+  fullRestore,
   type GitBackupResult,
+  getCurrentBranchForBackup,
+  hasUncommittedChanges,
+  isGitRepoForBackup,
+  popStash,
   type RestoreResult,
-  type CommitPushResult,
+  restoreFromBackup,
+  stashChanges,
 } from './backup';
+// GitHub CLI wrapper
+export * from './github';
+// Local git operations (project repository)
+export * from './local';
+// Remote git operations (external repositories)
+export * from './remote';

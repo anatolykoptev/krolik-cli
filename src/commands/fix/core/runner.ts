@@ -51,33 +51,31 @@ export interface FixerRunResult {
 export function runFixerAnalysis(
   content: string,
   filepath: string,
-  options: FixerRunnerOptions = {}
+  options: FixerRunnerOptions = {},
 ): FixerRunResult {
   const issues: QualityIssue[] = [];
   const fixersRun: string[] = [];
   const fixersSkipped: string[] = [];
 
   // Get fixers based on options
-  let fixers = options.cliOptions
-    ? registry.getEnabled(options.cliOptions)
-    : registry.all();
+  let fixers = options.cliOptions ? registry.getEnabled(options.cliOptions) : registry.all();
 
   // Apply additional filters
   if (options.fixerIds?.length) {
-    fixers = fixers.filter(f => options.fixerIds!.includes(f.metadata.id));
+    fixers = fixers.filter((f) => options.fixerIds?.includes(f.metadata.id));
   }
 
   if (options.category) {
-    fixers = fixers.filter(f => f.metadata.category === options.category);
+    fixers = fixers.filter((f) => f.metadata.category === options.category);
   }
 
   if (options.difficulty) {
-    fixers = fixers.filter(f => f.metadata.difficulty === options.difficulty);
+    fixers = fixers.filter((f) => f.metadata.difficulty === options.difficulty);
   }
 
   // By default, exclude risky fixers unless explicitly included
   if (!options.includeRisky) {
-    fixers = fixers.filter(f => f.metadata.difficulty !== 'risky');
+    fixers = fixers.filter((f) => f.metadata.difficulty !== 'risky');
   }
 
   // Run each fixer
@@ -87,7 +85,7 @@ export function runFixerAnalysis(
 
       // Filter out issues that should be skipped
       const filteredIssues = fixer.shouldSkip
-        ? fixerIssues.filter(issue => !fixer.shouldSkip!(issue, content))
+        ? fixerIssues.filter((issue) => !fixer.shouldSkip?.(issue, content))
         : fixerIssues;
 
       // Ensure fixerId is set on all issues
@@ -111,10 +109,7 @@ export function runFixerAnalysis(
 /**
  * Run only trivial fixers (safe to auto-apply)
  */
-export function runTrivialFixers(
-  content: string,
-  filepath: string
-): FixerRunResult {
+export function runTrivialFixers(content: string, filepath: string): FixerRunResult {
   return runFixerAnalysis(content, filepath, {
     difficulty: 'trivial',
     includeRisky: false,
@@ -124,16 +119,13 @@ export function runTrivialFixers(
 /**
  * Run safe fixers (trivial + safe, but not risky)
  */
-export function runSafeFixers(
-  content: string,
-  filepath: string
-): FixerRunResult {
-  const fixers = registry.all().filter(
-    f => f.metadata.difficulty === 'trivial' || f.metadata.difficulty === 'safe'
-  );
+export function runSafeFixers(content: string, filepath: string): FixerRunResult {
+  const fixers = registry
+    .all()
+    .filter((f) => f.metadata.difficulty === 'trivial' || f.metadata.difficulty === 'safe');
 
   return runFixerAnalysis(content, filepath, {
-    fixerIds: fixers.map(f => f.metadata.id),
+    fixerIds: fixers.map((f) => f.metadata.id),
     includeRisky: false,
   });
 }
@@ -144,7 +136,7 @@ export function runSafeFixers(
 export function runSpecificFixers(
   content: string,
   filepath: string,
-  fixerIds: string[]
+  fixerIds: string[],
 ): FixerRunResult {
   return runFixerAnalysis(content, filepath, {
     fixerIds,
@@ -159,26 +151,22 @@ export function getFixerSummary(options: FixerRunnerOptions = {}): {
   willRun: string[];
   willSkip: string[];
 } {
-  let fixers = options.cliOptions
-    ? registry.getEnabled(options.cliOptions)
-    : registry.all();
+  let fixers = options.cliOptions ? registry.getEnabled(options.cliOptions) : registry.all();
 
   if (options.fixerIds?.length) {
-    fixers = fixers.filter(f => options.fixerIds!.includes(f.metadata.id));
+    fixers = fixers.filter((f) => options.fixerIds?.includes(f.metadata.id));
   }
 
   if (!options.includeRisky) {
-    const withoutRisky = fixers.filter(f => f.metadata.difficulty !== 'risky');
+    const withoutRisky = fixers.filter((f) => f.metadata.difficulty !== 'risky');
     return {
-      willRun: withoutRisky.map(f => f.metadata.id),
-      willSkip: fixers
-        .filter(f => f.metadata.difficulty === 'risky')
-        .map(f => f.metadata.id),
+      willRun: withoutRisky.map((f) => f.metadata.id),
+      willSkip: fixers.filter((f) => f.metadata.difficulty === 'risky').map((f) => f.metadata.id),
     };
   }
 
   return {
-    willRun: fixers.map(f => f.metadata.id),
+    willRun: fixers.map((f) => f.metadata.id),
     willSkip: [],
   };
 }

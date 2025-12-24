@@ -8,26 +8,31 @@
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
+import {
+  INSTALLED_PLUGINS_PATH,
+  KNOWN_MARKETPLACES_PATH,
+  MARKETPLACES_DIR,
+  REQUIRED_DIRS,
+} from '../core/paths';
 import type { PluginConfig } from '../core/types';
-import { REQUIRED_DIRS, KNOWN_MARKETPLACES_PATH, INSTALLED_PLUGINS_PATH, MARKETPLACES_DIR } from '../core/paths';
 
+export type { RepoStats } from '../../../lib/@agents';
 // Re-export from shared lib
 export {
-  getRepoStats,
   getAgentsHome,
   getAgentsPluginsDir,
+  getRepoStats,
 } from '../../../lib/@agents';
-export {
-  isGitAvailable,
-  getGitVersion,
-} from '../../../lib/@git';
-export type { RepoStats } from '../../../lib/@agents';
 export type { VersionInfo } from '../../../lib/@git';
+export {
+  getGitVersion,
+  isGitAvailable,
+} from '../../../lib/@git';
 
-import { getAgentsHome, getAgentsPluginsDir, getRepoStats } from '../../../lib/@agents';
-import { getGitVersion } from '../../../lib/@git';
-import type { VersionInfo } from '../../../lib/@git';
 import type { RepoStats } from '../../../lib/@agents';
+import { getAgentsHome, getAgentsPluginsDir, getRepoStats } from '../../../lib/@agents';
+import type { VersionInfo } from '../../../lib/@git';
+import { getGitVersion } from '../../../lib/@git';
 
 /**
  * Ensure all required directories exist

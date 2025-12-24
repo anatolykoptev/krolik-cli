@@ -3,9 +3,9 @@
  * @description MCP request handlers
  */
 
-import type { MCPResult } from './types';
+import { getResource, getResources, type ResourceContent } from './resources';
 import { getToolDefinitions, runTool } from './tools/index';
-import { getResources, getResource, type ResourceContent } from './resources';
+import type { MCPResult } from './types';
 
 // ============================================================================
 // INITIALIZE HANDLER
@@ -72,11 +72,13 @@ export function handleResourcesList(projectRoot: string): MCPResult {
  */
 function buildResourceContent(uri: string, resource: ResourceContent): MCPResult {
   return {
-    contents: [{
-      uri,
-      mimeType: resource.mimeType,
-      text: resource.content,
-    }],
+    contents: [
+      {
+        uri,
+        mimeType: resource.mimeType,
+        text: resource.content,
+      },
+    ],
   };
 }
 

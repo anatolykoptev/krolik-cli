@@ -10,27 +10,27 @@
 // ============================================================================
 
 export type {
-  QualitySeverity,
-  QualityCategory,
-  QualityIssue,
+  FileAnalysis,
   FixAction,
+  FixDifficulty,
   FixOperation,
   FixResult,
-  FixDifficulty,
   FixStrategy,
-  SplitSuggestion,
   FunctionInfo,
-  FileAnalysis,
   HardcodedValue,
-  RecommendationItem,
+  QualityCategory,
+  QualityIssue,
   QualityReport,
+  QualitySeverity,
+  RecommendationItem,
+  SplitSuggestion,
 } from '../types';
 
 // ============================================================================
 // FIXER-SPECIFIC TYPES (unique to core/)
 // ============================================================================
 
-import type { QualityCategory, QualityIssue, FixOperation, FixDifficulty } from '../types';
+import type { FixDifficulty, FixOperation, QualityCategory, QualityIssue } from '../types';
 
 /**
  * Fixer metadata - describes a fixer

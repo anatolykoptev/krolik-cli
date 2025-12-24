@@ -3,93 +3,90 @@
  * @description Shared utilities for fix strategies
  */
 
-// Line manipulation
+// Biome integration
 export {
-  splitLines,
-  getLineContext,
-  getLines,
-  joinLines,
-  countLines,
-  lineStartsWith,
-  lineEndsWith,
-  lineContains,
-  isComment,
-  isEmptyLine,
-  type LineContext,
-} from './line-utils';
-
-// Pattern matching
-export {
-  extractNumber,
-  extractString,
-  inRange,
-  matchNumberInRange,
-  matchesAny,
-  matchesAll,
-  findMatchingPattern,
-  containsKeyword,
-  type NumberRange,
-  type PatternMatch,
-} from './pattern-utils';
-
+  type BiomeCheckResult,
+  type BiomeDiagnostic,
+  type BiomeResult,
+  biomeAutoFix,
+  biomeCheckFile,
+  biomeFixFile,
+  biomeFormat,
+  biomeLint,
+  biomeLintFix,
+  biomeOrganizeImports,
+  getBiomeVersion,
+  hasBiomeConfig,
+  isBiomeAvailable,
+  shouldBiomeProcess,
+} from './biome';
 // Formatting & validation
 export {
+  // Types
+  type CreateProjectOptions,
+  clearPrettierCache,
   createProject,
-  validateSyntax,
-  getSyntaxErrors,
   formatWithPrettier,
+  getSyntaxErrors,
+  hasAlertCallAtLine,
+  hasConsoleCallAtLine,
+  // AST-based checks
+  hasDebuggerStatementAtLine,
   tryFormatWithPrettier,
   validateAndFormat,
   validateAndFormatWithErrors,
-  clearPrettierCache,
-  // AST-based checks
-  hasDebuggerStatementAtLine,
-  hasConsoleCallAtLine,
-  hasAlertCallAtLine,
-  // Types
-  type CreateProjectOptions,
+  validateSyntax,
 } from './formatting';
+// Line manipulation
+export {
+  countLines,
+  getLineContext,
+  getLines,
+  isComment,
+  isEmptyLine,
+  joinLines,
+  type LineContext,
+  lineContains,
+  lineEndsWith,
+  lineStartsWith,
+  splitLines,
+} from './line-utils';
 
 // Fix operations
 export {
   createDeleteLine,
+  createFullFileReplace,
   createReplaceLine,
   createReplaceRange,
-  createFullFileReplace,
   createSplitFile,
-  withMetadata,
   isNoOp,
+  withMetadata,
 } from './operations';
-
-// Biome integration
+// Pattern matching
 export {
-  isBiomeAvailable,
-  hasBiomeConfig,
-  biomeAutoFix,
-  biomeLint,
-  biomeLintFix,
-  biomeFormat,
-  biomeOrganizeImports,
-  biomeFixFile,
-  biomeCheckFile,
-  getBiomeVersion,
-  shouldBiomeProcess,
-  type BiomeDiagnostic,
-  type BiomeResult,
-  type BiomeCheckResult,
-} from './biome';
+  containsKeyword,
+  extractNumber,
+  extractString,
+  findMatchingPattern,
+  inRange,
+  matchesAll,
+  matchesAny,
+  matchNumberInRange,
+  type NumberRange,
+  type PatternMatch,
+} from './pattern-utils';
 
 // TypeScript integration
 export {
-  isTscAvailable,
-  hasTsConfig,
-  getTscVersion,
-  runTypeCheck,
   formatAsJson,
-  formatAsXml,
   formatAsText,
+  formatAsXml,
   getSummaryLine,
+  getTscVersion,
+  hasTsConfig,
+  isTscAvailable,
+  runTypeCheck,
   shouldTsProcess,
-  type TsDiagnostic,
   type TsCheckResult,
+  type TsDiagnostic,
 } from './typescript';

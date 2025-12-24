@@ -21,7 +21,9 @@ interface SecurityOptions {
  *
  * @param context - Command context with security-specific options
  */
-export async function runSecurity(context: CommandContext & { options: SecurityOptions }): Promise<void> {
+export async function runSecurity(
+  context: CommandContext & { options: SecurityOptions },
+): Promise<void> {
   const { logger, options } = context;
   const format = options.format ?? 'ai';
 

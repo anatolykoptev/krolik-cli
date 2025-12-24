@@ -27,7 +27,11 @@ export function countTodos(
     limit?: number;
   },
 ): TodoCount {
-  const { exclude = ['node_modules', 'dist', '.next', '.git'], extensions = ['ts', 'tsx'], limit = 100 } = options ?? {};
+  const {
+    exclude = ['node_modules', 'dist', '.next', '.git'],
+    extensions = ['ts', 'tsx'],
+    limit = 100,
+  } = options ?? {};
 
   const excludeArgs = exclude.map((e) => `--exclude-dir="${e}"`).join(' ');
   const includeArgs = extensions.map((e) => `--include="*.${e}"`).join(' ');

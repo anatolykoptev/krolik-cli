@@ -1,30 +1,36 @@
 /**
  * @module commands/agent
  * @description Agent command - run specialized AI agents with project context
+ *
+ * Supports two modes:
+ * 1. Direct mode: Run a specific agent by name
+ * 2. Orchestration mode: Analyze task and coordinate multiple agents
  */
 
+import { escapeXml, measureTime } from '../../lib';
 import type { CommandContext } from '../../types';
-import type { AgentOptions, AgentDefinition, AgentResult, AgentCategory } from './types';
-import {
-  findAgentsPath,
-  loadAllAgents,
-  loadAgentsByCategory,
-  loadAgentByName,
-  getAgentCountByCategory,
-  getRepoStats,
-  cloneAgentsRepo,
-  updateAgentsRepo,
-  getAgentsVersion,
-} from './loader';
+import { AGENT_CATEGORIES, resolveCategory } from './categories';
 import { buildAgentContext, formatContextForPrompt } from './context';
-import { resolveCategory, AGENT_CATEGORIES } from './categories';
 import {
-  formatAgentListText,
-  formatAgentListAI,
-  formatResultText,
-} from './output';
-import { measureTime } from '../../lib';
-import { escapeXml } from '../../lib';
+  cloneAgentsRepo,
+  findAgentsPath,
+  getAgentCountByCategory,
+  getAgentsVersion,
+  getRepoStats,
+  loadAgentByName,
+  loadAgentsByCategory,
+  loadAllAgents,
+  updateAgentsRepo,
+} from './loader';
+import {
+  formatOrchestrationJSON,
+  formatOrchestrationText,
+  formatOrchestrationXML,
+  type OrchestrateOptions,
+  orchestrate,
+} from './orchestrator';
+import { formatAgentListAI, formatAgentListText, formatResultText } from './output';
+import type { AgentCategory, AgentDefinition, AgentOptions, AgentResult } from './types';
 
 /**
  * Agent command options (extended)
@@ -33,6 +39,11 @@ export interface AgentCommandOptions extends AgentOptions {
   agentName?: string;
   install?: boolean;
   update?: boolean;
+  // Orchestration options
+  orchestrate?: boolean;
+  task?: string;
+  maxAgents?: number;
+  preferParallel?: boolean;
 }
 
 /**
@@ -84,7 +95,9 @@ export async function runAgent(
     const result = cloneAgentsRepo();
     if (!result.success) {
       logger.error(result.error || 'Failed to install agents');
-      logger.info('You can manually install: git clone https://github.com/wshobson/agents ~/.krolik/agents');
+      logger.info(
+        'You can manually install: git clone https://github.com/wshobson/agents ~/.krolik/agents',
+      );
       process.exit(1);
     }
     agentsPath = result.path;
@@ -100,12 +113,20 @@ export async function runAgent(
     return;
   }
 
+  // Handle --orchestrate flag (multi-agent coordination)
+  if (options.orchestrate) {
+    const task = options.task || options.agentName || 'analyze the project';
+    await runOrchestration(projectRoot, task, options);
+    return;
+  }
+
   // Get agent name from options
   const agentName = options.agentName;
   if (!agentName) {
     logger.error('Agent name is required');
     logger.info('Usage: krolik agent <name> [options]');
     logger.info('Use --list to see available agents');
+    logger.info('Use --orchestrate --task "..." for multi-agent mode');
     process.exit(1);
   }
 
@@ -131,7 +152,12 @@ export async function runAgent(
         a.description.toLowerCase().includes(agentName.toLowerCase()),
     );
     if (similar.length > 0) {
-      logger.info(`\nDid you mean: ${similar.slice(0, 5).map((a) => a.name).join(', ')}`);
+      logger.info(
+        `\nDid you mean: ${similar
+          .slice(0, 5)
+          .map((a) => a.name)
+          .join(', ')}`,
+      );
     }
     process.exit(1);
   }
@@ -254,7 +280,74 @@ Please analyze the project and provide your findings.`;
   }
 }
 
-// Re-export types
-export type { AgentOptions, AgentDefinition, AgentResult, AgentCategory, RepoStats, ComponentType } from './types';
+/**
+ * Run orchestration mode - analyze task and coordinate multiple agents
+ */
+async function runOrchestration(
+  projectRoot: string,
+  task: string,
+  options: AgentCommandOptions,
+): Promise<void> {
+  const orchestrateOptions: OrchestrateOptions = {
+    maxAgents: options.maxAgents,
+    preferParallel: options.preferParallel,
+    includeContext: true,
+    file: options.file,
+    feature: options.feature,
+    dryRun: options.dryRun,
+    format: options.format === 'text' ? 'text' : options.format === 'json' ? 'json' : 'xml',
+  };
+
+  try {
+    const result = await orchestrate(task, projectRoot, orchestrateOptions);
+
+    // Output based on format
+    const format = options.format ?? 'ai';
+
+    if (format === 'text') {
+      console.log(formatOrchestrationText(result));
+    } else if (format === 'json') {
+      console.log(formatOrchestrationJSON(result));
+    } else {
+      // Default: AI-friendly XML
+      console.log(formatOrchestrationXML(result));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Orchestration failed: ${message}`);
+    process.exit(1);
+  }
+}
+
 export { AGENT_CATEGORIES, resolveCategory } from './categories';
-export { loadAllAgents, loadAgentByName, loadAgentsByCategory, getRepoStats } from './loader';
+export { getRepoStats, loadAgentByName, loadAgentsByCategory, loadAllAgents } from './loader';
+// Re-export orchestration
+export {
+  type AgentRecommendation,
+  analyzeTask,
+  BUILTIN_AGENTS,
+  createExecutionPlan,
+  type ExecutionPhase,
+  type ExecutionPlan,
+  type ExecutionStrategy,
+  formatOrchestrationJSON,
+  formatOrchestrationText,
+  formatOrchestrationXML,
+  getAgentRecommendations,
+  ORCHESTRATOR_AGENT,
+  type OrchestrateOptions,
+  type OrchestrationResult,
+  orchestrate,
+  TASK_ROUTER_AGENT,
+  type TaskAnalysis,
+  type TaskType,
+} from './orchestrator';
+// Re-export types
+export type {
+  AgentCategory,
+  AgentDefinition,
+  AgentOptions,
+  AgentResult,
+  ComponentType,
+  RepoStats,
+} from './types';

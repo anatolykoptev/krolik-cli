@@ -4,8 +4,8 @@
  */
 
 import type { FileAnalysis } from '../types';
-import type { Recommendation, RecommendationResult } from './types';
 import { ALL_RECOMMENDATIONS } from './rules';
+import type { Recommendation, RecommendationResult } from './types';
 
 /**
  * Find line number and snippet for a pattern match

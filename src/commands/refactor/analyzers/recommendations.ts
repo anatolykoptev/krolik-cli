@@ -5,12 +5,7 @@
  * Generates prioritized, actionable recommendations based on analysis.
  */
 
-import type {
-  Recommendation,
-  RefactorAnalysis,
-  ArchHealth,
-  DomainInfo,
-} from '../core';
+import type { ArchHealth, DomainInfo, Recommendation, RefactorAnalysis } from '../core';
 
 // ============================================================================
 // RECOMMENDATION GENERATORS

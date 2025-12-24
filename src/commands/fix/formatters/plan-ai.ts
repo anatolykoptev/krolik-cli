@@ -3,10 +3,10 @@
  * @description AI-friendly XML formatter for fix plans
  */
 
-import * as path from "node:path";
-import type { FixOperation } from "../types";
-import { escapeXml } from "../../../lib";
-import { FixPlanItem, FixPlan, SkipStats } from "../plan";
+import * as path from 'node:path';
+import { escapeXml } from '../../../lib';
+import type { FixPlan, FixPlanItem, SkipStats } from '../plan';
+import type { FixOperation } from '../types';
 
 // ============================================================================
 // TYPES
@@ -51,11 +51,7 @@ function getRiskExplanation(difficulty: 'trivial' | 'safe' | 'risky'): string {
 /**
  * Format summary section
  */
-function formatSummary(
-  plans: FixPlan[],
-  skipStats: SkipStats,
-  totalIssues: number,
-): string[] {
+function formatSummary(plans: FixPlan[], skipStats: SkipStats, totalIssues: number): string[] {
   const lines: string[] = [];
 
   lines.push('  <summary>');
@@ -149,10 +145,7 @@ function formatSplitStructure(newFiles: Array<{ path: string; content: string }>
 /**
  * Format single fix item
  */
-function formatFixItem(
-  item: FixPlanItem,
-  fixIndex: number,
-): string[] {
+function formatFixItem(item: FixPlanItem, fixIndex: number): string[] {
   const { issue, operation, difficulty } = item;
   const lines: string[] = [];
 
@@ -170,7 +163,9 @@ function formatFixItem(
   lines.push(`      <difficulty>${difficulty}</difficulty>`);
   lines.push('');
   lines.push(`      <issue_message>${escapeXml(issue.message)}</issue_message>`);
-  lines.push(`      <action_explanation>${getActionExplanation(operation.action)}</action_explanation>`);
+  lines.push(
+    `      <action_explanation>${getActionExplanation(operation.action)}</action_explanation>`,
+  );
   lines.push(`      <risk_assessment>${getRiskExplanation(difficulty)}</risk_assessment>`);
 
   // Before code
@@ -217,10 +212,10 @@ function formatAIGuidance(plans: FixPlan[], totalFixes: number): string[] {
   if (totalFixes === 0) {
     lines.push('      No auto-fixable issues found. Manual review may be needed.');
   } else {
-    const allFixes = plans.flatMap(p => p.fixes);
-    const trivialCount = allFixes.filter(f => f.difficulty === 'trivial').length;
-    const safeCount = allFixes.filter(f => f.difficulty === 'safe').length;
-    const riskyCount = allFixes.filter(f => f.difficulty === 'risky').length;
+    const allFixes = plans.flatMap((p) => p.fixes);
+    const trivialCount = allFixes.filter((f) => f.difficulty === 'trivial').length;
+    const safeCount = allFixes.filter((f) => f.difficulty === 'safe').length;
+    const riskyCount = allFixes.filter((f) => f.difficulty === 'risky').length;
 
     lines.push(`      Total fixes: ${totalFixes}`);
     lines.push(`      - Trivial (safe to auto-apply): ${trivialCount}`);
@@ -231,7 +226,9 @@ function formatAIGuidance(plans: FixPlan[], totalFixes: number): string[] {
     if (trivialCount > 0 && riskyCount === 0) {
       lines.push('      Recommendation: Safe to apply with --yes flag.');
     } else if (riskyCount > 0) {
-      lines.push('      Recommendation: Review risky fixes before applying. Consider --dry-run first.');
+      lines.push(
+        '      Recommendation: Review risky fixes before applying. Consider --dry-run first.',
+      );
     } else {
       lines.push('      Recommendation: Review the plan and apply with --yes if acceptable.');
     }

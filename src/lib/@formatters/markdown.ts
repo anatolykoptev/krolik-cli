@@ -109,12 +109,8 @@ export function numberedList(items: string[], startFrom: number = 1): string {
  * taskList([{ text: 'Done', checked: true }, { text: 'Pending', checked: false }])
  * // Returns: '- [x] Done\n- [ ] Pending'
  */
-export function taskList(
-  items: Array<{ text: string; checked: boolean }>,
-): string {
-  return items
-    .map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`)
-    .join('\n');
+export function taskList(items: Array<{ text: string; checked: boolean }>): string {
+  return items.map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`).join('\n');
 }
 
 // ============================================================================
@@ -169,10 +165,7 @@ export function table(columns: TableColumn[], rows: TableRow[]): string {
  * Create a simple key-value table
  */
 export function keyValueTable(data: Record<string, string | number>): string {
-  const columns: TableColumn[] = [
-    { header: 'Key' },
-    { header: 'Value' },
-  ];
+  const columns: TableColumn[] = [{ header: 'Key' }, { header: 'Value' }];
 
   const rows = Object.entries(data).map(([key, value]) => ({
     Key: key,
@@ -279,5 +272,5 @@ export function buildDocument(sections: MarkdownSection[]): string {
  */
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + '...';
+  return `${text.slice(0, maxLength - 3)}...`;
 }

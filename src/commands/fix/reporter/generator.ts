@@ -3,26 +3,26 @@
  * @description AI Report Generator - creates structured reports for AI agents
  */
 
+import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
-import type { QualityReport, QualityIssue, FileAnalysis } from '../types';
+import type { FileAnalysis, QualityIssue, QualityReport } from '../types';
+import { aggregateEffort } from './effort';
+import { enrichIssue, extractHotspots, extractQuickWins, groupByPriority } from './grouping';
 import type {
+  ActionStep,
   AIReport,
   AIReportOptions,
-  ReportSummary,
-  ReportContext,
-  ActionStep,
-  EnrichedIssue,
+  AIRuleFile,
   EffortLevel,
-  PriorityLevel,
+  EnrichedIssue,
   FileContext,
   GitInfo,
-  AIRuleFile,
   NextActionItem,
+  PriorityLevel,
+  ReportContext,
+  ReportSummary,
 } from './types';
-import { enrichIssue, groupByPriority, extractQuickWins, extractHotspots } from './grouping';
-import { aggregateEffort } from './effort';
 
 // ============================================================================
 // GIT INFO
@@ -69,10 +69,13 @@ function getGitInfo(projectRoot: string): GitInfo | undefined {
 
   // Get recent commits
   const commitsOutput = gitExec('git log --oneline -5 --format="%h|%s|%cr"', projectRoot);
-  const recentCommits = commitsOutput.split('\n').filter(Boolean).map(line => {
-    const [hash, message, relativeDate] = line.split('|');
-    return { hash: hash ?? '', message: message ?? '', relativeDate: relativeDate ?? '' };
-  });
+  const recentCommits = commitsOutput
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, message, relativeDate] = line.split('|');
+      return { hash: hash ?? '', message: message ?? '', relativeDate: relativeDate ?? '' };
+    });
 
   return { branch, modified, untracked, staged, recentCommits };
 }
@@ -95,7 +98,7 @@ function findAIRulesFiles(projectRoot: string): AIRuleFile[] {
   // Check for .claude directory
   const claudeDir = path.join(projectRoot, '.claude');
   if (fs.existsSync(claudeDir) && fs.statSync(claudeDir).isDirectory()) {
-    const claudeFiles = fs.readdirSync(claudeDir).filter(f => f.endsWith('.md'));
+    const claudeFiles = fs.readdirSync(claudeDir).filter((f) => f.endsWith('.md'));
     for (const f of claudeFiles) {
       files.push({ path: `.claude/${f}`, scope: 'root' });
     }
@@ -111,15 +114,12 @@ function findAIRulesFiles(projectRoot: string): AIRuleFile[] {
 /**
  * Determine next action based on issues
  */
-function determineNextAction(
-  summary: ReportSummary,
-  aiRules: AIRuleFile[],
-): NextActionItem {
+function determineNextAction(summary: ReportSummary, aiRules: AIRuleFile[]): NextActionItem {
   // 1. If there are AI rules, read them first
   if (aiRules.length > 0) {
     return {
       priority: 'critical',
-      action: `Read AI rules files: ${aiRules.map(r => r.path).join(', ')}`,
+      action: `Read AI rules files: ${aiRules.map((r) => r.path).join(', ')}`,
       reason: 'Project has AI configuration files that define conventions and rules',
     };
   }
@@ -258,8 +258,8 @@ function buildContext(
  * Calculate report summary
  */
 function calculateSummary(enrichedIssues: EnrichedIssue[]): ReportSummary {
-  const autoFixableIssues = enrichedIssues.filter(i => i.autoFixable).length;
-  const efforts = enrichedIssues.map(i => i.effort);
+  const autoFixableIssues = enrichedIssues.filter((i) => i.autoFixable).length;
+  const efforts = enrichedIssues.map((i) => i.effort);
   const totalEffort = aggregateEffort(efforts);
 
   // Count by priority
@@ -364,7 +364,12 @@ function generateActionPlan(
 ): ActionStep[] {
   // Sort by priority, then by effort (quick wins first within same priority)
   const sorted = [...enrichedIssues].sort((a, b) => {
-    const priorityOrder: Record<PriorityLevel, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    const priorityOrder: Record<PriorityLevel, number> = {
+      critical: 0,
+      high: 1,
+      medium: 2,
+      low: 3,
+    };
     const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
     if (priorityDiff !== 0) return priorityDiff;
     return a.effort.minutes - b.effort.minutes;
@@ -376,9 +381,11 @@ function generateActionPlan(
   for (const enriched of sorted.slice(0, maxSteps)) {
     const { issue, effort, autoFixable, fixSuggestion } = enriched;
 
-    const action: ActionStep['action'] = autoFixable ? 'fix' : (
-      issue.category === 'complexity' || issue.category === 'srp' ? 'refactor' : 'review'
-    );
+    const action: ActionStep['action'] = autoFixable
+      ? 'fix'
+      : issue.category === 'complexity' || issue.category === 'srp'
+        ? 'refactor'
+        : 'review';
 
     const step: ActionStep = {
       id: `step-${stepId++}`,
@@ -436,8 +443,14 @@ function extractExports(content: string): string[] {
   }
   while ((match = namedExportRegex.exec(content)) !== null) {
     if (match[1]) {
-      const names = match[1].split(',').map(s => s.trim().split(/\s+as\s+/)[0]?.trim() ?? '');
-      exports.push(...names.filter(n => n && n !== 'type'));
+      const names = match[1].split(',').map(
+        (s) =>
+          s
+            .trim()
+            .split(/\s+as\s+/)[0]
+            ?.trim() ?? '',
+      );
+      exports.push(...names.filter((n) => n && n !== 'type'));
     }
   }
 
@@ -449,7 +462,8 @@ function extractExports(content: string): string[] {
  */
 function extractImports(content: string): string[] {
   const imports: string[] = [];
-  const importRegex = /import\s+(?:type\s+)?(?:\{[^}]*\}|[\w*]+)?\s*(?:,\s*\{[^}]*\})?\s*from\s+['"]([^'"]+)['"]/g;
+  const importRegex =
+    /import\s+(?:type\s+)?(?:\{[^}]*\}|[\w*]+)?\s*(?:,\s*\{[^}]*\})?\s*from\s+['"]([^'"]+)['"]/g;
 
   let match;
   while ((match = importRegex.exec(content)) !== null) {
@@ -463,7 +477,7 @@ function extractImports(content: string): string[] {
  * Determine file purpose from analysis
  */
 function determinePurpose(file: FileAnalysis): string {
-  const mainFn = file.functions.find(f => f.isExported);
+  const mainFn = file.functions.find((f) => f.isExported);
   if (mainFn) {
     return `Module (main: ${mainFn.name})`;
   }
@@ -480,11 +494,14 @@ function buildFileContexts(
   files: FileAnalysis[],
   fileContents: Map<string, string>,
 ): FileContext[] {
-  return files.map(file => {
+  return files.map((file) => {
     const content = fileContents.get(file.path) ?? '';
-    const avgComplexity = file.functions.length > 0
-      ? Math.round(file.functions.reduce((sum, f) => sum + f.complexity, 0) / file.functions.length)
-      : 0;
+    const avgComplexity =
+      file.functions.length > 0
+        ? Math.round(
+            file.functions.reduce((sum, f) => sum + f.complexity, 0) / file.functions.length,
+          )
+        : 0;
 
     return {
       path: file.relativePath || file.path,
@@ -522,9 +539,7 @@ export function generateAIReport(
   }
 
   // Enrich all issues
-  const enrichedIssues = allIssues
-    .slice(0, maxIssues)
-    .map(issue => enrichIssue(issue));
+  const enrichedIssues = allIssues.slice(0, maxIssues).map((issue) => enrichIssue(issue));
 
   // Build context
   const context = buildContext(qualityReport.projectRoot);
@@ -546,30 +561,32 @@ export function generateAIReport(
 
   // Build file contexts for hotspot files (consistent with hotspots section)
   // Use normalized paths from hotspots to find matching files
-  const hotspotPaths = new Set(hotspots.map(h => h.file));
+  const hotspotPaths = new Set(hotspots.map((h) => h.file));
   const filesWithIssues = qualityReport.files
-    .filter(f => {
+    .filter((f) => {
       const normalizedPath = f.relativePath || f.path;
       // Check if this file is in hotspots (by normalized path)
-      return hotspotPaths.has(normalizedPath) ||
-             hotspotPaths.has(normalizedPath.replace(/^.*?\/src\//, 'src/'));
+      return (
+        hotspotPaths.has(normalizedPath) ||
+        hotspotPaths.has(normalizedPath.replace(/^.*?\/src\//, 'src/'))
+      );
     })
     .sort((a, b) => {
       // Sort by hotspot order (issue count)
-      const aHotspot = hotspots.find(h =>
-        h.file === (a.relativePath || a.path) ||
-        h.file === (a.relativePath || a.path).replace(/^.*?\/src\//, 'src/')
+      const aHotspot = hotspots.find(
+        (h) =>
+          h.file === (a.relativePath || a.path) ||
+          h.file === (a.relativePath || a.path).replace(/^.*?\/src\//, 'src/'),
       );
-      const bHotspot = hotspots.find(h =>
-        h.file === (b.relativePath || b.path) ||
-        h.file === (b.relativePath || b.path).replace(/^.*?\/src\//, 'src/')
+      const bHotspot = hotspots.find(
+        (h) =>
+          h.file === (b.relativePath || b.path) ||
+          h.file === (b.relativePath || b.path).replace(/^.*?\/src\//, 'src/'),
       );
       return (bHotspot?.issueCount ?? 0) - (aHotspot?.issueCount ?? 0);
     });
 
-  const fileContexts = fileContents
-    ? buildFileContexts(filesWithIssues, fileContents)
-    : [];
+  const fileContexts = fileContents ? buildFileContexts(filesWithIssues, fileContents) : [];
 
   // Get git info
   const git = getGitInfo(qualityReport.projectRoot);

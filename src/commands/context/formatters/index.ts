@@ -3,8 +3,7 @@
  * @description Context output formatters
  */
 
-// Re-export text formatters
-export { printContext, formatJson, formatMarkdown } from "./text";
-
 // Re-export AI formatter
-export { formatAiPrompt } from "./ai";
+export { formatAiPrompt } from './ai';
+// Re-export text formatters
+export { formatJson, formatMarkdown, printContext } from './text';

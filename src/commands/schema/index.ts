@@ -6,8 +6,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CommandContext, OutputFormat } from '../../types';
+import { formatAI, formatJson, formatMarkdown, printSchema, type SchemaOutput } from './output';
 import { parseSchemaDirectory } from './parser';
-import { printSchema, formatJson, formatMarkdown, formatAI, type SchemaOutput } from './output';
 
 /**
  * Schema command options
@@ -46,10 +46,10 @@ function findSchemaDir(projectRoot: string, configSchemaDir?: string): string | 
 
   // Common prisma locations
   const candidates = [
-    'packages/db/prisma',     // Monorepo
-    'prisma',                 // Standard
-    'src/prisma',             // Some projects
-    'db/prisma',              // Alternative
+    'packages/db/prisma', // Monorepo
+    'prisma', // Standard
+    'src/prisma', // Some projects
+    'db/prisma', // Alternative
   ];
 
   for (const candidate of candidates) {
@@ -106,6 +106,6 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
   console.log(formatAI(result));
 }
 
-// Re-export types
-export type { PrismaModel, PrismaEnum } from './parser';
 export type { SchemaOutput } from './output';
+// Re-export types
+export type { PrismaEnum, PrismaModel } from './parser';

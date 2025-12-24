@@ -11,11 +11,10 @@
  * they require proper null checks which need context understanding.
  */
 
-import type { QualityIssue } from '../../types';
-import type { FixOperation, FixStrategy } from '../../types';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
 import { containsKeyword } from '../shared';
 import { TYPE_SAFETY_KEYWORDS } from './constants';
-import { fixTsIgnore, fixTsNocheck, fixAnyType } from './fixes';
+import { fixAnyType, fixTsIgnore, fixTsNocheck } from './fixes';
 
 // ============================================================================
 // STRATEGY
@@ -66,4 +65,4 @@ export const typeSafetyStrategy: FixStrategy = {
 
 // Re-export for testing
 export { TYPE_SAFETY_KEYWORDS } from './constants';
-export { fixTsIgnore, fixTsNocheck, fixAnyType } from './fixes';
+export { fixAnyType, fixTsIgnore, fixTsNocheck } from './fixes';

@@ -206,9 +206,7 @@ function findFirstMatch(deps: Set<string>, table: Array<[string, string]>): stri
  * Find all matching dependencies from multi-match table
  */
 function findAllMatches(deps: Set<string>, table: Array<[string[], string]>): string[] {
-  return table
-    .filter(([depList]) => depList.some((d) => deps.has(d)))
-    .map(([, label]) => label);
+  return table.filter(([depList]) => depList.some((d) => deps.has(d))).map(([, label]) => label);
 }
 
 /**
@@ -251,10 +249,10 @@ export function detectTechStack(cwd: string): TechStack {
 // ============================================================================
 
 export function getRecentCommits(cwd: string, count = 5): RecentCommit[] {
-  const result = tryExec(
-    `git log -${count} --pretty=format:"%h|%s|%an|%ai|%ar" 2>/dev/null`,
-    { cwd, silent: true },
-  );
+  const result = tryExec(`git log -${count} --pretty=format:"%h|%s|%an|%ai|%ar" 2>/dev/null`, {
+    cwd,
+    silent: true,
+  });
 
   if (!result.success || !result.output) return [];
 
@@ -362,7 +360,8 @@ function expandGlobPattern(cwd: string, pattern: string): string[] {
     return [baseDir];
   }
 
-  return fs.readdirSync(fullPath)
+  return fs
+    .readdirSync(fullPath)
     .map((name) => path.join(baseDir, name))
     .filter((dir) => isValidPackageDir(path.join(cwd, dir)));
 }
@@ -535,7 +534,7 @@ export function getBranchContext(cwd: string): BranchContext {
   }
 
   // Extract issue number (common patterns: #123, -123-, /123-)
-  const issueMatch = branchName.match(/[#\-\/](\d{1,5})(?:[-\/]|$)/);
+  const issueMatch = branchName.match(/[#\-/](\d{1,5})(?:[-/]|$)/);
   if (issueMatch?.[1]) {
     issueNumber = Number.parseInt(issueMatch[1], 10);
   }

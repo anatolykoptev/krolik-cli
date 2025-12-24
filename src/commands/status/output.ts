@@ -5,6 +5,13 @@
  * @deprecated Import from './output/index' instead
  */
 
-// Re-export everything from the new modular structure
-export { printStatus, formatJson, formatMarkdown, formatAI, formatReportOutput, formatDuration } from './output/index';
 export type { ReportSummary } from './output/index';
+// Re-export everything from the new modular structure
+export {
+  formatAI,
+  formatDuration,
+  formatJson,
+  formatMarkdown,
+  formatReportOutput,
+  printStatus,
+} from './output/index';

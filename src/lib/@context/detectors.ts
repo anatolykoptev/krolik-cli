@@ -84,10 +84,7 @@ export const COMPONENT_FILE_PATTERNS = [
 /**
  * Hook file patterns (React)
  */
-export const HOOK_FILE_PATTERNS = [
-  /[/\\]hooks[/\\]/,
-  /use[A-Z][a-zA-Z]+\.(ts|js)$/,
-] as const;
+export const HOOK_FILE_PATTERNS = [/[/\\]hooks[/\\]/, /use[A-Z][a-zA-Z]+\.(ts|js)$/] as const;
 
 /**
  * Utility file patterns

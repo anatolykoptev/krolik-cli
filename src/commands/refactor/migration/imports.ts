@@ -8,14 +8,14 @@
  * - Updating internal imports when files move
  */
 
-import * as path from 'path';
+import * as path from 'node:path';
 import {
+  escapeRegex,
+  escapeReplacement,
+  exists,
   findFiles,
   readFile,
   writeFile,
-  exists,
-  escapeRegex,
-  escapeReplacement,
 } from '../../../lib';
 
 // ============================================================================
@@ -96,7 +96,7 @@ function calculateNewImportPath(
 
   // Ensure it starts with ./ or ../
   if (!relativePath.startsWith('.')) {
-    relativePath = './' + relativePath;
+    relativePath = `./${relativePath}`;
   }
 
   // Remove .ts extension
@@ -116,9 +116,7 @@ export async function updateImports(
   const errors: string[] = [];
 
   try {
-    const fullPath = path.isAbsolute(filePath)
-      ? filePath
-      : path.join(projectRoot, filePath);
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
 
     if (!exists(fullPath)) {
       return { success: false, changed: false, errors: ['File not found'] };

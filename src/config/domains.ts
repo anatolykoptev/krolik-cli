@@ -19,43 +19,10 @@ export const DOMAIN_KEYWORDS: Record<string, string[]> = {
     'bookingSettings',
     'busySlot',
   ],
-  events: [
-    'events',
-    'event',
-    'ticket',
-    'ticketing',
-    'venue',
-    'concert',
-    'festival',
-  ],
-  places: [
-    'places',
-    'place',
-    'business',
-    'location',
-    'restaurant',
-    'cafe',
-    'bar',
-    'club',
-  ],
-  users: [
-    'users',
-    'user',
-    'profile',
-    'account',
-    'auth',
-    'login',
-    'registration',
-  ],
-  crm: [
-    'crm',
-    'customer',
-    'client',
-    'lead',
-    'contact',
-    'interaction',
-    'customerNote',
-  ],
+  events: ['events', 'event', 'ticket', 'ticketing', 'venue', 'concert', 'festival'],
+  places: ['places', 'place', 'business', 'location', 'restaurant', 'cafe', 'bar', 'club'],
+  users: ['users', 'user', 'profile', 'account', 'auth', 'login', 'registration'],
+  crm: ['crm', 'customer', 'client', 'lead', 'contact', 'interaction', 'customerNote'],
   gamification: [
     'gamification',
     'reward',
@@ -96,15 +63,7 @@ export const DOMAIN_KEYWORDS: Record<string, string[]> = {
     'metrics',
     'management',
   ],
-  mobile: [
-    'mobile',
-    'expo',
-    'react native',
-    'app',
-    'ios',
-    'android',
-    'push notification',
-  ],
+  mobile: ['mobile', 'expo', 'react native', 'app', 'ios', 'android', 'push notification'],
 };
 
 /**
@@ -176,11 +135,7 @@ export const DOMAIN_FILES: Record<string, string[]> = {
     'apps/web/components/admin/**/*.tsx',
     'apps/web/app/admin/**/*.tsx',
   ],
-  mobile: [
-    'apps/mobile/**/*.tsx',
-    'apps/mobile/**/*.ts',
-    'packages/shared/src/mobile/**/*.ts',
-  ],
+  mobile: ['apps/mobile/**/*.tsx', 'apps/mobile/**/*.ts', 'packages/shared/src/mobile/**/*.ts'],
 };
 
 /**

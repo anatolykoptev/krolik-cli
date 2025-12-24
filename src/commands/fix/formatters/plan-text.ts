@@ -3,10 +3,10 @@
  * @description CLI text formatter for fix plans
  */
 
-import * as fs from "node:fs";
-import chalk from "chalk";
-import type { FixOperation, FixResult } from "../types";
-import { FixPlanItem, FixPlan, SkipStats } from "../plan";
+import * as fs from 'node:fs';
+import chalk from 'chalk';
+import type { FixPlan, FixPlanItem, SkipStats } from '../plan';
+import type { FixOperation, FixResult } from '../types';
 
 const MAX_PAGE_SIZE = 50;
 const DIFF_CONTEXT_LINES = 3;
@@ -33,8 +33,8 @@ function generateUnifiedDiff(filepath: string, operation: FixOperation): string[
   // Try to read the file for context
   let fileLines: string[] = [];
   try {
-    const content = fs.readFileSync(filepath, "utf-8");
-    fileLines = content.split("\n");
+    const content = fs.readFileSync(filepath, 'utf-8');
+    fileLines = content.split('\n');
   } catch {
     return formatSimpleDiff(operation);
   }
@@ -52,24 +52,28 @@ function generateUnifiedDiff(filepath: string, operation: FixOperation): string[
 
   // Hunk header
   const oldLines = endLineNum - lineNum + 1;
-  const newLines = operation.action === "delete-line" ? 0 :
-                   operation.newCode?.split("\n").length ?? oldLines;
+  const newLines =
+    operation.action === 'delete-line' ? 0 : (operation.newCode?.split('\n').length ?? oldLines);
   lines.push(chalk.cyan(`@@ -${lineNum},${oldLines} +${lineNum},${newLines} @@`));
 
   // Context before
   for (let i = startContext; i < lineNum - 1; i++) {
-    lines.push(chalk.dim(` ${fileLines[i] ?? ""}`));
+    lines.push(chalk.dim(` ${fileLines[i] ?? ''}`));
   }
 
   // Show the change
-  if (operation.action === "delete-line" || operation.action === "replace-line" || operation.action === "replace-range") {
+  if (
+    operation.action === 'delete-line' ||
+    operation.action === 'replace-line' ||
+    operation.action === 'replace-range'
+  ) {
     for (let i = lineNum - 1; i < endLineNum && i < fileLines.length; i++) {
-      lines.push(chalk.red(`-${fileLines[i] ?? ""}`));
+      lines.push(chalk.red(`-${fileLines[i] ?? ''}`));
     }
   }
 
-  if (operation.action !== "delete-line" && operation.newCode) {
-    const newCodeLines = operation.newCode.split("\n");
+  if (operation.action !== 'delete-line' && operation.newCode) {
+    const newCodeLines = operation.newCode.split('\n');
     for (const newLine of newCodeLines) {
       lines.push(chalk.green(`+${newLine}`));
     }
@@ -77,7 +81,7 @@ function generateUnifiedDiff(filepath: string, operation: FixOperation): string[
 
   // Context after
   for (let i = endLineNum; i < endContext; i++) {
-    lines.push(chalk.dim(` ${fileLines[i] ?? ""}`));
+    lines.push(chalk.dim(` ${fileLines[i] ?? ''}`));
   }
 
   return lines;
@@ -90,13 +94,13 @@ function formatSimpleDiff(operation: FixOperation): string[] {
   const lines: string[] = [];
 
   if (operation.oldCode) {
-    for (const line of operation.oldCode.split("\n")) {
+    for (const line of operation.oldCode.split('\n')) {
       lines.push(chalk.red(`- ${line}`));
     }
   }
 
   if (operation.newCode) {
-    for (const line of operation.newCode.split("\n")) {
+    for (const line of operation.newCode.split('\n')) {
       lines.push(chalk.green(`+ ${line}`));
     }
   }
@@ -111,41 +115,38 @@ function formatSimpleDiff(operation: FixOperation): string[] {
 /**
  * Format single fix item
  */
-function formatFixItem(
-  item: FixPlanItem,
-  options: FormatOptions,
-): string[] {
+function formatFixItem(item: FixPlanItem, options: FormatOptions): string[] {
   const { issue, operation, difficulty } = item;
   const lines: string[] = [];
 
-  const diffIcon = difficulty === "trivial" ? "✅" : difficulty === "safe" ? "🔶" : "⚠️";
+  const diffIcon = difficulty === 'trivial' ? '✅' : difficulty === 'safe' ? '🔶' : '⚠️';
   const action = chalk.yellow(operation.action);
-  const line = issue.line ? `:${issue.line}` : "";
+  const line = issue.line ? `:${issue.line}` : '';
 
   lines.push(`  ${diffIcon} ${action} ${line}`);
   lines.push(`     ${chalk.dim(issue.message)}`);
 
   // Show unified diff if --diff flag is set
   if (options.showDiff && options.dryRun) {
-    lines.push("");
+    lines.push('');
     const diffLines = generateUnifiedDiff(issue.file, operation);
     for (const diffLine of diffLines) {
       lines.push(`     ${diffLine}`);
     }
-    lines.push("");
+    lines.push('');
   } else {
     // Show compact preview
-    if (operation.oldCode && operation.action !== "insert-before") {
-      const preview = operation.oldCode.slice(0, MAX_PAGE_SIZE).replace(/\n/g, "↵");
+    if (operation.oldCode && operation.action !== 'insert-before') {
+      const preview = operation.oldCode.slice(0, MAX_PAGE_SIZE).replace(/\n/g, '↵');
       lines.push(
-        `     ${chalk.red("- " + preview)}${operation.oldCode.length > MAX_PAGE_SIZE ? "..." : ""}`,
+        `     ${chalk.red(`- ${preview}`)}${operation.oldCode.length > MAX_PAGE_SIZE ? '...' : ''}`,
       );
     }
 
-    if (operation.newCode && operation.action !== "delete-line") {
-      const preview = operation.newCode.slice(0, MAX_PAGE_SIZE).replace(/\n/g, "↵");
+    if (operation.newCode && operation.action !== 'delete-line') {
+      const preview = operation.newCode.slice(0, MAX_PAGE_SIZE).replace(/\n/g, '↵');
       lines.push(
-        `     ${chalk.green("+ " + preview)}${operation.newCode.length > MAX_PAGE_SIZE ? "..." : ""}`,
+        `     ${chalk.green(`+ ${preview}`)}${operation.newCode.length > MAX_PAGE_SIZE ? '...' : ''}`,
       );
     }
   }
@@ -166,7 +167,9 @@ function formatSkipStats(skipStats: SkipStats, totalIssues: number): string[] {
   lines.push(chalk.dim(`Analyzed ${totalIssues} issues:`));
 
   if (skipStats.noStrategy > 0) {
-    lines.push(chalk.dim(`  • ${skipStats.noStrategy} have no fix strategy (size, hardcoded, etc)`));
+    lines.push(
+      chalk.dim(`  • ${skipStats.noStrategy} have no fix strategy (size, hardcoded, etc)`),
+    );
   }
   if (skipStats.noFix > 0) {
     lines.push(chalk.dim(`  • ${skipStats.noFix} could not generate fix (complex patterns)`));
@@ -178,10 +181,10 @@ function formatSkipStats(skipStats: SkipStats, totalIssues: number): string[] {
   // Show by category
   const cats = [...skipStats.categories.entries()];
   if (cats.length > 0) {
-    lines.push("");
-    lines.push(chalk.dim("By category:"));
+    lines.push('');
+    lines.push(chalk.dim('By category:'));
     for (const [cat, count] of cats) {
-      const fixable = cat === "lint" ? "(partially fixable)" : "(manual fix needed)";
+      const fixable = cat === 'lint' ? '(partially fixable)' : '(manual fix needed)';
       lines.push(chalk.dim(`  • ${cat}: ${count} ${fixable}`));
     }
   }
@@ -208,7 +211,7 @@ export function formatPlan(
   for (const plan of plans) {
     if (plan.fixes.length === 0) continue;
 
-    lines.push("");
+    lines.push('');
     lines.push(chalk.cyan(`📁 ${plan.file}`));
 
     for (const item of plan.fixes) {
@@ -218,23 +221,23 @@ export function formatPlan(
   }
 
   if (totalFixes === 0) {
-    lines.push("");
-    lines.push(chalk.green("✨ No auto-fixable issues found!"));
+    lines.push('');
+    lines.push(chalk.green('✨ No auto-fixable issues found!'));
 
     if (totalIssues > 0) {
-      lines.push("");
+      lines.push('');
       lines.push(...formatSkipStats(skipStats, totalIssues));
     }
   } else {
-    lines.push("");
+    lines.push('');
     lines.push(chalk.bold(`Total: ${totalFixes} fixes in ${plans.length} files`));
 
     if (options.dryRun) {
-      lines.push(chalk.yellow("(dry run - no changes made)"));
+      lines.push(chalk.yellow('(dry run - no changes made)'));
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -245,20 +248,18 @@ export function formatResults(results: FixResult[]): string {
   const successful = results.filter((r) => r.success);
   const failed = results.filter((r) => !r.success);
 
-  lines.push("");
-  lines.push(chalk.bold("Fix Results:"));
+  lines.push('');
+  lines.push(chalk.bold('Fix Results:'));
   lines.push(chalk.green(`  ✅ ${successful.length} fixes applied`));
 
   if (failed.length > 0) {
     lines.push(chalk.red(`  ❌ ${failed.length} fixes failed`));
     for (const result of failed) {
-      lines.push(
-        chalk.red(`     ${result.issue.file}:${result.issue.line} - ${result.error}`),
-      );
+      lines.push(chalk.red(`     ${result.issue.file}:${result.issue.line} - ${result.error}`));
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 // Re-export for convenience

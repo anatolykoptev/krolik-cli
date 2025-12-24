@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  isGitRepo,
   getCurrentBranch,
   getDefaultBranch,
-  getStatus,
   getRecentCommits,
+  getStatus,
+  isGitRepo,
 } from '../../src/lib';
 
 describe('git', () => {

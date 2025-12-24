@@ -49,15 +49,10 @@ const ZOD_CANDIDATES = [
  * @param customPath - Optional custom path to check first
  * @returns Path to Prisma directory or null
  */
-export function findSchemaDir(
-  projectRoot: string,
-  customPath?: string,
-): string | null {
+export function findSchemaDir(projectRoot: string, customPath?: string): string | null {
   // Check custom path first
   if (customPath) {
-    const fullPath = path.isAbsolute(customPath)
-      ? customPath
-      : path.join(projectRoot, customPath);
+    const fullPath = path.isAbsolute(customPath) ? customPath : path.join(projectRoot, customPath);
 
     if (fs.existsSync(fullPath)) {
       return fullPath;
