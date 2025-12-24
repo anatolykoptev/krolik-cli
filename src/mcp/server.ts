@@ -20,15 +20,15 @@
 import * as readline from 'node:readline';
 
 import type { ResolvedConfig } from '../types';
-import type { MCPMessage, MCPResult } from './types';
-import { MCP_ERROR_CODE } from './types';
 import {
   handleInitialize,
-  handleToolsList,
-  handleToolsCall,
   handleResourcesList,
   handleResourcesRead,
+  handleToolsCall,
+  handleToolsList,
 } from './handlers';
+import type { MCPMessage, MCPResult } from './types';
+import { MCP_ERROR_CODE } from './types';
 
 // ============================================================================
 // MCP SERVER CLASS
@@ -91,6 +91,25 @@ export class MCPServer {
   }
 
   /**
+   * Process a complete JSON-RPC message
+   */
+  private processMessage(message: MCPMessage, onResponse: (response: MCPMessage) => void): void {
+    // Guard: ignore notification messages
+    if (message.method?.startsWith('notifications/')) {
+      return;
+    }
+
+    const response = this.handleRequest(message);
+
+    // Guard: only send response if message has ID
+    if (response.id === undefined) {
+      return;
+    }
+
+    onResponse(response);
+  }
+
+  /**
    * Start the MCP server
    *
    * Listens for JSON-RPC messages on stdin and responds on stdout
@@ -110,16 +129,9 @@ export class MCPServer {
       try {
         const message = JSON.parse(buffer) as MCPMessage;
         buffer = '';
-
-        const response = this.handleRequest(message);
-
-        if (message.method?.startsWith('notifications/')) {
-          return;
-        }
-
-        if (response.id !== undefined) {
+        this.processMessage(message, (response) => {
           console.log(JSON.stringify(response));
-        }
+        });
       } catch (e) {
         if (!(e instanceof SyntaxError)) {
           process.stderr.write(`Error: ${e}\n`);
@@ -143,9 +155,7 @@ export class MCPServer {
  * @param config - Resolved krolik configuration
  * @returns Started MCP server instance
  */
-export async function startMCPServer(
-  config: ResolvedConfig,
-): Promise<MCPServer> {
+export async function startMCPServer(config: ResolvedConfig): Promise<MCPServer> {
   const server = new MCPServer(config);
   await server.start();
   return server;

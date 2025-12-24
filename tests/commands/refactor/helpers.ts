@@ -3,14 +3,13 @@
  * @description Test utilities for refactor command tests
  */
 
-import type {
-  TypeSignature,
-  TypeDuplicateInfo,
-  FindTypeDuplicatesOptions,
-} from '../../../src/commands/refactor/analyzers/type-duplicates';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import type {
+  TypeDuplicateInfo,
+  TypeSignature,
+} from '../../../src/commands/refactor/analyzers/type-duplicates';
 
 // ============================================================================
 // CONSTANTS
@@ -146,9 +145,10 @@ const MINIMAL_TSCONFIG = JSON.stringify(
 /**
  * Create a test project structure
  */
-export function createTestProject(
-  structure: Record<string, string>,
-): { rootPath: string; cleanup: () => void } {
+export function createTestProject(structure: Record<string, string>): {
+  rootPath: string;
+  cleanup: () => void;
+} {
   const rootPath = createTempDir();
 
   // Always add tsconfig.json for ts-morph
