@@ -87,9 +87,10 @@ function calculateNewImportPath(
   _oldModulePath: string,
   newModulePath: string,
   projectRoot: string,
+  libPath: string,
 ): string {
   const importingDir = path.dirname(path.join(projectRoot, importingFile));
-  const newModuleAbs = path.join(projectRoot, 'src', 'lib', newModulePath);
+  const newModuleAbs = path.join(libPath, newModulePath);
 
   let relativePath = path.relative(importingDir, newModuleAbs);
 
@@ -110,6 +111,7 @@ export async function updateImports(
   oldPath: string,
   newPath: string,
   projectRoot: string,
+  libPath: string,
 ): Promise<UpdateImportsResult> {
   const errors: string[] = [];
 
@@ -145,6 +147,7 @@ export async function updateImports(
       oldPath,
       newPath,
       projectRoot,
+      libPath,
     );
 
     // Import patterns - improved to catch more cases

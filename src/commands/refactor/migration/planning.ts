@@ -24,10 +24,9 @@ import { normalizeToRelative } from '../../../lib';
 export function createMigrationPlan(
   duplicates: DuplicateInfo[],
   structure: StructureAnalysis,
-  projectRoot: string,
+  libPath: string,
 ): MigrationPlan {
   const actions: MigrationAction[] = [];
-  const libPath = path.join(projectRoot, 'src', 'lib');
 
   // Plan actions for duplicates
   planDuplicateActions(duplicates, libPath, actions);

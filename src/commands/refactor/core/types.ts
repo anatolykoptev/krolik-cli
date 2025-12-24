@@ -168,11 +168,25 @@ export interface TypeDuplicateInfo {
 }
 
 /**
+ * Resolved paths for refactor analysis
+ */
+export interface ResolvedPaths {
+  /** Absolute path to analyze */
+  targetPath: string;
+  /** Absolute path to lib directory (for migrations) */
+  libPath: string;
+  /** Relative path for display */
+  relativePath: string;
+}
+
+/**
  * Refactor analysis result
  */
 export interface RefactorAnalysis {
-  /** Path analyzed */
+  /** Path analyzed (relative) */
   path: string;
+  /** Absolute path to lib directory (for migrations) */
+  libPath: string;
   /** Duplicate functions found */
   duplicates: DuplicateInfo[];
   /** Duplicate types/interfaces found */

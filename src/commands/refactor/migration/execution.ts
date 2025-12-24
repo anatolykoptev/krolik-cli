@@ -48,10 +48,10 @@ export interface MigrationExecutionResult {
 export async function executeMigrationAction(
   action: MigrationAction,
   projectRoot: string,
+  libPath: string,
   options: MigrationExecutionOptions = {},
 ): Promise<ExecutionResult> {
   const { dryRun = false, backup = true } = options;
-  const libPath = path.join(projectRoot, 'src', 'lib');
 
   try {
     switch (action.type) {
@@ -59,13 +59,13 @@ export async function executeMigrationAction(
         return executeMove(action, libPath, projectRoot, dryRun, backup);
 
       case 'merge':
-        return executeMerge(action, projectRoot, dryRun);
+        return executeMerge(action, projectRoot, libPath, dryRun);
 
       case 'create-barrel':
         return executeCreateBarrel(action, libPath, dryRun);
 
       case 'update-imports':
-        return executeUpdateImports(action, projectRoot, dryRun);
+        return executeUpdateImports(action, projectRoot, libPath, dryRun);
 
       case 'delete':
         return executeDelete(action, libPath, dryRun, backup);
@@ -136,7 +136,7 @@ async function executeMove(
   // Update imports in affected files
   let updatedCount = 0;
   for (const affected of action.affectedImports) {
-    const result = await updateImports(affected, action.source, action.target!, projectRoot);
+    const result = await updateImports(affected, action.source, action.target!, projectRoot, libPath);
     if (result.changed) updatedCount++;
     if (!result.success) {
       logger.warn(`Failed to update imports in ${affected}: ${result.errors.join(', ')}`);
@@ -208,6 +208,7 @@ async function moveSingleFile(
 async function executeMerge(
   action: MigrationAction,
   projectRoot: string,
+  libPath: string,
   dryRun: boolean,
 ): Promise<ExecutionResult> {
   if (dryRun) {
@@ -219,7 +220,7 @@ async function executeMerge(
 
   let updatedCount = 0;
   for (const affected of action.affectedImports) {
-    const result = await updateImports(affected, action.source, action.target!, projectRoot);
+    const result = await updateImports(affected, action.source, action.target!, projectRoot, libPath);
     if (result.changed) updatedCount++;
   }
 
@@ -302,6 +303,7 @@ ${exports.join('\n')}
 async function executeUpdateImports(
   action: MigrationAction,
   projectRoot: string,
+  libPath: string,
   dryRun: boolean,
 ): Promise<ExecutionResult> {
   if (dryRun) {
@@ -313,7 +315,7 @@ async function executeUpdateImports(
 
   let updated = 0;
   for (const affected of action.affectedImports) {
-    const result = await updateImports(affected, action.source, action.target!, projectRoot);
+    const result = await updateImports(affected, action.source, action.target!, projectRoot, libPath);
     if (result.changed) updated++;
   }
 
@@ -367,6 +369,7 @@ async function executeDelete(
 export async function executeMigrationPlan(
   plan: MigrationPlan,
   projectRoot: string,
+  libPath: string,
   options: MigrationExecutionOptions = {},
 ): Promise<MigrationExecutionResult> {
   const { dryRun = false, verbose = false, backup = true } = options;
@@ -380,7 +383,7 @@ export async function executeMigrationPlan(
   }
 
   for (const action of plan.actions) {
-    const result = await executeMigrationAction(action, projectRoot, { dryRun, backup });
+    const result = await executeMigrationAction(action, projectRoot, libPath, { dryRun, backup });
     results.push(result.message);
 
     if (!result.success) {
@@ -402,7 +405,7 @@ export async function executeMigrationPlan(
 
   // Update barrel file after all moves
   if (!dryRun && movedFiles.length > 0) {
-    const barrelUpdated = await updateBarrelFile(projectRoot, movedFiles);
+    const barrelUpdated = await updateBarrelFile(libPath, movedFiles);
     if (barrelUpdated) {
       results.push('Updated lib/index.ts barrel exports');
       if (verbose) {

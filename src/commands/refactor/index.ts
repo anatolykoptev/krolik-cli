@@ -67,6 +67,42 @@ export async function runRefactor(
     throw new Error(`Target path does not exist: ${targetPath}`);
   }
 
+  // Determine libPath for migrations
+  // If analyzing 'src' for types, libPath should still be 'src/lib' (or 'lib')
+  // If analyzing specific path with 'lib' in name, use that
+  let libPath: string;
+  if (options.path) {
+    // Explicit path - use as libPath if it looks like a lib directory
+    if (path.basename(targetPath) === 'lib' || targetPath.includes('/lib')) {
+      libPath = targetPath;
+    } else {
+      // Try to find lib within the target
+      const libInTarget = path.join(targetPath, 'lib');
+      const srcLibInTarget = path.join(targetPath, 'src', 'lib');
+      if (exists(libInTarget)) {
+        libPath = libInTarget;
+      } else if (exists(srcLibInTarget)) {
+        libPath = srcLibInTarget;
+      } else {
+        libPath = path.join(targetPath, 'lib'); // Fallback
+      }
+    }
+  } else if (isTypeAnalysis) {
+    // Type analysis uses 'src', but migrations need 'src/lib'
+    const srcLib = path.join(projectRoot, 'src', 'lib');
+    const lib = path.join(projectRoot, 'lib');
+    if (exists(srcLib)) {
+      libPath = srcLib;
+    } else if (exists(lib)) {
+      libPath = lib;
+    } else {
+      libPath = srcLib; // Fallback to src/lib
+    }
+  } else {
+    // Default: targetPath is already the lib path
+    libPath = targetPath;
+  }
+
   const relPath = relativePath(projectRoot, targetPath);
 
   // Run analysis
@@ -98,8 +134,8 @@ export async function runRefactor(
     };
   }
 
-  // Create migration plan
-  let migration = createMigrationPlan(duplicates, structure, projectRoot);
+  // Create migration plan (using libPath for file operations)
+  let migration = createMigrationPlan(duplicates, structure, libPath);
 
   // Find affected imports for each action
   for (const action of migration.actions) {
@@ -117,6 +153,7 @@ export async function runRefactor(
 
   const result: RefactorAnalysis = {
     path: relPath,
+    libPath,
     duplicates,
     structure,
     migration,
@@ -199,6 +236,7 @@ export async function applyMigrations(
   const result = await executeMigrationPlan(
     analysis.migration,
     projectRoot,
+    analysis.libPath,
     options,
   );
 

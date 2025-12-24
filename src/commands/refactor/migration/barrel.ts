@@ -16,10 +16,10 @@ import { readFile, writeFile, exists, escapeRegex } from '../../../lib';
  * Update the main barrel file (lib/index.ts) after migrations
  */
 export async function updateBarrelFile(
-  projectRoot: string,
+  libPath: string,
   movedFiles: Array<{ from: string; to: string }>,
 ): Promise<boolean> {
-  const barrelPath = path.join(projectRoot, 'src', 'lib', 'index.ts');
+  const barrelPath = path.join(libPath, 'index.ts');
 
   if (!exists(barrelPath)) {
     return false;
