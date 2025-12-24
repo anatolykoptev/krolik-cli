@@ -10,7 +10,7 @@
  * Version of the documentation template
  * Increment when making breaking changes to the template
  */
-export const DOCS_VERSION = '1.0.0';
+export const DOCS_VERSION = '1.1.0';
 
 /**
  * Start marker for krolik section in CLAUDE.md
@@ -46,13 +46,16 @@ Krolik — это AI-ориентированный набор инструме�
 ### 🎯 Workflow (ОБЯЗАТЕЛЬНЫЙ)
 
 \`\`\`
-1. START  → krolik_status (fast: true)      # Понять состояние проекта
-2. TASK   → krolik_context (feature/issue)  # Получить контекст задачи
-3. CODE   → написать код
-4. CHECK  → krolik fix --dry-run            # Анализ + план фикса
-5. FIX    → krolik fix --yes                # Применить фиксы
-6. REVIEW → krolik_review                   # Code review
+1. START    → krolik_status (fast: true)      # Понять состояние проекта
+2. TASK     → krolik_context (feature/issue)  # Получить контекст задачи
+3. CODE     → написать код
+4. REFACTOR → krolik refactor --dry-run       # Анализ структуры, дубликаты
+5. AUDIT    → krolik audit                    # Полный аудит → AI-REPORT.md
+6. FIX      → krolik fix --from-audit --yes   # Фиксы на основе аудита
+7. REVIEW   → krolik_review --staged          # Code review перед коммитом
 \`\`\`
+
+**Важно:** Команды 4-6 — это цепочка анализа. \`refactor\` находит структурные проблемы, \`audit\` создаёт полный отчёт, \`fix --from-audit\` использует этот отчёт для умных фиксов.
 
 ### MCP Tools (ПРЕДПОЧТИТЕЛЬНО)
 
@@ -91,6 +94,15 @@ krolik context --issue 42          # Контекст для issue
 krolik context --full              # Полный контекст
 \`\`\`
 
+#### Рефакторинг (ВАЖНО!)
+\`\`\`bash
+krolik refactor                    # Анализ структуры модулей
+krolik refactor --duplicates-only  # Только дубликаты функций
+krolik refactor --types-only       # Только дубликаты типов
+krolik refactor --dry-run          # Превью без изменений
+krolik refactor --apply            # Применить миграции
+\`\`\`
+
 #### Анализ
 \`\`\`bash
 krolik schema              # Prisma модели
@@ -121,9 +133,10 @@ krolik fix --full    # = --all --biome --typecheck --backup
 
 1. **Всегда начинай с \`krolik_status\`** — понять состояние проекта
 2. **Используй \`krolik_context\`** перед работой над задачей
-3. **После написания кода** — \`krolik fix --dry-run\`
+3. **После написания кода** — цепочка: \`refactor\` → \`audit\` → \`fix --from-audit\`
 4. **Перед коммитом** — \`krolik review --staged\`
 5. **Вывод по умолчанию** — AI-friendly XML, для текста: \`--text\`
+6. **Для быстрых фиксов** — \`krolik fix --quick\` (без полного аудита)
 
 ${KROLIK_SECTION_END}`;
 }
