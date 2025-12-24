@@ -3,15 +3,15 @@
  * @description krolik_schema tool - Prisma schema analysis
  */
 
-import type { MCPToolDefinition } from './types';
-import { PROJECT_PROPERTY } from './shared';
-import { runKrolik } from './utils';
 import { withProjectDetection } from './projects';
+import { registerTool } from './registry';
+import { PROJECT_PROPERTY } from './shared';
+import type { MCPToolDefinition } from './types';
+import { runKrolik } from './utils';
 
 export const schemaTool: MCPToolDefinition = {
   name: 'krolik_schema',
-  description:
-    'Analyze Prisma database schema. Returns all models, fields, relations, and enums.',
+  description: 'Analyze Prisma database schema. Returns all models, fields, relations, and enums.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -29,3 +29,5 @@ export const schemaTool: MCPToolDefinition = {
     });
   },
 };
+
+registerTool(schemaTool);

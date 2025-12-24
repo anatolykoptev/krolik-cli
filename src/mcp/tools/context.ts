@@ -3,10 +3,17 @@
  * @description krolik_context tool - AI-friendly context generation
  */
 
-import type { MCPToolDefinition } from './types';
-import { PROJECT_PROPERTY } from './shared';
-import { runKrolik, sanitizeFeatureName, sanitizeIssueNumber, escapeShellArg, TIMEOUT_60S } from './utils';
 import { withProjectDetection } from './projects';
+import { registerTool } from './registry';
+import { PROJECT_PROPERTY } from './shared';
+import type { MCPToolDefinition } from './types';
+import {
+  escapeShellArg,
+  runKrolik,
+  sanitizeFeatureName,
+  sanitizeIssueNumber,
+  TIMEOUT_60S,
+} from './utils';
 
 export const contextTool: MCPToolDefinition = {
   name: 'krolik_context',
@@ -50,3 +57,5 @@ export const contextTool: MCPToolDefinition = {
     });
   },
 };
+
+registerTool(contextTool);

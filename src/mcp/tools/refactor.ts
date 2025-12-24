@@ -3,10 +3,11 @@
  * @description krolik_refactor tool - Module structure analysis and refactoring
  */
 
-import type { MCPToolDefinition } from './types';
-import { PROJECT_PROPERTY } from './shared';
-import { runKrolik, sanitizeFeatureName, escapeShellArg, TIMEOUT_60S } from './utils';
 import { withProjectDetection } from './projects';
+import { registerTool } from './registry';
+import { PROJECT_PROPERTY } from './shared';
+import type { MCPToolDefinition } from './types';
+import { escapeShellArg, runKrolik, sanitizeFeatureName, TIMEOUT_60S } from './utils';
 
 export const refactorTool: MCPToolDefinition = {
   name: 'krolik_refactor',
@@ -94,3 +95,5 @@ export const refactorTool: MCPToolDefinition = {
     });
   },
 };
+
+registerTool(refactorTool);

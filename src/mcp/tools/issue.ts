@@ -3,13 +3,13 @@
  * @description krolik_issue tool - GitHub issue parsing
  */
 
+import { registerTool } from './registry';
 import type { MCPToolDefinition } from './types';
 import { runKrolik, sanitizeIssueNumber } from './utils';
 
 export const issueTool: MCPToolDefinition = {
   name: 'krolik_issue',
-  description:
-    'Parse a GitHub issue and extract context: checklist, mentioned files, priority.',
+  description: 'Parse a GitHub issue and extract context: checklist, mentioned files, priority.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -29,3 +29,5 @@ export const issueTool: MCPToolDefinition = {
     return runKrolik(`issue ${issueNum}`, projectRoot);
   },
 };
+
+registerTool(issueTool);

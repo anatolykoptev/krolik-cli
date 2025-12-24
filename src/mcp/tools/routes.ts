@@ -3,10 +3,11 @@
  * @description krolik_routes tool - tRPC routes analysis
  */
 
-import type { MCPToolDefinition } from './types';
-import { PROJECT_PROPERTY } from './shared';
-import { runKrolik } from './utils';
 import { withProjectDetection } from './projects';
+import { registerTool } from './registry';
+import { PROJECT_PROPERTY } from './shared';
+import type { MCPToolDefinition } from './types';
+import { runKrolik } from './utils';
 
 export const routesTool: MCPToolDefinition = {
   name: 'krolik_routes',
@@ -29,3 +30,5 @@ export const routesTool: MCPToolDefinition = {
     });
   },
 };
+
+registerTool(routesTool);

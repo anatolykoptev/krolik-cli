@@ -3,10 +3,11 @@
  * @description krolik_review tool - Code review
  */
 
-import type { MCPToolDefinition } from './types';
-import { PROJECT_PROPERTY } from './shared';
-import { runKrolik, sanitizeIssueNumber, TIMEOUT_60S } from './utils';
 import { withProjectDetection } from './projects';
+import { registerTool } from './registry';
+import { PROJECT_PROPERTY } from './shared';
+import type { MCPToolDefinition } from './types';
+import { runKrolik, sanitizeIssueNumber, TIMEOUT_60S } from './utils';
 
 export const reviewTool: MCPToolDefinition = {
   name: 'krolik_review',
@@ -46,3 +47,5 @@ export const reviewTool: MCPToolDefinition = {
     });
   },
 };
+
+registerTool(reviewTool);
