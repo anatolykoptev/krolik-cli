@@ -4,7 +4,8 @@
  */
 
 import type { CommandContext } from '../../../types';
-import type { RepoStats, VersionInfo } from '../../../lib/@agents';
+import type { RepoStats } from '../../../lib/@agents';
+import type { VersionInfo } from '../../../lib/@git';
 
 // Re-export shared types from lib
 export type { RepoStats, VersionInfo };

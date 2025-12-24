@@ -3,8 +3,11 @@
  * @description Git and GitHub utilities
  */
 
-// Git operations
-export * from './git';
+// Local git operations (project repository)
+export * from './local';
+
+// Remote git operations (external repositories)
+export * from './remote';
 
 // GitHub CLI wrapper
 export * from './github';

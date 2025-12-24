@@ -43,81 +43,19 @@ export * from './@markdown';
 export * from './@sanitize';
 
 // Logger
-export { createLogger, logger } from './@log/logger';
+export * from './@log';
 
 // Shell execution
-export { exec, tryExec, execLines, commandExists, getPackageManager } from './@shell/shell';
-export type { ShellOptions, ShellResult } from './@shell/shell';
+export * from './@shell';
 
 // File system
-export {
-  exists,
-  isDirectory,
-  isFile,
-  readFile,
-  writeFile,
-  readJson,
-  writeJson,
-  ensureDir,
-  relativePath,
-  findFiles,
-  getSubdirectories,
-  listFiles,
-} from './@fs/fs';
-export type { FindFilesOptions } from './@fs/fs';
+export * from './@fs';
 
-// Git
-export {
-  isGitRepo,
-  getCurrentBranch,
-  getDefaultBranch,
-  getStatus,
-  getRecentCommits,
-  getAheadBehind,
-  getDiffStats,
-  getFileDiff,
-  getStagedDiff,
-  getDiff,
-  getStagedFiles,
-  getChangedFiles,
-  getChangedFilesBetween,
-  getMergeBase,
-  refExists,
-} from './@git/git';
-export type { GitStatus, GitCommit, GitAheadBehind } from './@git/git';
-
-// GitHub
-export {
-  isGhAvailable,
-  isGhAuthenticated,
-  getRepoInfo,
-  getIssue,
-  getPR,
-  getCurrentPR,
-  listIssues,
-  listPRs,
-} from './@git/github';
-export type { GitHubIssue, GitHubPR } from './@git/github';
+// Git and GitHub (using barrel export from @git)
+export * from './@git';
 
 // Timing utilities
-export { measureTime, measureTimeAsync, formatDuration } from './@time/timing';
-
-// Git backup utilities
-export {
-  createBackupBranch,
-  deleteBackupBranch,
-  restoreFromBackup,
-  fullRestore,
-  cleanupBackup,
-  hasUncommittedChanges,
-  stashChanges,
-  applyStash,
-  popStash,
-  dropStash,
-  isGitRepoForBackup,
-  getCurrentBranchForBackup,
-} from './@git/backup';
-export type { GitBackupResult, RestoreResult } from './@git/backup';
+export * from './@time';
 
 // Documentation injection
 export {

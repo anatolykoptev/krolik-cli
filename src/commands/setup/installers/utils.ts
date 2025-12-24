@@ -13,16 +13,21 @@ import { REQUIRED_DIRS, KNOWN_MARKETPLACES_PATH, INSTALLED_PLUGINS_PATH, MARKETP
 
 // Re-export from shared lib
 export {
-  isGitAvailable,
-  getGitVersion,
   getRepoStats,
   getAgentsHome,
   getAgentsPluginsDir,
 } from '../../../lib/@agents';
-export type { VersionInfo, RepoStats } from '../../../lib/@agents';
+export {
+  isGitAvailable,
+  getGitVersion,
+} from '../../../lib/@git';
+export type { RepoStats } from '../../../lib/@agents';
+export type { VersionInfo } from '../../../lib/@git';
 
-import { getAgentsHome, getAgentsPluginsDir, getGitVersion, getRepoStats } from '../../../lib/@agents';
-import type { VersionInfo, RepoStats } from '../../../lib/@agents';
+import { getAgentsHome, getAgentsPluginsDir, getRepoStats } from '../../../lib/@agents';
+import { getGitVersion } from '../../../lib/@git';
+import type { VersionInfo } from '../../../lib/@git';
+import type { RepoStats } from '../../../lib/@agents';
 
 /**
  * Ensure all required directories exist

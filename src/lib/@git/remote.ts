@@ -1,6 +1,6 @@
 /**
- * @module lib/@agents/git
- * @description Git utilities for agents repository
+ * @module lib/@git/remote
+ * @description Git operations for external/remote repositories
  */
 
 import { spawnSync } from 'node:child_process';

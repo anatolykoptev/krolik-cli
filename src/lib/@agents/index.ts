@@ -4,5 +4,4 @@
  */
 
 export * from './paths';
-export * from './git';
 export * from './stats';

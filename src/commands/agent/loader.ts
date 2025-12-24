@@ -16,18 +16,21 @@ import {
   getKrolikHome,
   getAgentsHome,
   getAgentsPluginsDir,
+  AGENTS_REPO_URL,
+} from '../../lib/@agents';
+import {
   isGitAvailable,
   getGitVersion,
   cloneRepo,
   pullRepo,
-  AGENTS_REPO_URL,
-} from '../../lib/@agents';
+} from '../../lib/@git';
 
 import { parseFrontmatter as parseMarkdownFrontmatter } from '../../lib/@markdown';
 
 // Re-export shared utilities for backward compatibility
 export { getRepoStats } from '../../lib/@agents';
-export type { RepoStats, VersionInfo } from '../../lib/@agents';
+export type { RepoStats } from '../../lib/@agents';
+export type { VersionInfo } from '../../lib/@git';
 
 /**
  * Default path for development

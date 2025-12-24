@@ -12,7 +12,8 @@
 import type { OutputFormat } from '../../types';
 
 // Re-export shared types from lib
-export type { RepoStats, VersionInfo } from '../../lib/@agents';
+export type { RepoStats } from '../../lib/@agents';
+export type { VersionInfo } from '../../lib/@git';
 
 /**
  * Component type in wshobson/agents
