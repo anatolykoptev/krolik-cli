@@ -150,7 +150,16 @@ export const SKIP_URL_PATTERNS = ['schema.org', 'json-schema', 'github.com', 'do
 /**
  * File patterns to skip for hardcoded detection
  */
-export const SKIP_FILE_PATTERNS = ['.config.', 'schema', '.test.', '.spec.', '__tests__'] as const;
+export const SKIP_FILE_PATTERNS = [
+  '.config.',
+  'schema',
+  '.test.',
+  '.spec.',
+  '__tests__',
+  '/constants/', // Pattern definition files
+  '/@patterns/', // Pattern library
+  '/@swc/', // SWC infrastructure
+] as const;
 
 // ============================================================================
 // KEYWORD MAPPING

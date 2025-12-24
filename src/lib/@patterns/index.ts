@@ -68,6 +68,16 @@ export {
   type LintRule,
 } from './lint';
 
+// Skip patterns (centralized for all analyzers)
+export {
+  ANALYZER_SKIP_PATTERNS,
+  HARDCODED_SKIP_PATTERNS,
+  LINT_SKIP_PATTERNS,
+  shouldSkipForAnalysis,
+  shouldSkipForHardcoded,
+  shouldSkipForLint,
+} from './skip-patterns';
+
 // Shared types
 export type {
   HardcodedType,

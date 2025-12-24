@@ -15,10 +15,13 @@ export { checkMixedConcerns } from './concerns';
 export { detectFileType } from './detectors';
 export { checkDocumentation } from './documentation';
 export { detectHardcodedValues } from './hardcoded';
+export { detectHardcodedSwc } from './hardcoded-swc';
 export { checkLintRules_all as checkLintRules, isCliFile, type LintOptions } from './lint-rules';
+export { checkLintRulesSwc } from './lint-rules-swc';
 export { checkSRP } from './srp';
 export { buildThresholds, getThresholdsForPath } from './thresholds';
 export { checkTypeSafety } from './type-safety';
+export { checkTypeSafetySwc } from './type-safety-swc';
 
 import { extractFunctions } from './complexity';
 import { checkMixedConcerns } from './concerns';
@@ -26,10 +29,16 @@ import { checkMixedConcerns } from './concerns';
 import { detectFileType } from './detectors';
 import { checkDocumentation } from './documentation';
 import { detectHardcodedValues } from './hardcoded';
+import { detectHardcodedSwc } from './hardcoded-swc';
 import { checkLintRules_all } from './lint-rules';
+import { checkLintRulesSwc } from './lint-rules-swc';
 import { checkSRP } from './srp';
 import { buildThresholds, getThresholdsForPath } from './thresholds';
 import { checkTypeSafety } from './type-safety';
+import { checkTypeSafetySwc } from './type-safety-swc';
+
+/** Use SWC AST-based analyzers (more accurate, no false positives) */
+const USE_SWC_ANALYZERS = true;
 
 /**
  * Analyze a single file for quality issues
@@ -86,26 +95,53 @@ export function analyzeFile(
   // Run all analyzers
   analysis.issues.push(...checkSRP(analysis, thresholds));
   analysis.issues.push(...checkMixedConcerns(content, relativePath, fileType));
-  analysis.issues.push(...checkTypeSafety(content, relativePath));
   analysis.issues.push(...checkDocumentation(functions, relativePath, thresholds.requireJSDoc));
-  analysis.issues.push(
-    ...checkLintRules_all(content, relativePath, {
-      ignoreCliConsole: options.ignoreCliConsole ?? false,
-    }),
-  );
 
-  // Hardcoded values
-  const hardcoded = detectHardcodedValues(content, filepath);
-  for (const hv of hardcoded) {
-    analysis.issues.push({
-      file: relativePath,
-      line: hv.line,
-      severity: hv.type === 'string' ? 'warning' : 'info',
-      category: 'hardcoded',
-      message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
-      suggestion: getSuggestionForHardcoded(hv.type),
-      snippet: hv.context,
-    });
+  // Type safety: use SWC AST-based analyzer for better accuracy
+  if (USE_SWC_ANALYZERS) {
+    analysis.issues.push(...checkTypeSafetySwc(content, relativePath));
+  } else {
+    analysis.issues.push(...checkTypeSafety(content, relativePath));
+  }
+
+  // Lint rules: use SWC AST-based analyzer (no false positives in strings/comments)
+  if (USE_SWC_ANALYZERS) {
+    analysis.issues.push(...checkLintRulesSwc(content, relativePath));
+  } else {
+    analysis.issues.push(
+      ...checkLintRules_all(content, relativePath, {
+        ignoreCliConsole: options.ignoreCliConsole ?? false,
+      }),
+    );
+  }
+
+  // Hardcoded values: use SWC AST-based analyzer for context-aware detection
+  if (USE_SWC_ANALYZERS) {
+    const hardcoded = detectHardcodedSwc(content, filepath);
+    for (const hv of hardcoded) {
+      analysis.issues.push({
+        file: relativePath,
+        line: hv.line,
+        severity: hv.type === 'string' ? 'warning' : 'info',
+        category: 'hardcoded',
+        message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
+        suggestion: getSuggestionForHardcoded(hv.type),
+        snippet: hv.context,
+      });
+    }
+  } else {
+    const hardcoded = detectHardcodedValues(content, filepath);
+    for (const hv of hardcoded) {
+      analysis.issues.push({
+        file: relativePath,
+        line: hv.line,
+        severity: hv.type === 'string' ? 'warning' : 'info',
+        category: 'hardcoded',
+        message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
+        suggestion: getSuggestionForHardcoded(hv.type),
+        snippet: hv.context,
+      });
+    }
   }
 
   return analysis;

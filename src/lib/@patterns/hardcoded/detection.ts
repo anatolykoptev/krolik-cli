@@ -35,7 +35,16 @@ export const CONST_DECL_PATTERN = /^\s*(?:export\s+)?const\s+[A-Z][A-Z0-9_]*\s*=
 /**
  * File patterns to skip for hardcoded detection
  */
-export const SKIP_FILE_PATTERNS = ['.config.', 'schema', '.test.', '.spec.', '__tests__'] as const;
+export const SKIP_FILE_PATTERNS = [
+  '.config.',
+  'schema',
+  '.test.',
+  '.spec.',
+  '__tests__',
+  '/constants/', // Pattern definition files
+  '/@patterns/', // Pattern library
+  '/@swc/', // SWC infrastructure
+] as const;
 
 /**
  * Check if file should be skipped for hardcoded detection
