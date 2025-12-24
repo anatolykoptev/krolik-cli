@@ -30,6 +30,11 @@ export function formatRefactorText(analysis: RefactorAnalysis): string {
   // Duplicates section
   formatDuplicatesSection(lines, analysis);
 
+  // Type duplicates section
+  if (analysis.typeDuplicates && analysis.typeDuplicates.length > 0) {
+    formatTypeDuplicatesSection(lines, analysis);
+  }
+
   // Structure section
   formatStructureSection(lines, analysis);
 
@@ -69,6 +74,44 @@ function formatDuplicatesSection(lines: string[], analysis: RefactorAnalysis): v
       for (const loc of dup.locations) {
         const exp = loc.exported ? ' [exported]' : '';
         lines.push(`     - ${loc.file}:${loc.line}${exp}`);
+      }
+    }
+  }
+
+  lines.push('');
+}
+
+function formatTypeDuplicatesSection(lines: string[], analysis: RefactorAnalysis): void {
+  lines.push('───────────────────────────────────────────────────────────────');
+  lines.push('                    DUPLICATE TYPES/INTERFACES');
+  lines.push('───────────────────────────────────────────────────────────────');
+
+  if (!analysis.typeDuplicates || analysis.typeDuplicates.length === 0) {
+    lines.push('');
+    lines.push('  ✅ No duplicate types found');
+  } else {
+    for (const dup of analysis.typeDuplicates) {
+      lines.push('');
+      const icon =
+        dup.recommendation === 'merge'
+          ? '🔴'
+          : dup.recommendation === 'rename'
+            ? '🟡'
+            : '🟢';
+      const kindLabel = dup.kind === 'interface' ? '[interface]' : dup.kind === 'type' ? '[type]' : '[mixed]';
+      lines.push(
+        `  ${icon} ${dup.name} ${kindLabel} (${(dup.similarity * 100).toFixed(0)}% similar)`,
+      );
+      lines.push(`     Recommendation: ${dup.recommendation.toUpperCase()}`);
+      if (dup.commonFields && dup.commonFields.length > 0) {
+        lines.push(`     Common fields: ${dup.commonFields.join(', ')}`);
+      }
+      if (dup.difference) {
+        lines.push(`     Differences: ${dup.difference}`);
+      }
+      for (const loc of dup.locations) {
+        const exp = loc.exported ? ' [exported]' : '';
+        lines.push(`     - ${loc.file}:${loc.line} (${loc.name})${exp}`);
       }
     }
   }

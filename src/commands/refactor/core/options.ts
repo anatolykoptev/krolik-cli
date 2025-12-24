@@ -26,6 +26,10 @@ export interface RefactorOptions {
   duplicatesOnly?: boolean;
   /** Only analyze structure */
   structureOnly?: boolean;
+  /** Only analyze type/interface duplicates */
+  typesOnly?: boolean;
+  /** Include type/interface duplicate detection */
+  includeTypes?: boolean;
   /** Show migration plan without applying */
   dryRun?: boolean;
   /** Apply migrations */

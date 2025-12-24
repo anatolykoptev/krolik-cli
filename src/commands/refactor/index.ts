@@ -4,6 +4,7 @@
  *
  * Features:
  * - Detect duplicate functions using AST analysis
+ * - Detect duplicate types/interfaces by structure comparison
  * - Analyze module structure for consistency
  * - Generate migration plan with import updates
  * - Apply migrations safely with rollback support
@@ -12,7 +13,9 @@
  * Usage:
  *   krolik refactor                    # Analyze lib/
  *   krolik refactor --path src/utils   # Analyze specific path
- *   krolik refactor --duplicates-only  # Only find duplicates
+ *   krolik refactor --duplicates-only  # Only find function duplicates
+ *   krolik refactor --types-only       # Only find type/interface duplicates
+ *   krolik refactor --include-types    # Include type duplicates in analysis
  *   krolik refactor --structure-only   # Only analyze structure
  *   krolik refactor --dry-run          # Show plan without applying
  *   krolik refactor --apply            # Apply migrations
@@ -24,7 +27,7 @@ import type {
   RefactorOptions,
   RefactorAnalysis,
 } from './core';
-import { findDuplicates, analyzeStructure, createEnhancedAnalysis } from './analyzers';
+import { findDuplicates, findTypeDuplicates, analyzeStructure, createEnhancedAnalysis } from './analyzers';
 import { createMigrationPlan, findAffectedImports, executeMigrationPlan } from './migration';
 import { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';
 import {
@@ -55,14 +58,21 @@ export async function runRefactor(
 
   // Run analysis
   let duplicates: RefactorAnalysis['duplicates'] = [];
+  let typeDuplicates: RefactorAnalysis['typeDuplicates'];
   let structure: RefactorAnalysis['structure'];
 
-  if (!options.structureOnly) {
+  // Function duplicates (unless types-only or structure-only)
+  if (!options.structureOnly && !options.typesOnly) {
     duplicates = await findDuplicates(targetPath, projectRoot);
   }
 
-  if (options.structureOnly || !options.duplicatesOnly) {
-    // analyzeStructure is now sync
+  // Type/interface duplicates (if types-only or includeTypes)
+  if (options.typesOnly || options.includeTypes) {
+    typeDuplicates = await findTypeDuplicates(targetPath, projectRoot);
+  }
+
+  // Structure analysis (unless duplicates-only or types-only)
+  if (!options.duplicatesOnly && !options.typesOnly) {
     structure = analyzeStructure(targetPath, projectRoot);
   } else {
     structure = {
@@ -92,13 +102,19 @@ export async function runRefactor(
     ),
   };
 
-  return {
+  const result: RefactorAnalysis = {
     path: relPath,
     duplicates,
     structure,
     migration,
     timestamp: new Date().toISOString(),
   };
+
+  if (typeDuplicates) {
+    result.typeDuplicates = typeDuplicates;
+  }
+
+  return result;
 }
 
 /**
@@ -262,6 +278,6 @@ export async function refactorCommand(
 
 // Re-export types and functions from modules
 export type * from './core';
-export { findDuplicates, analyzeStructure, visualizeStructure } from './analyzers';
+export { findDuplicates, findTypeDuplicates, analyzeStructure, visualizeStructure } from './analyzers';
 export { createMigrationPlan, executeMigrationPlan } from './migration';
 export { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';

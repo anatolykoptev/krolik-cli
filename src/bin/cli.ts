@@ -194,6 +194,8 @@ function createProgram(): Command {
     .option('--path <path>', 'Path to analyze (default: src/lib)')
     .option('--lib-path <path>', 'Alias for --path (deprecated: use --path)')
     .option('--duplicates-only', 'Only analyze duplicate functions')
+    .option('--types-only', 'Only analyze duplicate types/interfaces')
+    .option('--include-types', 'Include type/interface duplicate detection')
     .option('--structure-only', 'Only analyze module structure')
     .option('--dry-run', 'Show migration plan without applying')
     .option('--apply', 'Apply migrations (move files, update imports)')
@@ -214,6 +216,8 @@ function createProgram(): Command {
         refactorOpts.path = options.path || options.libPath;
       }
       if (options.duplicatesOnly) refactorOpts.duplicatesOnly = true;
+      if (options.typesOnly) refactorOpts.typesOnly = true;
+      if (options.includeTypes) refactorOpts.includeTypes = true;
       if (options.structureOnly) refactorOpts.structureOnly = true;
       if (options.dryRun) refactorOpts.dryRun = true;
       if (options.apply) refactorOpts.apply = true;

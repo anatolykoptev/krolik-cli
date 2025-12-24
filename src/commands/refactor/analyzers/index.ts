@@ -3,7 +3,8 @@
  * @description Analyzers for refactor command
  *
  * Analysis capabilities:
- * - Duplicate detection (AST-based)
+ * - Duplicate function detection (AST-based)
+ * - Duplicate type/interface detection (structural comparison)
  * - Structure analysis (namespace organization)
  * - Project context detection
  * - Architecture health analysis
@@ -22,6 +23,15 @@ export {
   quickScanDuplicates,
   extractFunctions,
 } from './duplicates';
+
+export {
+  findTypeDuplicates,
+  quickScanTypeDuplicates,
+  extractTypes,
+  type TypeSignature,
+  type TypeDuplicateInfo,
+  type FindTypeDuplicatesOptions,
+} from './type-duplicates';
 
 export {
   analyzeStructure,

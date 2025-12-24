@@ -17,6 +17,7 @@ export type {
   // Duplicate detection
   DuplicateInfo,
   FunctionSignature,
+  TypeDuplicateInfo,
   // Structure analysis
   StructureAnalysis,
   StructureIssue,

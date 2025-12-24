@@ -143,6 +143,31 @@ export interface MigrationPlan {
 // ============================================================================
 
 /**
+ * Duplicate type/interface info
+ */
+export interface TypeDuplicateInfo {
+  /** Type name (or combined names for identical structures) */
+  name: string;
+  /** Kind of type */
+  kind: 'interface' | 'type' | 'mixed';
+  /** Locations where duplicates found */
+  locations: Array<{
+    file: string;
+    line: number;
+    exported: boolean;
+    name: string;
+  }>;
+  /** Structural similarity (0-1) */
+  similarity: number;
+  /** Recommendation */
+  recommendation: 'merge' | 'rename' | 'keep-both';
+  /** Common fields (for interfaces) */
+  commonFields?: string[];
+  /** Difference description */
+  difference?: string;
+}
+
+/**
  * Refactor analysis result
  */
 export interface RefactorAnalysis {
@@ -150,6 +175,8 @@ export interface RefactorAnalysis {
   path: string;
   /** Duplicate functions found */
   duplicates: DuplicateInfo[];
+  /** Duplicate types/interfaces found */
+  typeDuplicates?: TypeDuplicateInfo[];
   /** Structure analysis */
   structure: StructureAnalysis;
   /** Suggested migration plan */
