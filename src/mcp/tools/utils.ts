@@ -1,5 +1,5 @@
 /**
- * @module mcp/handlers/utils
+ * @module mcp/tools/utils
  * @description Shared utilities for tool handlers
  */
 

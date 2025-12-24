@@ -1,6 +1,6 @@
 /**
- * @module mcp/handlers/projects
- * @description Project detection utilities for MCP handlers
+ * @module mcp/tools/projects
+ * @description Project detection utilities for MCP tools
  */
 
 import * as fs from 'node:fs';
@@ -103,10 +103,6 @@ function scanForProjects(workspaceRoot: string): ProjectInfo[] {
 
 /**
  * Detect projects in workspace
- *
- * @param workspaceRoot - Workspace root directory
- * @param requestedProject - Optional project name explicitly requested
- * @returns Detection result with single project, list, or error
  */
 export function detectProjects(
   workspaceRoot: string,
@@ -130,7 +126,7 @@ export function detectProjects(
     }
     return {
       status: 'none',
-      message: `Project "${requestedProject}" not found. Use krolik_audit without project parameter to see available projects.`,
+      message: `Project "${requestedProject}" not found. Use the tool without project parameter to see available projects.`,
     };
   }
 
@@ -191,7 +187,6 @@ export function formatProjectList(projects: ProjectInfo[]): string {
 
 /**
  * Resolve project path from detection result
- * Returns the path to use for CLI commands, or null with error message
  */
 export function resolveProjectPath(
   workspaceRoot: string,
@@ -211,7 +206,7 @@ export function resolveProjectPath(
 
 /**
  * Handler wrapper with project detection
- * Single source of truth for project resolution in all handlers
+ * Single source of truth for project resolution in all tools
  */
 export function withProjectDetection(
   args: Record<string, unknown>,

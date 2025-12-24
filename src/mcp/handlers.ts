@@ -4,7 +4,7 @@
  */
 
 import type { MCPResult } from './types';
-import { TOOLS, runTool } from './tools';
+import { getToolDefinitions, runTool } from './tools/index';
 import { getResources, getResource, type ResourceContent } from './resources';
 
 // ============================================================================
@@ -34,7 +34,7 @@ export function handleInitialize(): MCPResult {
  * @returns List of available tools
  */
 export function handleToolsList(): MCPResult {
-  return { tools: TOOLS };
+  return { tools: getToolDefinitions() };
 }
 
 /**

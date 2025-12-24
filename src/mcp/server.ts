@@ -22,7 +22,6 @@ import * as readline from 'node:readline';
 import type { ResolvedConfig } from '../types';
 import type { MCPMessage, MCPResult } from './types';
 import { MCP_ERROR_CODE } from './types';
-import { TOOLS } from './tools';
 import {
   handleInitialize,
   handleToolsList,
@@ -152,4 +151,4 @@ export async function startMCPServer(
   return server;
 }
 
-export { TOOLS };
+// Tools are now exported from ./tools/index
