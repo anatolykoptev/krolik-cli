@@ -1,14 +1,13 @@
 /**
  * @module lib/@patterns/hardcoded
- * @description Unified hardcoded value patterns - single source of truth (backwards compatibility)
- * @deprecated Import from 'lib/@patterns/hardcoded/*' subdirectories instead
+ * @description Unified hardcoded value patterns - single source of truth (barrel export)
  *
  * Used by:
  * - quality/analyzers/hardcoded.ts (detection)
  * - fix/strategies/hardcoded (fixing)
  */
 
-// Re-export everything from new modular structure for backwards compatibility
+// Detection patterns and rules
 export {
   DETECTION_PATTERNS,
   FIXABLE_PATTERNS,
@@ -16,8 +15,9 @@ export {
   SKIP_FILE_PATTERNS,
   shouldSkipFile,
   shouldSkipLine,
-} from './hardcoded/detection';
+} from './detection';
 
+// Number-related patterns and helpers
 export {
   ACCEPTABLE_NUMBERS,
   KNOWN_CONSTANTS,
@@ -25,6 +25,7 @@ export {
   isAcceptableNumber,
   getKnownConstantName,
   getConstNameFromKeyword,
-} from './hardcoded/numbers';
+} from './numbers';
 
-export { SKIP_URL_PATTERNS, shouldSkipUrl } from './hardcoded/urls';
+// URL-related patterns and helpers
+export { SKIP_URL_PATTERNS, shouldSkipUrl } from './urls';

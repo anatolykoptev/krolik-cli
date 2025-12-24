@@ -1,10 +1,9 @@
 /**
  * @module types/commands
- * @description Command-related type definitions (backwards compatibility)
- * @deprecated Import from 'types/commands/*' subdirectories instead
+ * @description Command-related type definitions (barrel export)
  */
 
-// Re-export everything from new modular structure for backwards compatibility
+// Base command types
 export type {
   OutputFormat,
   LogLevel,
@@ -12,39 +11,45 @@ export type {
   BaseCommandOptions,
   CommandContext,
   CommandResult,
-} from './commands/base';
+} from './base';
 
-export type { StatusResult } from './commands/status';
+// Status command
+export type { StatusResult } from './status';
 
+// Review command
 export type {
   ReviewSeverity,
   ReviewCategory,
   ReviewIssue,
   FileChange,
   ReviewResult,
-} from './commands/review';
+} from './review';
 
+// Schema command
 export type {
   SchemaField,
   SchemaRelation,
   SchemaModel,
   SchemaResult,
-} from './commands/schema';
+} from './schema';
 
+// Routes command
 export type {
   RouteProcedure,
   RouterDefinition,
   RoutesResult,
-} from './commands/routes';
+} from './routes';
 
+// Context command
 export type {
   ChecklistItem,
   ContextResult,
   IssueResult,
-} from './commands/context';
+} from './context';
 
+// Security command
 export type {
   SecurityVulnerability,
   SecurityCodeIssue,
   SecurityResult,
-} from './commands/security';
+} from './security';
