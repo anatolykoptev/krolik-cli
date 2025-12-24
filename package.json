@@ -1,5 +1,5 @@
 {
-  "name": "krolik-cli",
+  "name": "@anatolykoptev/krolik-cli",
   "version": "1.0.0",
   "description": "KROLIK — fast AI-assisted development toolkit for TypeScript projects",
   "keywords": [
@@ -62,7 +62,8 @@
     "refine": "tsx scripts/refine-patterns.ts",
     "refine:apply": "tsx scripts/refine-patterns.ts --apply",
     "refine:dry-run": "tsx scripts/refine-patterns.ts --dry-run",
-    "refine:config": "tsx scripts/refine-patterns.ts --config"
+    "refine:config": "tsx scripts/refine-patterns.ts --config",
+    "prepare": "husky"
   },
   "dependencies": {
     "@typescript-eslint/parser": "^8.50.0",
@@ -80,6 +81,8 @@
     "@biomejs/biome": "^2.0.0",
     "@changesets/cli": "^2.29.5",
     "@types/node": "^22.15.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "tsup": "^8.5.0",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3",
@@ -91,5 +94,13 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "pnpm@10.0.0"
+  "packageManager": "pnpm@10.0.0",
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "biome check --write --no-errors-on-unmatched"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "biome format --write --no-errors-on-unmatched"
+    ]
+  }
 }
