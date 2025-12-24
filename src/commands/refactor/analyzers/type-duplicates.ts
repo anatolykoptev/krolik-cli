@@ -11,7 +11,7 @@
 import { createHash } from 'crypto';
 import * as path from 'path';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
-import { findFiles, readFile, logger } from '../../../lib';
+import { findFiles, readFile, logger, validatePathWithinProject } from '../../../lib';
 
 // ============================================================================
 // TYPES
@@ -265,6 +265,12 @@ export async function findTypeDuplicates(
     includeTypes = true,
     includeInterfaces = true,
   } = options;
+
+  // Security: validate path is within project
+  const pathValidation = validatePathWithinProject(projectRoot, targetPath);
+  if (!pathValidation.valid) {
+    throw new Error(`Security: ${pathValidation.error ?? 'Path outside project'}`);
+  }
 
   const duplicates: TypeDuplicateInfo[] = [];
 
