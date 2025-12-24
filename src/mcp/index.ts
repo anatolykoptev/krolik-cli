@@ -5,6 +5,7 @@
  * Provides integration with Claude Code and other MCP-compatible clients.
  */
 
-export { MCPServer, startMCPServer, TOOLS } from './server';
+export { MCPServer, startMCPServer } from './server';
+export { ALL_TOOLS as TOOLS } from './tools';
 export type { MCPMessage, MCPTool, MCPResource, MCPResult } from './types';
 export { MCP_ERROR_CODE } from './types';

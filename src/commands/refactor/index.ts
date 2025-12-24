@@ -22,7 +22,8 @@
  *   krolik refactor --ai               # AI-native output (default for XML)
  */
 
-import * as path from 'path';
+import { spawn } from 'node:child_process';
+import * as path from 'node:path';
 import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../config';
 import {
   cleanupBackup,
@@ -38,6 +39,7 @@ import {
   findTypeDuplicates,
 } from './analyzers';
 import type { RefactorAnalysis, RefactorOptions } from './core';
+import { clearFileCache } from './core';
 import {
   createMigrationPlan,
   createTypeMigrationPlan,
@@ -102,13 +104,16 @@ function resolvePaths(projectRoot: string, options: RefactorOptions): ResolvedPa
       }
 
       // If --all-packages, return first package (caller will iterate)
-      if (options.allPackages) {
-        const pkg = packages[0]!;
-        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis ?? false);
+      const firstPkg = packages[0];
+      if (options.allPackages && firstPkg) {
+        return resolvePackagePaths(projectRoot, firstPkg, isTypeAnalysis ?? false);
       }
 
       // No package specified - use first available (usually 'web')
-      const pkg = packages.find((p) => p.name === 'web') ?? packages[0]!;
+      const pkg = packages.find((p) => p.name === 'web') ?? firstPkg;
+      if (!pkg) {
+        throw new Error('No packages found in monorepo');
+      }
       console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
       console.log(`   Available packages: ${packages.map((p) => p.name).join(', ')}`);
       console.log(`   Use --package <name> to analyze a specific package\n`);
@@ -216,6 +221,7 @@ export async function runRefactor(
   projectRoot: string,
   options: RefactorOptions = {},
 ): Promise<RefactorAnalysis> {
+  clearFileCache();
   // Use consolidated path resolution
   const resolved = resolvePaths(projectRoot, options);
   const { targetPath, libPath, relativePath: relPath } = resolved;
@@ -438,6 +444,10 @@ export async function refactorCommand(
     // Print results
     printAnalysis(analysis, projectRoot, resolved.targetPath, options);
 
+    // Track what was applied
+    let appliedMigrations = false;
+    let appliedTypeFixes = false;
+
     // Apply if requested
     if (options.apply && !options.dryRun) {
       if (!options.yes) {
@@ -449,7 +459,8 @@ export async function refactorCommand(
       };
       if (options.verbose !== undefined) migrateOpts.verbose = options.verbose;
       if (options.backup !== undefined) migrateOpts.backup = options.backup;
-      await applyMigrations(analysis, projectRoot, migrateOpts);
+      const result = await applyMigrations(analysis, projectRoot, migrateOpts);
+      appliedMigrations = result.success;
     }
 
     // Apply type fixes if requested
@@ -465,7 +476,8 @@ export async function refactorCommand(
       if (options.dryRun !== undefined) typeFixOpts.dryRun = options.dryRun;
       if (options.verbose !== undefined) typeFixOpts.verbose = options.verbose;
       if (options.backup !== undefined) typeFixOpts.backup = options.backup;
-      await applyTypeFixes(analysis, projectRoot, typeFixOpts);
+      const result = await applyTypeFixes(analysis, projectRoot, typeFixOpts);
+      appliedTypeFixes = result.success;
     }
 
     // Generate ai-config.ts if requested
@@ -487,6 +499,16 @@ export async function refactorCommand(
       if (configPath) {
         console.log(`\n✅ Generated: ${configPath}`);
       }
+    }
+
+    // Run typecheck after applying changes
+    if (appliedMigrations || appliedTypeFixes) {
+      console.log('\n🔍 Running typecheck...');
+      const typecheckResult = await runTypecheck(projectRoot);
+      printSummaryReport(analysis, typecheckResult, appliedMigrations, appliedTypeFixes);
+    } else {
+      // Just show analysis summary without typecheck
+      printSummaryReport(analysis, null, false, false);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -561,6 +583,128 @@ export async function applyTypeFixes(
     typesFixed: plan.stats.typesToRemove,
     importsUpdated: plan.stats.importsToUpdate,
   };
+}
+
+// ============================================================================
+// TYPECHECK RUNNER
+// ============================================================================
+
+interface TypecheckResult {
+  success: boolean;
+  errors: number;
+  output: string;
+  duration: number;
+}
+
+/**
+ * Run pnpm typecheck and capture results
+ */
+async function runTypecheck(projectRoot: string): Promise<TypecheckResult> {
+  const startTime = Date.now();
+
+  return new Promise((resolve) => {
+    const child = spawn('pnpm', ['run', 'typecheck'], {
+      cwd: projectRoot,
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    child.on('close', (code) => {
+      const duration = (Date.now() - startTime) / 1000;
+      const output = stdout + stderr;
+
+      // Count TypeScript errors (pattern: "error TS")
+      const errorMatches = output.match(/error TS\d+/g);
+      const errors = errorMatches?.length ?? 0;
+
+      resolve({
+        success: code === 0,
+        errors,
+        output: output.trim(),
+        duration,
+      });
+    });
+
+    child.on('error', () => {
+      resolve({
+        success: false,
+        errors: -1,
+        output: 'Failed to run pnpm typecheck',
+        duration: (Date.now() - startTime) / 1000,
+      });
+    });
+  });
+}
+
+/**
+ * Print refactor summary report
+ */
+function printSummaryReport(
+  analysis: RefactorAnalysis,
+  typecheckResult: TypecheckResult | null,
+  appliedMigrations: boolean,
+  appliedTypeFixes: boolean,
+): void {
+  console.log(`\n${'═'.repeat(60)}`);
+  console.log('📋 REFACTOR SUMMARY REPORT');
+  console.log('═'.repeat(60));
+
+  // Analysis results
+  console.log('\n📊 Analysis:');
+  console.log(`   • Function duplicates found: ${analysis.duplicates.length}`);
+  if (analysis.typeDuplicates) {
+    console.log(`   • Type duplicates found: ${analysis.typeDuplicates.length}`);
+  }
+  console.log(`   • Structure score: ${analysis.structure.score}/100`);
+  console.log(`   • Migration actions: ${analysis.migration.actions.length}`);
+
+  // Applied changes
+  if (appliedMigrations || appliedTypeFixes) {
+    console.log('\n✅ Applied:');
+    if (appliedMigrations) {
+      console.log(`   • ${analysis.migration.actions.length} migration(s)`);
+    }
+    if (appliedTypeFixes && analysis.typeDuplicates) {
+      console.log(`   • Type fixes`);
+    }
+  }
+
+  // Typecheck results
+  if (typecheckResult) {
+    console.log('\n🔍 TypeCheck:');
+    if (typecheckResult.success) {
+      console.log(`   ✅ Passed (${typecheckResult.duration.toFixed(1)}s)`);
+    } else {
+      console.log(
+        `   ❌ Failed with ${typecheckResult.errors} error(s) (${typecheckResult.duration.toFixed(1)}s)`,
+      );
+      // Show first few errors
+      const lines = typecheckResult.output.split('\n');
+      const errorLines = lines.filter((l) => l.includes('error TS')).slice(0, 5);
+      if (errorLines.length > 0) {
+        console.log('\n   First errors:');
+        for (const line of errorLines) {
+          console.log(`   ${line.trim().substring(0, 80)}`);
+        }
+        if (typecheckResult.errors > 5) {
+          console.log(`   ... and ${typecheckResult.errors - 5} more`);
+        }
+      }
+    }
+  }
+
+  console.log(`\n${'═'.repeat(60)}`);
 }
 
 export {

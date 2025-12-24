@@ -124,3 +124,9 @@ export type {
 export {
   DEFAULT_CANONICAL_CRITERIA,
 } from './types-migration';
+
+// ============================================================================
+// FILE CACHE
+// ============================================================================
+
+export { clearFileCache, getCachedFiles, type FindFilesOptions } from './file-cache';

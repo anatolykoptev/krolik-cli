@@ -3,12 +3,13 @@
  * @description AST-based duplicate function detection
  */
 
-import { createHash } from 'crypto';
-import * as path from 'path';
-import type { DuplicateInfo, FunctionSignature } from '../core';
+import { createHash } from 'node:crypto';
+import * as path from 'node:path';
+import { findFiles, logger, readFile } from '../../../lib';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
-import { findFiles, readFile, logger } from '../../../lib';
+import type { DuplicateInfo, FunctionSignature } from '../core';
 import { findTsConfig } from './helpers';
+import { extractFunctionsSwc } from './swc-parser';
 
 // ============================================================================
 // CONSTANTS
@@ -40,6 +41,8 @@ export interface FindDuplicatesOptions {
   verbose?: boolean;
   minSimilarity?: number;
   ignoreTests?: boolean;
+  /** Use fast SWC parser instead of ts-morph (default: true) */
+  useFastParser?: boolean;
 }
 
 // ============================================================================
@@ -121,20 +124,22 @@ export function extractFunctions(sourceFile: SourceFile, filePath: string): Func
  * Removes comments, whitespace variations, normalizes strings and numbers
  */
 function normalizeBody(body: string): string {
-  return body
-    // Remove single-line comments
-    .replace(/\/\/.*$/gm, '')
-    // Remove multi-line comments (non-greedy)
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    // Normalize all strings to placeholder (handle escapes)
-    .replace(/'(?:[^'\\]|\\.)*'/g, "'STR'")
-    .replace(/"(?:[^"\\]|\\.)*"/g, '"STR"')
-    .replace(/`(?:[^`\\]|\\.)*`/g, '`STR`')
-    // Normalize numbers
-    .replace(/\b\d+\.?\d*\b/g, 'NUM')
-    // Normalize whitespace
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    body
+      // Remove single-line comments
+      .replace(/\/\/.*$/gm, '')
+      // Remove multi-line comments (non-greedy)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      // Normalize all strings to placeholder (handle escapes)
+      .replace(/'(?:[^'\\]|\\.)*'/g, "'STR'")
+      .replace(/"(?:[^"\\]|\\.)*"/g, '"STR"')
+      .replace(/`(?:[^`\\]|\\.)*`/g, '`STR`')
+      // Normalize numbers
+      .replace(/\b\d+\.?\d*\b/g, 'NUM')
+      // Normalize whitespace
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 /**
@@ -207,7 +212,7 @@ export async function findDuplicates(
   projectRoot: string,
   options: FindDuplicatesOptions = {},
 ): Promise<DuplicateInfo[]> {
-  const { verbose = false, ignoreTests = true } = options;
+  const { verbose = false, ignoreTests = true, useFastParser = true } = options;
   const duplicates: DuplicateInfo[] = [];
 
   // Find all TypeScript files using correct API
@@ -228,44 +233,85 @@ export async function findDuplicates(
     files = files.slice(0, LIMITS.MAX_FILES);
   }
 
-  // Create ts-morph project with correct parameter name
-  // Support monorepo by finding tsconfig in package or project root
-  const tsConfigPath = findTsConfig(targetPath, projectRoot);
-  const project = tsConfigPath
-    ? createProject({ tsConfigPath })
-    : createProject({});
-
   // Extract all functions from all files
   const allFunctions: FunctionSignature[] = [];
 
-  for (const file of files) {
-    try {
-      const content = readFile(file);
-      if (!content) continue;
+  if (useFastParser) {
+    // Fast path: use SWC parser (10-20x faster)
+    for (const file of files) {
+      try {
+        const content = readFile(file);
+        if (!content) continue;
 
-      // Skip large files
-      if (content.length > LIMITS.MAX_FILE_SIZE) {
-        if (verbose) {
-          logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
+        // Skip large files
+        if (content.length > LIMITS.MAX_FILE_SIZE) {
+          if (verbose) {
+            logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
+          }
+          continue;
         }
-        continue;
-      }
 
-      // Add source file to project if not already there
-      let sourceFile = project.getSourceFile(file);
-      if (!sourceFile) {
-        sourceFile = project.createSourceFile(file, content, { overwrite: true });
-      }
+        const relPath = path.relative(projectRoot, file);
+        const swcFunctions = extractFunctionsSwc(file, content);
 
-      const relPath = path.relative(projectRoot, file);
-      const functions = extractFunctions(sourceFile, relPath);
-      allFunctions.push(...functions);
-    } catch (error) {
-      if (verbose) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+        // Convert SWC functions to FunctionSignature format
+        for (const swcFunc of swcFunctions) {
+          const content2 = readFile(file) ?? '';
+          const bodyText = content2.slice(0, 500); // Approximate body for normalization
+          const normalizedBody = normalizeBody(bodyText);
+
+          allFunctions.push({
+            name: swcFunc.name,
+            file: relPath,
+            line: swcFunc.line,
+            params: [], // SWC doesn't provide type info
+            returnType: 'unknown',
+            exported: swcFunc.isExported,
+            bodyHash: swcFunc.bodyHash,
+            normalizedBody,
+          });
+        }
+      } catch (error) {
+        if (verbose) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+        }
       }
-      // Continue processing other files
+    }
+  } else {
+    // Slow path: use ts-morph for full type information
+    const tsConfigPath = findTsConfig(targetPath, projectRoot);
+    const project = tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+
+    for (const file of files) {
+      try {
+        const content = readFile(file);
+        if (!content) continue;
+
+        // Skip large files
+        if (content.length > LIMITS.MAX_FILE_SIZE) {
+          if (verbose) {
+            logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
+          }
+          continue;
+        }
+
+        // Add source file to project if not already there
+        let sourceFile = project.getSourceFile(file);
+        if (!sourceFile) {
+          sourceFile = project.createSourceFile(file, content, { overwrite: true });
+        }
+
+        const relPath = path.relative(projectRoot, file);
+        const functions = extractFunctions(sourceFile, relPath);
+        allFunctions.push(...functions);
+      } catch (error) {
+        if (verbose) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+        }
+        // Continue processing other files
+      }
     }
   }
 

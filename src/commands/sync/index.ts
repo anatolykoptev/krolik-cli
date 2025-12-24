@@ -56,8 +56,8 @@ export async function runSync(
   logger.section('Sync CLAUDE.md Documentation');
 
   const result = syncClaudeMd(config.projectRoot, {
-    force: options.force,
-    dryRun: options.dryRun,
+    force: options.force ?? false,
+    dryRun: options.dryRun ?? false,
   });
 
   if (options.dryRun) {

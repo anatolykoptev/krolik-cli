@@ -70,7 +70,7 @@ function isProject(dir: string): ProjectInfo | null {
     hasPackageJson,
     hasGit,
     hasTsConfig,
-    description,
+    ...(description ? { description } : {}),
   };
 }
 
@@ -143,7 +143,7 @@ export function detectProjects(workspaceRoot: string, requestedProject?: string)
     };
   }
 
-  if (projects.length === 1) {
+  if (projects.length === 1 && projects[0]) {
     return { status: 'single', project: projects[0] };
   }
 

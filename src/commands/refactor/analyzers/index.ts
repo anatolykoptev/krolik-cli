@@ -24,6 +24,8 @@ export {
   extractFunctions,
 } from './duplicates';
 
+export { extractFunctionsSwc, type SwcFunctionInfo } from './swc-parser';
+
 export {
   findTypeDuplicates,
   quickScanTypeDuplicates,

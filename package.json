@@ -80,6 +80,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
     "@changesets/cli": "^2.29.5",
+    "@swc/core": "^1.15.7",
+    "@swc/core-darwin-arm64": "^1.15.7",
     "@types/node": "^22.15.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",

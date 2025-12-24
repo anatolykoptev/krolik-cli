@@ -43,7 +43,7 @@ export interface SyncOptions {
  */
 function extractVersion(content: string): string | null {
   const versionMatch = content.match(/<!-- version: ([\d.]+)/);
-  return versionMatch ? versionMatch[1] : null;
+  return versionMatch?.[1] ?? null;
 }
 
 /**
@@ -181,10 +181,10 @@ export function syncClaudeMd(
     }
 
     return {
-      action: 'updated',
+      action: 'updated' as const,
       path: claudeMdPath,
       version: DOCS_VERSION,
-      previousVersion: existingVersion ?? undefined,
+      ...(existingVersion ? { previousVersion: existingVersion } : {}),
     };
   }
 

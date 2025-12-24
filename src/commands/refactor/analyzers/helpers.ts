@@ -6,7 +6,7 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'path';
+import * as path from 'node:path';
 import { exists, readFile } from '../../../lib';
 
 // ============================================================================
@@ -106,8 +106,8 @@ export function listDirectory(dirPath: string): fs.Dirent[] {
  */
 export function getSubdirectories(dirPath: string): string[] {
   return listDirectory(dirPath)
-    .filter(entry => entry.isDirectory())
-    .map(entry => entry.name);
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name);
 }
 
 /**
@@ -136,7 +136,7 @@ export function findTsConfig(targetPath: string, projectRoot: string): string | 
 
   // 2. Check in parent directories up to package root
   // e.g., apps/web/lib -> apps/web/tsconfig.json
-  if (parts.length >= 2) {
+  if (parts.length >= 2 && parts[0] && parts[1]) {
     // For apps/web/lib or packages/api/src/lib, try apps/web or packages/api
     if (parts[0] === 'apps' || parts[0] === 'packages') {
       const packageRoot = path.join(projectRoot, parts[0], parts[1]);

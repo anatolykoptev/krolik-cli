@@ -36,5 +36,7 @@ export default defineConfig([
     banner: {
       js: '#!/usr/bin/env node',
     },
+    // SWC has native bindings that can't be bundled
+    external: ['@swc/core', '@swc/wasm'],
   },
 ]);

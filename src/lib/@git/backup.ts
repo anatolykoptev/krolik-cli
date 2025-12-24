@@ -91,10 +91,12 @@ function generateBackupBranchName(prefix: string = "fix"): string {
 
 /**
  * Stash uncommitted changes with a descriptive message
+ * Includes untracked files to ensure new files are also saved
  */
 export function stashChanges(cwd: string, message: string): boolean {
   try {
-    execSync(`git stash push -m "${message}"`, {
+    // Use --include-untracked to also save new files that aren't committed yet
+    execSync(`git stash push --include-untracked -m "${message}"`, {
       cwd,
       stdio: "pipe",
     });
