@@ -1,5 +1,10 @@
 # KROLIK CLI
 
+[![CI](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/anatolykoptev/krolik-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/anatolykoptev/krolik-cli)
+[![npm version](https://badge.fury.io/js/%40anatolykoptev%2Fkrolik-cli.svg)](https://badge.fury.io/js/%40anatolykoptev%2Fkrolik-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ```
    (\(\
    (-.-)

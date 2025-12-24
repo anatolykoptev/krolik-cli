@@ -104,10 +104,7 @@ function scanForProjects(workspaceRoot: string): ProjectInfo[] {
 /**
  * Detect projects in workspace
  */
-export function detectProjects(
-  workspaceRoot: string,
-  requestedProject?: string,
-): DetectionResult {
+export function detectProjects(workspaceRoot: string, requestedProject?: string): DetectionResult {
   // Check if workspace root itself is a project
   const rootProject = isProject(workspaceRoot);
 
@@ -141,7 +138,8 @@ export function detectProjects(
   if (projects.length === 0) {
     return {
       status: 'none',
-      message: 'No projects found. Make sure you are in a directory with package.json or subdirectories containing projects.',
+      message:
+        'No projects found. Make sure you are in a directory with package.json or subdirectories containing projects.',
     };
   }
 
@@ -196,9 +194,15 @@ export function resolveProjectPath(
 
   switch (result.status) {
     case 'single':
-      return { path: result.project!.path };
+      if (!result.project) {
+        return { error: 'Project not found' };
+      }
+      return { path: result.project.path };
     case 'multiple':
-      return { error: formatProjectList(result.projects!) };
+      if (!result.projects) {
+        return { error: 'No projects found' };
+      }
+      return { error: formatProjectList(result.projects) };
     case 'none':
       return { error: result.message || 'No projects found' };
   }

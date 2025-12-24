@@ -1,0 +1,97 @@
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "anatolykoptev"
+    assignees:
+      - "anatolykoptev"
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group dependencies for cleaner PRs
+    groups:
+      # Production dependencies
+      production-dependencies:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      # Development dependencies
+      development-dependencies:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      # Biome tooling
+      biome:
+        patterns:
+          - "@biomejs/*"
+      # TypeScript ecosystem
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+          - "@typescript-eslint/*"
+          - "ts-morph"
+          - "tsup"
+          - "tsx"
+      # Testing
+      testing:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+      # Build tools
+      build-tools:
+        patterns:
+          - "tsup"
+          - "esbuild"
+          - "@changesets/*"
+    # Allow specific dependency updates
+    allow:
+      # Allow direct dependencies
+      - dependency-type: "direct"
+      # Allow production dependencies
+      - dependency-type: "production"
+      # Allow development dependencies
+      - dependency-type: "development"
+    # Ignore specific dependencies (if needed)
+    ignore:
+      # Major version updates require manual review
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "anatolykoptev"
+    assignees:
+      - "anatolykoptev"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    # Group all GitHub Actions updates together
+    groups:
+      github-actions:
+        patterns:
+          - "*"
