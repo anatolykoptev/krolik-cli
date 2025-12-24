@@ -44,7 +44,7 @@ export {
   shouldSkipUrl,
   getKnownConstantName,
   getConstNameFromKeyword,
-} from './hardcoded';
+} from './hardcoded/index';
 
 // Complexity patterns
 export {

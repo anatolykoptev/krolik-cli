@@ -4,7 +4,7 @@ import {
   shouldSkipLine,
   isAcceptableNumber,
   shouldSkipUrl,
-} from "../../../lib/@patterns/hardcoded";
+} from "../../../lib/@patterns/hardcoded/index";
 import { HardcodedValue } from "../types";
 
 const MAX_CONTEXT_LENGTH = 80;

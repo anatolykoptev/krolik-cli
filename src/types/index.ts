@@ -36,4 +36,4 @@ export type {
   RouterDefinition,
   RoutesResult,
   ContextResult,
-} from './commands';
+} from './commands/index';
