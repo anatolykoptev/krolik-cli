@@ -2,14 +2,14 @@
  * @module commands/quality/analyzers/lint-rules
  * @description Universal lint rules (no-console, no-debugger, max-nesting, etc.)
  *
- * Uses shared patterns from @lib/@utils/@patterns/lint
- * Uses shared context from @lib/@utils/@context
+ * Uses shared patterns from @lib/@patterns/lint
+ * Uses shared context from @lib/@context
  */
 
 import type { QualityIssue } from "../types";
-import { LINT_RULES, type LintRule } from "@/lib/@utils/@patterns/lint";
-import { isCliFile } from "@/lib/@utils/@context";
-import { DEFAULT_MAX_NESTING } from "@/lib/@utils/@patterns/complexity";
+import { LINT_RULES, type LintRule } from "../../../lib/@patterns/lint";
+import { isCliFile } from "../../../lib/@context";
+import { DEFAULT_MAX_NESTING } from "../../../lib/@patterns/complexity";
 
 /**
  * Lint check options
@@ -84,32 +84,76 @@ function shouldSkipForRule(filepath: string, rule: LintRule): boolean {
 
 /**
  * Check if pattern is inside a comment
+ * Note: Also checks that // or /* is not inside a string
  */
 function isInsideComment(line: string, matchIndex: number): boolean {
   const beforeMatch = line.slice(0, matchIndex);
-  return beforeMatch.includes("//") || beforeMatch.includes("/*");
+
+  // Find // or /* but make sure it's not inside a string
+  const commentPos = beforeMatch.indexOf("//");
+  if (commentPos !== -1 && !isInsideString(line, commentPos)) {
+    return true;
+  }
+
+  const blockPos = beforeMatch.indexOf("/*");
+  if (blockPos !== -1 && !isInsideString(line, blockPos)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
- * Check if pattern is inside a string literal
+ * Check if pattern is inside a string or regex literal
  */
 function isInsideString(line: string, matchIndex: number): boolean {
   let inString = false;
   let stringChar = "";
+  let inRegex = false;
+  let escaped = false;
 
   for (let i = 0; i < matchIndex; i++) {
     const char = line[i];
-    const prevChar = line[i - 1];
 
-    if (!inString && (char === '"' || char === "'" || char === "`")) {
-      inString = true;
-      stringChar = char;
-    } else if (inString && char === stringChar && prevChar !== "\\") {
-      inString = false;
+    // Handle escape sequences
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    // String handling
+    if (!inRegex) {
+      if (!inString && (char === '"' || char === "'" || char === "`")) {
+        inString = true;
+        stringChar = char;
+      } else if (inString && char === stringChar) {
+        inString = false;
+        stringChar = "";
+      }
+    }
+
+    // Regex handling - only when not in string
+    // Regex starts with / when preceded by: = ( , [ ! & | : ; { } or start of line
+    if (!inString && !inRegex && char === "/") {
+      const prevNonSpace = line.slice(0, i).trimEnd().slice(-1);
+      if (
+        !prevNonSpace ||
+        "=([,!&|:;{}".includes(prevNonSpace) ||
+        line.slice(0, i).trimEnd().endsWith("return")
+      ) {
+        inRegex = true;
+      }
+    } else if (inRegex && char === "/") {
+      inRegex = false;
     }
   }
 
-  return inString;
+  return inString || inRegex;
 }
 
 /**

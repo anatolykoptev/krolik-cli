@@ -41,6 +41,7 @@ export {
   tryFormatWithPrettier,
   validateAndFormat,
   validateAndFormatWithErrors,
+  clearPrettierCache,
   // AST-based checks
   hasDebuggerStatementAtLine,
   hasConsoleCallAtLine,

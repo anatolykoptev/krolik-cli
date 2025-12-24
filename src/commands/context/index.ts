@@ -6,14 +6,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { CommandContext, ContextResult, KrolikConfig } from "../../types";
-import { getIssue } from "../../lib/github";
 import {
+  getIssue,
   getCurrentBranch,
   getStatus,
   getRecentCommits,
   getDiff,
   isGitRepo,
-} from "../../lib/git";
+} from "../../lib";
 import {
   detectDomains,
   findRelatedFiles,
@@ -135,17 +135,18 @@ export async function runContext(
   }
 
   // Default: AI-ready structured output
-  const aiData = buildAiContextData(result, config);
+  const aiData = await buildAiContextData(result, config, options);
   console.log(formatAiPrompt(aiData));
 }
 
 /**
  * Build AI context data with all enhanced sections
  */
-function buildAiContextData(
+async function buildAiContextData(
   result: ContextResult,
   config: KrolikConfig,
-): AiContextData {
+  options: ContextOptions,
+): Promise<AiContextData> {
   // projectRoot is guaranteed to exist at this point
   const projectRoot = config.projectRoot ?? process.cwd();
 
@@ -206,6 +207,11 @@ function buildAiContextData(
 
   // Project tree
   aiData.tree = generateProjectTree(projectRoot);
+
+  // Quality issues (--with-audit)
+  if (options.withAudit) {
+    await addQualityIssues(projectRoot, result.relatedFiles, aiData);
+  }
 
   return aiData;
 }
@@ -376,6 +382,55 @@ function buildGitInfo(projectRoot: string): GitContextInfo {
   }
 
   return gitInfo;
+}
+
+/**
+ * Add quality issues from audit analysis
+ */
+async function addQualityIssues(
+  projectRoot: string,
+  relatedFiles: string[],
+  aiData: AiContextData,
+): Promise<void> {
+  try {
+    const { generateAIReportFromAnalysis } = await import("../fix/reporter");
+
+    // Generate audit report
+    const report = await generateAIReportFromAnalysis(projectRoot);
+
+    // Filter issues to related files only (if we have related files)
+    const relatedSet = new Set(relatedFiles.map((f) => path.resolve(projectRoot, f)));
+    const allIssues = report.quickWins.map((qw) => qw.issue);
+
+    const filteredIssues = relatedSet.size > 0
+      ? allIssues.filter((issue) => relatedSet.has(issue.file))
+      : allIssues.slice(0, 20); // Limit to 20 if no filter
+
+    // Convert to context format
+    aiData.qualityIssues = filteredIssues.map((issue) => ({
+      file: issue.file.replace(projectRoot + "/", ""),
+      ...(issue.line !== undefined && { line: issue.line }),
+      category: issue.category,
+      message: issue.message,
+      severity: issue.severity,
+      autoFixable: Boolean(issue.fixerId),
+      ...(issue.fixerId !== undefined && { fixerId: issue.fixerId }),
+    }));
+
+    // Add summary
+    const byCategory: Record<string, number> = {};
+    for (const issue of filteredIssues) {
+      byCategory[issue.category] = (byCategory[issue.category] || 0) + 1;
+    }
+
+    aiData.qualitySummary = {
+      totalIssues: filteredIssues.length,
+      autoFixable: filteredIssues.filter((i) => i.fixerId).length,
+      byCategory,
+    };
+  } catch {
+    // Audit failed, continue without quality issues
+  }
 }
 
 // Re-export types and functions

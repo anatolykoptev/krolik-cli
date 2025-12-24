@@ -4,7 +4,7 @@
  */
 
 import type { FixOperation } from '../../types';
-import { reduceNesting } from '../../ast-utils';
+import { reduceNesting } from '../../ast-utils/index';
 import { createFullFileReplace } from '../shared';
 
 // ============================================================================

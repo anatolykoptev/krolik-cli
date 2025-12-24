@@ -13,7 +13,7 @@
 import type { QualityIssue } from '../../types';
 import type { FixOperation, FixStrategy } from '../../types';
 import { matchNumberInRange, createSplitFile } from '../shared';
-import { splitFile } from '../../ast-utils';
+import { splitFile } from '../../ast-utils/index';
 import {
   SRP_PATTERNS,
   SIZE_RANGE,

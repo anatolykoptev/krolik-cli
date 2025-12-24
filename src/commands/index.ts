@@ -12,4 +12,6 @@ export { runContext } from './context';
 export { runCodegen } from './codegen';
 export { runSecurity } from './security';
 export { runInit } from './init';
-export { runRefine } from './refine';
+export { runAgent } from './agent';
+export { runRefactor, refactorCommand } from './refactor';
+export { runSetup } from './setup';

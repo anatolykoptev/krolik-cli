@@ -12,5 +12,6 @@ export {
   formatHintsSection,
   formatApproachSection,
   formatPreCommitSection,
+  formatQualitySection,
 } from "./details";
 export { formatTypesSection, formatImportsSection } from "./types-imports";

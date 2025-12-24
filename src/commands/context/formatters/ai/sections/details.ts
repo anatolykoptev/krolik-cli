@@ -143,3 +143,53 @@ export function formatPreCommitSection(lines: string[]): void {
   lines.push("    <check>pnpm build</check>");
   lines.push("  </pre-commit>");
 }
+
+/**
+ * Format quality issues section (from --with-audit)
+ */
+export function formatQualitySection(lines: string[], data: AiContextData): void {
+  const { qualityIssues, qualitySummary } = data;
+  if (!qualityIssues || qualityIssues.length === 0) return;
+
+  lines.push("  <quality-issues>");
+
+  // Summary
+  if (qualitySummary) {
+    lines.push(`    <summary total="${qualitySummary.totalIssues}" auto-fixable="${qualitySummary.autoFixable}">`);
+    for (const [category, count] of Object.entries(qualitySummary.byCategory)) {
+      lines.push(`      <category name="${category}" count="${count}"/>`);
+    }
+    lines.push("    </summary>");
+  }
+
+  // Issues grouped by file
+  const byFile = new Map<string, typeof qualityIssues>();
+  for (const issue of qualityIssues) {
+    const existing = byFile.get(issue.file) || [];
+    existing.push(issue);
+    byFile.set(issue.file, existing);
+  }
+
+  for (const [file, issues] of byFile) {
+    lines.push(`    <file path="${file}">`);
+    for (const issue of issues.slice(0, MAX_ITEMS_MEDIUM)) {
+      const fixable = issue.autoFixable ? ' fixable="true"' : '';
+      const fixerId = issue.fixerId ? ` fixer="${issue.fixerId}"` : '';
+      lines.push(`      <issue line="${issue.line || 0}" severity="${issue.severity}" category="${issue.category}"${fixable}${fixerId}>`);
+      lines.push(`        ${escapeXml(issue.message)}`);
+      lines.push("      </issue>");
+    }
+    if (issues.length > MAX_ITEMS_MEDIUM) {
+      lines.push(`      <!-- +${issues.length - MAX_ITEMS_MEDIUM} more issues -->`);
+    }
+    lines.push("    </file>");
+  }
+
+  // Quick fix hint
+  const fixableCount = qualityIssues.filter(i => i.autoFixable).length;
+  if (fixableCount > 0) {
+    lines.push(`    <hint>Run 'krolik fix --quick' to auto-fix ${fixableCount} issues</hint>`);
+  }
+
+  lines.push("  </quality-issues>");
+}

@@ -4,9 +4,7 @@
  */
 
 import type { FileChange } from '../../types';
-import { getDiff, getFileDiff, getStagedDiff, getDefaultBranch, getCurrentBranch } from '../../lib/git';
-import { getPR } from '../../lib/github';
-import { tryExec } from '../../lib/shell';
+import { getDiff, getFileDiff, getStagedDiff, getDefaultBranch, getCurrentBranch, getPR, tryExec } from '../../lib';
 
 /**
  * PR information for review

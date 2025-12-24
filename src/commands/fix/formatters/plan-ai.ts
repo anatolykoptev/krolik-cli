@@ -5,6 +5,7 @@
 
 import * as path from "node:path";
 import type { FixOperation } from "../types";
+import { escapeXml } from "../../../lib";
 
 // ============================================================================
 // TYPES
@@ -38,18 +39,6 @@ interface SkipStats {
 // ============================================================================
 // HELPER FORMATTERS
 // ============================================================================
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 /**
  * Get human-readable explanation of what the fix action does

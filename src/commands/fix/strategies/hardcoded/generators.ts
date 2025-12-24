@@ -5,12 +5,11 @@
  * NOTE: Uses lib/ast for centralized ts-morph utilities.
  */
 
-import { SyntaxKind } from '@/lib';
+import { SyntaxKind, type NumericLiteral, type VariableDeclaration } from 'ts-morph';
 import type { FixOperation } from '../../types';
 import { ALLOWED_NUMBERS } from './constants';
 import { generateConstName } from './naming';
 import {
-  createProject,
   findInsertionPoint,
   isInsideTypeDefinition,
   isInsideString,
@@ -48,11 +47,12 @@ export async function generateNumberFix(
   if (ALLOWED_NUMBERS.has(targetValue)) return null;
 
   try {
-    const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', content);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
-    // Find ALL numeric literals with this value that are safe to replace
-    const candidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n) => {
+    try {
+      // Find ALL numeric literals with this value that are safe to replace
+      const candidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n: NumericLiteral) => {
       const value = n.getLiteralValue();
       return (
         value === targetValue &&
@@ -74,7 +74,7 @@ export async function generateNumberFix(
     // Check if constant already exists
     const existingConst = sourceFile
       .getVariableDeclarations()
-      .find((v) => v.getName() === constName);
+      .find((v: VariableDeclaration) => v.getName() === constName);
 
     if (!existingConst) {
       // Find insertion point and add constant
@@ -86,7 +86,7 @@ export async function generateNumberFix(
     // After insertion, re-find candidates (positions have changed)
     // Replace ALL matching literals (not just first)
     // IMPORTANT: Skip the literal inside the const declaration we just created!
-    const updatedCandidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n) => {
+    const updatedCandidates = sourceFile.getDescendantsOfKind(SyntaxKind.NumericLiteral).filter((n: NumericLiteral) => {
       const value = n.getLiteralValue();
       return (
         value === targetValue &&
@@ -102,10 +102,13 @@ export async function generateNumberFix(
       updatedCandidates[i]?.replaceWithText(constName);
     }
 
-    // Format with Prettier for clean output
-    const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
+      // Format with Prettier for clean output
+      const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
 
-    return createFullFileReplace(file, content, formattedContent);
+      return createFullFileReplace(file, content, formattedContent);
+    } finally {
+      cleanup();
+    }
   } catch {
     // AST parsing failed - skip this fix
     return null;
@@ -150,13 +153,14 @@ export async function generateUrlFix(
   }
 
   try {
-    const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', content);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
-    // Check if constant exists
-    const existingConst = sourceFile
+    try {
+      // Check if constant exists
+      const existingConst = sourceFile
       .getVariableDeclarations()
-      .find((v) => v.getName() === constName);
+      .find((v: VariableDeclaration) => v.getName() === constName);
 
     if (!existingConst) {
       const insertPos = findInsertionPoint(sourceFile);
@@ -164,19 +168,22 @@ export async function generateUrlFix(
       sourceFile.insertText(insertPos, constDecl);
     }
 
-    // Find and replace the URL string
-    const stringLiterals = sourceFile.getDescendantsOfKind(SyntaxKind.StringLiteral);
-    for (const literal of stringLiterals) {
-      if (literal.getLiteralValue() === url) {
-        literal.replaceWithText(constName);
-        break;
+      // Find and replace the URL string
+      const stringLiterals = sourceFile.getDescendantsOfKind(SyntaxKind.StringLiteral);
+      for (const literal of stringLiterals) {
+        if (literal.getLiteralValue() === url) {
+          literal.replaceWithText(constName);
+          break;
+        }
       }
+
+      // Format with Prettier for clean output
+      const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
+
+      return createFullFileReplace(file, content, formattedContent);
+    } finally {
+      cleanup();
     }
-
-    // Format with Prettier for clean output
-    const formattedContent = await formatWithPrettier(sourceFile.getFullText(), file);
-
-    return createFullFileReplace(file, content, formattedContent);
   } catch {
     return null;
   }

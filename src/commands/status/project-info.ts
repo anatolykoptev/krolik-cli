@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { tryExec } from '../../lib/shell';
+import { tryExec } from '../../lib';
 
 // ============================================================================
 // TYPES
@@ -107,103 +107,142 @@ export function getPackageInfo(cwd: string): PackageInfo | null {
 // TECH STACK DETECTION
 // ============================================================================
 
-export function detectTechStack(cwd: string): TechStack {
+// Lookup tables for dependency detection (ordered by priority)
+const FRAMEWORK_DEPS: Array<[string, string]> = [
+  ['next', 'Next.js'],
+  ['nuxt', 'Nuxt'],
+  ['@remix-run/react', 'Remix'],
+  ['astro', 'Astro'],
+  ['gatsby', 'Gatsby'],
+  ['express', 'Express'],
+  ['fastify', 'Fastify'],
+  ['hono', 'Hono'],
+  ['react', 'React'],
+  ['vue', 'Vue'],
+  ['svelte', 'Svelte'],
+];
+
+const BUNDLER_DEPS: Array<[string, string]> = [
+  ['vite', 'Vite'],
+  ['webpack', 'Webpack'],
+  ['esbuild', 'esbuild'],
+  ['tsup', 'tsup'],
+  ['rollup', 'Rollup'],
+  ['turbopack', 'Turbopack'],
+  ['turbo', 'Turbopack'],
+];
+
+// Multi-match deps: [deps[], label] — matches if ANY dep exists
+const UI_DEPS: Array<[string[], string]> = [
+  [['tailwindcss'], 'Tailwind'],
+  [['@radix-ui/react-dialog', '@radix-ui/themes'], 'Radix'],
+  [['@shadcn/ui'], 'shadcn/ui'],
+  [['@chakra-ui/react'], 'Chakra'],
+  [['@mui/material'], 'MUI'],
+  [['antd'], 'Ant Design'],
+  [['framer-motion'], 'Framer Motion'],
+];
+
+const DATABASE_DEPS: Array<[string[], string]> = [
+  [['prisma', '@prisma/client'], 'Prisma'],
+  [['drizzle-orm'], 'Drizzle'],
+  [['mongoose'], 'MongoDB'],
+  [['pg', 'postgres'], 'PostgreSQL'],
+  [['mysql2'], 'MySQL'],
+  [['redis', 'ioredis'], 'Redis'],
+];
+
+const API_DEPS: Array<[string[], string]> = [
+  [['@trpc/server', '@trpc/client'], 'tRPC'],
+  [['graphql'], 'GraphQL'],
+  [['@tanstack/react-query'], 'React Query'],
+  [['swr'], 'SWR'],
+  [['axios'], 'Axios'],
+  [['zod'], 'Zod'],
+];
+
+const TESTING_DEPS: Array<[string[], string]> = [
+  [['vitest'], 'Vitest'],
+  [['jest'], 'Jest'],
+  [['@playwright/test'], 'Playwright'],
+  [['cypress'], 'Cypress'],
+  [['@testing-library/react'], 'Testing Library'],
+];
+
+const LOCKFILE_MAP: Array<[string, TechStack['packageManager']]> = [
+  ['pnpm-lock.yaml', 'pnpm'],
+  ['yarn.lock', 'yarn'],
+  ['bun.lockb', 'bun'],
+];
+
+/**
+ * Load dependencies from package.json
+ */
+function loadDependencies(cwd: string): Set<string> {
   const pkgPath = path.join(cwd, 'package.json');
-  let deps: Record<string, string> = {};
-  let devDeps: Record<string, string> = {};
+  if (!fs.existsSync(pkgPath)) return new Set();
 
-  if (fs.existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      deps = pkg.dependencies || {};
-      devDeps = pkg.devDependencies || {};
-    } catch {
-      // Ignore
-    }
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    const deps = pkg.dependencies || {};
+    const devDeps = pkg.devDependencies || {};
+    return new Set([...Object.keys(deps), ...Object.keys(devDeps)]);
+  } catch {
+    return new Set();
   }
+}
 
-  const allDeps = { ...deps, ...devDeps };
-  const hasDep = (name: string) => name in allDeps;
+/**
+ * Find first matching dependency from lookup table
+ */
+function findFirstMatch(deps: Set<string>, table: Array<[string, string]>): string | null {
+  for (const [dep, label] of table) {
+    if (deps.has(dep)) return label;
+  }
+  return null;
+}
 
-  // Framework detection
-  let framework: string | null = null;
-  if (hasDep('next')) framework = 'Next.js';
-  else if (hasDep('nuxt')) framework = 'Nuxt';
-  else if (hasDep('@remix-run/react')) framework = 'Remix';
-  else if (hasDep('astro')) framework = 'Astro';
-  else if (hasDep('gatsby')) framework = 'Gatsby';
-  else if (hasDep('express')) framework = 'Express';
-  else if (hasDep('fastify')) framework = 'Fastify';
-  else if (hasDep('hono')) framework = 'Hono';
-  else if (hasDep('react')) framework = 'React';
-  else if (hasDep('vue')) framework = 'Vue';
-  else if (hasDep('svelte')) framework = 'Svelte';
+/**
+ * Find all matching dependencies from multi-match table
+ */
+function findAllMatches(deps: Set<string>, table: Array<[string[], string]>): string[] {
+  return table
+    .filter(([depList]) => depList.some((d) => deps.has(d)))
+    .map(([, label]) => label);
+}
 
-  // Language
-  const language = hasDep('typescript') || fs.existsSync(path.join(cwd, 'tsconfig.json'))
-    ? 'typescript'
-    : 'javascript';
+/**
+ * Detect package manager by lockfile
+ */
+function detectPackageManager(cwd: string): TechStack['packageManager'] {
+  for (const [lockfile, manager] of LOCKFILE_MAP) {
+    if (fs.existsSync(path.join(cwd, lockfile))) return manager;
+  }
+  return 'npm';
+}
 
-  // UI libraries
-  const ui: string[] = [];
-  if (hasDep('tailwindcss')) ui.push('Tailwind');
-  if (hasDep('@radix-ui/react-dialog') || hasDep('@radix-ui/themes')) ui.push('Radix');
-  if (hasDep('@shadcn/ui') || fs.existsSync(path.join(cwd, 'components.json'))) ui.push('shadcn/ui');
-  if (hasDep('@chakra-ui/react')) ui.push('Chakra');
-  if (hasDep('@mui/material')) ui.push('MUI');
-  if (hasDep('antd')) ui.push('Ant Design');
-  if (hasDep('framer-motion')) ui.push('Framer Motion');
+/**
+ * Detect tech stack from project dependencies
+ */
+export function detectTechStack(cwd: string): TechStack {
+  const deps = loadDependencies(cwd);
 
-  // Database
-  const database: string[] = [];
-  if (hasDep('prisma') || hasDep('@prisma/client')) database.push('Prisma');
-  if (hasDep('drizzle-orm')) database.push('Drizzle');
-  if (hasDep('mongoose')) database.push('MongoDB');
-  if (hasDep('pg') || hasDep('postgres')) database.push('PostgreSQL');
-  if (hasDep('mysql2')) database.push('MySQL');
-  if (hasDep('redis') || hasDep('ioredis')) database.push('Redis');
+  // Check for shadcn/ui by components.json (special case)
+  const hasShadcn = fs.existsSync(path.join(cwd, 'components.json'));
+  const hasTypeScript = deps.has('typescript') || fs.existsSync(path.join(cwd, 'tsconfig.json'));
 
-  // API
-  const api: string[] = [];
-  if (hasDep('@trpc/server') || hasDep('@trpc/client')) api.push('tRPC');
-  if (hasDep('graphql')) api.push('GraphQL');
-  if (hasDep('@tanstack/react-query')) api.push('React Query');
-  if (hasDep('swr')) api.push('SWR');
-  if (hasDep('axios')) api.push('Axios');
-  if (hasDep('zod')) api.push('Zod');
-
-  // Testing
-  const testing: string[] = [];
-  if (hasDep('vitest')) testing.push('Vitest');
-  if (hasDep('jest')) testing.push('Jest');
-  if (hasDep('@playwright/test')) testing.push('Playwright');
-  if (hasDep('cypress')) testing.push('Cypress');
-  if (hasDep('@testing-library/react')) testing.push('Testing Library');
-
-  // Bundler
-  let bundler: string | null = null;
-  if (hasDep('vite')) bundler = 'Vite';
-  else if (hasDep('webpack')) bundler = 'Webpack';
-  else if (hasDep('esbuild')) bundler = 'esbuild';
-  else if (hasDep('tsup')) bundler = 'tsup';
-  else if (hasDep('rollup')) bundler = 'Rollup';
-  else if (hasDep('turbopack') || hasDep('turbo')) bundler = 'Turbopack';
-
-  // Package manager
-  let packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' = 'npm';
-  if (fs.existsSync(path.join(cwd, 'pnpm-lock.yaml'))) packageManager = 'pnpm';
-  else if (fs.existsSync(path.join(cwd, 'yarn.lock'))) packageManager = 'yarn';
-  else if (fs.existsSync(path.join(cwd, 'bun.lockb'))) packageManager = 'bun';
+  const ui = findAllMatches(deps, UI_DEPS);
+  if (hasShadcn && !ui.includes('shadcn/ui')) ui.push('shadcn/ui');
 
   return {
-    framework,
-    language,
+    framework: findFirstMatch(deps, FRAMEWORK_DEPS),
+    language: hasTypeScript ? 'typescript' : 'javascript',
     ui,
-    database,
-    api,
-    testing,
-    bundler,
-    packageManager,
+    database: findAllMatches(deps, DATABASE_DEPS),
+    api: findAllMatches(deps, API_DEPS),
+    testing: findAllMatches(deps, TESTING_DEPS),
+    bundler: findFirstMatch(deps, BUNDLER_DEPS),
+    packageManager: detectPackageManager(cwd),
   };
 }
 
@@ -289,102 +328,113 @@ export function getFileStats(cwd: string, fast = true): FileStats {
 // MONOREPO WORKSPACES
 // ============================================================================
 
-export function getWorkspaces(cwd: string): Workspace[] {
-  const workspaces: Workspace[] = [];
+/**
+ * Infer workspace type from directory path
+ */
+function inferWorkspaceType(dir: string): Workspace['type'] {
+  if (dir.startsWith('apps/')) return 'app';
+  if (dir.startsWith('packages/')) return 'package';
+  if (dir.startsWith('config/') || dir.startsWith('tooling/')) return 'config';
+  return 'unknown';
+}
 
-  // Try pnpm-workspace.yaml first
+/**
+ * Check if directory contains a valid package
+ */
+function isValidPackageDir(dirPath: string): boolean {
+  if (!fs.existsSync(dirPath)) return false;
+  if (!fs.statSync(dirPath).isDirectory()) return false;
+  return fs.existsSync(path.join(dirPath, 'package.json'));
+}
+
+/**
+ * Expand glob pattern (e.g., "apps/*") to actual directories
+ */
+function expandGlobPattern(cwd: string, pattern: string): string[] {
+  const baseDir = pattern.replace(/\/\*$/, '');
+  const fullPath = path.join(cwd, baseDir);
+
+  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isDirectory()) {
+    return [];
+  }
+
+  if (!pattern.endsWith('/*')) {
+    return [baseDir];
+  }
+
+  return fs.readdirSync(fullPath)
+    .map((name) => path.join(baseDir, name))
+    .filter((dir) => isValidPackageDir(path.join(cwd, dir)));
+}
+
+/**
+ * Parse workspace directory into Workspace object
+ */
+function parseWorkspaceDir(cwd: string, dir: string): Workspace | null {
+  const pkgPath = path.join(cwd, dir, 'package.json');
+  if (!fs.existsSync(pkgPath)) return null;
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    return {
+      name: pkg.name || path.basename(dir),
+      path: dir,
+      type: inferWorkspaceType(dir),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse pnpm-workspace.yaml for workspace patterns
+ */
+function parsePnpmWorkspacePatterns(cwd: string): string[] {
   const pnpmWorkspacePath = path.join(cwd, 'pnpm-workspace.yaml');
-  if (fs.existsSync(pnpmWorkspacePath)) {
-    try {
-      const content = fs.readFileSync(pnpmWorkspacePath, 'utf-8');
-      const patterns = content.match(/packages:\s*\n((?:\s+-\s+.+\n?)+)/)?.[1];
-      if (patterns) {
-        const dirs = patterns
-          .split('\n')
-          .map((line) => line.replace(/^\s*-\s*['"]?/, '').replace(/['"]?\s*$/, ''))
-          .filter(Boolean)
-          .flatMap((pattern) => {
-            // Expand glob patterns like "apps/*"
-            const baseDir = pattern.replace(/\/\*$/, '');
-            const fullPath = path.join(cwd, baseDir);
-            if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
-              if (pattern.endsWith('/*')) {
-                return fs.readdirSync(fullPath)
-                  .filter((name) => {
-                    const itemPath = path.join(fullPath, name);
-                    return fs.statSync(itemPath).isDirectory() &&
-                           fs.existsSync(path.join(itemPath, 'package.json'));
-                  })
-                  .map((name) => path.join(baseDir, name));
-              }
-              return [baseDir];
-            }
-            return [];
-          });
+  if (!fs.existsSync(pnpmWorkspacePath)) return [];
 
-        for (const dir of dirs) {
-          const pkgPath = path.join(cwd, dir, 'package.json');
-          if (fs.existsSync(pkgPath)) {
-            try {
-              const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-              const type = dir.startsWith('apps/') ? 'app'
-                : dir.startsWith('packages/') ? 'package'
-                : dir.startsWith('config/') || dir.startsWith('tooling/') ? 'config'
-                : 'unknown';
-              workspaces.push({
-                name: pkg.name || path.basename(dir),
-                path: dir,
-                type,
-              });
-            } catch {
-              // Skip invalid package.json
-            }
-          }
-        }
-      }
-    } catch {
-      // Ignore errors
-    }
+  try {
+    const content = fs.readFileSync(pnpmWorkspacePath, 'utf-8');
+    const patternsMatch = content.match(/packages:\s*\n((?:\s+-\s+.+\n?)+)/)?.[1];
+    if (!patternsMatch) return [];
+
+    return patternsMatch
+      .split('\n')
+      .map((line) => line.replace(/^\s*-\s*['"]?/, '').replace(/['"]?\s*$/, ''))
+      .filter(Boolean);
+  } catch {
+    return [];
   }
+}
 
-  // Try package.json workspaces (npm/yarn)
-  if (workspaces.length === 0) {
-    const pkgPath = path.join(cwd, 'package.json');
-    if (fs.existsSync(pkgPath)) {
-      try {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-        const workspacePatterns = pkg.workspaces || [];
-        for (const pattern of workspacePatterns) {
-          const baseDir = pattern.replace(/\/\*$/, '');
-          const fullPath = path.join(cwd, baseDir);
-          if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
-            const dirs = pattern.endsWith('/*')
-              ? fs.readdirSync(fullPath).map((name) => path.join(baseDir, name))
-              : [baseDir];
-            for (const dir of dirs) {
-              const wsPkgPath = path.join(cwd, dir, 'package.json');
-              if (fs.existsSync(wsPkgPath)) {
-                try {
-                  const wsPkg = JSON.parse(fs.readFileSync(wsPkgPath, 'utf-8'));
-                  workspaces.push({
-                    name: wsPkg.name || path.basename(dir),
-                    path: dir,
-                    type: dir.startsWith('apps/') ? 'app' : 'package',
-                  });
-                } catch {
-                  // Skip
-                }
-              }
-            }
-          }
-        }
-      } catch {
-        // Ignore
-      }
-    }
+/**
+ * Parse package.json for workspace patterns (npm/yarn)
+ */
+function parseNpmWorkspacePatterns(cwd: string): string[] {
+  const pkgPath = path.join(cwd, 'package.json');
+  if (!fs.existsSync(pkgPath)) return [];
+
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+    return pkg.workspaces || [];
+  } catch {
+    return [];
   }
+}
 
-  return workspaces;
+/**
+ * Detect workspaces in monorepo
+ */
+export function getWorkspaces(cwd: string): Workspace[] {
+  // Try pnpm first, then npm/yarn
+  const patterns = parsePnpmWorkspacePatterns(cwd);
+  const effectivePatterns = patterns.length > 0 ? patterns : parseNpmWorkspacePatterns(cwd);
+
+  const dirs = effectivePatterns.flatMap((pattern) => expandGlobPattern(cwd, pattern));
+
+  return dirs
+    .map((dir) => parseWorkspaceDir(cwd, dir))
+    .filter((ws): ws is Workspace => ws !== null);
 }
 
 // ============================================================================

@@ -16,18 +16,18 @@
  *   krolik fix --typecheck-only     # Only run TypeScript check
  *   krolik fix --no-typecheck       # Skip TypeScript check
  *   krolik fix --typecheck-format=json  # Output format (json, xml, text)
+ *
+ * For code quality audit, use: krolik audit
  */
 
 import chalk from "chalk";
 import type { CommandContext } from "../../types";
-import type { FixOptions, FixResult, QualityOptions } from "./types";
-import { analyzeQuality } from "./analyze";
-import { formatAI as formatQualityAI, formatText as formatQualityText } from "./output";
-import { checkRecommendations, getTopRecommendations, type RecommendationResult } from "./recommendations";
-import { generateFixPlan, type FixPlan } from "./plan";
+import type { FixOptions, FixResult } from "./types";
+import { generateFixPlan, generateFixPlanFromIssues, type FixPlan, type SkipStats } from "./plan";
 import { formatPlanForAI, formatPlan, formatResults } from "./formatters";
 import { applyFix } from "./applier";
 import { createBackupBranch, isGitRepo } from "./git-backup";
+import { fileCache, formatCacheStats } from "./core/file-cache";
 import {
   isBiomeAvailable,
   hasBiomeConfig,
@@ -49,6 +49,57 @@ export type { FixOptions, FixResult, FixOperation } from "./types";
 export { getFixDifficulty } from "./types";
 export { findStrategy } from "./strategies";
 export { applyFix, applyFixes, createBackup, rollbackFix } from "./applier";
+
+// Import registry for --list-fixers
+import { registry } from "./fixers";
+
+// ============================================================================
+// LIST FIXERS
+// ============================================================================
+
+/**
+ * List all available fixers (for --list-fixers flag)
+ */
+export async function listFixers(): Promise<void> {
+  const fixers = registry.all();
+
+  console.log(chalk.bold("\n📦 Available Fixers\n"));
+
+  // Group by difficulty
+  const byDifficulty = {
+    trivial: fixers.filter(f => f.metadata.difficulty === "trivial"),
+    safe: fixers.filter(f => f.metadata.difficulty === "safe"),
+    risky: fixers.filter(f => f.metadata.difficulty === "risky"),
+  };
+
+  const difficultyLabels = {
+    trivial: chalk.green("🟢 Trivial (safe to auto-apply)"),
+    safe: chalk.yellow("🟡 Safe (unlikely to break)"),
+    risky: chalk.red("🔴 Risky (requires review)"),
+  };
+
+  for (const [difficulty, group] of Object.entries(byDifficulty)) {
+    if (group.length === 0) continue;
+
+    console.log(difficultyLabels[difficulty as keyof typeof difficultyLabels]);
+    console.log("");
+
+    for (const fixer of group) {
+      const { name, description, cliFlag, category } = fixer.metadata;
+      console.log(`  ${chalk.cyan(cliFlag.padEnd(22))} ${name}`);
+      console.log(`  ${"".padEnd(22)} ${chalk.dim(description)}`);
+      console.log(`  ${"".padEnd(22)} ${chalk.dim(`Category: ${category}`)}`);
+      console.log("");
+    }
+  }
+
+  console.log(chalk.dim("Usage:"));
+  console.log(chalk.dim("  krolik fix --fix-console       # Enable specific fixer"));
+  console.log(chalk.dim("  krolik fix --no-console        # Disable specific fixer"));
+  console.log(chalk.dim("  krolik fix --trivial           # Only trivial fixers"));
+  console.log(chalk.dim("  krolik fix --safe              # Trivial + safe fixers"));
+  console.log("");
+}
 
 // ============================================================================
 // BIOME INTEGRATION
@@ -180,80 +231,6 @@ function formatTsResults(result: TsCheckResult, format: 'json' | 'xml' | 'text' 
 }
 
 // ============================================================================
-// ANALYZE-ONLY MODE
-// ============================================================================
-
-/**
- * Run analyze-only mode (replaces quality command)
- */
-async function runAnalyzeOnly(
-  projectRoot: string,
-  options: FixOptions,
-): Promise<void> {
-  const qualityOpts: QualityOptions = {};
-  if (options.path) qualityOpts.path = options.path;
-  if (options.category) qualityOpts.category = options.category;
-
-  const { report, fileContents } = await analyzeQuality(projectRoot, qualityOpts);
-
-  // Collect recommendations if enabled
-  if (options.recommendations !== false) {
-    const allRecommendations = collectRecommendations(report.files, fileContents);
-    report.recommendations = formatRecommendations(allRecommendations);
-  }
-
-  // Output based on format
-  const format = options.format ?? 'ai';
-  console.log(
-    format === 'text'
-      ? formatQualityText(report, qualityOpts)
-      : formatQualityAI(report, fileContents),
-  );
-}
-
-/**
- * Collect recommendations from all files
- */
-function collectRecommendations(
-  files: Array<{ path: string }>,
-  fileContents: Map<string, string>,
-): RecommendationResult[] {
-  const allRecommendations: RecommendationResult[] = [];
-
-  for (const analysis of files) {
-    const content = fileContents.get(analysis.path);
-    if (content) {
-      const recs = checkRecommendations(content, analysis as Parameters<typeof checkRecommendations>[1]);
-      allRecommendations.push(...recs);
-    }
-  }
-
-  return allRecommendations;
-}
-
-/**
- * Format recommendations for report
- */
-function formatRecommendations(allRecommendations: RecommendationResult[]) {
-  const topRecs = getTopRecommendations(allRecommendations, 10);
-
-  return topRecs.map(rec => {
-    const matching = allRecommendations.find(r => r.recommendation.id === rec.id);
-    return {
-      id: rec.id,
-      title: rec.title,
-      description: rec.description,
-      category: rec.category,
-      severity: rec.severity,
-      file: matching?.file ?? '',
-      line: matching?.line,
-      snippet: matching?.snippet,
-      count: allRecommendations.filter(r => r.recommendation.id === rec.id).length,
-    };
-  });
-}
-
-// ============================================================================
 // APPLY FIXES
 // ============================================================================
 
@@ -267,7 +244,7 @@ async function applyFixes(
   logger: { info: (msg: string) => void; debug: (msg: string) => void; error: (msg: string) => void; warn: (msg: string) => void },
 ): Promise<FixResult[]> {
   // Create git backup
-  const backupBranchName = await createGitBackup(projectRoot, logger);
+  const backup = await createGitBackup(projectRoot, logger);
 
   // Apply fixes
   logger.info("Applying fixes...");
@@ -288,9 +265,15 @@ async function applyFixes(
 
   // Show results
   console.log(formatResults(results));
-  showBackupInfo(backupBranchName, results);
+  showBackupInfo(backup, results);
 
   return results;
+}
+
+interface BackupInfo {
+  branchName?: string | undefined;
+  hasStash: boolean;
+  stashMessage?: string | undefined;
 }
 
 /**
@@ -299,10 +282,10 @@ async function applyFixes(
 async function createGitBackup(
   projectRoot: string,
   logger: { info: (msg: string) => void },
-): Promise<string | undefined> {
+): Promise<BackupInfo> {
   if (!isGitRepo(projectRoot)) {
     console.log(chalk.dim("Not a git repo - skipping backup"));
-    return undefined;
+    return { hasStash: false };
   }
 
   logger.info("Creating git backup branch...");
@@ -311,32 +294,87 @@ async function createGitBackup(
   if (backupResult.success) {
     console.log(chalk.green(`✅ Backup branch created: ${backupResult.branchName}`));
     if (backupResult.hadUncommittedChanges) {
-      console.log(chalk.dim("   (uncommitted changes saved to backup)"));
+      console.log(chalk.dim("   (uncommitted changes stashed: git stash list)"));
     }
-    return backupResult.branchName;
+    return {
+      branchName: backupResult.branchName,
+      hasStash: backupResult.hadUncommittedChanges,
+      stashMessage: backupResult.stashMessage,
+    };
   }
 
   console.log(chalk.yellow(`⚠️  Could not create backup: ${backupResult.error}`));
   console.log(chalk.dim("   Proceeding without git backup..."));
-  return undefined;
+  return { hasStash: false };
 }
 
 /**
  * Show backup info after applying fixes
  */
-function showBackupInfo(backupBranchName: string | undefined, results: FixResult[]): void {
-  if (!backupBranchName) return;
+function showBackupInfo(backup: BackupInfo, results: FixResult[]): void {
+  if (!backup.branchName) return;
 
   const failed = results.filter(r => !r.success);
   console.log("");
 
   if (failed.length > 0) {
-    console.log(chalk.yellow(`💾 Backup available: git checkout ${backupBranchName}`));
-    console.log(chalk.dim(`   To restore: git checkout ${backupBranchName} -- .`));
+    console.log(chalk.yellow(`💾 Backup available:`));
+    console.log(chalk.dim(`   Restore committed:   git checkout ${backup.branchName} -- .`));
+    if (backup.hasStash) {
+      console.log(chalk.dim(`   Restore uncommitted: git stash apply`));
+    }
   } else {
-    console.log(chalk.dim(`💾 Backup branch: ${backupBranchName}`));
-    console.log(chalk.dim(`   To delete: git branch -D ${backupBranchName}`));
+    console.log(chalk.dim(`💾 Backup branch: ${backup.branchName}`));
+    console.log(chalk.dim(`   To delete: git branch -D ${backup.branchName}`));
+    if (backup.hasStash) {
+      console.log(chalk.dim(`   To clean stash: git stash drop`));
+    }
   }
+}
+
+// ============================================================================
+// AUDIT INTEGRATION
+// ============================================================================
+
+import {
+  readAuditData,
+  hasAuditData,
+  formatAuditAge,
+  isAuditDataStale,
+} from "./audit-reader";
+
+/**
+ * Run fix with cached audit data
+ */
+async function runFixFromAudit(
+  projectRoot: string,
+  options: FixOptions,
+  logger: { info: (msg: string) => void; debug: (msg: string) => void; warn: (msg: string) => void; error: (msg: string) => void },
+): Promise<{ plans: FixPlan[]; skipStats: SkipStats; totalIssues: number } | null> {
+  // Check if audit data exists
+  if (!hasAuditData(projectRoot)) {
+    logger.error("No audit data found. Run 'krolik audit' first.");
+    console.log(chalk.dim("  Then use: krolik fix --from-audit"));
+    return null;
+  }
+
+  // Warn if stale
+  if (isAuditDataStale(projectRoot, 60)) {
+    logger.warn("Audit data is stale (>1 hour old). Consider running 'krolik audit' again.");
+  }
+
+  // Read audit data
+  const result = readAuditData(projectRoot, options.quickWinsOnly ?? false);
+  if (!result.success) {
+    logger.error(result.error);
+    return null;
+  }
+
+  const ageLabel = formatAuditAge(result.age);
+  logger.info(`Using cached audit data (${ageLabel}, ${result.issues.length} issues)`);
+
+  // Generate plan from cached issues
+  return generateFixPlanFromIssues(projectRoot, result.issues, options);
 }
 
 // ============================================================================
@@ -351,51 +389,63 @@ export async function runFix(
 ): Promise<void> {
   const { config, logger, options } = ctx;
 
-  // Step 0: TypeScript check
-  if (await runTypecheckStep(config.projectRoot, options, logger)) return;
+  try {
+    // Step 0: TypeScript check
+    if (await runTypecheckStep(config.projectRoot, options, logger)) return;
 
-  // Step 1: Biome fixes
-  if (await runBiomeStep(config.projectRoot, options, logger)) return;
+    // Step 1: Biome fixes
+    if (await runBiomeStep(config.projectRoot, options, logger)) return;
 
-  // Step 2: Analyze-only mode
-  if (options.analyzeOnly) {
-    logger.info("Analyzing code quality...");
-    await runAnalyzeOnly(config.projectRoot, options);
-    return;
+    // Step 2: Generate fix plan (from audit or fresh analysis)
+    let planResult: { plans: FixPlan[]; skipStats: SkipStats; totalIssues: number };
+
+    if (options.fromAudit) {
+      // Use cached audit data
+      const auditResult = await runFixFromAudit(config.projectRoot, options, logger);
+      if (!auditResult) return;
+      planResult = auditResult;
+    } else {
+      // Fresh analysis
+      logger.info("Analyzing code quality...");
+      planResult = await generateFixPlan(config.projectRoot, options);
+    }
+
+    const { plans, skipStats, totalIssues } = planResult;
+
+    // Show plan
+    const format = options.format ?? 'ai';
+    console.log(
+      format === 'text'
+        ? formatPlan(plans, skipStats, totalIssues, options)
+        : formatPlanForAI(plans, skipStats, totalIssues),
+    );
+
+    // Stop if dry run
+    if (options.dryRun) return;
+
+    // Count fixes
+    const totalFixes = plans.reduce((sum, p) => sum + p.fixes.length, 0);
+    if (totalFixes === 0) return;
+
+    // Confirm unless --yes
+    if (!options.yes) {
+      console.log("");
+      console.log(chalk.yellow("⚠️  This will modify your files."));
+      console.log(chalk.dim("Use --dry-run to preview changes without applying."));
+      console.log(chalk.dim("Use --yes to skip this confirmation."));
+      console.log("");
+      logger.warn("Pass --yes to apply fixes");
+      return;
+    }
+
+    // Apply fixes
+    await applyFixes(plans, options, config.projectRoot, logger);
+  } finally {
+    // Clear cache and log statistics (for debugging/performance tracking)
+    const stats = fileCache.getStats();
+    logger.debug(formatCacheStats(stats));
+    fileCache.clear();
   }
-
-  // Step 3: Generate and show fix plan
-  logger.info("Analyzing code quality...");
-  const { plans, skipStats, totalIssues } = await generateFixPlan(config.projectRoot, options);
-
-  // Show plan
-  const format = options.format ?? 'ai';
-  console.log(
-    format === 'text'
-      ? formatPlan(plans, skipStats, totalIssues, options)
-      : formatPlanForAI(plans, skipStats, totalIssues),
-  );
-
-  // Stop if dry run
-  if (options.dryRun) return;
-
-  // Count fixes
-  const totalFixes = plans.reduce((sum, p) => sum + p.fixes.length, 0);
-  if (totalFixes === 0) return;
-
-  // Confirm unless --yes
-  if (!options.yes) {
-    console.log("");
-    console.log(chalk.yellow("⚠️  This will modify your files."));
-    console.log(chalk.dim("Use --dry-run to preview changes without applying."));
-    console.log(chalk.dim("Use --yes to skip this confirmation."));
-    console.log("");
-    logger.warn("Pass --yes to apply fixes");
-    return;
-  }
-
-  // Apply fixes
-  await applyFixes(plans, options, config.projectRoot, logger);
 }
 
 /**

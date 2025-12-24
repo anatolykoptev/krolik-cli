@@ -3,9 +3,9 @@
  * @description Code quality analyzers - orchestrates all analysis modules
  */
 
-import * as fs from "node:fs";
 import * as path from "node:path";
 import type { FileAnalysis, QualityOptions } from "../types";
+import { fileCache } from "../core/file-cache";
 
 const ERROR_CODE = 30;
 
@@ -40,7 +40,7 @@ export function analyzeFile(
   projectRoot: string,
   options: QualityOptions = {},
 ): FileAnalysis {
-  const content = fs.readFileSync(filepath, "utf-8");
+  const content = fileCache.get(filepath);
   const lines = content.split("\n");
   const relativePath = path.relative(projectRoot, filepath);
 

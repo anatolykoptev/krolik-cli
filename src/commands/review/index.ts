@@ -8,6 +8,9 @@ import { getChangedFiles, getStagedChanges, getPRInfo, getFileChanges, getReview
 import { analyzeAddedLines } from './patterns';
 import { assessRisk, needsTests, needsDocs, detectAffectedFeatures } from './risk';
 import { printReview, formatJson, formatMarkdown, formatAI } from './output';
+import { findAgentsPath, loadAgentByName } from '../agent/loader';
+import { buildAgentContext, formatContextForPrompt } from '../agent/context';
+import { escapeXml } from '../../lib';
 
 /**
  * Review command options
@@ -18,6 +21,10 @@ export interface ReviewOptions {
   base?: string;
   format?: OutputFormat;
   verbose?: boolean;
+  /** Run security, performance, and architecture agents */
+  withAgents?: boolean;
+  /** Specific agents to run (comma-separated) */
+  agents?: string;
 }
 
 /**
@@ -149,6 +156,118 @@ export async function runReview(ctx: CommandContext & { options: ReviewOptions }
 
   // Default: AI-friendly XML
   console.log(formatAI(review));
+
+  // Run agents if requested
+  if (options.withAgents || options.agents) {
+    await runReviewAgents(cwd, review, options, logger);
+  }
+}
+
+/**
+ * Default agents for --with-agents flag
+ */
+const DEFAULT_REVIEW_AGENTS = ['security-auditor', 'performance-engineer', 'backend-architect'];
+
+/**
+ * Run agents for code review
+ */
+async function runReviewAgents(
+  projectRoot: string,
+  review: ReviewResult,
+  options: ReviewOptions,
+  logger: CommandContext['logger'],
+): Promise<void> {
+  const agentsPath = findAgentsPath(projectRoot);
+
+  if (!agentsPath) {
+    logger.warn('Agents not installed. Run: krolik setup --agents');
+    return;
+  }
+
+  // Determine which agents to run
+  const agentNames = options.agents
+    ? options.agents.split(',').map((a) => a.trim())
+    : DEFAULT_REVIEW_AGENTS;
+
+  console.log('\n<agent-review>');
+  console.log(`  <agents-requested>${agentNames.join(', ')}</agents-requested>`);
+
+  // Build context once for all agents
+  const context = await buildAgentContext(projectRoot, {
+    includeSchema: true,
+    includeRoutes: true,
+    includeGit: true,
+  });
+  const contextPrompt = formatContextForPrompt(context);
+
+  // Build diff context from review
+  const diffContext = buildDiffContext(review);
+
+  for (const agentName of agentNames) {
+    const agent = loadAgentByName(agentsPath, agentName);
+
+    if (!agent) {
+      console.log(`  <agent-error name="${agentName}">Agent not found</agent-error>`);
+      continue;
+    }
+
+    const fullPrompt = `${agent.content}
+
+## Code Review Context
+
+${diffContext}
+
+${contextPrompt}
+
+Please analyze the code changes and provide your specialized review findings.`;
+
+    console.log(`  <agent-execution name="${agent.name}" category="${agent.category}">`);
+    console.log(`    <description>${escapeXml(agent.description)}</description>`);
+    if (agent.model) {
+      console.log(`    <model>${agent.model}</model>`);
+    }
+    console.log('    <prompt>');
+    console.log(escapeXml(fullPrompt));
+    console.log('    </prompt>');
+    console.log('  </agent-execution>');
+  }
+
+  console.log('</agent-review>');
+}
+
+/**
+ * Build diff context from review result
+ */
+function buildDiffContext(review: ReviewResult): string {
+  const lines: string[] = [];
+
+  lines.push(`### Review: ${review.title}`);
+  lines.push(`Branch: ${review.headBranch} → ${review.baseBranch}`);
+  lines.push(`Files changed: ${review.files.length}`);
+  lines.push(`Additions: +${review.summary.additions}, Deletions: -${review.summary.deletions}`);
+  lines.push(`Risk level: ${review.summary.riskLevel}`);
+  lines.push('');
+
+  if (review.issues.length > 0) {
+    lines.push('### Issues Found:');
+    for (const issue of review.issues.slice(0, 10)) {
+      lines.push(`- [${issue.severity}] ${issue.file}:${issue.line} - ${issue.message}`);
+    }
+    if (review.issues.length > 10) {
+      lines.push(`... and ${review.issues.length - 10} more issues`);
+    }
+    lines.push('');
+  }
+
+  lines.push('### Changed Files:');
+  for (const file of review.files.slice(0, 20)) {
+    lines.push(`- ${file.status}: ${file.path} (+${file.additions}/-${file.deletions})`);
+  }
+  if (review.files.length > 20) {
+    lines.push(`... and ${review.files.length - 20} more files`);
+  }
+
+  return lines.join('\n');
 }
 
 // Re-export for external use

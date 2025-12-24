@@ -86,6 +86,21 @@ function isInsideLiteral(line: string, patternStr: string): boolean {
 }
 
 /**
+ * Check if a line looks like XML/HTML content inside a template literal
+ * Simple heuristic: line starts with < and ends with >
+ */
+function looksLikeXmlContent(line: string): boolean {
+  const trimmed = line.trim();
+  // Lines that look like XML tags or XML content
+  return (
+    (trimmed.startsWith('<') && (trimmed.endsWith('>') || trimmed.includes('</'))) ||
+    trimmed.startsWith('</') ||
+    // Lines that are clearly inside XML block (starts with whitespace + <)
+    (/^\s+</.test(line) && trimmed.includes('>'))
+  );
+}
+
+/**
  * Remove inline comments from a line of code
  */
 function stripInlineComments(line: string): string {
@@ -117,6 +132,9 @@ export function checkTypeSafety(
 
     // Skip full-line comments
     if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+
+    // Skip XML/HTML content (inside template literals)
+    if (looksLikeXmlContent(line)) continue;
 
     // Remove inline comments before checking patterns
     const codeOnly = stripInlineComments(line);

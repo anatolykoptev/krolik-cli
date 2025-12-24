@@ -4,7 +4,7 @@
  */
 
 import type { FixOperation } from '../../types';
-import { extractFunction } from '../../ast-utils';
+import { extractFunction } from '../../ast-utils/index';
 import { splitLines, createFullFileReplace, withMetadata } from '../shared';
 import { findFunctionEnd, findExtractionRange, generateFunctionName } from './helpers';
 

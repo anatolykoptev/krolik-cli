@@ -1,5 +1,4 @@
 import { SyntaxKind, IfStatement } from "ts-morph";
-import { createProject } from '../strategies/shared';
 import { IfChainInfo, SwitchInfo, CodeSection, RefactoringResult } from './types';
 import {
   parseIfStatement,
@@ -36,17 +35,18 @@ export function detectIfChain(
  * AST-based if-chain detection
  */
 function detectIfChainAST(content: string, startLine: number): IfChainInfo | null {
-  const project = createProject();
-  const sourceFile = project.createSourceFile("temp.ts", content, { overwrite: true });
+  const { astPool } = require('../core/ast-pool');
+  const [sourceFile, cleanup] = astPool.createSourceFile(content, "temp.ts");
 
-  const conditions: ConditionInfo[] = [];
-  let variableName = "";
-  let endLine = startLine;
+  try {
+    const conditions: ConditionInfo[] = [];
+    let variableName = "";
+    let endLine = startLine;
 
   // Find relevant if statements
   const ifStatements = sourceFile
     .getDescendantsOfKind(SyntaxKind.IfStatement)
-    .filter((stmt) => stmt.getStartLineNumber() >= startLine);
+    .filter((stmt: IfStatement) => stmt.getStartLineNumber() >= startLine);
 
   // Process each if statement
   for (const ifStmt of ifStatements) {
@@ -62,18 +62,21 @@ function detectIfChainAST(content: string, startLine: number): IfChainInfo | nul
     }
   }
 
-  // Find default return
-  const returnStatements = sourceFile.getDescendantsOfKind(SyntaxKind.ReturnStatement);
-  const defaultReturn = findDefaultReturn(returnStatements, endLine);
+    // Find default return
+    const returnStatements = sourceFile.getDescendantsOfKind(SyntaxKind.ReturnStatement);
+    const defaultReturn = findDefaultReturn(returnStatements, endLine);
 
-  let defaultResult: string | undefined;
-  if (defaultReturn) {
-    defaultResult = defaultReturn.result;
-    endLine = defaultReturn.newEndLine;
+    let defaultResult: string | undefined;
+    if (defaultReturn) {
+      defaultResult = defaultReturn.result;
+      endLine = defaultReturn.newEndLine;
+    }
+
+    // Validate chain
+    return validateAndBuildChain(conditions, startLine, endLine, defaultResult, variableName);
+  } finally {
+    cleanup();
   }
-
-  // Validate chain
-  return validateAndBuildChain(conditions, startLine, endLine, defaultResult, variableName);
 }
 
 /**

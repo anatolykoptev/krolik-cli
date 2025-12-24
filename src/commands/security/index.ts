@@ -11,6 +11,16 @@ interface SecurityOptions {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
+/**
+ * Run security analysis on the project
+ *
+ * Scans for common security vulnerabilities including:
+ * - Hardcoded secrets and credentials
+ * - Insecure dependencies
+ * - OWASP Top 10 vulnerabilities
+ *
+ * @param context - Command context with security-specific options
+ */
 export async function runSecurity(context: CommandContext & { options: SecurityOptions }): Promise<void> {
   const { logger, options } = context;
   const format = options.format ?? 'ai';

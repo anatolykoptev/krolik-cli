@@ -9,7 +9,6 @@
  */
 
 import { SyntaxKind, Node, type SourceFile, type Project } from 'ts-morph';
-import { createProject } from '@/lib';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 
 // ============================================================================
@@ -50,12 +49,13 @@ const COMPLEXITY_OPERATORS = new Set([
  */
 export function calculateComplexity(code: string): number {
   try {
-    const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', code, {
-      overwrite: true,
-    });
-
-    return calculateComplexityFromAST(sourceFile);
+    const { astPool } = require('../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(code, 'temp.ts');
+    try {
+      return calculateComplexityFromAST(sourceFile);
+    } finally {
+      cleanup();
+    }
   } catch {
     // Fallback to regex for invalid code
     return calculateComplexityRegex(code);
@@ -136,33 +136,39 @@ export function analyzeSplitPoints(
   const suggestions: SplitSuggestion[] = [];
 
   try {
-    const project = createProject();
-    const sourceFile = project.createSourceFile('body.ts', `function __wrapper__() ${bodyText}`, {
-      overwrite: true,
-    });
+    const { astPool } = require('../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(
+      `function __wrapper__() ${bodyText}`,
+      'body.ts'
+    );
 
-    // Find the wrapper function body
-    const wrapper = sourceFile.getFirstDescendantByKind(SyntaxKind.FunctionDeclaration);
-    if (!wrapper) return suggestions;
+    try {
+      // Find the wrapper function body
+      const wrapper = sourceFile.getFirstDescendantByKind(SyntaxKind.FunctionDeclaration);
+      if (!wrapper) return suggestions;
 
-    const body = wrapper.getBody();
-    if (!body || !Node.isBlock(body)) return suggestions;
+      const body = wrapper.getBody();
+      if (!body || !Node.isBlock(body)) return suggestions;
 
-    // Analyze direct children of function body
-    const statements = body.getStatements();
+      // Analyze direct children of function body
+      const statements = body.getStatements();
+      const project = astPool.getProject();
 
-    for (const stmt of statements) {
-      const suggestion = analyzeStatement(stmt, functionName, baseLineOffset, project);
-      if (suggestion) {
-        suggestions.push(suggestion);
+      for (const stmt of statements) {
+        const suggestion = analyzeStatement(stmt, functionName, baseLineOffset, project);
+        if (suggestion) {
+          suggestions.push(suggestion);
+        }
       }
+
+      // Sort by complexity (highest first)
+      suggestions.sort((a, b) => b.complexity - a.complexity);
+
+      // Return top 3 suggestions
+      return suggestions.slice(0, 3);
+    } finally {
+      cleanup();
     }
-
-    // Sort by complexity (highest first)
-    suggestions.sort((a, b) => b.complexity - a.complexity);
-
-    // Return top 3 suggestions
-    return suggestions.slice(0, 3);
   } catch {
     return suggestions;
   }
@@ -287,12 +293,12 @@ function generateName(parentName: string, action: string, context: string): stri
  */
 export function extractFunctions(content: string): FunctionInfo[] {
   try {
-    const project = createProject();
-    const sourceFile = project.createSourceFile('temp.ts', content, {
-      overwrite: true,
-    });
+    const { astPool } = require('../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
-    const functions: FunctionInfo[] = [];
+    try {
+      const functions: FunctionInfo[] = [];
+      const project = astPool.getProject();
 
     // Function declarations
     const funcDecls = sourceFile.getDescendantsOfKind(
@@ -432,8 +438,11 @@ export function extractFunctions(content: string): FunctionInfo[] {
       functions.push(funcInfo);
     }
 
-    // Sort by start line
-    return functions.sort((a, b) => a.startLine - b.startLine);
+      // Sort by start line
+      return functions.sort((a, b) => a.startLine - b.startLine);
+    } finally {
+      cleanup();
+    }
   } catch {
     // Fallback to regex-based extraction
     return extractFunctionsRegex(content);

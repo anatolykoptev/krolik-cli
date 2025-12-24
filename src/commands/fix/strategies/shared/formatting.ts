@@ -3,19 +3,70 @@
  * @description Code formatting and validation utilities
  *
  * NOTE: createProject is re-exported from lib/ast for backwards compatibility.
- * New code should import directly from '@/lib/@utils/@ast'.
+ * New code should import directly from '@/lib/@ast'.
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as prettier from 'prettier';
-import { DiagnosticCategory, SyntaxKind } from 'ts-morph';
+import { DiagnosticCategory, SyntaxKind, type Diagnostic, type Statement, type CallExpression } from 'ts-morph';
 import {
   createProject,
-  createSourceFile,
   type CreateProjectOptions,
 } from '@/lib';
 
 // Re-export for backwards compatibility
 export { createProject, type CreateProjectOptions };
+
+// ============================================================================
+// PRETTIER CONFIG CACHING
+// ============================================================================
+
+/**
+ * Cache Prettier config by project root to avoid repeated filesystem walks
+ */
+const configCache = new Map<string, prettier.Options | null>();
+
+/**
+ * Find project root (directory with package.json)
+ */
+function findProjectRoot(filepath: string): string {
+  let dir = path.dirname(filepath);
+  const MAX_DEPTH = 10;
+
+  for (let i = 0; i < MAX_DEPTH; i++) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return path.dirname(filepath);
+}
+
+/**
+ * Get Prettier config with caching
+ */
+async function getPrettierConfig(filepath: string): Promise<prettier.Options | null> {
+  const projectRoot = findProjectRoot(filepath);
+
+  if (configCache.has(projectRoot)) {
+    return configCache.get(projectRoot)!;
+  }
+
+  const config = await prettier.resolveConfig(filepath);
+  configCache.set(projectRoot, config);
+  return config;
+}
+
+/**
+ * Clear Prettier config cache (call at end of session)
+ */
+export function clearPrettierCache(): void {
+  configCache.clear();
+}
 
 // ============================================================================
 // SYNTAX VALIDATION
@@ -27,15 +78,19 @@ export { createProject, type CreateProjectOptions };
  */
 export function validateSyntax(code: string, filepath: string): boolean {
   try {
-    const project = createProject();
-    const sourceFile = createSourceFile(project, filepath, code);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(code, filepath);
 
-    const diagnostics = sourceFile.getPreEmitDiagnostics();
-    const syntaxErrors = diagnostics.filter(
-      (d) => d.getCategory() === DiagnosticCategory.Error,
-    );
+    try {
+      const diagnostics = sourceFile.getPreEmitDiagnostics();
+      const syntaxErrors = diagnostics.filter(
+        (d: Diagnostic) => d.getCategory() === DiagnosticCategory.Error,
+      );
 
-    return syntaxErrors.length === 0;
+      return syntaxErrors.length === 0;
+    } finally {
+      cleanup();
+    }
   } catch {
     return false;
   }
@@ -50,18 +105,22 @@ export function getSyntaxErrors(
   filepath: string,
 ): Array<{ line: number; message: string }> {
   try {
-    const project = createProject();
-    const sourceFile = createSourceFile(project, filepath, code);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(code, filepath);
 
-    const diagnostics = sourceFile.getPreEmitDiagnostics();
-    const errors = diagnostics.filter(
-      (d) => d.getCategory() === DiagnosticCategory.Error,
-    );
+    try {
+      const diagnostics = sourceFile.getPreEmitDiagnostics();
+      const errors = diagnostics.filter(
+        (d: Diagnostic) => d.getCategory() === DiagnosticCategory.Error,
+      );
 
-    return errors.map((error) => ({
-      line: error.getLineNumber() ?? 0,
-      message: error.getMessageText().toString(),
-    }));
+      return errors.map((error: Diagnostic) => ({
+        line: error.getLineNumber() ?? 0,
+        message: error.getMessageText().toString(),
+      }));
+    } finally {
+      cleanup();
+    }
   } catch (error) {
     return [
       {
@@ -92,16 +151,20 @@ export function hasDebuggerStatementAtLine(
   lineNumber: number,
 ): boolean {
   try {
-    const project = createProject();
-    const sourceFile = createSourceFile(project, 'temp.ts', content);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
-    const debuggerStatements = sourceFile.getDescendantsOfKind(
-      SyntaxKind.DebuggerStatement,
-    );
+    try {
+      const debuggerStatements = sourceFile.getDescendantsOfKind(
+        SyntaxKind.DebuggerStatement,
+      );
 
-    return debuggerStatements.some(
-      (stmt) => stmt.getStartLineNumber() === lineNumber,
-    );
+      return debuggerStatements.some(
+        (stmt: Statement) => stmt.getStartLineNumber() === lineNumber,
+      );
+    } finally {
+      cleanup();
+    }
   } catch {
     // Parse error - assume no debugger (safe fallback)
     return false;
@@ -121,21 +184,25 @@ export function hasConsoleCallAtLine(
   lineNumber: number,
 ): boolean {
   try {
-    const project = createProject();
-    const sourceFile = createSourceFile(project, 'temp.ts', content);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
-    const callExpressions = sourceFile.getDescendantsOfKind(
-      SyntaxKind.CallExpression,
-    );
+    try {
+      const callExpressions = sourceFile.getDescendantsOfKind(
+        SyntaxKind.CallExpression,
+      );
 
-    return callExpressions.some((call) => {
-      if (call.getStartLineNumber() !== lineNumber) return false;
+      return callExpressions.some((call: CallExpression) => {
+        if (call.getStartLineNumber() !== lineNumber) return false;
 
-      const expr = call.getExpression();
-      const text = expr.getText();
+        const expr = call.getExpression();
+        const text = expr.getText();
 
-      return text.startsWith('console.');
-    });
+        return text.startsWith('console.');
+      });
+    } finally {
+      cleanup();
+    }
   } catch {
     return false;
   }
@@ -149,19 +216,23 @@ export function hasAlertCallAtLine(
   lineNumber: number,
 ): boolean {
   try {
-    const project = createProject();
-    const sourceFile = createSourceFile(project, 'temp.ts', content);
+    const { astPool } = require('../../core/ast-pool');
+    const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
-    const callExpressions = sourceFile.getDescendantsOfKind(
-      SyntaxKind.CallExpression,
-    );
+    try {
+      const callExpressions = sourceFile.getDescendantsOfKind(
+        SyntaxKind.CallExpression,
+      );
 
-    return callExpressions.some((call) => {
-      if (call.getStartLineNumber() !== lineNumber) return false;
+      return callExpressions.some((call: CallExpression) => {
+        if (call.getStartLineNumber() !== lineNumber) return false;
 
-      const expr = call.getExpression();
-      return expr.getText() === 'alert';
-    });
+        const expr = call.getExpression();
+        return expr.getText() === 'alert';
+      });
+    } finally {
+      cleanup();
+    }
   } catch {
     return false;
   }
@@ -172,7 +243,7 @@ export function hasAlertCallAtLine(
 // ============================================================================
 
 /**
- * Format code with Prettier using project config
+ * Format code with Prettier using cached project config
  * Falls back to original code if formatting fails
  */
 export async function formatWithPrettier(
@@ -180,7 +251,7 @@ export async function formatWithPrettier(
   filepath: string,
 ): Promise<string> {
   try {
-    const config = await prettier.resolveConfig(filepath);
+    const config = await getPrettierConfig(filepath);
     return await prettier.format(code, {
       ...config,
       filepath,
@@ -199,7 +270,7 @@ export async function tryFormatWithPrettier(
   filepath: string,
 ): Promise<string | null> {
   try {
-    const config = await prettier.resolveConfig(filepath);
+    const config = await getPrettierConfig(filepath);
     return await prettier.format(code, {
       ...config,
       filepath,

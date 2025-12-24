@@ -4,6 +4,7 @@
  */
 
 import type { Logger, ReviewResult } from "../../types";
+import { escapeXml } from "../../lib";
 
 /**
  * Group items by a key
@@ -157,18 +158,6 @@ export function formatAI(review: ReviewResult): string {
   lines.push('</code-review>');
 
   return lines.join('\n');
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 /**

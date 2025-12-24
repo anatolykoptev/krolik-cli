@@ -23,6 +23,12 @@ import {
   type RecommendationResult,
 } from "./recommendations";
 
+// New fixer architecture
+import { runFixerAnalysis, type FixerRunnerOptions } from "./core/runner";
+import { validatePathWithinProject } from "./core/path-utils";
+import { fileCache } from "./core/file-cache";
+import "./fixers"; // Auto-register all fixers
+
 const TOP_RECOMMENDATIONS_LIMIT = 15;
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -49,11 +55,18 @@ export async function analyzeQuality(
   projectRoot: string,
   options: QualityOptions = {},
 ): Promise<QualityReportWithContents> {
-  const targetPath = options.path
-    ? path.isAbsolute(options.path)
-      ? options.path
-      : path.join(projectRoot, options.path)
-    : projectRoot;
+  // Validate and resolve target path (security: prevent path traversal)
+  let targetPath: string;
+
+  if (options.path) {
+    const validation = validatePathWithinProject(projectRoot, options.path);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+    targetPath = validation.resolved;
+  } else {
+    targetPath = projectRoot;
+  }
 
   // Check if target is a file or directory
   const targetStats = fs.existsSync(targetPath) ? fs.statSync(targetPath) : null;
@@ -98,13 +111,39 @@ export async function analyzeQuality(
   const allIssues: QualityIssue[] = [];
   const fileContents = new Map<string, string>();
 
+  // Prepare fixer runner options from quality options
+  const fixerOptions: FixerRunnerOptions = {
+    cliOptions: options as Record<string, unknown>,
+    includeRisky: options.includeRisky ?? false,
+  };
+
   for (const file of files) {
     try {
+      // Read content once (using cache to avoid repeated reads)
+      const content = fileCache.get(file);
+
+      // Run legacy analyzers
       const analysis = analyzeFile(file, projectRoot, options);
       analyses.push(analysis);
+
+      // Run new fixer-based analysis
+      const fixerResult = runFixerAnalysis(content, file, fixerOptions);
+
+      // Merge issues (deduplicate by same file:line:message)
+      const existingKeys = new Set(
+        analysis.issues.map(i => `${i.file}:${i.line}:${i.message}`)
+      );
+
+      for (const issue of fixerResult.issues) {
+        const key = `${issue.file}:${issue.line}:${issue.message}`;
+        if (!existingKeys.has(key)) {
+          analysis.issues.push(issue);
+        }
+      }
+
       allIssues.push(...analysis.issues);
+
       // Store content for AI context - key by both absolute and relative paths
-      const content = fs.readFileSync(file, "utf-8");
       fileContents.set(analysis.path, content);
       fileContents.set(analysis.relativePath, content);
     } catch {
@@ -149,6 +188,9 @@ export async function analyzeQuality(
         (i) => i.category === "circular-dep",
       ).length,
       lint: filteredIssues.filter((i) => i.category === "lint").length,
+      composite: filteredIssues.filter((i) => i.category === "composite").length,
+      agent: filteredIssues.filter((i) => i.category === "agent").length,
+      refine: filteredIssues.filter((i) => i.category === "refine").length,
     },
   };
 
@@ -184,7 +226,7 @@ export async function analyzeQuality(
   // Run recommendation checks
   const allRecommendations: RecommendationResult[] = [];
   for (const analysis of analyses) {
-    const content = fs.readFileSync(analysis.path, "utf-8");
+    const content = fileCache.get(analysis.path);
     const recs = checkRecommendations(content, analysis);
     allRecommendations.push(...recs);
   }

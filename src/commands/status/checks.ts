@@ -10,8 +10,8 @@ import {
   getCurrentBranch,
   getStatus as getGitStatus,
   getAheadBehind,
-} from "../../lib/git";
-import { tryExec } from "../../lib/shell";
+  tryExec,
+} from "../../lib";
 
 /**
  * Git check result

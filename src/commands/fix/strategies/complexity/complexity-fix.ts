@@ -4,7 +4,7 @@
  */
 
 import type { FixOperation } from '../../types';
-import { reduceNesting } from '../../ast-utils';
+import { reduceNesting } from '../../ast-utils/index';
 import { findRefactorings, detectIfChain, generateLookupMap } from '../../refactorings';
 import { splitLines, createFullFileReplace, createReplaceRange } from '../shared';
 import { findFunctionEnd } from './helpers';

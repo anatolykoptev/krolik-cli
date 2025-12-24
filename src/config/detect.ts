@@ -4,7 +4,7 @@
  */
 
 import * as path from 'node:path';
-import { exists, readJson, isDirectory } from '../lib/fs';
+import { exists, readJson, isDirectory } from '../lib';
 import type { FeatureConfig, PathConfig, PrismaConfig, TrpcConfig } from '../types';
 
 /**

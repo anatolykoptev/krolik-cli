@@ -23,6 +23,8 @@ export interface ContextOptions {
   file?: string;
   format?: OutputFormat;
   verbose?: boolean;
+  /** Include quality issues from audit */
+  withAudit?: boolean;
 }
 
 /**
@@ -56,6 +58,28 @@ export interface ProjectTree {
 }
 
 /**
+ * Quality issue for context (simplified from EnrichedIssue)
+ */
+export interface ContextQualityIssue {
+  file: string;
+  line?: number;
+  category: string;
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+  autoFixable: boolean;
+  fixerId?: string;
+}
+
+/**
+ * Quality summary for context
+ */
+export interface ContextQualitySummary {
+  totalIssues: number;
+  autoFixable: number;
+  byCategory: Record<string, number>;
+}
+
+/**
  * Extended context data for AI output
  */
 export interface AiContextData {
@@ -76,4 +100,7 @@ export interface AiContextData {
   // TypeScript types and dependencies
   types?: ExtractedType[];
   imports?: ImportRelation[];
+  // Quality issues (from --with-audit)
+  qualityIssues?: ContextQualityIssue[];
+  qualitySummary?: ContextQualitySummary;
 }

@@ -18,6 +18,7 @@ import {
   formatHintsSection,
   formatApproachSection,
   formatPreCommitSection,
+  formatQualitySection,
   formatTypesSection,
   formatImportsSection,
 } from "./sections";
@@ -51,6 +52,10 @@ export function formatAiPrompt(data: AiContextData): string {
   formatTestsSection(lines, data);
   formatHintsSection(lines, data);
   formatApproachSection(lines, data);
+
+  // Quality issues (from --with-audit)
+  formatQualitySection(lines, data);
+
   formatPreCommitSection(lines);
 
   lines.push("</context>");

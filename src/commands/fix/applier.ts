@@ -7,12 +7,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { FixOperation, FixResult } from './types';
 import type { QualityIssue } from './types';
+import { fileCache } from './core/file-cache';
 
 /**
  * Create backup of file
  */
 export function createBackup(filePath: string): string {
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const content = fileCache.get(filePath);
   const backupPath = `${filePath}.backup.${Date.now()}`;
   fs.writeFileSync(backupPath, content);
   return backupPath;
@@ -29,8 +30,8 @@ export function applyFix(
   const { file, action, line, endLine, newCode } = operation;
 
   try {
-    // Read current content
-    const content = fs.readFileSync(file, 'utf-8');
+    // Read current content (using cache to avoid repeated reads)
+    const content = fileCache.get(file);
     const lines = content.split('\n');
 
     // Create backup if requested
@@ -130,6 +131,11 @@ export function applyFix(
     // Write new content
     if (!options.dryRun) {
       fs.writeFileSync(file, newContent);
+      // Update cache to keep it consistent with disk state
+      fileCache.set(file, newContent);
+    } else {
+      // In dry-run mode, update cache for subsequent operations in same session
+      fileCache.set(file, newContent);
     }
 
     const result: FixResult = {

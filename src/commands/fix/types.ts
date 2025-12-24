@@ -28,7 +28,10 @@ export type QualityCategory =
   | 'documentation' // Missing JSDoc on exports
   | 'type-safety'   // any, as, @ts-ignore usage
   | 'circular-dep'  // Circular dependencies
-  | 'lint';         // Universal lint rules (no-console, no-debugger, etc.)
+  | 'lint'          // Universal lint rules (no-console, no-debugger, etc.)
+  | 'composite'     // Composite transform operations
+  | 'agent'         // AI agent operations
+  | 'refine';       // @namespace structure violations
 
 /**
  * A single quality issue found in a file
@@ -42,6 +45,8 @@ export interface QualityIssue {
   suggestion?: string;
   /** Code snippet for context */
   snippet?: string;
+  /** Fixer ID that detected this issue */
+  fixerId?: string;
 }
 
 /**
@@ -182,6 +187,8 @@ export interface QualityOptions {
   category?: QualityCategory;
   /** Filter by severity */
   severity?: QualitySeverity;
+  /** Include risky fixers in analysis */
+  includeRisky?: boolean;
 }
 
 /**
@@ -237,7 +244,9 @@ export type FixAction =
   | 'insert-after'
   | 'wrap-function'
   | 'extract-function'
-  | 'split-file';
+  | 'split-file'
+  | 'move-file'       // For refine: move to @namespace
+  | 'create-barrel';  // For refine: create index.ts
 
 /**
  * A single fix operation
@@ -245,14 +254,16 @@ export type FixAction =
 export interface FixOperation {
   action: FixAction;
   file: string;
-  line?: number;
-  endLine?: number;
-  oldCode?: string;
-  newCode?: string;
+  line?: number | undefined;
+  endLine?: number | undefined;
+  oldCode?: string | undefined;
+  newCode?: string | undefined;
   /** For extract-function: name of new function */
-  functionName?: string;
+  functionName?: string | undefined;
   /** For split-file: new file paths */
-  newFiles?: Array<{ path: string; content: string }>;
+  newFiles?: Array<{ path: string; content: string }> | undefined;
+  /** For move-file: source -> destination */
+  moveTo?: string | undefined;
 }
 
 /**
@@ -289,14 +300,25 @@ export interface FixOptions {
   category?: QualityCategory;
   /** Dry run - show what would be fixed without applying */
   dryRun?: boolean;
-  /** Analyze only - output issues without fix plan (replaces quality command) */
-  analyzeOnly?: boolean;
   /** Include Airbnb-style recommendations in output */
   recommendations?: boolean;
   /** Auto-confirm all fixes */
   yes?: boolean;
   /** Only fix trivial issues (console, debugger, etc) */
   trivialOnly?: boolean;
+  /** Fix trivial + safe issues (excludes risky) */
+  safe?: boolean;
+
+  // ============================================================================
+  // AUDIT INTEGRATION (--from-audit)
+  // ============================================================================
+
+  /** Use cached audit data instead of running analysis */
+  fromAudit?: boolean;
+  /** Only fix quick wins from audit (auto-fixable issues) */
+  quickWinsOnly?: boolean;
+  /** Include risky fixers (requires explicit confirmation) */
+  all?: boolean;
   /** Create backup before fixing */
   backup?: boolean;
   /** Max fixes to apply */
@@ -319,6 +341,40 @@ export interface FixOptions {
   showDiff?: boolean;
   /** Output format (default: 'ai' for AI-friendly XML) */
   format?: OutputFormat;
+
+  // ============================================================================
+  // FIXER FLAGS - enable/disable specific fixers
+  // ============================================================================
+
+  // Lint fixers
+  /** Fix console.log statements */
+  fixConsole?: boolean;
+  /** Fix debugger statements */
+  fixDebugger?: boolean;
+  /** Fix alert() calls */
+  fixAlert?: boolean;
+
+  // Type-safety fixers
+  /** Fix @ts-ignore comments */
+  fixTsIgnore?: boolean;
+  /** Fix `any` type usage */
+  fixAny?: boolean;
+
+  // Complexity fixers
+  /** Fix high complexity functions */
+  fixComplexity?: boolean;
+  /** Fix long functions (extract helpers) */
+  fixLongFunctions?: boolean;
+
+  // Hardcoded fixers
+  /** Fix magic numbers */
+  fixMagicNumbers?: boolean;
+  /** Fix hardcoded URLs */
+  fixUrls?: boolean;
+
+  // SRP fixers
+  /** Fix SRP violations (too many exports/functions) */
+  fixSrp?: boolean;
 }
 
 /**
@@ -348,4 +404,144 @@ export function getFixDifficulty(issue: QualityIssue): FixDifficulty {
 
   // Everything else is risky
   return 'risky';
+}
+
+// ============================================================================
+// FIXER FILTERING
+// ============================================================================
+
+/**
+ * Check if a specific fixer is enabled for an issue
+ *
+ * Logic:
+ * - If issue has fixerId, use registry-based filtering
+ * - Otherwise, fall back to legacy category/message-based filtering
+ *
+ * For registry-based:
+ * - If no fixer flags are set, all fixers are enabled (default behavior)
+ * - If any --fix-X flag is set, only those fixers are enabled
+ * - If --no-X flag is set, that specific fixer is disabled
+ */
+export function isFixerEnabled(issue: QualityIssue, options: FixOptions): boolean {
+  // Use registry-based filtering for issues with fixerId
+  if (issue.fixerId) {
+    return isFixerEnabledByRegistry(issue.fixerId, options);
+  }
+
+  // Fall back to legacy logic for old analyzer issues
+  return isFixerEnabledLegacy(issue, options);
+}
+
+/**
+ * Registry-based fixer check
+ */
+function isFixerEnabledByRegistry(fixerId: string, options: FixOptions): boolean {
+  // Lazy import to avoid circular dependency
+  const { registry } = require('./fixers');
+
+  const enabledFixers = registry.getEnabled(options as Record<string, unknown>);
+  return enabledFixers.some((f: { metadata: { id: string } }) => f.metadata.id === fixerId);
+}
+
+/**
+ * Legacy category/message-based fixer check
+ */
+function isFixerEnabledLegacy(issue: QualityIssue, options: FixOptions): boolean {
+  const { category, message } = issue;
+  const msg = message.toLowerCase();
+
+  // Check if any explicit fixer flags are set
+  const hasExplicitFlags = !!(
+    options.fixConsole ||
+    options.fixDebugger ||
+    options.fixAlert ||
+    options.fixTsIgnore ||
+    options.fixAny ||
+    options.fixComplexity ||
+    options.fixLongFunctions ||
+    options.fixMagicNumbers ||
+    options.fixUrls ||
+    options.fixSrp
+  );
+
+  // Lint category
+  if (category === 'lint') {
+    if (msg.includes('console')) {
+      if (options.fixConsole === false) return false;
+      if (hasExplicitFlags) return !!options.fixConsole;
+      return true;
+    }
+    if (msg.includes('debugger')) {
+      if (options.fixDebugger === false) return false;
+      if (hasExplicitFlags) return !!options.fixDebugger;
+      return true;
+    }
+    if (msg.includes('alert')) {
+      if (options.fixAlert === false) return false;
+      if (hasExplicitFlags) return !!options.fixAlert;
+      return true;
+    }
+  }
+
+  // Type-safety category
+  if (category === 'type-safety') {
+    if (msg.includes('@ts-ignore') || msg.includes('ts-ignore')) {
+      if (options.fixTsIgnore === false) return false;
+      if (hasExplicitFlags) return !!options.fixTsIgnore;
+      return true;
+    }
+    if (msg.includes('any')) {
+      if (options.fixAny === false) return false;
+      if (hasExplicitFlags) return !!options.fixAny;
+      return true;
+    }
+  }
+
+  // Complexity category
+  if (category === 'complexity') {
+    if (msg.includes('complexity') || msg.includes('cognitive')) {
+      if (options.fixComplexity === false) return false;
+      if (hasExplicitFlags) return !!options.fixComplexity;
+      return true;
+    }
+    if (msg.includes('long') || msg.includes('lines')) {
+      if (options.fixLongFunctions === false) return false;
+      if (hasExplicitFlags) return !!options.fixLongFunctions;
+      return true;
+    }
+  }
+
+  // Hardcoded category
+  if (category === 'hardcoded') {
+    if (msg.includes('number') || msg.includes('magic')) {
+      if (options.fixMagicNumbers === false) return false;
+      if (hasExplicitFlags) return !!options.fixMagicNumbers;
+      return true;
+    }
+    if (msg.includes('url') || msg.includes('http')) {
+      if (options.fixUrls === false) return false;
+      if (hasExplicitFlags) return !!options.fixUrls;
+      return true;
+    }
+  }
+
+  // SRP category
+  if (category === 'srp') {
+    if (options.fixSrp === false) return false;
+    if (hasExplicitFlags) return !!options.fixSrp;
+    return true;
+  }
+
+  // Default: if no explicit flags, enable; otherwise disable
+  return !hasExplicitFlags;
+}
+
+/**
+ * Filter issues based on fixer flags
+ */
+export function filterIssuesByFixerFlags(
+  issues: QualityIssue[],
+  options: FixOptions,
+): QualityIssue[] {
+  return issues.filter(issue => isFixerEnabled(issue, options));
 }

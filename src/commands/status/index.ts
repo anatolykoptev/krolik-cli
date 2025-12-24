@@ -4,7 +4,7 @@
  */
 
 import type { CommandContext, StatusResult, OutputFormat } from '../../types';
-import { measureTime } from '../../lib/timing';
+import { measureTime } from '../../lib';
 import { checkGit, checkTypecheck, checkLint, toStatusResult } from './checks';
 import { countTodosSimple } from './todos';
 import { getProjectInfo } from './project-info';
@@ -96,6 +96,7 @@ export function getProjectStatus(projectRoot: string, options: StatusOptions = {
  */
 export async function runStatus(ctx: CommandContext & { options: StatusOptions }): Promise<void> {
   const { config, logger, options } = ctx;
+
   const status = getProjectStatus(config.projectRoot, options);
 
   // Default format is 'ai' (AI-friendly XML)

@@ -3,7 +3,7 @@
  * @description TODO/FIXME counter utilities
  */
 
-import { tryExec } from '../../lib/shell';
+import { tryExec } from '../../lib';
 
 /**
  * TODO count result

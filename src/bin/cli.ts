@@ -6,7 +6,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadConfig } from '../config';
-import { createLogger } from '../lib/logger';
+import { createLogger } from '../lib';
 import type { OutputFormat } from '../types';
 
 const VERSION = '1.0.0';
@@ -75,12 +75,30 @@ function createProgram(): Command {
       await runStatus(ctx);
     });
 
+  // Audit command
+  program
+    .command('audit')
+    .description('Code quality audit — generates AI-REPORT.md with issues, priorities, and action plan')
+    .option('--path <path>', 'Path to analyze (default: project root)')
+    .option('--show-fixes', 'Show fix previews (diffs) for quick wins')
+    .action(async (options: CommandOptions) => {
+      const { runAudit } = await import('../commands/audit');
+      const ctx = await createContext(program, {
+        ...options,
+        showFixes: options.showFixes,
+      });
+      await runAudit(ctx);
+    });
+
   // Review command
   program
     .command('review')
     .description('AI-assisted code review')
     .option('--pr <number>', 'Review specific PR')
     .option('--staged', 'Review staged changes only')
+    .option('--base <branch>', 'Base branch to compare against (default: main)')
+    .option('--with-agents', 'Run security, performance, and architecture agents')
+    .option('--agents <list>', 'Specific agents to run (comma-separated)')
     .action(async (options: CommandOptions) => {
       const { runReview } = await import('../commands/review');
       const ctx = await createContext(program, options);
@@ -133,9 +151,14 @@ function createProgram(): Command {
     .option('--include-code', 'Include Zod schemas and example code snippets')
     .option('--domain-history', 'Include git history filtered by domain files')
     .option('--show-deps', 'Show domain dependencies from package.json')
-    .option('--full', 'Enable all enrichment options (--include-code --domain-history --show-deps)')
+    .option('--with-audit', 'Include quality issues for related files')
+    .option('--full', 'Enable all enrichment options (--include-code --domain-history --show-deps --with-audit)')
     .action(async (options: CommandOptions) => {
       const { runContext } = await import('../commands/context');
+      // --full enables --with-audit
+      if (options.full) {
+        options.withAudit = true;
+      }
       const ctx = await createContext(program, options);
       await runContext(ctx);
     });
@@ -164,60 +187,77 @@ function createProgram(): Command {
       await runSecurity(ctx);
     });
 
-  // Refine command
+  // Refactor command
   program
-    .command('refine')
-    .description('Analyze and reorganize lib/ structure to @namespace pattern')
-    .option('--lib-path <path>', 'Custom lib directory path')
-    .option('--apply', 'Apply migration (move directories, update imports)')
-    .option('--dry-run', 'Preview changes without applying')
+    .command('refactor')
+    .description('Analyze and refactor module structure (duplicates, imports, @namespace organization)')
+    .option('--path <path>', 'Path to analyze (default: src/lib)')
+    .option('--lib-path <path>', 'Alias for --path (deprecated: use --path)')
+    .option('--duplicates-only', 'Only analyze duplicate functions')
+    .option('--structure-only', 'Only analyze module structure')
+    .option('--dry-run', 'Show migration plan without applying')
+    .option('--apply', 'Apply migrations (move files, update imports)')
+    .option('--yes', 'Auto-confirm all changes')
+    .option('--ai', 'AI-native enhanced output with dependency graphs and navigation hints')
     .option('--generate-config', 'Generate ai-config.ts for AI assistants')
+    .option('--backup', 'Create git backup before applying (default: true)')
+    .option('--no-backup', 'Skip git backup before applying')
     .action(async (options: CommandOptions) => {
-      const { runRefine } = await import('../commands/refine');
-      const ctx = await createContext(program, {
-        ...options,
-        libPath: options.libPath,
-        generateConfig: options.generateConfig,
-        dryRun: options.dryRun,
-      });
-      await runRefine(ctx);
+      const { refactorCommand } = await import('../commands/refactor');
+      const globalOpts = program.opts();
+      const projectRoot = globalOpts.projectRoot || globalOpts.cwd || process.cwd();
+      const refactorOpts: Record<string, unknown> = {
+        format: globalOpts.json ? 'json' : globalOpts.text ? 'text' : 'xml',
+      };
+      // Support both --path and --lib-path (deprecated alias)
+      if (options.path || options.libPath) {
+        refactorOpts.path = options.path || options.libPath;
+      }
+      if (options.duplicatesOnly) refactorOpts.duplicatesOnly = true;
+      if (options.structureOnly) refactorOpts.structureOnly = true;
+      if (options.dryRun) refactorOpts.dryRun = true;
+      if (options.apply) refactorOpts.apply = true;
+      if (options.yes) refactorOpts.yes = true;
+      if (globalOpts.verbose) refactorOpts.verbose = true;
+      if (options.ai) refactorOpts.aiNative = true;
+      if (options.generateConfig) refactorOpts.generateConfig = true;
+      // backup defaults to true, only set if explicitly specified
+      if (options.backup !== undefined) refactorOpts.backup = options.backup;
+      await refactorCommand(projectRoot, refactorOpts);
     });
 
-  // Quality command (deprecated - redirects to fix --analyze-only)
+  // Quality command (deprecated - redirects to audit)
   program
     .command('quality')
     .alias('lint')
-    .description('[DEPRECATED] Use "fix --analyze-only" instead. Analyze code quality.')
+    .description('[DEPRECATED] Use "audit" instead. Analyze code quality.')
     .option('--path <path>', 'Path to analyze (default: project root)')
-    .option('--include-tests', 'Include test files in analysis')
-    .option('--category <cat>', 'Filter by category: srp, hardcoded, complexity, mixed-concerns, size, documentation, type-safety, lint')
-    .option('--severity <sev>', 'Filter by severity: error, warning, info')
-    .option('--format <fmt>', 'Output format: ai (default), text', 'ai')
     .action(async (options: CommandOptions) => {
-      console.log('\x1b[33m⚠️  "quality" command is deprecated. Use "fix --analyze-only" instead.\x1b[0m\n');
-      const { runFix } = await import('../commands/fix');
-      const ctx = await createContext(program, {
-        ...options,
-        analyzeOnly: true,
-        format: options.format || 'ai',
-        noTypecheck: true,
-        noBiome: true,
-      });
-      await runFix(ctx);
+      console.log('\x1b[33m⚠️  "quality" command is deprecated. Use "krolik audit" instead.\x1b[0m\n');
+      const { runAudit } = await import('../commands/audit');
+      const ctx = await createContext(program, options);
+      await runAudit(ctx);
     });
 
-  // Fix command (autofixer + quality analysis)
+  // Fix command (autofixer)
   program
     .command('fix')
-    .description('Auto-fix code quality issues (also replaces quality command with --analyze-only)')
+    .description('Auto-fix code quality issues')
     .option('--path <path>', 'Path to analyze/fix (default: project root)')
     .option('--category <cat>', 'Only fix specific category: lint, type-safety, complexity')
     .option('--dry-run', 'Show what would be fixed without applying')
-    .option('--analyze-only', 'Analyze only, no fix plan (replaces quality command)')
-    .option('--recommendations', 'Include Airbnb-style recommendations (default: true for --analyze-only)')
     .option('--format <fmt>', 'Output format: ai (default), text')
     .option('--diff', 'Show unified diff output (use with --dry-run)')
     .option('--trivial', 'Only fix trivial issues (console, debugger)')
+    .option('--safe', 'Fix trivial + safe issues (excludes risky refactoring)')
+    .option('--all', 'Include risky fixers (requires explicit confirmation)')
+    .option('--from-audit', 'Use cached audit data (from krolik audit)')
+    .option('--quick-wins', 'Only fix quick wins from audit (use with --from-audit)')
+    // Preset flags for common combinations
+    .option('--quick', 'Quick mode: --trivial --biome --typecheck')
+    .option('--deep', 'Deep mode: --safe --biome --typecheck')
+    .option('--full', 'Full mode: --all --biome --typecheck --backup')
+    .option('--list-fixers', 'List all available fixers and exit')
     .option('--yes', 'Auto-confirm all fixes')
     .option('--backup', 'Create backup before fixing')
     .option('--limit <n>', 'Max fixes to apply', parseInt)
@@ -227,22 +267,92 @@ function createProgram(): Command {
     .option('--typecheck', 'Run TypeScript check (default)')
     .option('--typecheck-only', 'Only run TypeScript check')
     .option('--no-typecheck', 'Skip TypeScript check')
+    // Fixer flags - enable specific fixers
+    .option('--fix-console', 'Fix console.log statements')
+    .option('--fix-debugger', 'Fix debugger statements')
+    .option('--fix-alert', 'Fix alert() calls')
+    .option('--fix-ts-ignore', 'Fix @ts-ignore comments')
+    .option('--fix-any', 'Fix `any` type usage')
+    .option('--fix-complexity', 'Fix high complexity functions')
+    .option('--fix-long-functions', 'Fix long functions')
+    .option('--fix-magic-numbers', 'Fix magic numbers')
+    .option('--fix-urls', 'Fix hardcoded URLs')
+    .option('--fix-srp', 'Fix SRP violations')
+    // Disable specific fixers
+    .option('--no-console', 'Skip console.log fixes')
+    .option('--no-debugger', 'Skip debugger fixes')
+    .option('--no-any', 'Skip any type fixes')
     .action(async (options: CommandOptions) => {
+      // Handle --list-fixers
+      if (options.listFixers) {
+        const { listFixers } = await import('../commands/fix');
+        await listFixers();
+        return;
+      }
+
       const { runFix } = await import('../commands/fix');
+
+      // Handle preset flags
+      const presetOptions: {
+        trivialOnly?: boolean;
+        safe?: boolean;
+        all?: boolean;
+        biome?: boolean;
+        typecheck?: boolean;
+        backup?: boolean;
+      } = {};
+
+      // --quick = --trivial --biome --typecheck
+      if (options.quick) {
+        presetOptions.trivialOnly = true;
+        presetOptions.biome = true;
+        presetOptions.typecheck = true;
+      }
+      // --deep = --safe --biome --typecheck
+      if (options.deep) {
+        presetOptions.safe = true;
+        presetOptions.biome = true;
+        presetOptions.typecheck = true;
+      }
+      // --full = --all --biome --typecheck --backup
+      if (options.full) {
+        presetOptions.all = true;
+        presetOptions.biome = true;
+        presetOptions.typecheck = true;
+        presetOptions.backup = true;
+      }
+
       const ctx = await createContext(program, {
         ...options,
+        ...presetOptions,
         dryRun: options.dryRun,
-        analyzeOnly: options.analyzeOnly,
-        recommendations: options.recommendations,
         format: options.format,
         showDiff: options.diff,
-        trivialOnly: options.trivial,
-        biome: options.biome,
+        trivialOnly: presetOptions.trivialOnly ?? options.trivial,
+        safe: presetOptions.safe ?? options.safe,
+        all: presetOptions.all ?? options.all,
+        // Audit integration
+        fromAudit: options.fromAudit,
+        quickWinsOnly: options.quickWins,
+        // Tool options
+        biome: presetOptions.biome ?? options.biome,
         biomeOnly: options.biomeOnly,
         noBiome: options.biome === false,
-        typecheck: options.typecheck,
+        typecheck: presetOptions.typecheck ?? options.typecheck,
         typecheckOnly: options.typecheckOnly,
         noTypecheck: options.typecheck === false,
+        backup: presetOptions.backup ?? options.backup,
+        // Fixer flags
+        fixConsole: options.fixConsole ?? (options.console !== false ? undefined : false),
+        fixDebugger: options.fixDebugger ?? (options.debugger !== false ? undefined : false),
+        fixAlert: options.fixAlert,
+        fixTsIgnore: options.fixTsIgnore,
+        fixAny: options.fixAny ?? (options.any !== false ? undefined : false),
+        fixComplexity: options.fixComplexity,
+        fixLongFunctions: options.fixLongFunctions,
+        fixMagicNumbers: options.fixMagicNumbers,
+        fixUrls: options.fixUrls,
+        fixSrp: options.fixSrp,
       });
       await runFix(ctx);
     });
@@ -266,6 +376,64 @@ function createProgram(): Command {
       const { startMCPServer } = await import('../mcp/server');
       const config = await loadConfig();
       await startMCPServer(config);
+    });
+
+  // Setup command - install recommended plugins
+  program
+    .command('setup')
+    .description('Install plugins, agents, and MCP servers for krolik')
+    .option('--all', 'Install everything (plugins + agents + MCP servers)')
+    .option('--plugins', 'Install only Claude Code MCP plugins')
+    .option('--agents', 'Install only AI agents (wshobson/agents)')
+    .option('--mem', 'Install claude-mem (persistent memory)')
+    .option('--mcp [server]', 'Install MCP server(s) — specify name or omit for all recommended')
+    .option('--check', 'Check installed components and show recommendations')
+    .option('--update', 'Update all installed components')
+    .option('--list', 'List available plugins and agents')
+    .option('--dry-run', 'Preview without installing')
+    .option('--force', 'Reinstall even if already installed')
+    .action(async (options: CommandOptions) => {
+      if (options.list) {
+        const { listPlugins } = await import('../commands/setup');
+        listPlugins();
+        return;
+      }
+      if (options.check) {
+        const { printDiagnostics } = await import('../commands/setup');
+        printDiagnostics();
+        return;
+      }
+      const { runSetup } = await import('../commands/setup');
+      const ctx = await createContext(program, options);
+      await runSetup(ctx);
+    });
+
+  // Agent command
+  program
+    .command('agent [name]')
+    .description('Run specialized AI agents with project context (from wshobson/agents)')
+    .option('--list', 'List all available agents')
+    .option('--install', 'Install agents from wshobson/agents to ~/.krolik/agents')
+    .option('--update', 'Update installed agents to latest version')
+    .option('--category <cat>', 'Filter by category: security, perf, arch, quality, debug, docs')
+    .option('--file <path>', 'Target file for analysis')
+    .option('--feature <name>', 'Feature/domain to focus on')
+    .option('--no-schema', 'Skip including Prisma schema')
+    .option('--no-routes', 'Skip including tRPC routes')
+    .option('--no-git', 'Skip including git info')
+    .option('--dry-run', 'Show agent prompt without executing')
+    .action(async (name: string | undefined, options: CommandOptions) => {
+      const { runAgent } = await import('../commands/agent');
+      const ctx = await createContext(program, {
+        ...options,
+        agentName: name,
+        install: options.install,
+        update: options.update,
+        includeSchema: options.schema !== false,
+        includeRoutes: options.routes !== false,
+        includeGit: options.git !== false,
+      });
+      await runAgent(ctx);
     });
 
   // Default action (show help with logo)

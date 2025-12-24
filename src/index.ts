@@ -43,7 +43,7 @@ export type {
 } from './types';
 
 // Library utilities (for advanced usage)
-export { createLogger } from './lib/logger';
-export { exec, tryExec, execLines } from './lib/shell';
-export { findFiles, readFile, writeFile } from './lib/fs';
-export { isGitRepo, getCurrentBranch, getStatus } from './lib/git';
+export { createLogger } from './lib/@log/logger';
+export { exec, tryExec, execLines } from './lib/@shell/shell';
+export { findFiles, readFile, writeFile } from './lib/@fs/fs';
+export { isGitRepo, getCurrentBranch, getStatus } from './lib/@git/git';

@@ -4,7 +4,7 @@
  */
 
 import type { FileAnalysis } from '../types';
-import { detectFileType as detectFileTypeFromContext } from "@/lib/@utils/@context";
+import { detectFileType as detectFileTypeFromContext } from "../../../lib/@context";
 
 /**
  * Detect file type based on path and content

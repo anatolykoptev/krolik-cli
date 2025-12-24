@@ -8,7 +8,7 @@
  * - Format via `biome format --write`
  */
 
-import { execSync, spawnSync } from 'node:child_process';
+import { execSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 
@@ -90,6 +90,27 @@ export function hasBiomeConfig(projectRoot: string): boolean {
 }
 
 // ============================================================================
+// ERROR EXTRACTION HELPER
+// ============================================================================
+
+/**
+ * Extract meaningful error message from biome spawn result
+ */
+function extractBiomeError(result: SpawnSyncReturns<string>): string {
+  if (result.error) {
+    return result.error.message;
+  }
+  if (result.signal) {
+    return `Process killed by signal: ${result.signal}`;
+  }
+  if (result.stderr) {
+    const firstLine = result.stderr.split('\n').find(line => line.trim());
+    if (firstLine) return firstLine;
+  }
+  return `Exit code: ${result.status}`;
+}
+
+// ============================================================================
 // BIOME COMMANDS
 // ============================================================================
 
@@ -130,11 +151,21 @@ export function biomeAutoFix(
     // Get remaining diagnostics
     const diagnostics = parseBiomeOutput(output);
 
-    return {
-      success: result.status === 0,
+    // Biome exit codes:
+    // 0 = success (no issues)
+    // 1 = has issues (ran successfully, but found unfixable problems)
+    // 2+ = actual error (command failed)
+    const isSuccess = result.status === 0 || result.status === 1;
+
+    const biomeResult: BiomeResult = {
+      success: isSuccess,
       diagnostics,
       filesFixed,
     };
+    if (!isSuccess) {
+      biomeResult.error = extractBiomeError(result);
+    }
+    return biomeResult;
   } catch (error) {
     return {
       success: false,
@@ -172,11 +203,18 @@ export function biomeLint(
 
     const diagnostics = parseBiomeJsonOutput(result.stdout);
 
-    return {
-      success: result.status === 0,
+    // Status 0 or 1 = ran successfully (1 means has issues)
+    const isSuccess = result.status === 0 || result.status === 1;
+
+    const checkResult: BiomeCheckResult = {
+      success: isSuccess,
       hasIssues: diagnostics.length > 0,
       diagnostics,
     };
+    if (!isSuccess) {
+      checkResult.error = extractBiomeError(result);
+    }
+    return checkResult;
   } catch (error) {
     return {
       success: false,
@@ -214,11 +252,17 @@ export function biomeLintFix(
     const filesFixed = fixedMatch?.[1] ? parseInt(fixedMatch[1], 10) : 0;
     const diagnostics = parseBiomeOutput(output);
 
-    return {
-      success: result.status === 0,
+    const isSuccess = result.status === 0 || result.status === 1;
+
+    const lintResult: BiomeResult = {
+      success: isSuccess,
       diagnostics,
       filesFixed,
     };
+    if (!isSuccess) {
+      lintResult.error = extractBiomeError(result);
+    }
+    return lintResult;
   } catch (error) {
     return {
       success: false,
@@ -255,11 +299,17 @@ export function biomeFormat(
     const formattedMatch = output.match(/Formatted (\d+) file/);
     const filesFixed = formattedMatch?.[1] ? parseInt(formattedMatch[1], 10) : 0;
 
-    return {
-      success: result.status === 0,
+    const isSuccess = result.status === 0 || result.status === 1;
+
+    const formatResult: BiomeResult = {
+      success: isSuccess,
       diagnostics: [],
       filesFixed,
     };
+    if (!isSuccess) {
+      formatResult.error = extractBiomeError(result);
+    }
+    return formatResult;
   } catch (error) {
     return {
       success: false,
@@ -296,11 +346,17 @@ export function biomeOrganizeImports(
     const fixedMatch = output.match(/Fixed (\d+) file/);
     const filesFixed = fixedMatch?.[1] ? parseInt(fixedMatch[1], 10) : 0;
 
-    return {
-      success: result.status === 0,
+    const isSuccess = result.status === 0 || result.status === 1;
+
+    const organizeResult: BiomeResult = {
+      success: isSuccess,
       diagnostics: [],
       filesFixed,
     };
+    if (!isSuccess) {
+      organizeResult.error = extractBiomeError(result);
+    }
+    return organizeResult;
   } catch (error) {
     return {
       success: false,
