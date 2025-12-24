@@ -7,6 +7,21 @@ import type { MCPTool } from './types';
 import { handlers } from './handlers/index';
 
 // ============================================================================
+// SHARED PROPERTIES (Single Source of Truth)
+// ============================================================================
+
+/**
+ * Common project property for all tools that need project detection
+ */
+const PROJECT_PROPERTY = {
+  project: {
+    type: 'string',
+    description:
+      'Project folder name to analyze (e.g., "piternow-wt-fix", "krolik-cli"). If not specified, auto-detects or returns list of available projects.',
+  },
+} as const;
+
+// ============================================================================
 // TOOL DEFINITIONS
 // ============================================================================
 
@@ -21,6 +36,7 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         fast: {
           type: 'boolean',
           description: 'Skip slow checks (typecheck, lint) for faster response',
@@ -35,6 +51,7 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         feature: {
           type: 'string',
           description:
@@ -54,6 +71,7 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         json: {
           type: 'boolean',
           description: 'Return JSON format instead of markdown',
@@ -68,6 +86,7 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         json: {
           type: 'boolean',
           description: 'Return JSON format instead of markdown',
@@ -82,6 +101,7 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         staged: {
           type: 'boolean',
           description: 'Review only staged changes',
@@ -115,9 +135,10 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         path: {
           type: 'string',
-          description: 'Specific directory to audit (optional)',
+          description: 'Specific subdirectory within project to audit (optional)',
         },
       },
     },
@@ -129,6 +150,7 @@ export const TOOLS: MCPTool[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        ...PROJECT_PROPERTY,
         dryRun: {
           type: 'boolean',
           description: 'Preview changes without applying (recommended first)',

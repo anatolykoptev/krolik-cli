@@ -8,9 +8,11 @@ import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
 // Get the path to the CLI script
+// After bundling, all code runs from dist/bin/cli.js, so __dirname is dist/bin
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const CLI_PATH = path.resolve(__dirname, '../../bin/cli.js');
+// The CLI is the same bundle we're running from
+const CLI_PATH = path.resolve(__dirname, 'cli.js');
 
 // ============================================================================
 // CONSTANTS

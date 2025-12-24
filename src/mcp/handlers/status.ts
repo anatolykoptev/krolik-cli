@@ -4,8 +4,11 @@
  */
 
 import { runKrolik } from './utils';
+import { withProjectDetection } from './projects';
 
-export function handleStatus(args: Record<string, unknown>, projectRoot: string): string {
-  const flags = args.fast ? '--fast' : '';
-  return runKrolik(`status ${flags}`, projectRoot);
+export function handleStatus(args: Record<string, unknown>, workspaceRoot: string): string {
+  return withProjectDetection(args, workspaceRoot, (projectPath) => {
+    const flags = args.fast ? '--fast' : '';
+    return runKrolik(`status ${flags}`, projectPath);
+  });
 }

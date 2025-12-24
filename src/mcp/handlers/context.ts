@@ -4,11 +4,12 @@
  */
 
 import { runKrolik, sanitizeFeatureName, sanitizeIssueNumber, escapeShellArg, TIMEOUT_60S } from './utils';
+import { withProjectDetection } from './projects';
 
-export function handleContext(args: Record<string, unknown>, projectRoot: string): string {
-  const flagParts: string[] = []; // Don't use --full by default (too slow)
+export function handleContext(args: Record<string, unknown>, workspaceRoot: string): string {
+  // Validate inputs before project detection
+  const flagParts: string[] = [];
 
-  // Security: Validate and sanitize feature name
   if (args.feature) {
     const feature = sanitizeFeatureName(args.feature);
     if (!feature) {
@@ -17,7 +18,6 @@ export function handleContext(args: Record<string, unknown>, projectRoot: string
     flagParts.push(`--feature=${escapeShellArg(feature)}`);
   }
 
-  // Security: Validate issue number
   if (args.issue) {
     const issue = sanitizeIssueNumber(args.issue);
     if (!issue) {
@@ -26,5 +26,7 @@ export function handleContext(args: Record<string, unknown>, projectRoot: string
     flagParts.push(`--issue=${issue}`);
   }
 
-  return runKrolik(`context ${flagParts.join(' ')}`, projectRoot, TIMEOUT_60S);
+  return withProjectDetection(args, workspaceRoot, (projectPath) => {
+    return runKrolik(`context ${flagParts.join(' ')}`, projectPath, TIMEOUT_60S);
+  });
 }

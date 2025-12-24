@@ -4,11 +4,12 @@
  */
 
 import { runKrolik, sanitizeFeatureName, escapeShellArg, TIMEOUT_60S } from './utils';
+import { withProjectDetection } from './projects';
 
-export function handleAudit(args: Record<string, unknown>, projectRoot: string): string {
+export function handleAudit(args: Record<string, unknown>, workspaceRoot: string): string {
+  // Validate path before project detection
   const flagParts: string[] = [];
 
-  // Security: Validate path
   if (args.path) {
     const pathVal = sanitizeFeatureName(args.path);
     if (!pathVal) {
@@ -17,5 +18,7 @@ export function handleAudit(args: Record<string, unknown>, projectRoot: string):
     flagParts.push(`--path=${escapeShellArg(pathVal)}`);
   }
 
-  return runKrolik(`audit ${flagParts.join(' ')}`, projectRoot, TIMEOUT_60S);
+  return withProjectDetection(args, workspaceRoot, (projectPath) => {
+    return runKrolik(`audit ${flagParts.join(' ')}`, projectPath, TIMEOUT_60S);
+  });
 }

@@ -4,10 +4,12 @@
  */
 
 import { runKrolik, sanitizeFeatureName, escapeShellArg, TIMEOUT_60S } from './utils';
+import { withProjectDetection } from './projects';
 
 const VALID_CATEGORIES = ['lint', 'type-safety', 'complexity', 'hardcoded', 'srp'];
 
-export function handleFix(args: Record<string, unknown>, projectRoot: string): string {
+export function handleFix(args: Record<string, unknown>, workspaceRoot: string): string {
+  // Validate inputs before project detection
   const flagParts: string[] = [];
 
   if (args.dryRun) {
@@ -18,7 +20,6 @@ export function handleFix(args: Record<string, unknown>, projectRoot: string): s
     flagParts.push('--safe');
   }
 
-  // Security: Validate path
   if (args.path) {
     const pathVal = sanitizeFeatureName(args.path);
     if (!pathVal) {
@@ -27,7 +28,6 @@ export function handleFix(args: Record<string, unknown>, projectRoot: string): s
     flagParts.push(`--path=${escapeShellArg(pathVal)}`);
   }
 
-  // Security: Validate category
   if (args.category) {
     if (typeof args.category !== 'string' || !VALID_CATEGORIES.includes(args.category)) {
       return `Error: Invalid category. Must be one of: ${VALID_CATEGORIES.join(', ')}`;
@@ -35,5 +35,7 @@ export function handleFix(args: Record<string, unknown>, projectRoot: string): s
     flagParts.push(`--category=${args.category}`);
   }
 
-  return runKrolik(`fix ${flagParts.join(' ')}`, projectRoot, TIMEOUT_60S);
+  return withProjectDetection(args, workspaceRoot, (projectPath) => {
+    return runKrolik(`fix ${flagParts.join(' ')}`, projectPath, TIMEOUT_60S);
+  });
 }

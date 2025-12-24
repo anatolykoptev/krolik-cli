@@ -4,15 +4,16 @@
  */
 
 import { runKrolik, sanitizeIssueNumber, TIMEOUT_60S } from './utils';
+import { withProjectDetection } from './projects';
 
-export function handleReview(args: Record<string, unknown>, projectRoot: string): string {
+export function handleReview(args: Record<string, unknown>, workspaceRoot: string): string {
+  // Validate PR number before project detection
   let flags = '';
 
   if (args.staged) {
     flags += ' --staged';
   }
 
-  // Security: Validate PR number
   if (args.pr) {
     const pr = sanitizeIssueNumber(args.pr);
     if (!pr) {
@@ -21,5 +22,7 @@ export function handleReview(args: Record<string, unknown>, projectRoot: string)
     flags += ` --pr=${pr}`;
   }
 
-  return runKrolik(`review ${flags}`, projectRoot, TIMEOUT_60S);
+  return withProjectDetection(args, workspaceRoot, (projectPath) => {
+    return runKrolik(`review ${flags}`, projectPath, TIMEOUT_60S);
+  });
 }
