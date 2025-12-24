@@ -8,6 +8,7 @@ import * as path from 'path';
 import type { DuplicateInfo, FunctionSignature } from '../core';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
 import { findFiles, readFile, logger } from '../../../lib';
+import { findTsConfig } from './helpers';
 
 // ============================================================================
 // CONSTANTS
@@ -228,8 +229,9 @@ export async function findDuplicates(
   }
 
   // Create ts-morph project with correct parameter name
-  const tsConfigPath = path.join(projectRoot, 'tsconfig.json');
-  const project = createProject({ tsConfigPath });
+  // Support monorepo by finding tsconfig in package or project root
+  const tsConfigPath = findTsConfig(targetPath, projectRoot);
+  const project = createProject({ tsConfigPath: tsConfigPath ?? undefined });
 
   // Extract all functions from all files
   const allFunctions: FunctionSignature[] = [];

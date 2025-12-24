@@ -103,3 +103,24 @@ export {
   isDependencyAllowed,
   getLayerNumber,
 } from './constants';
+
+// ============================================================================
+// TYPE MIGRATION
+// ============================================================================
+
+export type {
+  TypeMigrationActionType,
+  TypeMigrationAction,
+  ImportUpdateAction,
+  TypeMigrationPlan,
+  TypeLocationInfo,
+  CanonicalSelectionCriteria,
+  TypeMigrationResult,
+  TypeMigrationExecutionResult,
+  TypeMigrationPlanOptions,
+  TypeMigrationExecutionOptions,
+} from './types-migration';
+
+export {
+  DEFAULT_CANONICAL_CRITERIA,
+} from './types-migration';

@@ -4,6 +4,7 @@
  */
 
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { exists, readJson, isDirectory } from '../lib';
 import type { FeatureConfig, PathConfig, PrismaConfig, TrpcConfig } from '../types';
 
@@ -156,6 +157,104 @@ export function detectProjectName(projectRoot: string): string | undefined {
   const pkgPath = path.join(projectRoot, 'package.json');
   const pkg = readJson<PackageJson>(pkgPath);
   return pkg?.name;
+}
+
+/**
+ * Monorepo package info for refactor command
+ */
+export interface MonorepoPackage {
+  /** Package name (e.g., 'web', 'api') */
+  name: string;
+  /** Path to package root relative to project root */
+  path: string;
+  /** Path to lib directory relative to project root */
+  libPath: string;
+  /** Path to tsconfig.json */
+  tsconfigPath: string;
+  /** Package type */
+  type: 'app' | 'package';
+}
+
+/**
+ * Detect all packages with lib directories in a monorepo
+ */
+export function detectMonorepoPackages(projectRoot: string): MonorepoPackage[] {
+  const packages: MonorepoPackage[] = [];
+
+  // Common lib locations within packages
+  const libPatterns = ['lib', 'src/lib'];
+
+  // Check apps/
+  const appsDir = path.join(projectRoot, 'apps');
+  if (isDirectory(appsDir)) {
+    const apps = fs.readdirSync(appsDir).filter((name: string) => {
+      const fullPath = path.join(appsDir, name);
+      return isDirectory(fullPath) && !name.startsWith('.');
+    });
+
+    for (const app of apps) {
+      const appPath = path.join('apps', app);
+
+      for (const libPattern of libPatterns) {
+        const libPath = path.join(appPath, libPattern);
+        const fullLibPath = path.join(projectRoot, libPath);
+
+        if (isDirectory(fullLibPath)) {
+          // Find tsconfig
+          let tsconfigPath = path.join(appPath, 'tsconfig.json');
+          if (!exists(path.join(projectRoot, tsconfigPath))) {
+            tsconfigPath = 'tsconfig.base.json';
+          }
+
+          packages.push({
+            name: app,
+            path: appPath,
+            libPath,
+            tsconfigPath,
+            type: 'app',
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // Check packages/
+  const packagesDir = path.join(projectRoot, 'packages');
+  if (isDirectory(packagesDir)) {
+    const pkgs = fs.readdirSync(packagesDir).filter((name: string) => {
+      const fullPath = path.join(packagesDir, name);
+      return isDirectory(fullPath) && !name.startsWith('.');
+    });
+
+    for (const pkg of pkgs) {
+      const pkgPath = path.join('packages', pkg);
+
+      for (const libPattern of libPatterns) {
+        const libPath = path.join(pkgPath, libPattern);
+        const fullLibPath = path.join(projectRoot, libPath);
+
+        if (isDirectory(fullLibPath)) {
+          // Find tsconfig
+          let tsconfigPath = path.join(pkgPath, 'tsconfig.json');
+          if (!exists(path.join(projectRoot, tsconfigPath))) {
+            tsconfigPath = 'tsconfig.base.json';
+          }
+
+          packages.push({
+            name: pkg,
+            path: pkgPath,
+            libPath,
+            tsconfigPath,
+            type: 'package',
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  return packages;
 }
 
 /**

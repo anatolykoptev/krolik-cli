@@ -69,3 +69,17 @@ export {
   analyzeExports,
   generateExportStatement,
 } from './barrel';
+
+// ============================================================================
+// TYPE MIGRATION
+// ============================================================================
+
+export {
+  createTypeMigrationPlan,
+  filterSafeTypeMigrations,
+  previewTypeMigrationPlan,
+} from './type-planning';
+
+export {
+  executeTypeMigrationPlan,
+} from './type-execution';

@@ -22,6 +22,10 @@ export type OutputFormat = 'text' | 'json' | 'xml';
 export interface RefactorOptions {
   /** Target directory to analyze */
   path?: string;
+  /** Monorepo package to analyze (e.g., 'web', 'api') */
+  package?: string;
+  /** Analyze all packages in monorepo */
+  allPackages?: boolean;
   /** Only analyze duplicates */
   duplicatesOnly?: boolean;
   /** Only analyze structure */
@@ -46,6 +50,10 @@ export interface RefactorOptions {
   backup?: boolean;
   /** Generate ai-config.ts for AI assistants */
   generateConfig?: boolean;
+  /** Auto-fix type duplicates */
+  fixTypes?: boolean;
+  /** Only fix 100% identical types (safe mode, default for --fix-types) */
+  fixTypesIdenticalOnly?: boolean;
 }
 
 // ============================================================================

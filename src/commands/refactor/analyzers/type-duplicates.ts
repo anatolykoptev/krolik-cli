@@ -12,6 +12,7 @@ import { createHash } from 'crypto';
 import * as path from 'path';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
 import { findFiles, readFile, logger, validatePathWithinProject } from '../../../lib';
+import { findTsConfig } from './helpers';
 
 // ============================================================================
 // TYPES
@@ -293,8 +294,9 @@ export async function findTypeDuplicates(
   }
 
   // Create ts-morph project
-  const tsConfigPath = path.join(projectRoot, 'tsconfig.json');
-  const project = createProject({ tsConfigPath });
+  // Support monorepo by finding tsconfig in package or project root
+  const tsConfigPath = findTsConfig(targetPath, projectRoot);
+  const project = createProject({ tsConfigPath: tsConfigPath ?? undefined });
 
   // Extract all types
   const allTypes: TypeSignature[] = [];

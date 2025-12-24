@@ -109,3 +109,53 @@ export function getSubdirectories(dirPath: string): string[] {
     .filter(entry => entry.isDirectory())
     .map(entry => entry.name);
 }
+
+/**
+ * Find tsconfig.json in monorepo structures
+ *
+ * Tries multiple locations:
+ * 1. Alongside the target path (e.g., apps/web/tsconfig.json)
+ * 2. In the package root if target is lib/src/lib
+ * 3. At project root (tsconfig.json)
+ * 4. At project root (tsconfig.base.json)
+ *
+ * @param targetPath - The path being analyzed (e.g., apps/web/lib)
+ * @param projectRoot - The project root
+ * @returns Path to tsconfig.json or null if not found
+ */
+export function findTsConfig(targetPath: string, projectRoot: string): string | null {
+  // Get relative path from project root
+  const relPath = path.relative(projectRoot, targetPath);
+  const parts = relPath.split(path.sep);
+
+  // Candidates to try
+  const candidates: string[] = [];
+
+  // 1. Check in the same directory as target
+  candidates.push(path.join(targetPath, 'tsconfig.json'));
+
+  // 2. Check in parent directories up to package root
+  // e.g., apps/web/lib -> apps/web/tsconfig.json
+  if (parts.length >= 2) {
+    // For apps/web/lib or packages/api/src/lib, try apps/web or packages/api
+    if (parts[0] === 'apps' || parts[0] === 'packages') {
+      const packageRoot = path.join(projectRoot, parts[0], parts[1]);
+      candidates.push(path.join(packageRoot, 'tsconfig.json'));
+    }
+  }
+
+  // 3. Check at project root
+  candidates.push(path.join(projectRoot, 'tsconfig.json'));
+
+  // 4. Check for tsconfig.base.json at project root (common in monorepos)
+  candidates.push(path.join(projectRoot, 'tsconfig.base.json'));
+
+  // Return first existing
+  for (const c of candidates) {
+    if (exists(c)) {
+      return c;
+    }
+  }
+
+  return null;
+}

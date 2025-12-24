@@ -209,8 +209,10 @@ function createProgram(): Command {
   program
     .command('refactor')
     .description('Analyze and refactor module structure (duplicates, imports, @namespace organization)')
-    .option('--path <path>', 'Path to analyze (default: src/lib)')
+    .option('--path <path>', 'Path to analyze (default: auto-detect for monorepo)')
     .option('--lib-path <path>', 'Alias for --path (deprecated: use --path)')
+    .option('--package <name>', 'Monorepo package to analyze (e.g., web, api)')
+    .option('--all-packages', 'Analyze all packages in monorepo')
     .option('--duplicates-only', 'Only analyze duplicate functions')
     .option('--types-only', 'Only analyze duplicate types/interfaces')
     .option('--include-types', 'Include type/interface duplicate detection')
@@ -233,6 +235,9 @@ function createProgram(): Command {
       if (options.path || options.libPath) {
         refactorOpts.path = options.path || options.libPath;
       }
+      // Monorepo package options
+      if (options.package) refactorOpts.package = options.package;
+      if (options.allPackages) refactorOpts.allPackages = true;
       if (options.duplicatesOnly) refactorOpts.duplicatesOnly = true;
       if (options.typesOnly) refactorOpts.typesOnly = true;
       if (options.includeTypes) refactorOpts.includeTypes = true;

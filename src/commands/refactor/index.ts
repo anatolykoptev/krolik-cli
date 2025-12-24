@@ -28,7 +28,14 @@ import type {
   RefactorAnalysis,
 } from './core';
 import { findDuplicates, findTypeDuplicates, analyzeStructure, createEnhancedAnalysis } from './analyzers';
-import { createMigrationPlan, findAffectedImports, executeMigrationPlan } from './migration';
+import {
+  createMigrationPlan,
+  findAffectedImports,
+  executeMigrationPlan,
+  createTypeMigrationPlan,
+  executeTypeMigrationPlan,
+  previewTypeMigrationPlan,
+} from './migration';
 import { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';
 import {
   exists,
@@ -37,6 +44,7 @@ import {
   cleanupBackup,
   type GitBackupResult,
 } from '../../lib';
+import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../config';
 
 /**
  * Run refactor analysis
@@ -218,6 +226,72 @@ export async function applyMigrations(
 }
 
 /**
+ * Resolve target path for refactor analysis
+ * Handles monorepo packages automatically
+ */
+function resolveTargetPath(
+  projectRoot: string,
+  options: RefactorOptions,
+): { targetPath: string; packageInfo?: MonorepoPackage } {
+  // If explicit path is provided, use it
+  if (options.path) {
+    return { targetPath: path.resolve(projectRoot, options.path) };
+  }
+
+  // Check if this is a monorepo
+  const features = detectFeatures(projectRoot);
+
+  if (features.monorepo) {
+    const packages = detectMonorepoPackages(projectRoot);
+
+    if (packages.length === 0) {
+      // No packages with lib found, fall back to default
+      return { targetPath: path.join(projectRoot, 'src', 'lib') };
+    }
+
+    // If --package specified, find that package
+    if (options.package) {
+      const pkg = packages.find(p => p.name === options.package);
+      if (!pkg) {
+        const available = packages.map(p => p.name).join(', ');
+        throw new Error(
+          `Package "${options.package}" not found or has no lib directory.\n` +
+          `Available packages: ${available}`
+        );
+      }
+      return {
+        targetPath: path.join(projectRoot, pkg.libPath),
+        packageInfo: pkg,
+      };
+    }
+
+    // If --all-packages, we'll handle it in refactorCommand
+    if (options.allPackages) {
+      // Return first package, refactorCommand will iterate
+      const pkg = packages[0];
+      return {
+        targetPath: path.join(projectRoot, pkg.libPath),
+        packageInfo: pkg,
+      };
+    }
+
+    // No package specified - use first available (usually 'web')
+    const pkg = packages.find(p => p.name === 'web') ?? packages[0];
+    console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
+    console.log(`   Available packages: ${packages.map(p => p.name).join(', ')}`);
+    console.log(`   Use --package <name> to analyze a specific package\n`);
+
+    return {
+      targetPath: path.join(projectRoot, pkg.libPath),
+      packageInfo: pkg,
+    };
+  }
+
+  // Not a monorepo, use default path
+  return { targetPath: path.join(projectRoot, 'src', 'lib') };
+}
+
+/**
  * Command handler for CLI
  */
 export async function refactorCommand(
@@ -225,12 +299,49 @@ export async function refactorCommand(
   options: RefactorOptions = {},
 ): Promise<void> {
   try {
-    const targetPath = options.path
-      ? path.resolve(projectRoot, options.path)
-      : path.join(projectRoot, 'src', 'lib');
+    const features = detectFeatures(projectRoot);
+    const packages = features.monorepo ? detectMonorepoPackages(projectRoot) : [];
+
+    // Handle --all-packages for monorepo
+    if (options.allPackages && packages.length > 0) {
+      console.log(`📦 Analyzing all ${packages.length} packages...\n`);
+
+      for (const pkg of packages) {
+        console.log(`\n${'='.repeat(60)}`);
+        console.log(`📁 Package: ${pkg.name} (${pkg.libPath})`);
+        console.log(`${'='.repeat(60)}\n`);
+
+        const targetPath = path.join(projectRoot, pkg.libPath);
+        const pkgOptions = { ...options, path: pkg.libPath };
+
+        const analysis = await runRefactor(projectRoot, pkgOptions);
+        printAnalysis(analysis, projectRoot, targetPath, options);
+
+        // Apply if requested
+        if (options.apply && !options.dryRun) {
+          const migrateOpts: { dryRun?: boolean; verbose?: boolean; backup?: boolean } = {
+            dryRun: false,
+          };
+          if (options.verbose !== undefined) migrateOpts.verbose = options.verbose;
+          if (options.backup !== undefined) migrateOpts.backup = options.backup;
+          await applyMigrations(analysis, projectRoot, migrateOpts);
+        }
+      }
+
+      return;
+    }
+
+    // Single package or non-monorepo analysis
+    const { targetPath, packageInfo } = resolveTargetPath(projectRoot, options);
+
+    // Update options.path for runRefactor
+    const analysisOptions = { ...options };
+    if (!options.path && packageInfo) {
+      analysisOptions.path = packageInfo.libPath;
+    }
 
     // Run analysis
-    const analysis = await runRefactor(projectRoot, options);
+    const analysis = await runRefactor(projectRoot, analysisOptions);
 
     // Print results
     printAnalysis(analysis, projectRoot, targetPath, options);
@@ -247,6 +358,17 @@ export async function refactorCommand(
       if (options.verbose !== undefined) migrateOpts.verbose = options.verbose;
       if (options.backup !== undefined) migrateOpts.backup = options.backup;
       await applyMigrations(analysis, projectRoot, migrateOpts);
+    }
+
+    // Apply type fixes if requested
+    if (options.fixTypes && analysis.typeDuplicates) {
+      const typeFixOpts: { dryRun?: boolean; verbose?: boolean; backup?: boolean; onlyIdentical?: boolean } = {
+        onlyIdentical: options.fixTypesIdenticalOnly !== false,
+      };
+      if (options.dryRun !== undefined) typeFixOpts.dryRun = options.dryRun;
+      if (options.verbose !== undefined) typeFixOpts.verbose = options.verbose;
+      if (options.backup !== undefined) typeFixOpts.backup = options.backup;
+      await applyTypeFixes(analysis, projectRoot, typeFixOpts);
     }
 
     // Generate ai-config.ts if requested
@@ -276,8 +398,72 @@ export async function refactorCommand(
   }
 }
 
+/**
+ * Apply type duplicate fixes
+ *
+ * @param analysis - Refactor analysis with type duplicates
+ * @param projectRoot - Project root directory
+ * @param options - Options for migration
+ */
+export async function applyTypeFixes(
+  analysis: RefactorAnalysis,
+  projectRoot: string,
+  options: { dryRun?: boolean; verbose?: boolean; backup?: boolean; onlyIdentical?: boolean } = {},
+): Promise<{ success: boolean; typesFixed: number; importsUpdated: number }> {
+  if (!analysis.typeDuplicates || analysis.typeDuplicates.length === 0) {
+    console.log('\n✅ No type duplicates to fix.');
+    return { success: true, typesFixed: 0, importsUpdated: 0 };
+  }
+
+  const { dryRun = false, onlyIdentical = true } = options;
+
+  // Create type migration plan
+  console.log('\n🔍 Creating type migration plan...');
+  const plan = await createTypeMigrationPlan(analysis.typeDuplicates, projectRoot, {
+    onlyIdentical,
+  });
+
+  if (plan.actions.length === 0) {
+    console.log('   No safe type migrations found.');
+    return { success: true, typesFixed: 0, importsUpdated: 0 };
+  }
+
+  console.log(`   Found ${plan.stats.typesToRemove} types to merge`);
+  console.log(`   ${plan.stats.importsToUpdate} imports to update`);
+  console.log(`   ${plan.stats.filesAffected} files affected`);
+
+  if (dryRun) {
+    console.log('\n📋 Type Migration Plan (dry run):');
+    console.log(previewTypeMigrationPlan(plan));
+    return { success: true, typesFixed: plan.stats.typesToRemove, importsUpdated: plan.stats.importsToUpdate };
+  }
+
+  // Execute migration
+  console.log('\n🚀 Applying type migrations...');
+  const execOpts: { dryRun?: boolean; backup?: boolean; verbose?: boolean } = {
+    dryRun: false,
+    backup: options.backup ?? true,
+  };
+  if (options.verbose !== undefined) execOpts.verbose = options.verbose;
+  const result = await executeTypeMigrationPlan(plan, projectRoot, execOpts);
+
+  if (result.success) {
+    console.log(`\n✅ Type migration complete!`);
+    console.log(`   ${result.summary.succeeded} actions succeeded`);
+  } else {
+    console.log(`\n⚠️  Some type migrations failed.`);
+    console.log(`   ${result.summary.succeeded} succeeded, ${result.summary.failed} failed`);
+  }
+
+  return {
+    success: result.success,
+    typesFixed: plan.stats.typesToRemove,
+    importsUpdated: plan.stats.importsToUpdate,
+  };
+}
+
 // Re-export types and functions from modules
 export type * from './core';
 export { findDuplicates, findTypeDuplicates, analyzeStructure, visualizeStructure } from './analyzers';
-export { createMigrationPlan, executeMigrationPlan } from './migration';
+export { createMigrationPlan, executeMigrationPlan, createTypeMigrationPlan, executeTypeMigrationPlan } from './migration';
 export { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';
