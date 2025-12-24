@@ -99,6 +99,8 @@ export function runFixerAnalysis(
       fixersRun.push(fixer.metadata.id);
     } catch (error) {
       // Log error but continue with other fixers
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`Fixer '${fixer.metadata.id}' failed: ${message}`);
       fixersSkipped.push(fixer.metadata.id);
     }
   }

@@ -230,17 +230,23 @@ export const SAMPLE_INTERFACES = {
     id: 'string',
     name: 'string',
     email: 'string',
+    phone: 'string',
+    address: 'string',
   }),
   userDuplicate: generateInterface('User', {
     id: 'string',
     name: 'string',
     email: 'string',
+    phone: 'string',
+    address: 'string',
   }),
   userSimilar: generateInterface('User', {
     id: 'string',
     name: 'string',
     email: 'string',
-    age: 'number', // extra field
+    phone: 'string',
+    address: 'string',
+    age: 'number', // extra field → 5/6 = 0.833 similarity
   }),
   userDifferent: generateInterface('User', {
     userId: 'number',

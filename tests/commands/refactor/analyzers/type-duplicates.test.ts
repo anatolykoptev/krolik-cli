@@ -309,8 +309,9 @@ describe('findTypeDuplicates', () => {
     it('handles large number of files', async () => {
       const files: Record<string, string> = {};
       for (let i = 0; i < 100; i++) {
+        // Each type has unique structure (field name includes index)
         files[`src/file${i}.ts`] = generateInterface(`Type${i}`, {
-          id: 'string',
+          [`field${i}`]: 'string',
         });
       }
 
@@ -321,7 +322,7 @@ describe('findTypeDuplicates', () => {
 
         // Should complete in reasonable time (<5 seconds)
         expect(duration).toBeLessThan(5000);
-        // No duplicates expected (all unique names)
+        // No duplicates expected (all unique names and structures)
         expect(duplicates.length).toBe(0);
       });
     });

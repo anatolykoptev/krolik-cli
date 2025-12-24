@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tryExec, execLines, exec } from '../../src/lib/shell';
+import { tryExec, execLines, exec } from '../../src/lib';
 
 describe('shell', () => {
   describe('tryExec', () => {

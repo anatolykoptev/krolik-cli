@@ -6,7 +6,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { loadConfig } from '../config';
-import { createLogger } from '../lib';
+import { createLogger, syncClaudeMd, needsSync } from '../lib';
 import type { OutputFormat } from '../types';
 
 const VERSION = '1.0.0';
@@ -43,6 +43,23 @@ async function createContext(program: Command, options: CommandOptions) {
   const config = await loadConfig({ projectRoot });
   const logger = createLogger({ level: globalOpts.verbose ? 'debug' : 'info' });
   const format = getOutputFormat(globalOpts, options);
+
+  // Auto-sync CLAUDE.md documentation (silent mode)
+  // Skip for mcp and sync commands to avoid recursion
+  const command = process.argv[2];
+  if (command !== 'mcp' && command !== 'sync' && !globalOpts.noSync) {
+    try {
+      if (needsSync(config.projectRoot)) {
+        const result = syncClaudeMd(config.projectRoot, { silent: true });
+        if (globalOpts.verbose && result.action !== 'skipped') {
+          logger.debug(`CLAUDE.md ${result.action}: ${result.path}`);
+        }
+      }
+    } catch {
+      // Silently ignore sync errors
+    }
+  }
+
   return { config, logger, options: { ...globalOpts, ...options, format } };
 }
 
@@ -62,7 +79,8 @@ function createProgram(): Command {
     .option('-t, --text', 'Human-readable text output (default: AI-friendly XML)')
     .option('--json', 'Output as JSON')
     .option('-v, --verbose', 'Verbose output')
-    .option('--no-color', 'Disable colored output');
+    .option('--no-color', 'Disable colored output')
+    .option('--no-sync', 'Disable auto-sync of CLAUDE.md documentation');
 
   // Status command
   program
@@ -370,6 +388,22 @@ function createProgram(): Command {
       const { runInit } = await import('../commands/init');
       const ctx = await createContext(program, options);
       await runInit(ctx);
+    });
+
+  // Sync command - manually sync CLAUDE.md documentation
+  program
+    .command('sync')
+    .description('Sync krolik documentation to CLAUDE.md')
+    .option('--force', 'Force update even if versions match')
+    .option('--dry-run', 'Preview without changes')
+    .option('--status', 'Show current sync status')
+    .action(async (options: CommandOptions) => {
+      const { runSync } = await import('../commands/sync');
+      const globalOpts = program.opts();
+      const projectRoot = globalOpts.projectRoot || globalOpts.cwd || process.cwd();
+      const config = await loadConfig({ projectRoot });
+      const logger = createLogger({ level: globalOpts.verbose ? 'debug' : 'info' });
+      await runSync({ config, logger, options });
     });
 
   // MCP server command

@@ -31,6 +31,7 @@ export function checkSRP(
         exportedFns.length > MAX_LENGTH
           ? `Split into ${Math.ceil(exportedFns.length / MAX_LENGTH)} files by related functionality`
           : "Consider extracting helper functions to separate utils",
+      fixerId: "srp",
     });
   }
 
@@ -43,6 +44,7 @@ export function checkSRP(
       message: `File exports ${exports} items (max: ${thresholds.maxExportsPerFile})`,
       suggestion:
         "Group related exports into separate modules with index.ts re-exports",
+      fixerId: "srp",
     });
   }
 
@@ -54,6 +56,7 @@ export function checkSRP(
       category: "size",
       message: `File has ${lines} lines (max: ${thresholds.maxFileLines})`,
       suggestion: "Split into smaller, focused modules",
+      fixerId: "srp",
     });
   }
 
@@ -67,6 +70,7 @@ export function checkSRP(
         category: "complexity",
         message: `Function "${fn.name}" has ${fn.lines} lines (max: ${thresholds.maxFunctionLines})`,
         suggestion: "Extract sub-functions or use early returns",
+        fixerId: "long-functions",
       });
     }
 
@@ -79,6 +83,7 @@ export function checkSRP(
         category: "complexity",
         message: `Function "${fn.name}" has ${fn.params} parameters (max: ${thresholds.maxParams})`,
         suggestion: "Use options object pattern: fn(options: FnOptions)",
+        fixerId: "complexity",
       });
     }
 
@@ -95,6 +100,7 @@ export function checkSRP(
           fn.complexity > MAGIC_15
             ? "Refactor into smaller functions, use strategy pattern, or extract conditions"
             : "Reduce branching by using early returns or extracting helper functions",
+        fixerId: "complexity",
       });
     }
   }

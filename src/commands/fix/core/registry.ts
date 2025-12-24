@@ -58,6 +58,7 @@ export class FixerRegistry {
    */
   register(fixer: Fixer): void {
     if (this.fixers.has(fixer.metadata.id)) {
+      console.warn(`Fixer '${fixer.metadata.id}' is already registered, overwriting`);
     }
     this.fixers.set(fixer.metadata.id, fixer);
   }

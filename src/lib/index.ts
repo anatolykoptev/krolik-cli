@@ -118,3 +118,13 @@ export {
   getCurrentBranchForBackup,
 } from './@git/backup';
 export type { GitBackupResult, RestoreResult } from './@git/backup';
+
+// Documentation injection
+export {
+  syncClaudeMd,
+  needsSync,
+  getSyncStatus,
+  DOCS_VERSION,
+  generateKrolikDocs,
+} from './@docs';
+export type { SyncResult, SyncOptions } from './@docs';

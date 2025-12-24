@@ -5,7 +5,7 @@ import {
   getDefaultBranch,
   getStatus,
   getRecentCommits,
-} from '../../src/lib/git';
+} from '../../src/lib';
 
 describe('git', () => {
   // These tests run in the krolik-cli directory which is a git repo
