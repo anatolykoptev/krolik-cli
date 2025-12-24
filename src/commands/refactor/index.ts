@@ -23,35 +23,39 @@
  */
 
 import * as path from 'path';
-import type {
-  RefactorOptions,
-  RefactorAnalysis,
-  ResolvedPaths,
-} from './core';
-import { findDuplicates, findTypeDuplicates, analyzeStructure, createEnhancedAnalysis } from './analyzers';
+import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../config';
+import {
+  cleanupBackup,
+  createBackupBranch,
+  exists,
+  type GitBackupResult,
+  relativePath as getRelativePath,
+} from '../../lib';
+import {
+  analyzeStructure,
+  createEnhancedAnalysis,
+  findDuplicates,
+  findTypeDuplicates,
+} from './analyzers';
+import type { RefactorAnalysis, RefactorOptions } from './core';
 import {
   createMigrationPlan,
-  findAffectedImports,
-  executeMigrationPlan,
   createTypeMigrationPlan,
+  executeMigrationPlan,
   executeTypeMigrationPlan,
+  findAffectedImports,
   previewTypeMigrationPlan,
 } from './migration';
-import { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';
-import {
-  exists,
-  relativePath as getRelativePath,
-  createBackupBranch,
-  cleanupBackup,
-  type GitBackupResult,
-} from '../../lib';
-import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../config';
+import { formatAiNativeXml, formatMigrationPreview, formatRefactor } from './output';
 
 // ============================================================================
 // PATH RESOLUTION (consolidated logic)
 // ============================================================================
 
-interface ResolvedPathsWithPackage extends ResolvedPaths {
+interface ResolvedPathsWithPackage {
+  targetPath: string;
+  libPath: string;
+  relativePath: string;
   packageInfo?: MonorepoPackage;
 }
 
@@ -63,16 +67,13 @@ interface ResolvedPathsWithPackage extends ResolvedPaths {
  * @param options - Refactor options
  * @returns Resolved paths and optional package info
  */
-function resolvePaths(
-  projectRoot: string,
-  options: RefactorOptions,
-): ResolvedPathsWithPackage {
+function resolvePaths(projectRoot: string, options: RefactorOptions): ResolvedPathsWithPackage {
   const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
 
   // If explicit path is provided
   if (options.path) {
     const targetPath = path.resolve(projectRoot, options.path);
-    const libPath = resolveLibPath(targetPath, projectRoot, isTypeAnalysis);
+    const libPath = resolveLibPath(targetPath, projectRoot, isTypeAnalysis ?? false);
     return {
       targetPath,
       libPath,
@@ -89,39 +90,37 @@ function resolvePaths(
     if (packages.length > 0) {
       // If --package specified, find that package
       if (options.package) {
-        const pkg = packages.find(p => p.name === options.package);
+        const pkg = packages.find((p) => p.name === options.package);
         if (!pkg) {
-          const available = packages.map(p => p.name).join(', ');
+          const available = packages.map((p) => p.name).join(', ');
           throw new Error(
             `Package "${options.package}" not found or has no lib directory.\n` +
-            `Available packages: ${available}`
+              `Available packages: ${available}`,
           );
         }
-        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis ?? false);
       }
 
       // If --all-packages, return first package (caller will iterate)
       if (options.allPackages) {
         const pkg = packages[0]!;
-        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis ?? false);
       }
 
       // No package specified - use first available (usually 'web')
-      const pkg = packages.find(p => p.name === 'web') ?? packages[0]!;
+      const pkg = packages.find((p) => p.name === 'web') ?? packages[0]!;
       console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
-      console.log(`   Available packages: ${packages.map(p => p.name).join(', ')}`);
+      console.log(`   Available packages: ${packages.map((p) => p.name).join(', ')}`);
       console.log(`   Use --package <name> to analyze a specific package\n`);
 
-      return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+      return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis ?? false);
     }
   }
 
   // Not a monorepo or no packages found - use default paths
   const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
   const targetPath = path.join(projectRoot, defaultPath);
-  const libPath = isTypeAnalysis
-    ? findLibPath(projectRoot)
-    : targetPath;
+  const libPath = isTypeAnalysis ? findLibPath(projectRoot) : targetPath;
 
   return {
     targetPath,
@@ -172,11 +171,7 @@ function resolvePackagePaths(
 /**
  * Resolve libPath from targetPath
  */
-function resolveLibPath(
-  targetPath: string,
-  projectRoot: string,
-  isTypeAnalysis: boolean,
-): string {
+function resolveLibPath(targetPath: string, projectRoot: string, isTypeAnalysis: boolean): string {
   // If target looks like a lib directory, use it
   if (path.basename(targetPath) === 'lib' || targetPath.includes('/lib')) {
     return targetPath;
@@ -270,10 +265,7 @@ export async function runRefactor(
   // Recalculate imports count
   migration = {
     ...migration,
-    importsToUpdate: migration.actions.reduce(
-      (sum, a) => sum + a.affectedImports.length,
-      0,
-    ),
+    importsToUpdate: migration.actions.reduce((sum, a) => sum + a.affectedImports.length, 0),
   };
 
   const result: RefactorAnalysis = {
@@ -411,7 +403,7 @@ export async function refactorCommand(
 
       for (const pkg of packages) {
         // Use resolvePackagePaths for correct type analysis handling
-        const resolved = resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+        const resolved = resolvePackagePaths(projectRoot, pkg, isTypeAnalysis ?? false);
 
         console.log(`\n${'='.repeat(60)}`);
         console.log(`📁 Package: ${pkg.name} (${resolved.relativePath})`);
@@ -440,8 +432,8 @@ export async function refactorCommand(
     // Single package or non-monorepo analysis
     const resolved = resolvePaths(projectRoot, options);
 
-    // Run analysis (resolvePaths already handles all path logic)
-    const analysis = await runRefactor(projectRoot, options);
+    // Run analysis with already resolved paths (avoid duplicate resolvePaths call)
+    const analysis = await runRefactor(projectRoot, { ...options, path: resolved.relativePath });
 
     // Print results
     printAnalysis(analysis, projectRoot, resolved.targetPath, options);
@@ -462,7 +454,12 @@ export async function refactorCommand(
 
     // Apply type fixes if requested
     if (options.fixTypes && analysis.typeDuplicates) {
-      const typeFixOpts: { dryRun?: boolean; verbose?: boolean; backup?: boolean; onlyIdentical?: boolean } = {
+      const typeFixOpts: {
+        dryRun?: boolean;
+        verbose?: boolean;
+        backup?: boolean;
+        onlyIdentical?: boolean;
+      } = {
         onlyIdentical: options.fixTypesIdenticalOnly !== false,
       };
       if (options.dryRun !== undefined) typeFixOpts.dryRun = options.dryRun;
@@ -535,7 +532,11 @@ export async function applyTypeFixes(
   if (dryRun) {
     console.log('\n📋 Type Migration Plan (dry run):');
     console.log(previewTypeMigrationPlan(plan));
-    return { success: true, typesFixed: plan.stats.typesToRemove, importsUpdated: plan.stats.importsToUpdate };
+    return {
+      success: true,
+      typesFixed: plan.stats.typesToRemove,
+      importsUpdated: plan.stats.importsToUpdate,
+    };
   }
 
   // Execute migration
@@ -562,8 +563,18 @@ export async function applyTypeFixes(
   };
 }
 
+export {
+  analyzeStructure,
+  findDuplicates,
+  findTypeDuplicates,
+  visualizeStructure,
+} from './analyzers';
 // Re-export types and functions from modules
 export type * from './core';
-export { findDuplicates, findTypeDuplicates, analyzeStructure, visualizeStructure } from './analyzers';
-export { createMigrationPlan, executeMigrationPlan, createTypeMigrationPlan, executeTypeMigrationPlan } from './migration';
-export { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';
+export {
+  createMigrationPlan,
+  createTypeMigrationPlan,
+  executeMigrationPlan,
+  executeTypeMigrationPlan,
+} from './migration';
+export { formatAiNativeXml, formatMigrationPreview, formatRefactor } from './output';
