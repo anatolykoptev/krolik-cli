@@ -159,3 +159,26 @@ export function findTsConfig(targetPath: string, projectRoot: string): string | 
 
   return null;
 }
+
+// ============================================================================
+// TS-MORPH PROJECT CREATION
+// ============================================================================
+
+/**
+ * Create a shared ts-morph Project for AST analysis
+ * This allows multiple analyzers to reuse the same project instance,
+ * avoiding expensive re-parsing of the same files
+ *
+ * @param targetPath - The path being analyzed
+ * @param projectRoot - The project root
+ * @returns ts-morph Project instance
+ */
+export function createSharedProject(
+  targetPath: string,
+  projectRoot: string,
+): ReturnType<typeof import('../../../lib/@ast').createProject> {
+  const { createProject } = require('../../../lib/@ast');
+  const tsConfigPath = findTsConfig(targetPath, projectRoot);
+
+  return tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+}

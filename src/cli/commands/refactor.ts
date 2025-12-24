@@ -16,7 +16,9 @@ interface CommandOptions {
 export function registerRefactorCommand(program: Command): void {
   program
     .command('refactor')
-    .description('Analyze and refactor module structure (duplicates, imports, @namespace organization)')
+    .description(
+      'Analyze and refactor module structure (duplicates, imports, @namespace organization)',
+    )
     .option('--path <path>', 'Path to analyze (default: auto-detect for monorepo)')
     .option('--lib-path <path>', 'Alias for --path (deprecated: use --path)')
     .option('--package <name>', 'Monorepo package to analyze (e.g., web, api)')
@@ -38,6 +40,7 @@ export function registerRefactorCommand(program: Command): void {
     .option('--no-push', 'Skip push to remote')
     .option('--fix-types', 'Auto-fix type duplicates (merge 100% identical types)')
     .option('--fix-types-all', 'Include similar types (90%+) in auto-fix')
+    .option('--no-swc', 'Use ts-morph instead of SWC for parsing (slower but more accurate)')
     .action(async (options: CommandOptions) => {
       const { refactorCommand } = await import('../../commands/refactor');
       const globalOpts = program.opts();
@@ -81,6 +84,10 @@ export function registerRefactorCommand(program: Command): void {
         if (!refactorOpts.typesOnly && !refactorOpts.includeTypes) {
           refactorOpts.includeTypes = true;
         }
+      }
+      // SWC is default (fast), --no-swc switches to ts-morph (slower but more accurate)
+      if (options.swc === false) {
+        refactorOpts.useFastParser = false;
       }
       await refactorCommand(projectRoot, refactorOpts);
     });

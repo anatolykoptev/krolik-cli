@@ -4,8 +4,8 @@
  */
 
 import { execSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Get the path to the CLI script
 // After bundling, all code runs from dist/bin/cli.js, so __dirname is dist/bin

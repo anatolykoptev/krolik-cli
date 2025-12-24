@@ -10,13 +10,13 @@
 
 import { createHash } from 'crypto';
 import * as path from 'path';
+import { findFiles, logger, readFile, validatePathWithinProject } from '../../../lib';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
-import { findFiles, readFile, logger, validatePathWithinProject } from '../../../lib';
+import type { TypeDuplicateInfo } from '../core/types';
 import { findTsConfig } from './helpers';
-import type { TypeDuplicateInfo } from "../core/types";
 
 // Re-export for public API
-export type { TypeDuplicateInfo } from "../core/types";
+export type { TypeDuplicateInfo } from '../core/types';
 
 // ============================================================================
 // TYPES
@@ -51,6 +51,8 @@ export interface FindTypeDuplicatesOptions {
   includeTypes?: boolean;
   /** Include interfaces (default: true) */
   includeInterfaces?: boolean;
+  /** Shared ts-morph Project instance (optional, for performance) */
+  project?: ReturnType<typeof import('../../../lib/@ast').createProject>;
 }
 
 // ============================================================================
@@ -276,11 +278,14 @@ export async function findTypeDuplicates(
   }
 
   // Create ts-morph project
+  // Use shared project if provided, otherwise create a new one
   // Support monorepo by finding tsconfig in package or project root
-  const tsConfigPath = findTsConfig(targetPath, projectRoot);
-  const project = tsConfigPath
-    ? createProject({ tsConfigPath })
-    : createProject({});
+  const project =
+    options.project ??
+    (() => {
+      const tsConfigPath = findTsConfig(targetPath, projectRoot);
+      return tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+    })();
 
   // Extract all types
   const allTypes: TypeSignature[] = [];
@@ -329,14 +334,29 @@ export async function findTypeDuplicates(
 
     // Calculate similarity
     let minSimilarity = 1;
-    for (let i = 0; i < types.length - 1; i++) {
-      for (let j = i + 1; j < types.length; j++) {
-        const ti = types[i];
-        const tj = types[j];
-        if (ti && tj) {
-          const sim = calculateTypeSimilarity(ti, tj);
-          minSimilarity = Math.min(minSimilarity, sim);
+
+    // Short-circuit for 2-element groups
+    if (types.length === 2) {
+      const t1 = types[0];
+      const t2 = types[1];
+      if (t1 && t2) {
+        minSimilarity = calculateTypeSimilarity(t1, t2);
+      }
+    } else {
+      for (let i = 0; i < types.length - 1; i++) {
+        for (let j = i + 1; j < types.length; j++) {
+          const ti = types[i];
+          const tj = types[j];
+          if (ti && tj) {
+            const sim = calculateTypeSimilarity(ti, tj);
+            minSimilarity = Math.min(minSimilarity, sim);
+
+            // Early exit when below threshold - can't improve
+            if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) break;
+          }
         }
+        // Early exit outer loop if already below threshold
+        if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) break;
       }
     }
 

@@ -3,10 +3,13 @@
  * @description krolik_issue tool - GitHub issue parsing
  */
 
-import { buildFlags, type FlagSchema } from './flag-builder';
-import { registerTool } from './registry';
-import type { MCPToolDefinition } from './types';
-import { runKrolik } from './utils';
+import {
+  buildFlags,
+  type FlagSchema,
+  type MCPToolDefinition,
+  registerTool,
+  runKrolik,
+} from '../core';
 
 const issueSchema: FlagSchema = {
   number: { flag: '', sanitize: 'issue', required: true },

@@ -3,11 +3,13 @@
  * @description krolik_status tool - Project diagnostics
  */
 
-import { withProjectDetection } from './projects';
-import { registerTool } from './registry';
-import { PROJECT_PROPERTY } from './shared';
-import type { MCPToolDefinition } from './types';
-import { runKrolik } from './utils';
+import {
+  type MCPToolDefinition,
+  PROJECT_PROPERTY,
+  registerTool,
+  runKrolik,
+  withProjectDetection,
+} from '../core';
 
 export const statusTool: MCPToolDefinition = {
   name: 'krolik_status',

@@ -41,6 +41,8 @@ export interface FunctionSignature {
   bodyHash: string;
   /** Simplified body for comparison */
   normalizedBody: string;
+  /** Cached tokens for similarity calculation */
+  tokens?: Set<string>;
 }
 
 // ============================================================================
@@ -96,12 +98,7 @@ export interface StructureIssue {
 /**
  * Migration action types
  */
-export type MigrationActionType =
-  | 'move'
-  | 'merge'
-  | 'delete'
-  | 'create-barrel'
-  | 'update-imports';
+export type MigrationActionType = 'move' | 'merge' | 'delete' | 'create-barrel' | 'update-imports';
 
 /**
  * Risk level for migration actions

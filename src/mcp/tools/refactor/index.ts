@@ -3,12 +3,17 @@
  * @description krolik_refactor tool - Module structure analysis and refactoring
  */
 
-import { buildFlags, type FlagSchema } from './flag-builder';
-import { withProjectDetection } from './projects';
-import { registerTool } from './registry';
-import { COMMON_FLAGS, PROJECT_PROPERTY } from './shared';
-import type { MCPToolDefinition } from './types';
-import { runKrolik, TIMEOUT_60S } from './utils';
+import {
+  buildFlags,
+  COMMON_FLAGS,
+  type FlagSchema,
+  type MCPToolDefinition,
+  PROJECT_PROPERTY,
+  registerTool,
+  runKrolik,
+  TIMEOUT_60S,
+  withProjectDetection,
+} from '../core';
 
 const refactorSchema: FlagSchema = {
   path: COMMON_FLAGS.path,

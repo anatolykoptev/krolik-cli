@@ -20,6 +20,14 @@ const DEFAULT_EXCLUDE = ['node_modules', '.git', 'dist', 'build', '.next', 'cove
 // File cache to avoid repeated directory scans
 const fileCache = new Map<string, string[]>();
 
+// Content cache with mtime-based invalidation
+interface CachedContent {
+  content: string;
+  mtime: number;
+}
+
+const contentCache = new Map<string, CachedContent>();
+
 /**
  * Find files in directory with caching
  */
@@ -41,6 +49,49 @@ export function getCachedFiles(dirPath: string, options: FindFilesOptions = {}):
  */
 export function clearFileCache(): void {
   fileCache.clear();
+  contentCache.clear();
+}
+
+/**
+ * Get cached file content with mtime-based invalidation
+ */
+export function getCachedContent(filePath: string): string | null {
+  const cached = contentCache.get(filePath);
+  if (!cached) return null;
+
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.mtime.getTime() !== cached.mtime) {
+      contentCache.delete(filePath);
+      return null;
+    }
+    return cached.content;
+  } catch {
+    contentCache.delete(filePath);
+    return null;
+  }
+}
+
+/**
+ * Cache file content with mtime tracking
+ */
+export function setCachedContent(filePath: string, content: string): void {
+  try {
+    const stat = fs.statSync(filePath);
+    contentCache.set(filePath, {
+      content,
+      mtime: stat.mtime.getTime(),
+    });
+  } catch {
+    // Ignore cache failures
+  }
+}
+
+/**
+ * Clear content cache only
+ */
+export function clearContentCache(): void {
+  contentCache.clear();
 }
 
 /**

@@ -6,10 +6,7 @@
 /**
  * Handler function signature
  */
-export type ToolHandler = (
-  args: Record<string, unknown>,
-  workspaceRoot: string,
-) => string;
+export type ToolHandler = (args: Record<string, unknown>, workspaceRoot: string) => string;
 
 /**
  * JSON Schema property definition

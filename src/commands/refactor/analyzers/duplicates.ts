@@ -43,6 +43,8 @@ export interface FindDuplicatesOptions {
   ignoreTests?: boolean;
   /** Use fast SWC parser instead of ts-morph (default: true) */
   useFastParser?: boolean;
+  /** Shared ts-morph Project instance (optional, for performance) */
+  project?: ReturnType<typeof createProject>;
 }
 
 // ============================================================================
@@ -62,6 +64,7 @@ export function extractFunctions(sourceFile: SourceFile, filePath: string): Func
 
     const bodyText = func.getBody()?.getText() ?? '';
     const normalizedBody = normalizeBody(bodyText);
+    const tokens = new Set(normalizedBody.split(/\s+/).filter((t) => t.length > 0));
 
     functions.push({
       name,
@@ -72,6 +75,7 @@ export function extractFunctions(sourceFile: SourceFile, filePath: string): Func
       exported: func.isExported(),
       bodyHash: hashBody(normalizedBody),
       normalizedBody,
+      tokens,
     });
   }
 
@@ -89,6 +93,7 @@ export function extractFunctions(sourceFile: SourceFile, filePath: string): Func
 
       const name = decl.getName();
       const normalizedBody = normalizeBody(initText);
+      const tokens = new Set(normalizedBody.split(/\s+/).filter((t) => t.length > 0));
 
       // Extract parameters from arrow functions
       let params: string[] = [];
@@ -108,6 +113,7 @@ export function extractFunctions(sourceFile: SourceFile, filePath: string): Func
         exported: true,
         bodyHash: hashBody(normalizedBody),
         normalizedBody,
+        tokens,
       });
     }
   }
@@ -157,7 +163,12 @@ function hashBody(body: string): string {
  * Calculate similarity between two function bodies
  * Returns 0-1 (1 = identical)
  */
-function calculateSimilarity(body1: string, body2: string): number {
+function calculateSimilarity(
+  body1: string,
+  body2: string,
+  tokens1?: Set<string>,
+  tokens2?: Set<string>,
+): number {
   if (body1 === body2) return 1;
 
   const len1 = body1.length;
@@ -170,11 +181,12 @@ function calculateSimilarity(body1: string, body2: string): number {
   if (Math.abs(len1 - len2) / maxLen > SIMILARITY_THRESHOLDS.LENGTH_DIFF) return 0;
 
   // Token-based Jaccard similarity
-  const tokens1 = new Set(body1.split(/\s+/));
-  const tokens2 = new Set(body2.split(/\s+/));
+  // Use pre-computed tokens if available, otherwise compute on demand
+  const t1 = tokens1 ?? new Set(body1.split(/\s+/).filter((t) => t.length > 0));
+  const t2 = tokens2 ?? new Set(body2.split(/\s+/).filter((t) => t.length > 0));
 
-  const intersection = [...tokens1].filter((t) => tokens2.has(t)).length;
-  const union = new Set([...tokens1, ...tokens2]).size;
+  const intersection = [...t1].filter((t) => t2.has(t)).length;
+  const union = new Set([...t1, ...t2]).size;
 
   return union === 0 ? 0 : intersection / union;
 }
@@ -186,18 +198,31 @@ function calculateSimilarity(body1: string, body2: string): number {
 function calculateGroupSimilarity(funcs: FunctionSignature[]): number {
   if (funcs.length < 2) return 0;
 
-  const similarities: number[] = [];
+  // Short-circuit for 2-element groups
+  if (funcs.length === 2) {
+    const f1 = funcs[0];
+    const f2 = funcs[1];
+    if (!f1 || !f2) return 0;
+    return calculateSimilarity(f1.normalizedBody, f2.normalizedBody, f1.tokens, f2.tokens);
+  }
+
+  let minSimilarity = 1;
+
   for (let i = 0; i < funcs.length - 1; i++) {
     for (let j = i + 1; j < funcs.length; j++) {
       const fi = funcs[i];
       const fj = funcs[j];
       if (fi && fj) {
-        similarities.push(calculateSimilarity(fi.normalizedBody, fj.normalizedBody));
+        const sim = calculateSimilarity(fi.normalizedBody, fj.normalizedBody, fi.tokens, fj.tokens);
+        minSimilarity = Math.min(minSimilarity, sim);
+
+        // Early exit when below threshold - can't improve
+        if (minSimilarity < SIMILARITY_THRESHOLDS.MERGE) return minSimilarity;
       }
     }
   }
 
-  return similarities.length > 0 ? Math.min(...similarities) : 0;
+  return minSimilarity;
 }
 
 // ============================================================================
@@ -259,6 +284,7 @@ export async function findDuplicates(
           const content2 = readFile(file) ?? '';
           const bodyText = content2.slice(0, 500); // Approximate body for normalization
           const normalizedBody = normalizeBody(bodyText);
+          const tokens = new Set(normalizedBody.split(/\s+/).filter((t) => t.length > 0));
 
           allFunctions.push({
             name: swcFunc.name,
@@ -269,6 +295,7 @@ export async function findDuplicates(
             exported: swcFunc.isExported,
             bodyHash: swcFunc.bodyHash,
             normalizedBody,
+            tokens,
           });
         }
       } catch (error) {
@@ -280,8 +307,13 @@ export async function findDuplicates(
     }
   } else {
     // Slow path: use ts-morph for full type information
-    const tsConfigPath = findTsConfig(targetPath, projectRoot);
-    const project = tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+    // Use shared project if provided, otherwise create a new one
+    const project =
+      options.project ??
+      (() => {
+        const tsConfigPath = findTsConfig(targetPath, projectRoot);
+        return tsConfigPath ? createProject({ tsConfigPath }) : createProject({});
+      })();
 
     for (const file of files) {
       try {

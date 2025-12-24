@@ -3,12 +3,18 @@
  * @description krolik_fix tool - Auto-fix code quality issues
  */
 
-import { buildFlags, type FlagSchema } from './flag-builder';
-import { withProjectDetection } from './projects';
-import { registerTool } from './registry';
-import { COMMON_FLAGS, FIX_CATEGORIES, PROJECT_PROPERTY } from './shared';
-import type { MCPToolDefinition } from './types';
-import { runKrolik, TIMEOUT_60S } from './utils';
+import {
+  buildFlags,
+  COMMON_FLAGS,
+  FIX_CATEGORIES,
+  type FlagSchema,
+  type MCPToolDefinition,
+  PROJECT_PROPERTY,
+  registerTool,
+  runKrolik,
+  TIMEOUT_60S,
+  withProjectDetection,
+} from '../core';
 
 const fixSchema: FlagSchema = {
   dryRun: COMMON_FLAGS.dryRun,

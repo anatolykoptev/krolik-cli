@@ -58,6 +58,8 @@ export interface RefactorOptions {
   fixTypes?: boolean;
   /** Only fix 100% identical types (safe mode, default for --fix-types) */
   fixTypesIdenticalOnly?: boolean;
+  /** Use fast SWC parser for duplicate detection (default: true) */
+  useFastParser?: boolean;
 }
 
 // ============================================================================
@@ -100,12 +102,13 @@ export interface AnalysisOptions {
  * Default refactor options
  */
 export const DEFAULT_REFACTOR_OPTIONS: Required<
-  Pick<RefactorOptions, 'format' | 'backup' | 'verbose' | 'dryRun'>
+  Pick<RefactorOptions, 'format' | 'backup' | 'verbose' | 'dryRun' | 'useFastParser'>
 > = {
   format: 'text',
   backup: true,
   verbose: false,
   dryRun: false,
+  useFastParser: true, // SWC parser is 10-20x faster than ts-morph
 };
 
 /**

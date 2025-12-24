@@ -31,8 +31,8 @@ import {
   createBackupBranch,
   exists,
   type GitBackupResult,
-  hasUncommittedChanges,
   relativePath as getRelativePath,
+  hasUncommittedChanges,
 } from '../../lib';
 import {
   analyzeStructure,
@@ -233,42 +233,65 @@ export async function runRefactor(
     throw new Error(`Target path does not exist: ${targetPath}`);
   }
 
-  // Run analysis
-  let duplicates: RefactorAnalysis['duplicates'] = [];
-  let typeDuplicates: RefactorAnalysis['typeDuplicates'];
-  let structure: RefactorAnalysis['structure'];
+  // Create shared ts-morph Project if we need AST analysis
+  // This avoids creating separate projects in each analyzer (significant performance gain)
+  // Note: SWC is used by default (useFastParser defaults to true), so we only need
+  // ts-morph for type analysis or when explicitly disabled
+  const useFastParser = options.useFastParser !== false; // Default to true (SWC)
+  const needsAstAnalysis =
+    (!options.structureOnly && !options.typesOnly && !useFastParser) || // Function duplicates without fast parser
+    options.typesOnly ||
+    options.includeTypes;
 
-  // Function duplicates (unless types-only or structure-only)
-  if (!options.structureOnly && !options.typesOnly) {
-    duplicates = await findDuplicates(targetPath, projectRoot);
+  let sharedProject:
+    | ReturnType<typeof import('./analyzers/helpers').createSharedProject>
+    | undefined;
+
+  if (needsAstAnalysis) {
+    const { createSharedProject } = await import('./analyzers/helpers');
+    sharedProject = createSharedProject(targetPath, projectRoot);
   }
 
-  // Type/interface duplicates (if types-only or includeTypes)
-  if (options.typesOnly || options.includeTypes) {
-    typeDuplicates = await findTypeDuplicates(targetPath, projectRoot);
-  }
-
-  // Structure analysis (unless duplicates-only or types-only)
-  if (!options.duplicatesOnly && !options.typesOnly) {
-    structure = analyzeStructure(targetPath, projectRoot);
-  } else {
-    structure = {
-      flatFiles: [],
-      namespacedFolders: [],
-      doubleNested: [],
-      ungroupedFiles: [],
-      score: 100,
-      issues: [],
-    };
-  }
+  // Run analysis (parallel execution for independent operations)
+  // Note: Both analyzers can safely share the same Project instance
+  const [duplicates, typeDuplicates, structure] = await Promise.all([
+    // Function duplicates (unless types-only or structure-only)
+    // Uses SWC parser by default for 10-20x faster parsing
+    !options.structureOnly && !options.typesOnly
+      ? findDuplicates(targetPath, projectRoot, {
+          useFastParser, // SWC by default (true)
+          ...(sharedProject ? { project: sharedProject } : {}),
+        })
+      : Promise.resolve([]),
+    // Type/interface duplicates (if types-only or includeTypes)
+    options.typesOnly || options.includeTypes
+      ? findTypeDuplicates(targetPath, projectRoot, {
+          ...(sharedProject ? { project: sharedProject } : {}),
+        })
+      : Promise.resolve(undefined),
+    // Structure analysis (unless duplicates-only or types-only)
+    !options.duplicatesOnly && !options.typesOnly
+      ? Promise.resolve(analyzeStructure(targetPath, projectRoot))
+      : Promise.resolve({
+          flatFiles: [],
+          namespacedFolders: [],
+          doubleNested: [],
+          ungroupedFiles: [],
+          score: 100,
+          issues: [],
+        }),
+  ]);
 
   // Create migration plan (using libPath for file operations)
   let migration = createMigrationPlan(duplicates, structure, libPath);
 
-  // Find affected imports for each action
-  for (const action of migration.actions) {
-    action.affectedImports = await findAffectedImports(action.source, projectRoot);
-  }
+  // Find affected imports for each action (parallel)
+  const importResults = await Promise.all(
+    migration.actions.map((action) => findAffectedImports(action.source, projectRoot)),
+  );
+  migration.actions.forEach((action, i) => {
+    action.affectedImports = importResults[i] ?? [];
+  });
 
   // Recalculate imports count
   migration = {
