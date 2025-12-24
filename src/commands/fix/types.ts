@@ -443,15 +443,50 @@ function isFixerEnabledByRegistry(fixerId: string, options: FixOptions): boolean
   return enabledFixers.some((f: { metadata: { id: string } }) => f.metadata.id === fixerId);
 }
 
-/**
- * Legacy category/message-based fixer check
- */
-function isFixerEnabledLegacy(issue: QualityIssue, options: FixOptions): boolean {
-  const { category, message } = issue;
-  const msg = message.toLowerCase();
+// ============================================================================
+// FIXER MATCHING CONFIGURATION
+// ============================================================================
 
-  // Check if any explicit fixer flags are set
-  const hasExplicitFlags = !!(
+type FixerOptionKey = keyof Pick<FixOptions,
+  | 'fixConsole' | 'fixDebugger' | 'fixAlert'
+  | 'fixTsIgnore' | 'fixAny'
+  | 'fixComplexity' | 'fixLongFunctions'
+  | 'fixMagicNumbers' | 'fixUrls'
+  | 'fixSrp'
+>;
+
+interface FixerMatcher {
+  category: QualityCategory;
+  patterns: string[];
+  optionKey: FixerOptionKey;
+}
+
+/**
+ * Lookup table for category+message → option mapping
+ */
+const FIXER_MATCHERS: FixerMatcher[] = [
+  // Lint category
+  { category: 'lint', patterns: ['console'], optionKey: 'fixConsole' },
+  { category: 'lint', patterns: ['debugger'], optionKey: 'fixDebugger' },
+  { category: 'lint', patterns: ['alert'], optionKey: 'fixAlert' },
+  // Type-safety category
+  { category: 'type-safety', patterns: ['@ts-ignore', 'ts-ignore'], optionKey: 'fixTsIgnore' },
+  { category: 'type-safety', patterns: ['any'], optionKey: 'fixAny' },
+  // Complexity category
+  { category: 'complexity', patterns: ['complexity', 'cognitive'], optionKey: 'fixComplexity' },
+  { category: 'complexity', patterns: ['long', 'lines'], optionKey: 'fixLongFunctions' },
+  // Hardcoded category
+  { category: 'hardcoded', patterns: ['number', 'magic'], optionKey: 'fixMagicNumbers' },
+  { category: 'hardcoded', patterns: ['url', 'http'], optionKey: 'fixUrls' },
+  // SRP category (matches all messages)
+  { category: 'srp', patterns: [], optionKey: 'fixSrp' },
+];
+
+/**
+ * Check if any explicit fixer flag is set
+ */
+function hasExplicitFixerFlags(options: FixOptions): boolean {
+  return !!(
     options.fixConsole ||
     options.fixDebugger ||
     options.fixAlert ||
@@ -463,77 +498,47 @@ function isFixerEnabledLegacy(issue: QualityIssue, options: FixOptions): boolean
     options.fixUrls ||
     options.fixSrp
   );
+}
 
-  // Lint category
-  if (category === 'lint') {
-    if (msg.includes('console')) {
-      if (options.fixConsole === false) return false;
-      if (hasExplicitFlags) return !!options.fixConsole;
-      return true;
-    }
-    if (msg.includes('debugger')) {
-      if (options.fixDebugger === false) return false;
-      if (hasExplicitFlags) return !!options.fixDebugger;
-      return true;
-    }
-    if (msg.includes('alert')) {
-      if (options.fixAlert === false) return false;
-      if (hasExplicitFlags) return !!options.fixAlert;
-      return true;
-    }
-  }
+/**
+ * Find matching fixer for an issue
+ */
+function findMatchingFixer(
+  category: QualityCategory,
+  message: string,
+): FixerMatcher | undefined {
+  const msg = message.toLowerCase();
+  return FIXER_MATCHERS.find(matcher =>
+    matcher.category === category &&
+    (matcher.patterns.length === 0 || matcher.patterns.some(p => msg.includes(p)))
+  );
+}
 
-  // Type-safety category
-  if (category === 'type-safety') {
-    if (msg.includes('@ts-ignore') || msg.includes('ts-ignore')) {
-      if (options.fixTsIgnore === false) return false;
-      if (hasExplicitFlags) return !!options.fixTsIgnore;
-      return true;
-    }
-    if (msg.includes('any')) {
-      if (options.fixAny === false) return false;
-      if (hasExplicitFlags) return !!options.fixAny;
-      return true;
-    }
-  }
+/**
+ * Check if fixer is enabled based on option value and explicit flags
+ */
+function isFixerOptionEnabled(
+  optionValue: boolean | undefined,
+  hasExplicit: boolean,
+): boolean {
+  if (optionValue === false) return false;
+  if (hasExplicit) return !!optionValue;
+  return true;
+}
 
-  // Complexity category
-  if (category === 'complexity') {
-    if (msg.includes('complexity') || msg.includes('cognitive')) {
-      if (options.fixComplexity === false) return false;
-      if (hasExplicitFlags) return !!options.fixComplexity;
-      return true;
-    }
-    if (msg.includes('long') || msg.includes('lines')) {
-      if (options.fixLongFunctions === false) return false;
-      if (hasExplicitFlags) return !!options.fixLongFunctions;
-      return true;
-    }
-  }
+/**
+ * Legacy category/message-based fixer check
+ */
+function isFixerEnabledLegacy(issue: QualityIssue, options: FixOptions): boolean {
+  const hasExplicit = hasExplicitFixerFlags(options);
+  const matcher = findMatchingFixer(issue.category, issue.message);
 
-  // Hardcoded category
-  if (category === 'hardcoded') {
-    if (msg.includes('number') || msg.includes('magic')) {
-      if (options.fixMagicNumbers === false) return false;
-      if (hasExplicitFlags) return !!options.fixMagicNumbers;
-      return true;
-    }
-    if (msg.includes('url') || msg.includes('http')) {
-      if (options.fixUrls === false) return false;
-      if (hasExplicitFlags) return !!options.fixUrls;
-      return true;
-    }
-  }
-
-  // SRP category
-  if (category === 'srp') {
-    if (options.fixSrp === false) return false;
-    if (hasExplicitFlags) return !!options.fixSrp;
-    return true;
+  if (matcher) {
+    return isFixerOptionEnabled(options[matcher.optionKey], hasExplicit);
   }
 
   // Default: if no explicit flags, enable; otherwise disable
-  return !hasExplicitFlags;
+  return !hasExplicit;
 }
 
 /**

@@ -78,6 +78,108 @@ export function detectProjectType(projectRoot: string): ProjectType {
   return 'unknown';
 }
 
+// ============================================================================
+// FILE PURPOSE DETECTION
+// ============================================================================
+
+interface PurposeMatcher {
+  purpose: FilePurpose;
+  matchBasename?: (name: string) => boolean;
+  matchDirname?: (dir: string) => boolean;
+  matchContent?: (content: string) => boolean;
+  matchPath?: (filePath: string) => boolean;
+}
+
+/**
+ * Purpose matchers in priority order
+ */
+const PURPOSE_MATCHERS: PurposeMatcher[] = [
+  // Test files
+  {
+    purpose: 'test',
+    matchBasename: (name) => name.includes('.test.') || name.includes('.spec.'),
+    matchDirname: (dir) => dir.includes('__tests__') || dir.includes('/test/'),
+  },
+  // Config files
+  {
+    purpose: 'config',
+    matchBasename: (name) =>
+      name.includes('config') ||
+      name.includes('.config.') ||
+      name === 'tsconfig.json' ||
+      name === 'package.json',
+  },
+  // Type definition files
+  {
+    purpose: 'types',
+    matchBasename: (name) => name.endsWith('.d.ts') || name === 'types.ts',
+  },
+  // Output/formatter files (CLI)
+  {
+    purpose: 'output',
+    matchBasename: (name) =>
+      name === 'output.ts' || name === 'formatter.ts' || name.includes('format'),
+    matchDirname: (dir) => dir.includes('/formatters'),
+  },
+  // CLI entry files (bin folder)
+  {
+    purpose: 'command',
+    matchBasename: (name) => name === 'cli.ts',
+    matchDirname: (dir) => dir.includes('/bin'),
+  },
+  // Command entry files
+  {
+    purpose: 'command',
+    matchBasename: (name) => name === 'index.ts',
+    matchDirname: (dir) => dir.includes('/commands/'),
+  },
+  // Router files
+  {
+    purpose: 'router',
+    matchBasename: (name) => name.includes('router'),
+    matchDirname: (dir) => dir.includes('/routers'),
+    matchContent: (content) =>
+      content.includes('createTRPCRouter') || content.includes('Router()'),
+  },
+  // React components
+  {
+    purpose: 'component',
+    matchContent: (content) =>
+      content.includes('React') ||
+      content.includes('jsx') ||
+      content.includes('useState'),
+    matchPath: (filePath) => filePath.endsWith('.tsx'),
+  },
+  // Utility files
+  {
+    purpose: 'util',
+    matchBasename: (name) => name.includes('util') || name.includes('helper'),
+    matchDirname: (dir) => dir.includes('/lib/') || dir.includes('/utils/'),
+  },
+];
+
+/**
+ * Check if a matcher matches the file
+ */
+function matchesPurpose(
+  matcher: PurposeMatcher,
+  basename: string,
+  dirname: string,
+  content: string,
+  filePath: string,
+): boolean {
+  // For matchers with multiple conditions, check if ANY matches
+  const checks = [
+    matcher.matchBasename?.(basename),
+    matcher.matchDirname?.(dirname),
+    matcher.matchContent?.(content),
+    matcher.matchPath?.(filePath),
+  ].filter((check) => check !== undefined);
+
+  // At least one defined check must be true
+  return checks.length > 0 && checks.some(Boolean);
+}
+
 /**
  * Detect file purpose from path and content
  */
@@ -85,79 +187,10 @@ export function detectFilePurpose(filePath: string, content: string): FilePurpos
   const basename = path.basename(filePath);
   const dirname = path.dirname(filePath);
 
-  // Test files
-  if (
-    basename.includes('.test.') ||
-    basename.includes('.spec.') ||
-    dirname.includes('__tests__') ||
-    dirname.includes('/test/')
-  ) {
-    return 'test';
-  }
-
-  // Config files
-  if (
-    basename.includes('config') ||
-    basename.includes('.config.') ||
-    basename === 'tsconfig.json' ||
-    basename === 'package.json'
-  ) {
-    return 'config';
-  }
-
-  // Type definition files
-  if (basename.endsWith('.d.ts') || basename === 'types.ts') {
-    return 'types';
-  }
-
-  // Output/formatter files (CLI)
-  if (
-    basename === 'output.ts' ||
-    basename === 'formatter.ts' ||
-    basename.includes('format') ||
-    dirname.includes('/formatters')
-  ) {
-    return 'output';
-  }
-
-  // CLI entry files (bin folder)
-  if (dirname.includes('/bin') || basename === 'cli.ts') {
-    return 'command';
-  }
-
-  // Command entry files
-  if (basename === 'index.ts' && dirname.includes('/commands/')) {
-    return 'command';
-  }
-
-  // Router files
-  if (
-    basename.includes('router') ||
-    dirname.includes('/routers') ||
-    content.includes('createTRPCRouter') ||
-    content.includes('Router()')
-  ) {
-    return 'router';
-  }
-
-  // React components
-  if (
-    content.includes('React') ||
-    content.includes('jsx') ||
-    content.includes('useState') ||
-    filePath.endsWith('.tsx')
-  ) {
-    return 'component';
-  }
-
-  // Utility files
-  if (
-    basename.includes('util') ||
-    basename.includes('helper') ||
-    dirname.includes('/lib/') ||
-    dirname.includes('/utils/')
-  ) {
-    return 'util';
+  for (const matcher of PURPOSE_MATCHERS) {
+    if (matchesPurpose(matcher, basename, dirname, content, filePath)) {
+      return matcher.purpose;
+    }
   }
 
   return 'unknown';
