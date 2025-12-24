@@ -13,6 +13,7 @@ import * as path from 'path';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
 import { findFiles, readFile, logger, validatePathWithinProject } from '../../../lib';
 import { findTsConfig } from './helpers';
+import { TypeDuplicateInfo } from "../core/types";
 
 // ============================================================================
 // TYPES
@@ -37,28 +38,6 @@ export interface TypeSignature {
   fields?: string[];
   /** Original definition text */
   definition: string;
-}
-
-export interface TypeDuplicateInfo {
-  /** Type name (or combined names for identical structures) */
-  name: string;
-  /** Kind of type */
-  kind: 'interface' | 'type' | 'mixed';
-  /** Locations where duplicates found */
-  locations: Array<{
-    file: string;
-    line: number;
-    exported: boolean;
-    name: string;
-  }>;
-  /** Structural similarity (0-1) */
-  similarity: number;
-  /** Recommendation */
-  recommendation: 'merge' | 'rename' | 'keep-both';
-  /** Common fields (for interfaces) */
-  commonFields?: string[];
-  /** Difference description */
-  difference?: string;
 }
 
 export interface FindTypeDuplicatesOptions {

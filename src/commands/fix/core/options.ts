@@ -3,27 +3,12 @@
  * @description Options types for fix command and quality analysis
  */
 
-import type { OutputFormat } from '../../../types';
+import type { OutputFormat, Thresholds, ThresholdOverride } from '../../../types';
 import type { QualityCategory, QualitySeverity } from './types';
 
 // ============================================================================
 // THRESHOLD TYPES
 // ============================================================================
-
-/**
- * Threshold values for quality checks
- */
-export interface Thresholds {
-  maxFunctionLines: number;
-  maxFunctionsPerFile: number;
-  maxExportsPerFile: number;
-  maxFileLines: number;
-  maxParams: number;
-  maxImports: number;
-  maxComplexity: number;
-  requireJSDoc: boolean;
-}
-
 /**
  * Default thresholds
  */
@@ -37,17 +22,6 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   maxComplexity: 10,
   requireJSDoc: true,
 };
-
-/**
- * Per-path threshold overrides
- */
-export interface ThresholdOverride {
-  /** Glob pattern to match paths (e.g. "packages/api/**") */
-  pattern: string;
-  /** Override specific thresholds */
-  thresholds: Partial<Thresholds>;
-}
-
 // ============================================================================
 // QUALITY OPTIONS
 // ============================================================================

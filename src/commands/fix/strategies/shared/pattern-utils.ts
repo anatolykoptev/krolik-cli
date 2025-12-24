@@ -1,16 +1,4 @@
-/**
- * @module commands/fix/strategies/shared/pattern-utils
- * @description Pattern matching utilities for fix strategies
- */
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export interface NumberRange {
-  min: number;
-  max: number;
-}
+import { NumberRange } from "../../../../lib/@patterns/complexity";
 
 export interface PatternMatch<T = string> {
   matched: boolean;

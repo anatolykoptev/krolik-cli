@@ -4,6 +4,10 @@
  */
 
 import type { ResolvedConfig } from './config';
+import type { QualitySeverity } from "../commands/fix/types";
+
+// Type alias for backwards compatibility (ReviewSeverity = QualitySeverity)
+export type ReviewSeverity = QualitySeverity;
 
 /**
  * Output format for command results
@@ -153,11 +157,6 @@ export interface StatusResult {
     description?: string;
   };
 }
-
-/**
- * Review severity levels
- */
-export type ReviewSeverity = 'error' | 'warning' | 'info';
 
 /**
  * Review issue categories

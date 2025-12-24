@@ -1,22 +1,4 @@
-/**
- * @module commands/fix/agent/types
- * @description Types for AI plan execution
- *
- * Defines the structure for:
- * - AI-generated improvement plans
- * - Execution steps and results
- * - Verification outcomes
- */
-
-// ============================================================================
-// PLAN TYPES
-// ============================================================================
-
-/**
- * Priority levels for plan steps
- */
-export type StepPriority = 'critical' | 'high' | 'medium' | 'low';
-
+import { StepPriority } from "../reporter/types";
 /**
  * Step status in execution
  */

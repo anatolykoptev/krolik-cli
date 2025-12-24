@@ -39,9 +39,9 @@ import type {
   PlanStep,
   ParseResult,
   PlanFormat,
-  StepPriority,
   StepAction,
 } from './types';
+import { StepPriority } from "../reporter/types";
 
 // ============================================================================
 // CONSTANTS

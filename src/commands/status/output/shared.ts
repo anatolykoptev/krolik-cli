@@ -3,7 +3,7 @@
  * @description Shared output helpers and types
  */
 
-import type { StatusResult } from '../../../types';
+import type { StatusResult, NextAction } from '../../../types';
 
 /** Re-export formatDuration for backwards compatibility */
 export { formatDuration } from '../../../lib';
@@ -59,15 +59,6 @@ export function buildStackSummary(techStack: StatusResult['techStack']): string[
 // ============================================================================
 // NEXT ACTION LOGIC
 // ============================================================================
-
-/**
- * Next action recommendation
- */
-export interface NextAction {
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  action: string;
-  reason?: string;
-}
 
 /**
  * Determine the next action based on project status

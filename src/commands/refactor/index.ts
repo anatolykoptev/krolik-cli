@@ -53,9 +53,14 @@ export async function runRefactor(
   projectRoot: string,
   options: RefactorOptions = {},
 ): Promise<RefactorAnalysis> {
+  // For type analysis (--types-only, --include-types, --fix-types), use src as default
+  // For structure/function analysis, use src/lib as default
+  const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
+  const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
+
   const targetPath = options.path
     ? path.resolve(projectRoot, options.path)
-    : path.join(projectRoot, 'src', 'lib');
+    : path.join(projectRoot, defaultPath);
 
   // Verify target exists (sync function)
   if (!exists(targetPath)) {
@@ -241,12 +246,16 @@ function resolveTargetPath(
   // Check if this is a monorepo
   const features = detectFeatures(projectRoot);
 
+  // Determine default path based on analysis type
+  const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
+  const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
+
   if (features.monorepo) {
     const packages = detectMonorepoPackages(projectRoot);
 
     if (packages.length === 0) {
       // No packages with lib found, fall back to default
-      return { targetPath: path.join(projectRoot, 'src', 'lib') };
+      return { targetPath: path.join(projectRoot, defaultPath) };
     }
 
     // If --package specified, find that package
@@ -288,7 +297,7 @@ function resolveTargetPath(
   }
 
   // Not a monorepo, use default path
-  return { targetPath: path.join(projectRoot, 'src', 'lib') };
+  return { targetPath: path.join(projectRoot, defaultPath) };
 }
 
 /**

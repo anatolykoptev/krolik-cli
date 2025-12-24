@@ -6,36 +6,11 @@
 import * as path from "node:path";
 import type { FixOperation } from "../types";
 import { escapeXml } from "../../../lib";
+import { FixPlanItem, FixPlan, SkipStats } from "../plan";
 
 // ============================================================================
 // TYPES
 // ============================================================================
-
-interface FixPlanItem {
-  issue: {
-    file: string;
-    line?: number;
-    category: string;
-    severity: string;
-    message: string;
-  };
-  operation: FixOperation;
-  difficulty: "trivial" | "safe" | "risky";
-}
-
-interface FixPlan {
-  file: string;
-  fixes: FixPlanItem[];
-}
-
-interface SkipStats {
-  noStrategy: number;
-  noContent: number;
-  contextSkipped: number;
-  noFix: number;
-  categories: Map<string, number>;
-}
-
 // ============================================================================
 // HELPER FORMATTERS
 // ============================================================================

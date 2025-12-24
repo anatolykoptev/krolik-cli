@@ -19,6 +19,7 @@ import {
   logger,
   isDirectory,
 } from '../../../lib';
+import { MigrationExecutionOptions } from "../core/options";
 
 // ============================================================================
 // TYPES
@@ -27,12 +28,6 @@ import {
 export interface ExecutionResult {
   success: boolean;
   message: string;
-}
-
-export interface MigrationExecutionOptions {
-  dryRun?: boolean;
-  backup?: boolean;
-  verbose?: boolean;
 }
 
 export interface MigrationExecutionResult {

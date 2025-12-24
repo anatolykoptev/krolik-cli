@@ -6,6 +6,7 @@
 import * as fs from "node:fs";
 import chalk from "chalk";
 import type { FixOperation, FixResult, QualityIssue } from "../types";
+import { FixPlanItem, FixPlan, SkipStats } from "../plan";
 
 const MAX_PAGE_SIZE = 50;
 const DIFF_CONTEXT_LINES = 3;
@@ -13,25 +14,6 @@ const DIFF_CONTEXT_LINES = 3;
 // ============================================================================
 // TYPES
 // ============================================================================
-
-interface FixPlanItem {
-  issue: QualityIssue;
-  operation: FixOperation;
-  difficulty: "trivial" | "safe" | "risky";
-}
-
-interface FixPlan {
-  file: string;
-  fixes: FixPlanItem[];
-}
-
-interface SkipStats {
-  noStrategy: number;
-  noContent: number;
-  contextSkipped: number;
-  noFix: number;
-  categories: Map<string, number>;
-}
 
 interface FormatOptions {
   dryRun?: boolean;

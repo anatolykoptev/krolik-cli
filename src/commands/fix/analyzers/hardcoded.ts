@@ -1,11 +1,3 @@
-/**
- * @module commands/quality/analyzers/hardcoded
- * @description Detection of hardcoded values (magic numbers, URLs, colors, text)
- *
- * Uses shared patterns from @lib/@patterns/hardcoded
- */
-
-import type { HardcodedValue } from "../types";
 import {
   DETECTION_PATTERNS,
   shouldSkipFile,
@@ -13,6 +5,7 @@ import {
   isAcceptableNumber,
   shouldSkipUrl,
 } from "../../../lib/@patterns/hardcoded";
+import { HardcodedValue } from "../types";
 
 const MAX_CONTEXT_LENGTH = 80;
 
