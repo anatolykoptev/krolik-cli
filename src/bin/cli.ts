@@ -224,6 +224,8 @@ function createProgram(): Command {
     .option('--generate-config', 'Generate ai-config.ts for AI assistants')
     .option('--backup', 'Create git backup before applying (default: true)')
     .option('--no-backup', 'Skip git backup before applying')
+    .option('--fix-types', 'Auto-fix type duplicates (merge 100% identical types)')
+    .option('--fix-types-all', 'Include similar types (90%+) in auto-fix')
     .action(async (options: CommandOptions) => {
       const { refactorCommand } = await import('../commands/refactor');
       const globalOpts = program.opts();
@@ -250,6 +252,21 @@ function createProgram(): Command {
       if (options.generateConfig) refactorOpts.generateConfig = true;
       // backup defaults to true, only set if explicitly specified
       if (options.backup !== undefined) refactorOpts.backup = options.backup;
+      // Type auto-fix options
+      if (options.fixTypes) {
+        refactorOpts.fixTypes = true;
+        // Enable type analysis if not already
+        if (!refactorOpts.typesOnly && !refactorOpts.includeTypes) {
+          refactorOpts.includeTypes = true;
+        }
+      }
+      if (options.fixTypesAll) {
+        refactorOpts.fixTypes = true;
+        refactorOpts.fixTypesIdenticalOnly = false;
+        if (!refactorOpts.typesOnly && !refactorOpts.includeTypes) {
+          refactorOpts.includeTypes = true;
+        }
+      }
       await refactorCommand(projectRoot, refactorOpts);
     });
 
