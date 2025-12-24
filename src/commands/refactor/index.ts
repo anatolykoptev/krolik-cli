@@ -26,6 +26,7 @@ import * as path from 'path';
 import type {
   RefactorOptions,
   RefactorAnalysis,
+  ResolvedPaths,
 } from './core';
 import { findDuplicates, findTypeDuplicates, analyzeStructure, createEnhancedAnalysis } from './analyzers';
 import {
@@ -39,12 +40,179 @@ import {
 import { formatRefactor, formatMigrationPreview, formatAiNativeXml } from './output';
 import {
   exists,
-  relativePath,
+  relativePath as getRelativePath,
   createBackupBranch,
   cleanupBackup,
   type GitBackupResult,
 } from '../../lib';
 import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../config';
+
+// ============================================================================
+// PATH RESOLUTION (consolidated logic)
+// ============================================================================
+
+interface ResolvedPathsWithPackage extends ResolvedPaths {
+  packageInfo?: MonorepoPackage;
+}
+
+/**
+ * Resolve all paths for refactor analysis
+ * Consolidates path detection logic for both analysis and migrations
+ *
+ * @param projectRoot - Project root directory
+ * @param options - Refactor options
+ * @returns Resolved paths and optional package info
+ */
+function resolvePaths(
+  projectRoot: string,
+  options: RefactorOptions,
+): ResolvedPathsWithPackage {
+  const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
+
+  // If explicit path is provided
+  if (options.path) {
+    const targetPath = path.resolve(projectRoot, options.path);
+    const libPath = resolveLibPath(targetPath, projectRoot, isTypeAnalysis);
+    return {
+      targetPath,
+      libPath,
+      relativePath: getRelativePath(targetPath, projectRoot),
+    };
+  }
+
+  // Check if this is a monorepo
+  const features = detectFeatures(projectRoot);
+
+  if (features.monorepo) {
+    const packages = detectMonorepoPackages(projectRoot);
+
+    if (packages.length > 0) {
+      // If --package specified, find that package
+      if (options.package) {
+        const pkg = packages.find(p => p.name === options.package);
+        if (!pkg) {
+          const available = packages.map(p => p.name).join(', ');
+          throw new Error(
+            `Package "${options.package}" not found or has no lib directory.\n` +
+            `Available packages: ${available}`
+          );
+        }
+        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+      }
+
+      // If --all-packages, return first package (caller will iterate)
+      if (options.allPackages) {
+        const pkg = packages[0]!;
+        return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+      }
+
+      // No package specified - use first available (usually 'web')
+      const pkg = packages.find(p => p.name === 'web') ?? packages[0]!;
+      console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
+      console.log(`   Available packages: ${packages.map(p => p.name).join(', ')}`);
+      console.log(`   Use --package <name> to analyze a specific package\n`);
+
+      return resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+    }
+  }
+
+  // Not a monorepo or no packages found - use default paths
+  const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
+  const targetPath = path.join(projectRoot, defaultPath);
+  const libPath = isTypeAnalysis
+    ? findLibPath(projectRoot)
+    : targetPath;
+
+  return {
+    targetPath,
+    libPath,
+    relativePath: defaultPath,
+  };
+}
+
+/**
+ * Resolve paths for a specific monorepo package
+ */
+function resolvePackagePaths(
+  projectRoot: string,
+  pkg: MonorepoPackage,
+  isTypeAnalysis: boolean,
+): ResolvedPathsWithPackage {
+  const libPath = path.join(projectRoot, pkg.libPath);
+
+  // For type analysis, find the src directory
+  // Handles both structures:
+  // - packages/api/src/lib -> packages/api/src
+  // - apps/mobile/lib -> apps/mobile/src (or apps/mobile if no src exists)
+  let targetPath: string;
+
+  if (isTypeAnalysis) {
+    if (pkg.libPath.includes('/src/lib')) {
+      // Structure: packages/api/src/lib -> packages/api/src
+      targetPath = path.dirname(libPath);
+    } else {
+      // Structure: apps/mobile/lib -> try apps/mobile/src, fallback to apps/mobile
+      const pkgRoot = path.dirname(libPath);
+      const srcPath = path.join(pkgRoot, 'src');
+      targetPath = exists(srcPath) ? srcPath : pkgRoot;
+    }
+  } else {
+    // For structure/function analysis, use the lib directory directly
+    targetPath = libPath;
+  }
+
+  return {
+    targetPath,
+    libPath,
+    relativePath: getRelativePath(targetPath, projectRoot),
+    packageInfo: pkg,
+  };
+}
+
+/**
+ * Resolve libPath from targetPath
+ */
+function resolveLibPath(
+  targetPath: string,
+  projectRoot: string,
+  isTypeAnalysis: boolean,
+): string {
+  // If target looks like a lib directory, use it
+  if (path.basename(targetPath) === 'lib' || targetPath.includes('/lib')) {
+    return targetPath;
+  }
+
+  // Try to find lib within the target
+  const libInTarget = path.join(targetPath, 'lib');
+  const srcLibInTarget = path.join(targetPath, 'src', 'lib');
+
+  if (exists(libInTarget)) {
+    return libInTarget;
+  }
+  if (exists(srcLibInTarget)) {
+    return srcLibInTarget;
+  }
+
+  // For type analysis, find lib at project root
+  if (isTypeAnalysis) {
+    return findLibPath(projectRoot);
+  }
+
+  // Fallback
+  return path.join(targetPath, 'lib');
+}
+
+/**
+ * Find lib directory at project root
+ */
+function findLibPath(projectRoot: string): string {
+  const srcLib = path.join(projectRoot, 'src', 'lib');
+  const lib = path.join(projectRoot, 'lib');
+
+  if (exists(srcLib)) return srcLib;
+  if (exists(lib)) return lib;
+  return srcLib; // Fallback
+}
 
 /**
  * Run refactor analysis
@@ -53,57 +221,14 @@ export async function runRefactor(
   projectRoot: string,
   options: RefactorOptions = {},
 ): Promise<RefactorAnalysis> {
-  // For type analysis (--types-only, --include-types, --fix-types), use src as default
-  // For structure/function analysis, use src/lib as default
-  const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
-  const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
+  // Use consolidated path resolution
+  const resolved = resolvePaths(projectRoot, options);
+  const { targetPath, libPath, relativePath: relPath } = resolved;
 
-  const targetPath = options.path
-    ? path.resolve(projectRoot, options.path)
-    : path.join(projectRoot, defaultPath);
-
-  // Verify target exists (sync function)
+  // Verify target exists
   if (!exists(targetPath)) {
     throw new Error(`Target path does not exist: ${targetPath}`);
   }
-
-  // Determine libPath for migrations
-  // If analyzing 'src' for types, libPath should still be 'src/lib' (or 'lib')
-  // If analyzing specific path with 'lib' in name, use that
-  let libPath: string;
-  if (options.path) {
-    // Explicit path - use as libPath if it looks like a lib directory
-    if (path.basename(targetPath) === 'lib' || targetPath.includes('/lib')) {
-      libPath = targetPath;
-    } else {
-      // Try to find lib within the target
-      const libInTarget = path.join(targetPath, 'lib');
-      const srcLibInTarget = path.join(targetPath, 'src', 'lib');
-      if (exists(libInTarget)) {
-        libPath = libInTarget;
-      } else if (exists(srcLibInTarget)) {
-        libPath = srcLibInTarget;
-      } else {
-        libPath = path.join(targetPath, 'lib'); // Fallback
-      }
-    }
-  } else if (isTypeAnalysis) {
-    // Type analysis uses 'src', but migrations need 'src/lib'
-    const srcLib = path.join(projectRoot, 'src', 'lib');
-    const lib = path.join(projectRoot, 'lib');
-    if (exists(srcLib)) {
-      libPath = srcLib;
-    } else if (exists(lib)) {
-      libPath = lib;
-    } else {
-      libPath = srcLib; // Fallback to src/lib
-    }
-  } else {
-    // Default: targetPath is already the lib path
-    libPath = targetPath;
-  }
-
-  const relPath = relativePath(projectRoot, targetPath);
 
   // Run analysis
   let duplicates: RefactorAnalysis['duplicates'] = [];
@@ -269,76 +394,6 @@ export async function applyMigrations(
 }
 
 /**
- * Resolve target path for refactor analysis
- * Handles monorepo packages automatically
- */
-function resolveTargetPath(
-  projectRoot: string,
-  options: RefactorOptions,
-): { targetPath: string; packageInfo?: MonorepoPackage } {
-  // If explicit path is provided, use it
-  if (options.path) {
-    return { targetPath: path.resolve(projectRoot, options.path) };
-  }
-
-  // Check if this is a monorepo
-  const features = detectFeatures(projectRoot);
-
-  // Determine default path based on analysis type
-  const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
-  const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
-
-  if (features.monorepo) {
-    const packages = detectMonorepoPackages(projectRoot);
-
-    if (packages.length === 0) {
-      // No packages with lib found, fall back to default
-      return { targetPath: path.join(projectRoot, defaultPath) };
-    }
-
-    // If --package specified, find that package
-    if (options.package) {
-      const pkg = packages.find(p => p.name === options.package);
-      if (!pkg) {
-        const available = packages.map(p => p.name).join(', ');
-        throw new Error(
-          `Package "${options.package}" not found or has no lib directory.\n` +
-          `Available packages: ${available}`
-        );
-      }
-      return {
-        targetPath: path.join(projectRoot, pkg.libPath),
-        packageInfo: pkg,
-      };
-    }
-
-    // If --all-packages, we'll handle it in refactorCommand
-    if (options.allPackages) {
-      // Return first package, refactorCommand will iterate
-      const pkg = packages[0]!; // Safe: we checked packages.length > 0 above
-      return {
-        targetPath: path.join(projectRoot, pkg.libPath),
-        packageInfo: pkg,
-      };
-    }
-
-    // No package specified - use first available (usually 'web')
-    const pkg = packages.find(p => p.name === 'web') ?? packages[0]!; // Safe: packages.length > 0
-    console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
-    console.log(`   Available packages: ${packages.map(p => p.name).join(', ')}`);
-    console.log(`   Use --package <name> to analyze a specific package\n`);
-
-    return {
-      targetPath: path.join(projectRoot, pkg.libPath),
-      packageInfo: pkg,
-    };
-  }
-
-  // Not a monorepo, use default path
-  return { targetPath: path.join(projectRoot, defaultPath) };
-}
-
-/**
  * Command handler for CLI
  */
 export async function refactorCommand(
@@ -348,21 +403,25 @@ export async function refactorCommand(
   try {
     const features = detectFeatures(projectRoot);
     const packages = features.monorepo ? detectMonorepoPackages(projectRoot) : [];
+    const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
 
     // Handle --all-packages for monorepo
     if (options.allPackages && packages.length > 0) {
       console.log(`📦 Analyzing all ${packages.length} packages...\n`);
 
       for (const pkg of packages) {
+        // Use resolvePackagePaths for correct type analysis handling
+        const resolved = resolvePackagePaths(projectRoot, pkg, isTypeAnalysis);
+
         console.log(`\n${'='.repeat(60)}`);
-        console.log(`📁 Package: ${pkg.name} (${pkg.libPath})`);
+        console.log(`📁 Package: ${pkg.name} (${resolved.relativePath})`);
         console.log(`${'='.repeat(60)}\n`);
 
-        const targetPath = path.join(projectRoot, pkg.libPath);
-        const pkgOptions = { ...options, path: pkg.libPath };
+        // Pass the resolved path to runRefactor
+        const pkgOptions = { ...options, path: resolved.relativePath };
 
         const analysis = await runRefactor(projectRoot, pkgOptions);
-        printAnalysis(analysis, projectRoot, targetPath, options);
+        printAnalysis(analysis, projectRoot, resolved.targetPath, options);
 
         // Apply if requested
         if (options.apply && !options.dryRun) {
@@ -379,19 +438,13 @@ export async function refactorCommand(
     }
 
     // Single package or non-monorepo analysis
-    const { targetPath, packageInfo } = resolveTargetPath(projectRoot, options);
+    const resolved = resolvePaths(projectRoot, options);
 
-    // Update options.path for runRefactor
-    const analysisOptions = { ...options };
-    if (!options.path && packageInfo) {
-      analysisOptions.path = packageInfo.libPath;
-    }
-
-    // Run analysis
-    const analysis = await runRefactor(projectRoot, analysisOptions);
+    // Run analysis (resolvePaths already handles all path logic)
+    const analysis = await runRefactor(projectRoot, options);
 
     // Print results
-    printAnalysis(analysis, projectRoot, targetPath, options);
+    printAnalysis(analysis, projectRoot, resolved.targetPath, options);
 
     // Apply if requested
     if (options.apply && !options.dryRun) {
@@ -422,7 +475,7 @@ export async function refactorCommand(
     if (options.generateConfig) {
       const { writeAiConfig } = await import('./generator');
       const { analyzeNamespaceStructure } = await import('./analyzers/namespace');
-      const namespaceResult = analyzeNamespaceStructure(projectRoot, targetPath);
+      const namespaceResult = analyzeNamespaceStructure(projectRoot, resolved.targetPath);
       // Convert to RefineResult format expected by generator
       const refineResult = {
         projectRoot: namespaceResult.projectRoot,
