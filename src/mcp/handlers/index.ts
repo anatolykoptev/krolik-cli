@@ -11,6 +11,7 @@ import { handleReview } from './review';
 import { handleIssue } from './issue';
 import { handleAudit } from './audit';
 import { handleFix } from './fix';
+import { handleRefactor } from './refactor';
 
 /**
  * Tool handler function type
@@ -29,6 +30,7 @@ export const handlers: Record<string, ToolHandler> = {
   krolik_issue: handleIssue,
   krolik_audit: handleAudit,
   krolik_fix: handleFix,
+  krolik_refactor: handleRefactor,
 };
 
 /**

@@ -170,6 +170,57 @@ export const TOOLS: MCPTool[] = [
       },
     },
   },
+  {
+    name: 'krolik_refactor',
+    description:
+      'Analyze and refactor module structure. Finds duplicate functions/types, analyzes structure, suggests migrations.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...PROJECT_PROPERTY,
+        path: {
+          type: 'string',
+          description: 'Path to analyze (default: auto-detect for monorepo)',
+        },
+        package: {
+          type: 'string',
+          description: 'Monorepo package to analyze (e.g., web, api)',
+        },
+        allPackages: {
+          type: 'boolean',
+          description: 'Analyze all packages in monorepo',
+        },
+        duplicatesOnly: {
+          type: 'boolean',
+          description: 'Only analyze duplicate functions',
+        },
+        typesOnly: {
+          type: 'boolean',
+          description: 'Only analyze duplicate types/interfaces',
+        },
+        includeTypes: {
+          type: 'boolean',
+          description: 'Include type/interface duplicate detection',
+        },
+        structureOnly: {
+          type: 'boolean',
+          description: 'Only analyze module structure',
+        },
+        dryRun: {
+          type: 'boolean',
+          description: 'Show migration plan without applying',
+        },
+        apply: {
+          type: 'boolean',
+          description: 'Apply migrations (move files, update imports)',
+        },
+        fixTypes: {
+          type: 'boolean',
+          description: 'Auto-fix type duplicates (merge identical types)',
+        },
+      },
+    },
+  },
 ];
 
 // ============================================================================
