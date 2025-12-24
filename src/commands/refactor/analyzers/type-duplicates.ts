@@ -13,7 +13,10 @@ import * as path from 'path';
 import { createProject, type SourceFile, SyntaxKind } from '../../../lib/@ast';
 import { findFiles, readFile, logger, validatePathWithinProject } from '../../../lib';
 import { findTsConfig } from './helpers';
-import { TypeDuplicateInfo } from "../core/types";
+import type { TypeDuplicateInfo } from "../core/types";
+
+// Re-export for public API
+export type { TypeDuplicateInfo } from "../core/types";
 
 // ============================================================================
 // TYPES
@@ -275,7 +278,9 @@ export async function findTypeDuplicates(
   // Create ts-morph project
   // Support monorepo by finding tsconfig in package or project root
   const tsConfigPath = findTsConfig(targetPath, projectRoot);
-  const project = createProject({ tsConfigPath: tsConfigPath ?? undefined });
+  const project = tsConfigPath
+    ? createProject({ tsConfigPath })
+    : createProject({});
 
   // Extract all types
   const allTypes: TypeSignature[] = [];

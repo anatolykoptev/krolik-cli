@@ -231,7 +231,9 @@ export async function findDuplicates(
   // Create ts-morph project with correct parameter name
   // Support monorepo by finding tsconfig in package or project root
   const tsConfigPath = findTsConfig(targetPath, projectRoot);
-  const project = createProject({ tsConfigPath: tsConfigPath ?? undefined });
+  const project = tsConfigPath
+    ? createProject({ tsConfigPath })
+    : createProject({});
 
   // Extract all functions from all files
   const allFunctions: FunctionSignature[] = [];

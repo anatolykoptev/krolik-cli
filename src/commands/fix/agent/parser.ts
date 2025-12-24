@@ -40,8 +40,8 @@ import type {
   ParseResult,
   PlanFormat,
   StepAction,
+  StepPriority,
 } from './types';
-import { StepPriority } from "../reporter/types";
 
 // ============================================================================
 // CONSTANTS

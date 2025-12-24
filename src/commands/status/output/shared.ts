@@ -3,7 +3,14 @@
  * @description Shared output helpers and types
  */
 
-import type { StatusResult, NextAction } from '../../../types';
+import type { StatusResult } from '../../../types';
+
+/** Next action recommendation */
+export interface NextAction {
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  action: string;
+  reason?: string;
+}
 
 /** Re-export formatDuration for backwards compatibility */
 export { formatDuration } from '../../../lib';

@@ -1,4 +1,8 @@
-import { StepPriority } from "../reporter/types";
+/**
+ * Priority levels for plan steps
+ */
+export type StepPriority = 'critical' | 'high' | 'medium' | 'low';
+
 /**
  * Step status in execution
  */

@@ -277,7 +277,7 @@ function resolveTargetPath(
     // If --all-packages, we'll handle it in refactorCommand
     if (options.allPackages) {
       // Return first package, refactorCommand will iterate
-      const pkg = packages[0];
+      const pkg = packages[0]!; // Safe: we checked packages.length > 0 above
       return {
         targetPath: path.join(projectRoot, pkg.libPath),
         packageInfo: pkg,
@@ -285,7 +285,7 @@ function resolveTargetPath(
     }
 
     // No package specified - use first available (usually 'web')
-    const pkg = packages.find(p => p.name === 'web') ?? packages[0];
+    const pkg = packages.find(p => p.name === 'web') ?? packages[0]!; // Safe: packages.length > 0
     console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
     console.log(`   Available packages: ${packages.map(p => p.name).join(', ')}`);
     console.log(`   Use --package <name> to analyze a specific package\n`);

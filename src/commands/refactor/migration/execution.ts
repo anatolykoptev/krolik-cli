@@ -19,7 +19,10 @@ import {
   logger,
   isDirectory,
 } from '../../../lib';
-import { MigrationExecutionOptions } from "../core/options";
+import type { MigrationOptions } from "../core/options";
+
+// Type alias for backwards compatibility (exported for public API)
+export type MigrationExecutionOptions = MigrationOptions;
 
 // ============================================================================
 // TYPES

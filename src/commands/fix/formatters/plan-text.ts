@@ -5,7 +5,7 @@
 
 import * as fs from "node:fs";
 import chalk from "chalk";
-import type { FixOperation, FixResult, QualityIssue } from "../types";
+import type { FixOperation, FixResult } from "../types";
 import { FixPlanItem, FixPlan, SkipStats } from "../plan";
 
 const MAX_PAGE_SIZE = 50;
