@@ -36,23 +36,23 @@ export function countTodos(
   const excludeArgs = exclude.map((e) => `--exclude-dir="${e}"`).join(' ');
   const includeArgs = extensions.map((e) => `--include="*.${e}"`).join(' ');
 
-  // Get TODO lines
+  // Get TODO lines (only actual comments, not strings containing "TODO")
   const todoResult = tryExec(
-    `grep -r "TODO" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
+    `grep -r "// TODO\\|/\\* TODO\\|\\* TODO" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
     { cwd },
   );
   const todoLines = todoResult.success ? todoResult.output.split('\n').filter(Boolean) : [];
 
   // Get FIXME lines
   const fixmeResult = tryExec(
-    `grep -r "FIXME" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
+    `grep -r "// FIXME\\|/\\* FIXME\\|\\* FIXME" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
     { cwd },
   );
   const fixmeLines = fixmeResult.success ? fixmeResult.output.split('\n').filter(Boolean) : [];
 
-  // Get HACK lines
+  // Get HACK/XXX lines
   const hackResult = tryExec(
-    `grep -r "HACK\\|XXX" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
+    `grep -r "// HACK\\|/\\* HACK\\|// XXX\\|/\\* XXX" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
     { cwd },
   );
   const hackLines = hackResult.success ? hackResult.output.split('\n').filter(Boolean) : [];
@@ -86,6 +86,39 @@ export interface TodoItem {
   line: number;
   type: 'TODO' | 'FIXME' | 'HACK' | 'XXX';
   text: string;
+  /** Surrounding context (function/test name) */
+  context?: string;
+  /** Is this a generic/uninformative TODO? */
+  isGeneric?: boolean;
+}
+
+/**
+ * Generic TODO texts that provide little useful information
+ */
+const GENERIC_PATTERNS = [
+  /^implement$/i,
+  /^implement\s+test$/i,
+  /^implement\s+later$/i,
+  /^implement\s+this$/i,
+  /^fix$/i,
+  /^fix\s+later$/i,
+  /^fix\s+this$/i,
+  /^todo$/i,
+  /^fixme$/i,
+  /^later$/i,
+  /^wip$/i,
+  /^tbd$/i,
+  /^coming\s+soon$/i,
+  /^add\s+tests?$/i,
+  /^needs?\s+implementation$/i,
+];
+
+/**
+ * Check if TODO text is generic/uninformative
+ */
+function isGenericTodo(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  return GENERIC_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 /**
@@ -97,96 +130,164 @@ export function extractTodos(
     exclude?: string[];
     extensions?: string[];
     limit?: number;
+    /** Include context from surrounding lines */
+    withContext?: boolean;
+    /** Filter out generic TODOs */
+    filterGeneric?: boolean;
   },
 ): TodoItem[] {
   const {
     exclude = ['node_modules', 'dist', '.next', '.git'],
     extensions = ['ts', 'tsx', 'js', 'jsx'],
     limit = 50,
+    withContext = true,
+    filterGeneric = false,
   } = options ?? {};
+
+  // Filter out scanner files that contain grep patterns with TODO/FIXME/etc
+  // BSD grep on macOS doesn't support --exclude well, so we use grep -v
+  const filterScannerFiles = '| grep -v "todos\\.ts" | grep -v "lint\\.ts"';
 
   const excludeArgs = exclude.map((e) => `--exclude-dir="${e}"`).join(' ');
   const includeArgs = extensions.map((e) => `--include="*.${e}"`).join(' ');
+  // Use -B3 to get 3 lines of context before the TODO
+  const contextFlag = withContext ? '-B3' : '';
 
   const todos: TodoItem[] = [];
 
-  // Extract TODO comments
+  // Extract TODO comments with context
+  // Use stricter pattern: TODO followed by : or space (not inside words like "AUTODO")
   const todoResult = tryExec(
-    `grep -rn "TODO" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
+    `grep -rn ${contextFlag} "// TODO\\|/\\* TODO\\|\\* TODO" ${excludeArgs} ${includeArgs} 2>/dev/null ${filterScannerFiles} | head -${limit * 4}`,
     { cwd },
   );
   if (todoResult.success) {
-    todos.push(...parseTodoLines(todoResult.output, 'TODO'));
+    todos.push(...parseTodoLinesWithContext(todoResult.output, 'TODO', withContext));
   }
 
-  // Extract FIXME comments
+  // Extract FIXME comments with context
   const fixmeResult = tryExec(
-    `grep -rn "FIXME" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
+    `grep -rn ${contextFlag} "// FIXME\\|/\\* FIXME\\|\\* FIXME" ${excludeArgs} ${includeArgs} 2>/dev/null ${filterScannerFiles} | head -${limit * 4}`,
     { cwd },
   );
   if (fixmeResult.success) {
-    todos.push(...parseTodoLines(fixmeResult.output, 'FIXME'));
+    todos.push(...parseTodoLinesWithContext(fixmeResult.output, 'FIXME', withContext));
   }
 
-  // Extract HACK/XXX comments
+  // Extract HACK/XXX comments with context
   const hackResult = tryExec(
-    `grep -rn "HACK\\|XXX" ${excludeArgs} ${includeArgs} 2>/dev/null | head -${limit}`,
+    `grep -rn ${contextFlag} "// HACK\\|/\\* HACK\\|\\* HACK\\|// XXX\\|/\\* XXX\\|\\* XXX" ${excludeArgs} ${includeArgs} 2>/dev/null ${filterScannerFiles} | head -${limit * 4}`,
     { cwd },
   );
   if (hackResult.success) {
-    const hackLines = hackResult.output.split('\n').filter(Boolean);
-    for (const line of hackLines) {
-      const match = line.match(/^([^:]+):(\d+):(.*)/);
-      if (!match || !match[1] || !match[2] || !match[3]) continue;
-
-      const file = match[1];
-      const lineNum = match[2];
-      const content = match[3];
-      const type = content.includes('HACK') ? 'HACK' : 'XXX';
-      const text = extractCommentText(content, type);
-
-      if (text) {
-        todos.push({
-          file: file.trim(),
-          line: Number.parseInt(lineNum, 10),
-          type,
-          text,
-        });
-      }
-    }
+    todos.push(...parseTodoLinesWithContext(hackResult.output, 'HACK', withContext));
   }
 
-  return todos.slice(0, limit);
+  // Mark generic TODOs and optionally filter them
+  const processed = todos.map((todo) => ({
+    ...todo,
+    isGeneric: isGenericTodo(todo.text),
+  }));
+
+  const result = filterGeneric ? processed.filter((t) => !t.isGeneric) : processed;
+
+  return result.slice(0, limit);
 }
 
 /**
- * Parse grep output lines into TodoItem array
+ * Parse grep output with context into TodoItem array
  */
-function parseTodoLines(output: string, type: 'TODO' | 'FIXME'): TodoItem[] {
-  const lines = output.split('\n').filter(Boolean);
+function parseTodoLinesWithContext(
+  output: string,
+  type: 'TODO' | 'FIXME' | 'HACK',
+  withContext: boolean,
+): TodoItem[] {
+  const lines = output.split('\n');
   const todos: TodoItem[] = [];
+  const contextBuffer: string[] = [];
 
   for (const line of lines) {
-    // Format: file:line:content
-    const match = line.match(/^([^:]+):(\d+):(.*)/);
-    if (!match || !match[1] || !match[2] || !match[3]) continue;
+    // Check for separator (grep uses -- between matches with context)
+    if (line === '--') {
+      contextBuffer.length = 0;
+      continue;
+    }
 
-    const file = match[1];
-    const lineNum = match[2];
-    const content = match[3];
-    const text = extractCommentText(content, type);
+    // Format with context: file-line-content (- for context lines)
+    // Format for match: file:line:content (: for match lines)
+    const matchLine = line.match(/^([^:]+):(\d+):(.*)/);
+    const contextLine = line.match(/^([^-]+)-(\d+)-(.*)/);
 
-    if (text) {
-      todos.push({
-        file: file.trim(),
-        line: Number.parseInt(lineNum, 10),
-        type,
-        text,
-      });
+    if (contextLine && withContext) {
+      // This is a context line, add to buffer
+      contextBuffer.push(contextLine[3] || '');
+    } else if (matchLine?.[1] && matchLine[2] && matchLine[3]) {
+      // This is the actual TODO line
+      const file = matchLine[1];
+      const lineNum = matchLine[2];
+      const content = matchLine[3];
+      const actualType = content.includes('HACK') ? 'HACK' : content.includes('XXX') ? 'XXX' : type;
+      const text = extractCommentText(content, actualType);
+
+      if (text) {
+        // Extract context (function/test name) from context buffer
+        const context = withContext ? extractFunctionContext(contextBuffer) : undefined;
+
+        const todoItem: TodoItem = {
+          file: file.trim(),
+          line: Number.parseInt(lineNum, 10),
+          type: actualType,
+          text,
+        };
+        if (context) {
+          todoItem.context = context;
+        }
+        todos.push(todoItem);
+      }
+
+      contextBuffer.length = 0;
     }
   }
 
   return todos;
+}
+
+/**
+ * Extract function/test name from context lines
+ */
+function extractFunctionContext(contextLines: string[]): string | undefined {
+  // Look for function/test/it/describe declarations in reverse order
+  for (let i = contextLines.length - 1; i >= 0; i--) {
+    const line = contextLines[i] ?? '';
+
+    // Match: it('test name', ...)
+    const itMatch = line.match(/it\s*\(\s*['"`]([^'"`]+)['"`]/);
+    if (itMatch?.[1]) return `test: ${itMatch[1]}`;
+
+    // Match: test('test name', ...)
+    const testMatch = line.match(/test\s*\(\s*['"`]([^'"`]+)['"`]/);
+    if (testMatch?.[1]) return `test: ${testMatch[1]}`;
+
+    // Match: describe('suite name', ...)
+    const describeMatch = line.match(/describe\s*\(\s*['"`]([^'"`]+)['"`]/);
+    if (describeMatch?.[1]) return `suite: ${describeMatch[1]}`;
+
+    // Match: function name(...) or async function name(...)
+    const funcMatch = line.match(/(?:async\s+)?function\s+(\w+)\s*\(/);
+    if (funcMatch?.[1]) return `fn: ${funcMatch[1]}`;
+
+    // Match: const name = (...) => or const name = async (...) =>
+    const arrowMatch = line.match(/(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/);
+    if (arrowMatch?.[1]) return `fn: ${arrowMatch[1]}`;
+
+    // Match: name(...) { (method definition)
+    const methodMatch = line.match(/^\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*[:{]/);
+    if (methodMatch?.[1] && !['if', 'for', 'while', 'switch', 'catch'].includes(methodMatch[1])) {
+      return `method: ${methodMatch[1]}`;
+    }
+  }
+
+  return undefined;
 }
 
 /**

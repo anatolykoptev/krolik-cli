@@ -270,33 +270,89 @@ export function formatQualitySection(lines: string[], data: AiContextData): void
 }
 
 /**
- * Format TODOs section
+ * Format TODOs section with context and grouping
  */
 export function formatTodosSection(lines: string[], data: AiContextData): void {
   const { todos } = data;
   if (!todos || todos.length === 0) return;
 
-  // Count by type
+  // Count by type and generic status
   const counts = {
     TODO: todos.filter((t) => t.type === 'TODO').length,
     FIXME: todos.filter((t) => t.type === 'FIXME').length,
     HACK: todos.filter((t) => t.type === 'HACK').length,
     XXX: todos.filter((t) => t.type === 'XXX').length,
   };
+  const genericCount = todos.filter((t) => t.isGeneric).length;
+  const actionableCount = todos.length - genericCount;
 
-  lines.push(`  <todos count="${todos.length}">`);
+  lines.push(
+    `  <todos count="${todos.length}" actionable="${actionableCount}" generic="${genericCount}">`,
+  );
   lines.push(
     `    <summary todo="${counts.TODO}" fixme="${counts.FIXME}" hack="${counts.HACK}" xxx="${counts.XXX}" />`,
   );
 
-  for (const todo of todos.slice(0, MAX_ITEMS_LARGE)) {
-    lines.push(`    <todo file="${todo.file}" line="${todo.line}" type="${todo.type}">`);
-    lines.push(`      ${escapeXml(todo.text)}`);
-    lines.push('    </todo>');
+  // Group by file
+  const byFile = new Map<string, typeof todos>();
+  for (const todo of todos) {
+    const existing = byFile.get(todo.file) || [];
+    existing.push(todo);
+    byFile.set(todo.file, existing);
   }
 
-  if (todos.length > MAX_ITEMS_LARGE) {
-    lines.push(`    <!-- +${todos.length - MAX_ITEMS_LARGE} more TODOs -->`);
+  // Sort files by number of TODOs (most first)
+  const sortedFiles = [...byFile.entries()].sort((a, b) => b[1].length - a[1].length);
+
+  let displayed = 0;
+  for (const [file, fileTodos] of sortedFiles) {
+    if (displayed >= MAX_ITEMS_LARGE) break;
+
+    // If file has many TODOs, group them
+    if (fileTodos.length > 3) {
+      const actionable = fileTodos.filter((t) => !t.isGeneric);
+      const generic = fileTodos.filter((t) => t.isGeneric);
+
+      lines.push(`    <file path="${escapeXml(file)}" todos="${fileTodos.length}">`);
+
+      // Show actionable TODOs first (up to 3)
+      for (const todo of actionable.slice(0, 3)) {
+        const contextAttr = todo.context ? ` context="${escapeXml(todo.context)}"` : '';
+        lines.push(`      <todo line="${todo.line}" type="${todo.type}"${contextAttr}>`);
+        lines.push(`        ${escapeXml(todo.text)}`);
+        lines.push('      </todo>');
+        displayed++;
+      }
+
+      // Summarize remaining
+      const remaining = fileTodos.length - Math.min(actionable.length, 3);
+      if (remaining > 0) {
+        lines.push(
+          `      <!-- +${remaining} more (${generic.length} generic like "implement test") -->`,
+        );
+      }
+
+      lines.push('    </file>');
+    } else {
+      // Show individual TODOs for files with few items
+      for (const todo of fileTodos) {
+        if (displayed >= MAX_ITEMS_LARGE) break;
+
+        const contextAttr = todo.context ? ` context="${escapeXml(todo.context)}"` : '';
+        const genericAttr = todo.isGeneric ? ' generic="true"' : '';
+        lines.push(
+          `    <todo file="${escapeXml(todo.file)}" line="${todo.line}" type="${todo.type}"${contextAttr}${genericAttr}>`,
+        );
+        lines.push(`      ${escapeXml(todo.text)}`);
+        lines.push('    </todo>');
+        displayed++;
+      }
+    }
+  }
+
+  const remaining = todos.length - displayed;
+  if (remaining > 0) {
+    lines.push(`    <!-- +${remaining} more TODOs -->`);
   }
 
   lines.push('  </todos>');
