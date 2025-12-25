@@ -8,7 +8,7 @@
  */
 
 /** Version of krolik-cli */
-export const KROLIK_VERSION = '0.1.0';
+export const KROLIK_VERSION = '0.1.1';
 
 /** Version of the CLAUDE.md template format */
 export const TEMPLATE_VERSION = '4.0.0';
