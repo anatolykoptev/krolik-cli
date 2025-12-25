@@ -7,14 +7,15 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+
 jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,8 +28,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
 
       # Trusted Publishers requires npm 11.5.1+
       - name: Update npm
@@ -57,9 +58,8 @@ jobs:
             echo "Building..."
             pnpm build
 
-            echo "Publishing to npmjs.org (Trusted Publishers - OIDC)..."
-            npm config set //registry.npmjs.org/:authType oidc
-            npm publish --access public --provenance
+            echo "Publishing to npmjs.org (Trusted Publishers)..."
+            npm publish --access public
 
             echo "published=true" >> $GITHUB_OUTPUT
           else
