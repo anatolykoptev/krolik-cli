@@ -17,7 +17,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anatolykoptev/krolik-cli.git"
+    "url": "git+https://github.com/anatolykoptev/krolik-cli.git"
   },
   "homepage": "https://github.com/anatolykoptev/krolik-cli#readme",
   "bugs": {
@@ -37,7 +37,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "krolik": "./dist/bin/cli.js"
+    "krolik": "dist/bin/cli.js"
   },
   "files": [
     "dist",
@@ -97,9 +97,6 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
   },
   "packageManager": "pnpm@10.0.0",
   "lint-staged": {
