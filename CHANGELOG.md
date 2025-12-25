@@ -1,5 +1,21 @@
 # @anatolykoptev/krolik-cli
 
+## 0.1.4
+
+### Patch Changes
+
+- Consolidate duplicate code via multi-agent orchestration:
+  - Extracted shared scanDir utility for directory traversal
+  - Consolidated formatJson/formatMarkdown formatting utilities
+  - Merged domain detection functions into single module
+  - Unified agent utilities (forceRescan, readAgentFile, parseEnv)
+  - Consolidated CommandOptions type into single source
+  - Merged Git types into unified git types module
+  - Consolidated parser types (ZodSchema, Relation, etc.)
+  - Fixed MCP server TOOLS export for backward compatibility
+
+  Net reduction: ~641 lines of code
+
 ## 0.1.3
 
 ### Patch Changes
