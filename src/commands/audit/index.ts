@@ -2,12 +2,12 @@
  * @module commands/audit
  * @description Code quality audit command
  *
- * Performs deep analysis of code quality and generates AI-REPORT.md
+ * Performs deep analysis of code quality and generates AUDIT.xml
  * with issues, priorities, hotspots, and action plan.
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { saveKrolikFile } from '../../lib';
 import type { CommandContext, OutputFormat } from '../../types';
 import type { AIReport } from '../fix/reporter/types';
 import { getProjectStatus } from '../status';
@@ -34,36 +34,28 @@ interface GenerateReportResult {
 }
 
 /**
- * Generate AI-REPORT.md using the fix analyzer
+ * Generate AUDIT.xml using the fix analyzer
  * Also saves JSON version for --from-audit integration
  */
 async function generateReport(
   projectRoot: string,
   logger: { info: (msg: string) => void },
 ): Promise<GenerateReportResult> {
-  const { generateAIReportFromAnalysis, formatAsMarkdown } = await import('../fix/reporter');
+  const { generateAIReportFromAnalysis, formatAsXml } = await import('../fix/reporter');
 
   logger.info('Analyzing code quality...');
   const report = await generateAIReportFromAnalysis(projectRoot);
-  const markdown = formatAsMarkdown(report);
+  const xmlContent = formatAsXml(report);
 
-  // Ensure .krolik directory exists
-  const krolikDir = path.join(projectRoot, '.krolik');
-  if (!fs.existsSync(krolikDir)) {
-    fs.mkdirSync(krolikDir, { recursive: true });
-  }
+  // Save XML report using shared utility
+  saveKrolikFile(projectRoot, 'AUDIT.xml', xmlContent);
 
-  // Write markdown report
-  const reportPath = path.join(krolikDir, 'AI-REPORT.md');
-  fs.writeFileSync(reportPath, markdown, 'utf-8');
-
-  // Write JSON version for --from-audit integration in fix command
-  const jsonPath = path.join(krolikDir, 'audit-data.json');
-  fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2), 'utf-8');
+  // Save JSON version for --from-audit integration in fix command
+  saveKrolikFile(projectRoot, 'audit-data.json', JSON.stringify(report, null, 2));
 
   return {
-    reportPath,
-    relativePath: path.relative(projectRoot, reportPath),
+    reportPath: '.krolik/AUDIT.xml',
+    relativePath: '.krolik/AUDIT.xml',
     report,
   };
 }
