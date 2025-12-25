@@ -1,7 +1,6 @@
 # KROLIK CLI
 
 [![CI](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/anatolykoptev/krolik-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/anatolykoptev/krolik-cli)
 [![npm version](https://badge.fury.io/js/%40anatolykoptev%2Fkrolik-cli.svg)](https://badge.fury.io/js/%40anatolykoptev%2Fkrolik-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -15,84 +14,262 @@ Fast AI-assisted development toolkit for TypeScript projects.
 
 ## Features
 
-- **Project Status** — Quick diagnostics (git, types, lint, TODOs)
-- **Code Quality** — Analyze code for SRP, complexity, type-safety, lint issues
-- **Auto-Fix** — Automatically fix code issues (Biome + TypeScript + custom)
-- **Code Review** — AI-assisted review of changes
-- **Schema Analysis** — Prisma schema documentation
-- **Routes Analysis** — tRPC routes documentation
-- **Issue Parser** — GitHub issue parsing for AI context
-- **Context Generator** — Generate AI context for tasks
-- **Code Generation** — Hooks, schemas, tests, barrels, docs
-- **Security Audit** — Check for vulnerabilities
-- **MCP Server** — Claude Code integration
-- **Plugin Setup** — Install Claude Code plugins (claude-mem, etc.)
+| Category | Tools |
+|----------|-------|
+| **Analysis** | Project status, code audit, schema/routes analysis |
+| **Auto-fix** | Code quality issues, Biome + TypeScript + custom fixers |
+| **Refactoring** | Duplicate detection, module restructuring, import updates |
+| **Context** | AI-friendly context generation for features/issues |
+| **Memory** | Persistent SQLite memory with FTS5 search |
+| **Docs** | Library documentation cache via Context7 |
+| **Agents** | Multi-agent orchestration for complex tasks |
+| **MCP** | Full Claude Code integration |
 
 ## Installation
 
-```bash
-# Global install
-npm install -g krolik-cli
+Published on [npm](https://www.npmjs.com/package/@anatolykoptev/krolik-cli) and [GitHub Packages](https://github.com/anatolykoptev/krolik-cli/packages).
 
-# Or as a dev dependency
-pnpm add -D krolik-cli
+```bash
+# Global
+npm i -g @anatolykoptev/krolik-cli
+
+# Dev dependency
+pnpm add -D @anatolykoptev/krolik-cli
+
+# Or via npx (no install)
+npx @anatolykoptev/krolik-cli status
 ```
 
 ## Quick Start
 
 ```bash
-# Initialize config
-krolik init
-
-# Quick project status
-krolik status
-
-# Status without slow checks
+# Project diagnostics
 krolik status --fast
 
-# Review current branch changes
-krolik review
-
-# Analyze Prisma schema
-krolik schema --save
-
-# Analyze tRPC routes
-krolik routes --save
-
-# Parse GitHub issue
-krolik issue 123
-
-# Generate code
-krolik codegen hooks
-krolik codegen schemas
-krolik codegen tests
-
-# Code quality analysis
-krolik quality
-krolik quality --ai         # AI-friendly XML output
+# Code quality audit
+krolik audit
 
 # Auto-fix issues
-krolik fix                  # Full pipeline
-krolik fix --dry-run        # Preview changes
+krolik fix --dry-run       # Preview
+krolik fix                  # Apply
 
-# Security audit
-krolik security
+# AI context for task
+krolik context --feature booking
+
+# Code review
+krolik review --staged
+
+# Prisma schema → docs
+krolik schema --save
+
+# tRPC routes → docs
+krolik routes --save
 
 # Start MCP server
 krolik mcp
-
-# Install Claude Code plugins (claude-mem, etc.)
-krolik setup
 ```
+
+## Commands
+
+### `krolik status`
+
+Project diagnostics: git, typecheck, lint, TODOs.
+
+```bash
+krolik status              # Full
+krolik status --fast       # Skip slow checks
+```
+
+### `krolik audit`
+
+Code quality audit → AI-friendly report.
+
+```bash
+krolik audit               # Full audit
+krolik audit --path src/   # Specific path
+```
+
+### `krolik fix`
+
+Auto-fix code quality issues.
+
+```bash
+# Analysis
+krolik fix --dry-run              # Preview changes
+krolik fix --dry-run --diff       # Show unified diff
+
+# Execution
+krolik fix                        # Apply safe fixes
+krolik fix --yes                  # Auto-confirm
+krolik fix --path <path>          # Specific directory
+
+# Scope
+krolik fix --trivial              # console, debugger only
+krolik fix --safe                 # Trivial + safe
+krolik fix --all                  # Include risky
+
+# Tools
+krolik fix --biome-only           # Only Biome
+krolik fix --no-biome             # Skip Biome
+
+# Categories
+krolik fix --category lint
+krolik fix --category type-safety
+krolik fix --category complexity
+```
+
+### `krolik context`
+
+AI-friendly context for tasks.
+
+```bash
+krolik context --feature <name>   # Feature context
+krolik context --issue <number>   # From GitHub issue
+krolik context --full             # All enrichment
+```
+
+### `krolik refactor`
+
+Find duplicates, analyze structure, apply migrations.
+
+```bash
+krolik refactor                    # Analyze duplicates
+krolik refactor --types-only       # Only duplicate types
+krolik refactor --structure-only   # Module structure
+krolik refactor --apply            # Apply migrations
+krolik refactor --dry-run          # Preview
+```
+
+### `krolik review`
+
+Code review with AI hints.
+
+```bash
+krolik review                 # Current branch vs main
+krolik review --staged        # Staged changes only
+krolik review --pr <number>   # Specific PR
+```
+
+### `krolik memory`
+
+Persistent memory across sessions.
+
+```bash
+krolik mem save --type decision --title "Use tRPC" --description "..."
+krolik mem search --query "tRPC"
+krolik mem recent --limit 10
+krolik mem recent --type bugfix
+```
+
+### `krolik docs`
+
+Library documentation cache.
+
+```bash
+krolik docs detect               # Auto-detect from package.json
+krolik docs fetch next.js        # Fetch docs for library
+krolik docs search "app router"  # Full-text search
+krolik docs list                 # Show cached libs
+```
+
+### `krolik agent`
+
+Run specialized AI agents.
+
+```bash
+krolik agent --list               # Available agents
+krolik agent --name security-auditor
+krolik agent --category quality
+krolik agent --orchestrate --task "analyze security and performance"
+```
+
+### `krolik schema`
+
+Prisma schema analysis.
+
+```bash
+krolik schema                # AI-friendly XML
+krolik schema --save         # Save to SCHEMA.md
+krolik schema --json         # JSON output
+```
+
+### `krolik routes`
+
+tRPC routes analysis.
+
+```bash
+krolik routes                # AI-friendly XML
+krolik routes --save         # Save to ROUTES.md
+krolik routes --json         # JSON output
+```
+
+### `krolik sync`
+
+Sync CLAUDE.md with krolik block.
+
+```bash
+krolik sync                  # Update CLAUDE.md
+```
+
+### Other Commands
+
+```bash
+krolik init                  # Initialize config
+krolik issue 123             # Parse GitHub issue
+krolik codegen hooks         # Generate code
+krolik security              # Dependency audit
+krolik setup                 # Install plugins
+```
+
+## MCP Server
+
+Claude Code integration via Model Context Protocol.
+
+### Setup
+
+```bash
+claude mcp add krolik -- npx @anatolykoptev/krolik-cli mcp
+```
+
+Or in `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "krolik": {
+      "command": "npx",
+      "args": ["@anatolykoptev/krolik-cli", "mcp"],
+      "cwd": "/path/to/project"
+    }
+  }
+}
+```
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `krolik_status` | Project diagnostics |
+| `krolik_audit` | Code quality audit |
+| `krolik_context` | AI context generation |
+| `krolik_fix` | Auto-fix issues |
+| `krolik_refactor` | Duplicate/structure analysis |
+| `krolik_review` | Code review |
+| `krolik_schema` | Prisma schema |
+| `krolik_routes` | tRPC routes |
+| `krolik_issue` | GitHub issue parsing |
+| `krolik_docs` | Library docs cache |
+| `krolik_mem_save` | Save memory entry |
+| `krolik_mem_search` | Search memory |
+| `krolik_mem_recent` | Recent memories |
+| `krolik_agent` | Run AI agents |
 
 ## Configuration
 
-Create `krolik.config.ts` or `krolik.yaml` in your project root.
-
-### TypeScript Config
+`krolik.config.ts`:
 
 ```typescript
-import { defineConfig } from 'krolik-cli';
+import { defineConfig } from '@anatolykoptev/krolik-cli';
 
 export default defineConfig({
   name: 'my-project',
@@ -112,367 +289,21 @@ export default defineConfig({
   trpc: {
     routersDir: 'packages/api/src/routers',
   },
-  // Custom domains for context generation
-  domains: {
-    crm: {
-      keywords: ['customer', 'lead', 'contact'],
-      approach: ['Check CRM module', 'Review customer schema'],
-    },
-  },
 });
-```
-
-### YAML Config
-
-```yaml
-# krolik.yaml
-name: my-project
-
-paths:
-  web: apps/web
-  api: packages/api
-  db: packages/db
-
-features:
-  prisma: true
-  trpc: true
-  nextjs: true
-
-prisma:
-  schemaDir: packages/db/prisma/schema
-
-trpc:
-  routersDir: packages/api/src/routers
-
-# Custom domains for context generation
-domains:
-  crm:
-    keywords:
-      - customer
-      - lead
-      - contact
-    approach:
-      - Check CRM module
-      - Review customer schema
-```
-
-## Auto-Detection
-
-Krolik automatically detects:
-
-- **Monorepo** — pnpm-workspace.yaml, npm/yarn workspaces
-- **Prisma** — @prisma/client dependency, schema location
-- **tRPC** — @trpc/server dependency, routers location
-- **Next.js** — next dependency
-- **TypeScript** — typescript dependency, tsconfig.json
-
-## Commands Reference
-
-### Global Options
-
-```bash
-krolik [command] [options]
-  -V, --version            Output version number
-  -c, --config <path>      Path to config file
-  --project-root <path>    Project root directory
-  --cwd <path>             Alias for --project-root
-  -t, --text               Human-readable text output (default: AI-friendly XML)
-  --json                   Output as JSON
-  -v, --verbose            Verbose output
-  --no-color               Disable colored output
-```
-
----
-
-### `krolik status`
-
-Quick project diagnostics: git, typecheck, lint, TODOs.
-
-```bash
-krolik status              # Full diagnostics
-krolik status --fast       # Skip slow checks (typecheck, lint)
-krolik status --report     # Generate AI-REPORT.md with code quality analysis
-```
-
----
-
-### `krolik fix`
-
-Auto-fix code quality issues. **Replaces deprecated `quality` command.**
-
-```bash
-# Analysis modes
-krolik fix --analyze-only              # Analyze only (no fixes)
-krolik fix --dry-run                   # Show what would be fixed
-krolik fix --dry-run --diff            # Show unified diff preview
-
-# Execution
-krolik fix                             # Apply all safe fixes
-krolik fix --yes                       # Auto-confirm all fixes
-krolik fix --path <path>               # Fix specific directory
-krolik fix --limit <n>                 # Max fixes to apply
-krolik fix --backup                    # Create backup before fixing
-
-# Fix scope
-krolik fix --trivial                   # Only trivial (console, debugger)
-krolik fix --safe                      # Trivial + safe (excludes risky)
-krolik fix --all                       # Include risky fixers (requires confirmation)
-
-# Tool selection
-krolik fix --biome                     # Run Biome auto-fix (default)
-krolik fix --biome-only                # Only Biome, skip custom
-krolik fix --no-biome                  # Skip Biome
-krolik fix --typecheck                 # Run TypeScript check (default)
-krolik fix --typecheck-only            # Only TypeScript check
-krolik fix --no-typecheck              # Skip TypeScript check
-
-# Category filtering
-krolik fix --category lint             # Only lint issues
-krolik fix --category type-safety      # Only type-safety issues
-krolik fix --category complexity       # Only complexity issues
-
-# Individual fixers
-krolik fix --fix-console               # Fix console.log
-krolik fix --fix-debugger              # Fix debugger statements
-krolik fix --fix-alert                 # Fix alert() calls
-krolik fix --fix-ts-ignore             # Fix @ts-ignore
-krolik fix --fix-any                   # Fix `any` types
-krolik fix --fix-complexity            # Fix high complexity
-krolik fix --fix-long-functions        # Fix long functions
-krolik fix --fix-magic-numbers         # Fix magic numbers
-krolik fix --fix-urls                  # Fix hardcoded URLs
-krolik fix --fix-srp                   # Fix SRP violations
-
-# Disable fixers
-krolik fix --no-console                # Skip console fixes
-krolik fix --no-debugger               # Skip debugger fixes
-krolik fix --no-any                    # Skip any type fixes
-
-# Reports
-krolik fix --list-fixers               # List all available fixers
-# For AI reports use: krolik status --report
-```
-
-**Fix Categories:**
-- `lint` — console, debugger, alert statements
-- `type-safety` — any, @ts-ignore, eval, loose equality
-- `complexity` — high cyclomatic complexity, long functions
-- `hardcoded` — magic numbers, hardcoded URLs
-- `srp` — single responsibility violations
-
----
-
-### `krolik context`
-
-Generate AI-friendly context for tasks.
-
-```bash
-krolik context --feature <name>     # Context for feature (e.g., "booking", "crm")
-krolik context --issue <number>     # Context from GitHub issue
-krolik context --file <path>        # Context for specific file
-krolik context --include-code       # Include Zod schemas and code snippets
-krolik context --domain-history     # Include git history for domain files
-krolik context --show-deps          # Show domain dependencies
-krolik context --full               # Enable all enrichment options
-```
-
----
-
-### `krolik review`
-
-AI-assisted code review.
-
-```bash
-krolik review                       # Review current branch vs main
-krolik review --staged              # Review staged changes only
-krolik review --pr <number>         # Review specific PR
-```
-
----
-
-### `krolik schema`
-
-Analyze Prisma schema.
-
-```bash
-krolik schema                       # Print to stdout (AI-friendly XML)
-krolik schema --save                # Save to SCHEMA.md
-krolik schema --json                # JSON output
-```
-
----
-
-### `krolik routes`
-
-Analyze tRPC routes.
-
-```bash
-krolik routes                       # Print to stdout (AI-friendly XML)
-krolik routes --save                # Save to ROUTES.md
-krolik routes --json                # JSON output
-```
-
----
-
-### `krolik issue [number]`
-
-Parse GitHub issue for AI context.
-
-```bash
-krolik issue 123                    # Parse issue by number
-krolik issue --url <url>            # Parse issue by URL
-```
-
----
-
-### `krolik codegen <target>`
-
-Generate code artifacts.
-
-```bash
-krolik codegen hooks                # Generate React hooks
-krolik codegen schemas              # Generate Zod schemas
-krolik codegen tests                # Generate test files
-krolik codegen barrels              # Generate index.ts exports
-krolik codegen docs                 # Generate documentation
-
-# Options
-krolik codegen <target> --path <path>   # Target path
-krolik codegen <target> --dry-run       # Preview without changes
-krolik codegen <target> --force         # Overwrite existing files
-```
-
----
-
-### `krolik refine`
-
-Analyze and reorganize lib/ structure to @namespace pattern.
-
-```bash
-krolik refine                       # Analyze lib/ structure
-krolik refine --lib-path <path>     # Custom lib directory
-krolik refine --dry-run             # Preview changes
-krolik refine --apply               # Apply migration (move dirs, update imports)
-krolik refine --generate-config     # Generate ai-config.ts
-```
-
----
-
-### `krolik security`
-
-Run security audit.
-
-```bash
-krolik security                     # Audit dependencies
-krolik security --fix               # Attempt to fix vulnerabilities
-```
-
----
-
-### `krolik mcp`
-
-Start MCP server for Claude Code integration (stdio transport).
-
-```bash
-krolik mcp                          # Start MCP server
-```
-
-**Setup in Claude Code:**
-
-```bash
-claude mcp add krolik -- npx krolik mcp
-```
-
-Or add to `.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "krolik": {
-      "command": "npx",
-      "args": ["krolik", "mcp"],
-      "cwd": "/path/to/your/project"
-    }
-  }
-}
-```
-
-**Available MCP Tools:**
-
-| Tool | Description |
-|------|-------------|
-| `krolik_status` | Project diagnostics (git, typecheck, lint, TODOs) |
-| `krolik_context` | AI context generation for features/issues |
-| `krolik_schema` | Prisma schema analysis |
-| `krolik_routes` | tRPC routes analysis |
-| `krolik_review` | Code review for changes |
-| `krolik_issue` | GitHub issue parsing |
-
----
-
-### `krolik setup`
-
-Install recommended Claude Code plugins.
-
-```bash
-krolik setup                        # Install all recommended plugins
-krolik setup --list                 # List available plugins
-krolik setup --mem                  # Install only claude-mem
-krolik setup --dry-run              # Preview without installing
-krolik setup --force                # Reinstall even if already installed
-```
-
-**Available Plugins:**
-
-| Plugin | Description |
-|--------|-------------|
-| `claude-mem` | Persistent memory for Claude Code sessions — saves context across sessions, semantic search over history |
-
-**What `krolik setup` does:**
-
-1. Clones plugin from GitHub
-2. Installs dependencies (`npm install`)
-3. Builds the plugin (`npm run build`)
-4. Registers in Claude Code (`~/.claude/plugins/`)
-5. Creates data directories
-
-**After installation:**
-
-- Restart Claude Code to activate plugins
-- Web UI available at http://localhost:37777 (for claude-mem)
-- Context automatically injected at session start
-- Search with natural language: "What did we do yesterday?"
-
----
-
-### `krolik init`
-
-Initialize krolik.config.ts in project root.
-
-```bash
-krolik init                         # Interactive config setup
 ```
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `KROLIK_CONFIG` | Config file path | Auto-detected |
-| `KROLIK_PROJECT_ROOT` | Project root | Current directory |
-| `KROLIK_LOG_LEVEL` | Log level (debug/info/warn/error) | info |
+| Variable | Description |
+|----------|-------------|
+| `CONTEXT7_API_KEY` | Context7 API key for docs |
+| `KROLIK_PROJECT_ROOT` | Project root override |
+| `KROLIK_LOG_LEVEL` | Log level (debug/info/warn/error) |
 
-## Programmatic Usage
+## Requirements
 
-```typescript
-import { loadConfig, createLogger, runStatus } from 'krolik-cli';
-
-async function main() {
-  const config = await loadConfig();
-  const logger = createLogger();
-
-  await runStatus({ config, logger, options: { fast: true } });
-}
-```
+- Node.js >= 20.0.0
+- pnpm (recommended)
 
 ## License
 
