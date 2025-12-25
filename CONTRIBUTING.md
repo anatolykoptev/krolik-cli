@@ -327,6 +327,75 @@ The project uses GitHub Actions for continuous integration:
 - Release check (npm pack dry-run)
 - Optional publish (with changesets)
 
+## Releasing
+
+### Version Management
+
+The project uses [Changesets](https://github.com/changesets/changesets) for version management and changelog generation.
+
+**Creating a changeset:**
+```bash
+pnpm changeset
+# Follow prompts to describe your change
+# Select: patch | minor | major
+```
+
+Changesets are automatically processed on merge to `main`.
+
+### Publishing to npm
+
+**Automated via Trusted Publishers (recommended):**
+
+1. Push changeset to `main` branch
+2. GitHub Actions workflow automatically:
+   - Runs `changeset version` to bump version
+   - Commits version changes
+   - Builds the package
+   - Publishes to npm using OIDC (no token needed)
+   - Creates GitHub Release
+
+**Manual publish (maintainers only):**
+```bash
+# 1. Version bump
+pnpm changeset version
+
+# 2. Commit version changes
+git add -A && git commit -m "chore: release"
+
+# 3. Build
+pnpm build
+
+# 4. Publish (requires npm login)
+npm publish --access public
+
+# 5. Push to GitHub
+git push origin main
+```
+
+### npm Trusted Publishers Setup
+
+To enable automated publishing, configure on npm.js:
+
+1. Go to https://www.npmjs.com/package/@anatolykoptev/krolik-cli/access
+2. Scroll to "Trusted Publishers" section
+3. Click "Link" → "GitHub Actions"
+4. Configure:
+   - **Repository:** `anatolykoptev/krolik-cli`
+   - **Workflow:** `publish.yml`
+   - **Environment:** (leave empty)
+5. Save
+
+This enables secure, token-less publishing via OIDC.
+
+### Release Checklist
+
+- [ ] All tests passing (`pnpm test:run`)
+- [ ] TypeScript compiles (`pnpm typecheck`)
+- [ ] Linting passes (`pnpm lint`)
+- [ ] Build succeeds (`pnpm build`)
+- [ ] Changeset created with appropriate version bump
+- [ ] CHANGELOG.md updated (automatic with changesets)
+
 ## Code of Conduct
 
 This project adheres to the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
