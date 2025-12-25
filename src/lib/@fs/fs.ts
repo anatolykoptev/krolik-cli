@@ -184,6 +184,21 @@ export function getSubdirectories(dir: string): string[] {
 }
 
 /**
+ * Save file to .krolik directory
+ * Creates .krolik directory if it doesn't exist
+ *
+ * @param projectRoot - Project root directory
+ * @param filename - Filename to save (e.g., 'CONTEXT.xml', 'REFACTOR.xml')
+ * @param content - File content to save
+ * @returns true if saved successfully, false otherwise
+ */
+export function saveKrolikFile(projectRoot: string, filename: string, content: string): boolean {
+  const krolikDir = path.join(projectRoot, '.krolik');
+  const filePath = path.join(krolikDir, filename);
+  return writeFile(filePath, content);
+}
+
+/**
  * List files in a directory (non-recursive)
  */
 export function listFiles(dir: string, extensions?: string[]): string[] {

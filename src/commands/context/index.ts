@@ -12,6 +12,7 @@ import {
   getRecentCommits,
   getStatus,
   isGitRepo,
+  saveKrolikFile,
 } from '../../lib';
 import {
   detectLibraries,
@@ -141,7 +142,7 @@ export async function runContext(ctx: CommandContext & { options: ContextOptions
   const xmlOutput = formatAiPrompt(aiData);
 
   // Save to .krolik/CONTEXT.xml for AI reference
-  saveContext(projectRoot, xmlOutput);
+  saveKrolikFile(projectRoot, 'CONTEXT.xml', xmlOutput);
 
   console.log(xmlOutput);
 }
@@ -722,26 +723,6 @@ async function loadLibraryDocs(
   }
 
   return results;
-}
-
-/**
- * Save context to .krolik/CONTEXT.xml for AI reference
- * Always saves the latest context, overwriting previous
- */
-function saveContext(projectRoot: string, xmlContent: string): void {
-  try {
-    const krolikDir = path.join(projectRoot, '.krolik');
-
-    // Create .krolik directory if it doesn't exist
-    if (!fs.existsSync(krolikDir)) {
-      fs.mkdirSync(krolikDir, { recursive: true });
-    }
-
-    const contextPath = path.join(krolikDir, 'CONTEXT.xml');
-    fs.writeFileSync(contextPath, xmlContent, 'utf-8');
-  } catch {
-    // Silently fail if we can't save (e.g., permission issues)
-  }
 }
 
 export {

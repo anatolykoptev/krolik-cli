@@ -33,6 +33,7 @@ import {
   type GitBackupResult,
   relativePath as getRelativePath,
   hasUncommittedChanges,
+  saveKrolikFile,
 } from '../../lib';
 import {
   analyzeStructure,
@@ -326,13 +327,20 @@ export function printAnalysis(
 ): void {
   const format = options.format ?? 'text';
 
-  // For XML format or --ai flag, use enhanced AI-native output
+  // Generate enhanced XML for saving (always)
+  const enhanced = createEnhancedAnalysis(analysis, projectRoot, targetPath);
+  const xmlOutput = formatAiNativeXml(enhanced);
+
+  // Always save to .krolik/REFACTOR.xml for AI access
+  saveKrolikFile(projectRoot, 'REFACTOR.xml', xmlOutput);
+
+  // For XML format or --ai flag, output XML
   if (format === 'xml' || options.aiNative) {
-    const enhanced = createEnhancedAnalysis(analysis, projectRoot, targetPath);
-    console.log(formatAiNativeXml(enhanced));
+    console.log(xmlOutput);
     return;
   }
 
+  // Otherwise output in requested format
   const output = formatRefactor(analysis, format);
   console.log(output);
 
