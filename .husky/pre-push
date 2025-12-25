@@ -1,1 +1,4 @@
+# Skip in CI environment
+[ -n "$CI" ] && exit 0
+
 pnpm typecheck && pnpm test:run
