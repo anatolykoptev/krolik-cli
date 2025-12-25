@@ -32,7 +32,9 @@ jobs:
 
       # Trusted Publishers requires npm 11.5.1+
       - name: Update npm
-        run: npm install -g npm@latest
+        run: |
+          npm install -g npm@latest
+          echo "npm version: $(npm --version)"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -55,7 +57,8 @@ jobs:
             echo "Building..."
             pnpm build
 
-            echo "Publishing to npmjs.org (Trusted Publishers - no token needed)..."
+            echo "Publishing to npmjs.org (Trusted Publishers - OIDC)..."
+            npm config set //registry.npmjs.org/:authType oidc
             npm publish --access public --provenance
 
             echo "published=true" >> $GITHUB_OUTPUT
