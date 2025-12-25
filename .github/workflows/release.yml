@@ -46,6 +46,10 @@ jobs:
             git commit -m "chore: release" --no-verify || true
             git push --no-verify
 
+            # Get version from package.json
+            VERSION=$(node -p "require('./package.json').version")
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+
             echo "Building..."
             pnpm build
 
@@ -64,7 +68,5 @@ jobs:
         if: steps.changesets.outputs.published == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ fromJson(steps.changesets.outputs.publishedPackages)[0].version }}
+          tag_name: v${{ steps.changesets.outputs.version }}
           generate_release_notes: true
-          files: |
-            dist/**/*
