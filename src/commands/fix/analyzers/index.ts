@@ -9,7 +9,11 @@ import type { FileAnalysis, QualityOptions } from '../types';
 
 const ERROR_CODE = 30;
 
-export { analyzeSplitPoints, calculateComplexity, extractFunctions } from './complexity';
+export {
+  analyzeSplitPointsSwc as analyzeSplitPoints,
+  calculateComplexitySwc as calculateComplexity,
+  extractFunctionsSwc as extractFunctions,
+} from './complexity-swc';
 export { checkMixedConcerns } from './concerns';
 // Re-export all analyzer functions
 export { detectFileType } from './detectors';
@@ -27,7 +31,7 @@ export {
   detectHardcodedSwc,
 } from './unified-swc';
 
-import { extractFunctions } from './complexity';
+import { extractFunctionsSwc as extractFunctions } from './complexity-swc';
 import { checkMixedConcerns } from './concerns';
 // Import for internal use
 import { detectFileType } from './detectors';
