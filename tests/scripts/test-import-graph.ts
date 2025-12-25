@@ -5,8 +5,8 @@
 
 import {
   buildImportGraphSwc,
-  formatImportGraphAscii,
   filterGraphByPatterns,
+  formatImportGraphAscii,
   getGraphStats,
 } from './src/commands/context/parsers/import-graph-swc';
 
@@ -19,7 +19,7 @@ const graph = buildImportGraphSwc('./src/commands/context/parsers', []);
 console.log(formatImportGraphAscii(graph, { maxDepth: 2, showImportedBy: true }));
 
 // Test 2: Get statistics
-console.log('\n' + '='.repeat(60));
+console.log(`\n${'='.repeat(60)}`);
 console.log('Test 2: Graph statistics');
 console.log('='.repeat(60));
 
@@ -32,7 +32,7 @@ console.log(`Most imports: ${stats.maxImports.file} (${stats.maxImports.count})`
 console.log(`Most imported: ${stats.mostImported.file} (${stats.mostImported.count})`);
 
 // Test 3: Filter by pattern
-console.log('\n' + '='.repeat(60));
+console.log(`\n${'='.repeat(60)}`);
 console.log('Test 3: Filter by pattern (swc)');
 console.log('='.repeat(60));
 
@@ -40,7 +40,7 @@ const filteredGraph = filterGraphByPatterns(graph, ['swc']);
 console.log(formatImportGraphAscii(filteredGraph, { maxDepth: 3 }));
 
 // Test 4: Mermaid output
-console.log('\n' + '='.repeat(60));
+console.log(`\n${'='.repeat(60)}`);
 console.log('Test 4: Mermaid diagram');
 console.log('='.repeat(60));
 

@@ -46,5 +46,10 @@ interface InternalConfig {
 }
 
 export interface ConfigWithLongType {
-  veryLongPropertyNameThatWillBeTruncatedBecauseItExceedsTheMaximumLengthAllowed: 'some' | 'very' | 'long' | 'union' | 'type';
+  veryLongPropertyNameThatWillBeTruncatedBecauseItExceedsTheMaximumLengthAllowed:
+    | 'some'
+    | 'very'
+    | 'long'
+    | 'union'
+    | 'type';
 }

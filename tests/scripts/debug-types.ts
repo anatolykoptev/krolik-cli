@@ -1,5 +1,5 @@
-import { parseFile, visitNodeWithCallbacks, getNodeSpan, getNodeText } from './src/lib/@swc';
 import * as fs from 'node:fs';
+import { getNodeSpan, getNodeText, parseFile, visitNodeWithCallbacks } from './src/lib/@swc';
 
 const content = `export interface User {
   id: string;
@@ -31,9 +31,9 @@ visitNodeWithCallbacks(ast, {
 
       // Try offsetting by -1
       const textMinus1 = content.slice(start - 1, end - 1);
-      console.log(`Text at [${start-1}:${end-1}] (offset -1):`, JSON.stringify(textMinus1));
+      console.log(`Text at [${start - 1}:${end - 1}] (offset -1):`, JSON.stringify(textMinus1));
     }
 
     console.log('\n---\n');
-  }
+  },
 });

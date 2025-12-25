@@ -259,9 +259,7 @@ export async function runDocsSearch(
       if (r.section.codeSnippets.length > 0) {
         const firstSnippet = r.section.codeSnippets[0]!;
         lines.push(`    <code-snippets count="${r.section.codeSnippets.length}">`);
-        lines.push(
-          `      ${firstSnippet.slice(0, 200)}${firstSnippet.length > 200 ? '...' : ''}`,
-        );
+        lines.push(`      ${firstSnippet.slice(0, 200)}${firstSnippet.length > 200 ? '...' : ''}`);
         lines.push(`    </code-snippets>`);
       }
       lines.push(`  </result>`);

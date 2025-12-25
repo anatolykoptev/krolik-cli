@@ -4,13 +4,13 @@
  * This shows how to add import graph analysis to the context XML output.
  */
 
+import type { ImportGraph } from './src/commands/context/parsers';
 import {
   buildImportGraphSwc,
   filterGraphByPatterns,
   formatImportGraphAscii,
   getGraphStats,
 } from './src/commands/context/parsers';
-import type { ImportGraph } from './src/commands/context/parsers';
 
 /**
  * Generate import graph section for context XML

@@ -139,7 +139,7 @@ export function formatPreCommitSection(lines: string[]): void {
   lines.push('  <pre-commit>');
   lines.push('    <check>pnpm typecheck</check>');
   lines.push('    <check>pnpm lint:fix</check>');
-  lines.push('    <check>pnpm test -- ${domain}</check>');
+  lines.push('    <check>pnpm test -- [domain]</check>');
   lines.push('    <check>pnpm build</check>');
   lines.push('  </pre-commit>');
 }

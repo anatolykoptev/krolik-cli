@@ -1,7 +1,5 @@
 {
-  "pluginMarketplaces": [
-    "wshobson/agents"
-  ],
+  "pluginMarketplaces": ["wshobson/agents"],
   "plugins": [
     "accessibility-compliance",
     "agent-orchestration",
@@ -72,14 +70,7 @@
     "web-scripting"
   ],
   "context": {
-    "includeFiles": [
-      "CLAUDE.md",
-      "README.md"
-    ],
-    "excludePatterns": [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/.git/**"
-    ]
+    "includeFiles": ["CLAUDE.md", "README.md"],
+    "excludePatterns": ["**/node_modules/**", "**/dist/**", "**/.git/**"]
   }
 }

@@ -2,10 +2,10 @@
  * Test script to verify SWC-based component parser
  */
 
-import { parseComponents as parseComponentsRegex } from './src/commands/context/parsers/components';
-import { parseComponents as parseComponentsSwc } from './src/commands/context/parsers/components-swc';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { parseComponents as parseComponentsRegex } from './src/commands/context/parsers/components';
+import { parseComponents as parseComponentsSwc } from './src/commands/context/parsers/components-swc';
 
 // Create test component
 const testComponent = `'use client';
@@ -75,12 +75,48 @@ try {
 
     console.log('Name:', regex?.name === swc?.name ? '✅' : '❌', regex?.name, 'vs', swc?.name);
     console.log('Type:', regex?.type === swc?.type ? '✅' : '❌', regex?.type, 'vs', swc?.type);
-    console.log('Purpose:', regex?.purpose === swc?.purpose ? '✅' : '❌', regex?.purpose, 'vs', swc?.purpose);
-    console.log('State:', regex?.state === swc?.state ? '✅' : '❌', regex?.state, 'vs', swc?.state);
-    console.log('Features:', JSON.stringify(regex?.features) === JSON.stringify(swc?.features) ? '✅' : '❌', regex?.features, 'vs', swc?.features);
-    console.log('Hooks count:', regex?.hooks.length === swc?.hooks.length ? '✅' : '❌', regex?.hooks.length, 'vs', swc?.hooks.length);
-    console.log('Imports count:', regex?.imports.length === swc?.imports.length ? '✅' : '❌', regex?.imports.length, 'vs', swc?.imports.length);
-    console.log('Fields:', JSON.stringify(regex?.fields?.sort()) === JSON.stringify(swc?.fields?.sort()) ? '✅' : '❌', regex?.fields?.sort(), 'vs', swc?.fields?.sort());
+    console.log(
+      'Purpose:',
+      regex?.purpose === swc?.purpose ? '✅' : '❌',
+      regex?.purpose,
+      'vs',
+      swc?.purpose,
+    );
+    console.log(
+      'State:',
+      regex?.state === swc?.state ? '✅' : '❌',
+      regex?.state,
+      'vs',
+      swc?.state,
+    );
+    console.log(
+      'Features:',
+      JSON.stringify(regex?.features) === JSON.stringify(swc?.features) ? '✅' : '❌',
+      regex?.features,
+      'vs',
+      swc?.features,
+    );
+    console.log(
+      'Hooks count:',
+      regex?.hooks.length === swc?.hooks.length ? '✅' : '❌',
+      regex?.hooks.length,
+      'vs',
+      swc?.hooks.length,
+    );
+    console.log(
+      'Imports count:',
+      regex?.imports.length === swc?.imports.length ? '✅' : '❌',
+      regex?.imports.length,
+      'vs',
+      swc?.imports.length,
+    );
+    console.log(
+      'Fields:',
+      JSON.stringify(regex?.fields?.sort()) === JSON.stringify(swc?.fields?.sort()) ? '✅' : '❌',
+      regex?.fields?.sort(),
+      'vs',
+      swc?.fields?.sort(),
+    );
   }
 } finally {
   // Cleanup

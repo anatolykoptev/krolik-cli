@@ -43,7 +43,7 @@ function main(): void {
   // Update version.ts
   const newContent = currentContent.replace(
     /KROLIK_VERSION\s*=\s*['"][^'"]+['"]/,
-    `KROLIK_VERSION = '${version}'`
+    `KROLIK_VERSION = '${version}'`,
   );
 
   fs.writeFileSync(VERSION_TS, newContent, 'utf-8');

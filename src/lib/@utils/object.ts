@@ -22,7 +22,5 @@ export function stripUndefined<T extends Record<string, unknown>>(obj: T): Parti
  * Type-safe version that returns the same type
  */
 export function definedOnly<T extends Record<string, unknown>>(obj: T): T {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => value !== undefined),
-  ) as T;
+  return Object.fromEntries(Object.entries(obj).filter(([, value]) => value !== undefined)) as T;
 }

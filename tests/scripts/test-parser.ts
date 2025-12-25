@@ -2,8 +2,8 @@
  * Test script to compare regex-based and SWC-based type parsers
  */
 
-import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,7 +44,7 @@ async function testParsers() {
       }
       if (type.properties) {
         console.log(`   properties (${type.properties.length}):`);
-        type.properties.forEach(prop => {
+        type.properties.forEach((prop) => {
           console.log(`     - ${prop.name}${prop.optional ? '?' : ''}: ${prop.type}`);
         });
       }
@@ -69,7 +69,7 @@ async function testParsers() {
       }
       if (type.properties) {
         console.log(`   properties (${type.properties.length}):`);
-        type.properties.forEach(prop => {
+        type.properties.forEach((prop) => {
           console.log(`     - ${prop.name}${prop.optional ? '?' : ''}: ${prop.type}`);
         });
       }
@@ -78,7 +78,6 @@ async function testParsers() {
 
     console.log('='.repeat(60));
     console.log('\n✅ Both parsers executed successfully');
-
   } catch (error) {
     console.error('\n❌ Error during testing:', error);
     process.exit(1);

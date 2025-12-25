@@ -12,10 +12,7 @@ import {
 } from './src/commands/context/parsers/db-relations';
 
 // Find schema directory
-const schemaDir = path.join(
-  process.cwd(),
-  '../piternow-wt-fix/packages/db/prisma',
-);
+const schemaDir = path.join(process.cwd(), '../piternow-wt-fix/packages/db/prisma');
 
 console.log('Parsing Prisma schema from:', schemaDir);
 console.log('='.repeat(80));
@@ -83,9 +80,7 @@ console.log('='.repeat(80));
 const cascadeDeletes = relations.relations.filter((r) => r.onDelete === 'Cascade');
 console.log(`Relations with CASCADE delete: ${cascadeDeletes.length}`);
 for (const rel of cascadeDeletes.slice(0, 10)) {
-  console.log(
-    `  ${rel.from}.${rel.field} → ${rel.to} [${rel.type}]`,
-  );
+  console.log(`  ${rel.from}.${rel.field} → ${rel.to} [${rel.type}]`);
 }
 console.log('');
 
@@ -93,9 +88,7 @@ console.log('');
 const manyToMany = relations.relations.filter((r) => r.type === 'many-to-many');
 console.log(`Many-to-many relations: ${manyToMany.length}`);
 for (const rel of manyToMany) {
-  console.log(
-    `  ${rel.from}.${rel.field} ⟷ ${rel.to}.${rel.backRelationField || '?'}`,
-  );
+  console.log(`  ${rel.from}.${rel.field} ⟷ ${rel.to}.${rel.backRelationField || '?'}`);
 }
 console.log('');
 
@@ -106,9 +99,7 @@ for (const rel of relations.relations) {
   relationsByModel.set(rel.to, (relationsByModel.get(rel.to) || 0) + 1);
 }
 
-const topModels = [...relationsByModel.entries()]
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 10);
+const topModels = [...relationsByModel.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
 console.log('Models with most relations:');
 for (const [model, count] of topModels) {

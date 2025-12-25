@@ -2,9 +2,9 @@
  * Test edge cases for SWC-based component parser
  */
 
-import { parseComponents } from './src/commands/context/parsers/components-swc';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { parseComponents } from './src/commands/context/parsers/components-swc';
 
 // Test cases
 const testCases = [
@@ -18,7 +18,7 @@ export default function ServerComponent() {
       type: 'server',
       hooks: [],
       fields: [],
-    }
+    },
   },
   {
     name: 'FormWithController.tsx',
@@ -36,7 +36,7 @@ export default function FormWithController() {
     expected: {
       type: 'client',
       fields: ['email'],
-    }
+    },
   },
   {
     name: 'ErrorBoundaryComponent.tsx',
@@ -51,7 +51,7 @@ export default function ErrorBoundaryComponent() {
     expected: {
       type: 'client',
       errorHandling: 'callback, boundary',
-    }
+    },
   },
   {
     name: 'ZustandStore.tsx',
@@ -64,7 +64,7 @@ export const useStore = create((set) => ({
     expected: {
       type: 'server',
       state: 'zustand',
-    }
+    },
   },
   {
     name: 'NoFalsePositives.tsx',
@@ -80,7 +80,7 @@ export default function NoFalsePositives() {
       type: 'client',
       hooks: [],
       fields: [], // Should NOT detect "field" from string
-    }
+    },
   },
 ];
 
@@ -112,12 +112,18 @@ try {
       const actualValue = result?.[key as keyof typeof result];
 
       if (Array.isArray(expectedValue)) {
-        const match = JSON.stringify(expectedValue.sort()) === JSON.stringify((actualValue as string[] || []).sort());
-        console.log(`  ${key}: ${match ? '✅' : '❌'} ${JSON.stringify(actualValue)} (expected: ${JSON.stringify(expectedValue)})`);
+        const match =
+          JSON.stringify(expectedValue.sort()) ===
+          JSON.stringify(((actualValue as string[]) || []).sort());
+        console.log(
+          `  ${key}: ${match ? '✅' : '❌'} ${JSON.stringify(actualValue)} (expected: ${JSON.stringify(expectedValue)})`,
+        );
         if (!match) allPassed = false;
       } else if (typeof expectedValue === 'string') {
         const match = actualValue === expectedValue;
-        console.log(`  ${key}: ${match ? '✅' : '❌'} "${actualValue}" (expected: "${expectedValue}")`);
+        console.log(
+          `  ${key}: ${match ? '✅' : '❌'} "${actualValue}" (expected: "${expectedValue}")`,
+        );
         if (!match) allPassed = false;
       }
     }

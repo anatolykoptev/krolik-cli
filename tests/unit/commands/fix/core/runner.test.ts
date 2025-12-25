@@ -16,7 +16,12 @@ import {
   runTrivialFixers,
 } from '../../../../../src/commands/fix/core/runner';
 import type { QualityIssue } from '../../../../../src/commands/fix/core/types';
-import { CATEGORY, createTestFixer, createTestIssue, DIFFICULTY } from '../../../../helpers/fix-helpers';
+import {
+  CATEGORY,
+  createTestFixer,
+  createTestIssue,
+  DIFFICULTY,
+} from '../../../../helpers/fix-helpers';
 
 describe('runner', () => {
   let _testRegistry: FixerRegistry;

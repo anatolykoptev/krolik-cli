@@ -101,7 +101,7 @@
   "packageManager": "pnpm@10.0.0",
   "lint-staged": {
     "*.{ts,tsx}": [
-      "biome check --write --no-errors-on-unmatched"
+      "biome check --write --no-errors-on-unmatched --diagnostic-level=error"
     ],
     "*.{json,md,yml,yaml}": [
       "biome format --write --no-errors-on-unmatched"

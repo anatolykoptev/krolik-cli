@@ -174,7 +174,6 @@ interface SwitchCase extends BaseNode {
   consequent: Node[];
 }
 
-
 /**
  * Comment node
  */
