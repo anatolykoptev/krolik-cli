@@ -146,3 +146,26 @@ export function formatTreeSection(lines: string[], data: AiContextData): void {
   lines.push('    ]]>');
   lines.push('  </project-tree>');
 }
+
+/**
+ * Format GitHub issues section
+ */
+export function formatGitHubIssuesSection(lines: string[], data: AiContextData): void {
+  const { githubIssues } = data;
+  if (!githubIssues || githubIssues.count === 0) return;
+
+  lines.push(`  <github-issues count="${githubIssues.count}" source="${githubIssues.source}">`);
+
+  for (const issue of githubIssues.issues.slice(0, MAX_ITEMS_MEDIUM)) {
+    const labelsAttr = issue.labels.length > 0 ? ` labels="${issue.labels.join(',')}"` : '';
+    lines.push(`    <issue number="${issue.number}" state="${issue.state}"${labelsAttr}>`);
+    lines.push(`      <title>${escapeXml(issue.title)}</title>`);
+    lines.push('    </issue>');
+  }
+
+  if (githubIssues.count > MAX_ITEMS_MEDIUM) {
+    lines.push(`    <!-- ${githubIssues.count - MAX_ITEMS_MEDIUM} more issues available -->`);
+  }
+
+  lines.push('  </github-issues>');
+}

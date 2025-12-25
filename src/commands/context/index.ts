@@ -11,7 +11,10 @@ import {
   getIssue,
   getRecentCommits,
   getStatus,
+  isGhAuthenticated,
+  isGhAvailable,
   isGitRepo,
+  listIssues,
   saveKrolikFile,
 } from '../../lib';
 import {
@@ -25,6 +28,7 @@ import { type Memory, search as searchMemory } from '../../lib/@memory';
 import type { CommandContext, ContextResult, KrolikConfig } from '../../types';
 import { analyzeRoutes } from '../routes';
 import { analyzeSchema } from '../schema';
+import { extractTodos } from '../status/todos';
 import { detectDomains, findRelatedFiles, generateChecklist, getApproaches } from './domains';
 import { formatAiPrompt, formatJson, formatMarkdown, printContext } from './formatters';
 import {
@@ -52,6 +56,7 @@ import type {
   ContextMode,
   ContextOptions,
   GitContextInfo,
+  GitHubIssuesData,
   LibraryDocsEntry,
 } from './types';
 
@@ -216,6 +221,17 @@ async function buildAiContextData(
     // Architecture patterns (default: ON, unless --no-architecture)
     if (options.architecture !== false) {
       aiData.architecture = collectArchitecturePatterns(projectRoot);
+    }
+
+    // Extract TODO comments from codebase (included in all modes)
+    aiData.todos = extractTodos(projectRoot);
+  }
+
+  // Load GitHub issues (--with-issues) - available in all modes
+  if (options.withIssues) {
+    const issues = loadGitHubIssues(projectRoot);
+    if (issues) {
+      aiData.githubIssues = issues;
     }
   }
 
@@ -723,6 +739,39 @@ async function loadLibraryDocs(
   }
 
   return results;
+}
+
+/**
+ * Load GitHub issues from repository using gh CLI
+ */
+function loadGitHubIssues(projectRoot: string): GitHubIssuesData | undefined {
+  try {
+    // Check if gh CLI is available and authenticated
+    if (!isGhAvailable() || !isGhAuthenticated()) {
+      return undefined;
+    }
+
+    // Fetch open issues (limit to 20)
+    const issues = listIssues(20, projectRoot);
+
+    if (issues.length === 0) {
+      return undefined;
+    }
+
+    return {
+      count: issues.length,
+      source: 'gh cli',
+      issues: issues.map((issue) => ({
+        number: issue.number,
+        title: issue.title,
+        state: issue.state,
+        labels: issue.labels,
+      })),
+    };
+  } catch {
+    // gh CLI not available or error occurred
+    return undefined;
+  }
 }
 
 export {

@@ -268,3 +268,36 @@ export function formatQualitySection(lines: string[], data: AiContextData): void
 
   lines.push('  </quality-issues>');
 }
+
+/**
+ * Format TODOs section
+ */
+export function formatTodosSection(lines: string[], data: AiContextData): void {
+  const { todos } = data;
+  if (!todos || todos.length === 0) return;
+
+  // Count by type
+  const counts = {
+    TODO: todos.filter((t) => t.type === 'TODO').length,
+    FIXME: todos.filter((t) => t.type === 'FIXME').length,
+    HACK: todos.filter((t) => t.type === 'HACK').length,
+    XXX: todos.filter((t) => t.type === 'XXX').length,
+  };
+
+  lines.push(`  <todos count="${todos.length}">`);
+  lines.push(
+    `    <summary todo="${counts.TODO}" fixme="${counts.FIXME}" hack="${counts.HACK}" xxx="${counts.XXX}" />`,
+  );
+
+  for (const todo of todos.slice(0, MAX_ITEMS_LARGE)) {
+    lines.push(`    <todo file="${todo.file}" line="${todo.line}" type="${todo.type}">`);
+    lines.push(`      ${escapeXml(todo.text)}`);
+    lines.push('    </todo>');
+  }
+
+  if (todos.length > MAX_ITEMS_LARGE) {
+    lines.push(`    <!-- +${todos.length - MAX_ITEMS_LARGE} more TODOs -->`);
+  }
+
+  lines.push('  </todos>');
+}

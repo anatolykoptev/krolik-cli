@@ -21,6 +21,7 @@ const contextSchema: FlagSchema = {
   quick: { flag: '--quick' },
   deep: { flag: '--deep' },
   full: { flag: '--full' },
+  withIssues: { flag: '--with-issues' },
 };
 
 export const contextTool: MCPToolDefinition = {
@@ -51,6 +52,10 @@ export const contextTool: MCPToolDefinition = {
         type: 'boolean',
         description:
           'Full mode: all enrichment (--include-code --domain-history --show-deps --with-audit)',
+      },
+      withIssues: {
+        type: 'boolean',
+        description: 'Include GitHub issues from gh CLI (requires gh authentication)',
       },
     },
   },

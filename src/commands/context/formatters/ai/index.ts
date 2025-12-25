@@ -13,6 +13,7 @@ import {
   formatDbRelationsSection,
   formatEnvVarsSection,
   formatFilesSection,
+  formatGitHubIssuesSection,
   formatGitSection,
   formatHintsSection,
   formatImportGraphSection,
@@ -26,6 +27,7 @@ import {
   formatSchemaSection,
   formatTaskSection,
   formatTestsSection,
+  formatTodosSection,
   formatTreeSection,
   formatTypesSection,
 } from './sections';
@@ -49,6 +51,7 @@ export function formatAiPrompt(data: AiContextData): string {
   // Core sections
   formatTaskSection(lines, data);
   formatGitSection(lines, data);
+  formatGitHubIssuesSection(lines, data);
   formatTreeSection(lines, data);
 
   // Architecture patterns (from --architecture)
@@ -78,6 +81,9 @@ export function formatAiPrompt(data: AiContextData): string {
 
   // Quality issues (from --with-audit)
   formatQualitySection(lines, data);
+
+  // TODO comments
+  formatTodosSection(lines, data);
 
   formatPreCommitSection(lines);
 

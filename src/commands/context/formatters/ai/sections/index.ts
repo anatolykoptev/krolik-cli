@@ -19,8 +19,14 @@ export {
   formatPreCommitSection,
   formatQualitySection,
   formatTestsSection,
+  formatTodosSection,
 } from './details';
 export { formatFilesSection, formatIoSchemasSection } from './files';
 export { formatRoutesSection, formatSchemaSection } from './schema-routes';
-export { formatGitSection, formatTaskSection, formatTreeSection } from './task-git';
+export {
+  formatGitHubIssuesSection,
+  formatGitSection,
+  formatTaskSection,
+  formatTreeSection,
+} from './task-git';
 export { formatImportsSection, formatTypesSection } from './types-imports';

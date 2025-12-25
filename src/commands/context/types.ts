@@ -7,6 +7,7 @@ import type { Memory } from '../../lib/@memory';
 import type { ContextResult, KrolikConfig, OutputFormat } from '../../types';
 import type { RoutesOutput } from '../routes/output';
 import type { SchemaOutput } from '../schema/output';
+import type { TodoItem } from '../status/todos';
 import type { ArchitecturePatterns } from './helpers';
 import type {
   ComponentInfo,
@@ -45,6 +46,8 @@ export interface ContextOptions {
   withAudit?: boolean;
   /** Include architecture patterns for AI agents (default: true) */
   architecture?: boolean;
+  /** Include GitHub issues from gh CLI */
+  withIssues?: boolean;
 }
 
 /**
@@ -119,6 +122,24 @@ export interface LibraryDocsEntry {
 }
 
 /**
+ * GitHub issues data for context
+ * Contains issues fetched via gh CLI
+ */
+export interface GitHubIssuesData {
+  /** Total number of issues fetched */
+  count: number;
+  /** Source of the data */
+  source: 'gh cli';
+  /** List of issues */
+  issues: Array<{
+    number: number;
+    title: string;
+    state: 'open' | 'closed';
+    labels: string[];
+  }>;
+}
+
+/**
  * Extended context data for AI output
  */
 export interface AiContextData {
@@ -160,4 +181,8 @@ export interface AiContextData {
   architecture?: ArchitecturePatterns;
   // Library documentation from Context7 (auto-fetched)
   libraryDocs?: LibraryDocsEntry[];
+  // TODO/FIXME/HACK/XXX comments from codebase
+  todos?: TodoItem[];
+  // GitHub issues (from --with-issues)
+  githubIssues?: GitHubIssuesData;
 }

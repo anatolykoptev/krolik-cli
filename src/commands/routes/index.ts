@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { saveKrolikFile } from '../../lib';
 import type { CommandContext, OutputFormat } from '../../types';
 import {
   calculateStats,
@@ -79,6 +80,12 @@ export async function runRoutes(ctx: CommandContext & { options: RoutesOptions }
   const result = analyzeRoutes(routersDir);
   const format = options.format ?? 'ai';
 
+  // Generate XML output for auto-saving
+  const xmlOutput = formatAI(result);
+
+  // Always save to .krolik/ROUTES.xml for AI access
+  saveKrolikFile(config.projectRoot, 'ROUTES.xml', xmlOutput);
+
   // Handle --save option separately
   if (options.save) {
     const md = formatMarkdown(result);
@@ -104,7 +111,7 @@ export async function runRoutes(ctx: CommandContext & { options: RoutesOptions }
   }
 
   // Default: AI-friendly XML
-  console.log(formatAI(result));
+  console.log(xmlOutput);
 }
 
 export type { RoutesOutput } from './output';

@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { saveKrolikFile } from '../../lib';
 import type { CommandContext, OutputFormat } from '../../types';
 import { formatAI, formatJson, formatMarkdown, printSchema, type SchemaOutput } from './output';
 import { parseSchemaDirectory } from './parser';
@@ -78,6 +79,12 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
   const result = analyzeSchema(schemaDir);
   const format = options.format ?? 'ai';
 
+  // Generate XML output for auto-saving
+  const xmlOutput = formatAI(result);
+
+  // Always save to .krolik/SCHEMA.xml for AI access
+  saveKrolikFile(config.projectRoot, 'SCHEMA.xml', xmlOutput);
+
   // Handle --save option separately
   if (options.save) {
     const md = formatMarkdown(result);
@@ -103,7 +110,7 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
   }
 
   // Default: AI-friendly XML
-  console.log(formatAI(result));
+  console.log(xmlOutput);
 }
 
 export type { SchemaOutput } from './output';
