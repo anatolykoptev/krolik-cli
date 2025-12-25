@@ -98,6 +98,9 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "packageManager": "pnpm@10.0.0",
   "lint-staged": {
     "*.{ts,tsx}": [
