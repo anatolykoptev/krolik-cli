@@ -39,7 +39,7 @@ export function registerDocsCommand(program: Command): void {
         maxPages: options.maxPages ? parseInt(String(options.maxPages), 10) : 3,
         format: options.json ? 'json' : 'ai',
       });
-      await runDocsFetch(ctx);
+      await runDocsFetch(ctx as Parameters<typeof runDocsFetch>[0]);
     });
 
   // docs search <query>
@@ -58,7 +58,7 @@ export function registerDocsCommand(program: Command): void {
         limit: options.limit ? parseInt(String(options.limit), 10) : 10,
         format: options.json ? 'json' : 'ai',
       });
-      await runDocsSearch(ctx);
+      await runDocsSearch(ctx as Parameters<typeof runDocsSearch>[0]);
     });
 
   // docs list

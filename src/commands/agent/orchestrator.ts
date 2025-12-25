@@ -78,22 +78,22 @@ export type ExecutionStrategy = 'sequential' | 'parallel' | 'mixed';
  */
 export interface OrchestrateOptions {
   /** Maximum agents to run */
-  maxAgents?: number;
+  maxAgents?: number | undefined;
   /** Categories to include/exclude */
-  includeCategories?: AgentCategory[];
-  excludeCategories?: AgentCategory[];
+  includeCategories?: AgentCategory[] | undefined;
+  excludeCategories?: AgentCategory[] | undefined;
   /** Prefer parallel execution */
-  preferParallel?: boolean;
+  preferParallel?: boolean | undefined;
   /** Include project context */
-  includeContext?: boolean;
+  includeContext?: boolean | undefined;
   /** Target file for analysis */
-  file?: string;
+  file?: string | undefined;
   /** Feature/domain to focus on */
-  feature?: string;
+  feature?: string | undefined;
   /** Dry run - don't execute, just plan */
-  dryRun?: boolean;
+  dryRun?: boolean | undefined;
   /** Output format */
-  format?: 'text' | 'xml' | 'json';
+  format?: 'text' | 'xml' | 'json' | undefined;
 }
 
 /**
@@ -102,7 +102,7 @@ export interface OrchestrateOptions {
 export interface OrchestrationResult {
   analysis: TaskAnalysis;
   plan: ExecutionPlan;
-  context?: AgentContext;
+  context?: AgentContext | undefined;
   durationMs: number;
 }
 
@@ -392,13 +392,14 @@ export function analyzeTask(task: string): TaskAnalysis {
   const categories: AgentCategory[] = [];
 
   if (detectedTypes.length > 0) {
-    const primary = detectedTypes[0];
+    const primary = detectedTypes[0]!;
     taskType = primary.type;
     confidence = Math.min(primary.score / 3, 1); // Normalize to 0-1
     keywords = primary.keywords;
 
     // If multiple high-scoring types, it's multi-domain
-    if (detectedTypes.length >= 2 && detectedTypes[1].score >= 2) {
+    const second = detectedTypes[1];
+    if (detectedTypes.length >= 2 && second && second.score >= 2) {
       taskType = 'multi-domain';
       confidence = 0.8;
       keywords = detectedTypes.flatMap((d) => d.keywords);

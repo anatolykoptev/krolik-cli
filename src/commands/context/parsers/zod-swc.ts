@@ -48,7 +48,7 @@ function parseSchemaFileSwc(filePath: string): ZodSchemaInfo[] {
   visitNodeWithCallbacks(ast, {
     onVariableDeclaration: (node, context) => {
       // Only process exported declarations
-      if (!context.isExported) return;
+      if (!context?.isExported) return;
 
       // Get the variable declarator
       const varDecl = node as unknown as {

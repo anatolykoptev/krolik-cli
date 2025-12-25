@@ -257,9 +257,10 @@ export async function runDocsSearch(
         `    <content>${r.section.content.slice(0, 300)}${r.section.content.length > 300 ? '...' : ''}</content>`,
       );
       if (r.section.codeSnippets.length > 0) {
+        const firstSnippet = r.section.codeSnippets[0]!;
         lines.push(`    <code-snippets count="${r.section.codeSnippets.length}">`);
         lines.push(
-          `      ${r.section.codeSnippets[0].slice(0, 200)}${r.section.codeSnippets[0].length > 200 ? '...' : ''}`,
+          `      ${firstSnippet.slice(0, 200)}${firstSnippet.length > 200 ? '...' : ''}`,
         );
         lines.push(`    </code-snippets>`);
       }

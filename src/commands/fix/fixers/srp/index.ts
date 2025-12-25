@@ -92,9 +92,11 @@ function analyzeFileMetricsRegex(content: string): FileMetrics {
             .split(/\s+as\s+/)[0]
             ?.trim(),
         );
-        items.forEach((item) => {
-          if (item) exportNames.push(item);
-        });
+        if (items) {
+          items.forEach((item) => {
+            if (item) exportNames.push(item);
+          });
+        }
       }
     }
   }
@@ -180,7 +182,7 @@ function groupFunctionsByPrefix(names: string[]): Map<string, string[]> {
     const prefixMatch = name.match(
       /^(get|set|create|update|delete|handle|on|use|is|has|can|should|validate|parse|format|render|load|save|fetch|find|build|make|init|reset|clear|add|remove)/i,
     );
-    const prefix = prefixMatch ? prefixMatch[1]?.toLowerCase() : 'misc';
+    const prefix = prefixMatch?.[1]?.toLowerCase() ?? 'misc';
 
     const existing = groups.get(prefix) ?? [];
     existing.push(name);

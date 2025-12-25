@@ -114,14 +114,6 @@ interface ExportDeclaration extends BaseNode {
 }
 
 /**
- * Export default declaration
- */
-interface ExportDefaultDeclaration extends BaseNode {
-  type: 'ExportDefaultDeclaration';
-  decl: Node;
-}
-
-/**
  * Block statement
  */
 interface BlockStatement extends BaseNode {
@@ -182,68 +174,6 @@ interface SwitchCase extends BaseNode {
   consequent: Node[];
 }
 
-/**
- * Loop statement types
- */
-interface ForStatement extends BaseNode {
-  type: 'ForStatement';
-  init?: Node;
-  test?: Node;
-  update?: Node;
-  body: Node;
-}
-
-interface ForOfStatement extends BaseNode {
-  type: 'ForOfStatement';
-  left: Node;
-  right: Node;
-  body: Node;
-}
-
-interface ForInStatement extends BaseNode {
-  type: 'ForInStatement';
-  left: Node;
-  right: Node;
-  body: Node;
-}
-
-interface WhileStatement extends BaseNode {
-  type: 'WhileStatement';
-  test: Node;
-  body: Node;
-}
-
-interface DoWhileStatement extends BaseNode {
-  type: 'DoWhileStatement';
-  test: Node;
-  body: Node;
-}
-
-/**
- * Try statement
- */
-interface TryStatement extends BaseNode {
-  type: 'TryStatement';
-  block: BlockStatement;
-  handler?: CatchClause;
-  finalizer?: BlockStatement;
-}
-
-interface CatchClause extends BaseNode {
-  type: 'CatchClause';
-  param?: Node;
-  body: BlockStatement;
-}
-
-/**
- * Conditional expression (ternary)
- */
-interface ConditionalExpression extends BaseNode {
-  type: 'ConditionalExpression';
-  test: Node;
-  consequent: Node;
-  alternate: Node;
-}
 
 /**
  * Comment node

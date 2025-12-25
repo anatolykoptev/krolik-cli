@@ -49,8 +49,9 @@ export interface FunctionInfo {
 
 /**
  * Generic visitor callback for AST nodes
+ * Returns false to stop traversing this branch, void/undefined to continue
  */
-export type VisitorCallback = (node: Node, context: VisitorContext) => undefined | boolean;
+export type VisitorCallback = (node: Node, context?: VisitorContext) => void | undefined | boolean;
 
 /**
  * Context passed to visitor callbacks

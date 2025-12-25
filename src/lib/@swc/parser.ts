@@ -155,19 +155,22 @@ function parseSyncWithOptions(filePath: string, content: string, options: ParseO
   const syntax = options.syntax ?? 'typescript';
 
   // Auto-detect TSX/JSX from file extension if not specified
-  let tsx = options.tsx;
-  let jsx = options.jsx;
+  const tsx = options.tsx ?? filePath.endsWith('.tsx');
+  const jsx = options.jsx ?? filePath.endsWith('.jsx');
+  const target = options.target ?? 'es2022';
 
-  if (tsx === undefined && jsx === undefined) {
-    tsx = filePath.endsWith('.tsx');
-    jsx = filePath.endsWith('.jsx');
+  if (syntax === 'ecmascript') {
+    return parseSync(content, {
+      syntax: 'ecmascript',
+      jsx,
+      target,
+    });
   }
 
   return parseSync(content, {
-    syntax,
+    syntax: 'typescript',
     tsx,
-    jsx,
-    target: options.target,
+    target,
   });
 }
 

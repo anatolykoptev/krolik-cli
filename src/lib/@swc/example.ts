@@ -88,7 +88,7 @@ export function findExportedFunctions(filePath: string, content: string) {
 
   visitNodeWithCallbacks(ast, {
     onFunctionDeclaration: (node, context) => {
-      if (context.isExported) {
+      if (context?.isExported) {
         const func = node as unknown as FunctionDeclaration;
         const span = getNodeSpan(node);
         const pos = span ? offsetToPosition(span.start, lineOffsets) : { line: 0 };
@@ -126,7 +126,8 @@ export function findMagicNumbers(filePath: string, content: string) {
       }
 
       // Skip array indices (simplified check)
-      const parentType = context.parent ? getNodeType(context.parent) : '';
+      const parent = context?.parent;
+      const parentType = parent ? getNodeType(parent) : '';
       if (parentType === 'MemberExpression') {
         return;
       }

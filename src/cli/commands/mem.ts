@@ -40,7 +40,7 @@ export function registerMemCommand(program: Command): void {
         ...options,
         format: options.json ? 'json' : 'ai',
       });
-      await runMemSave(ctx);
+      await runMemSave(ctx as Parameters<typeof runMemSave>[0]);
     });
 
   // mem search

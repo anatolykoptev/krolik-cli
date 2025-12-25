@@ -87,7 +87,8 @@ export function parseDocsResponse(
     const codeBlockRegex = /```[\w]*\n([\s\S]*?)```/g;
     let match;
     while ((match = codeBlockRegex.exec(part)) !== null) {
-      codeSnippets.push(match[1].trim());
+      const snippet = match[1];
+      if (snippet) codeSnippets.push(snippet.trim());
     }
 
     sections.push({
@@ -125,10 +126,10 @@ export function isValidLibraryId(id: string): boolean {
 // ============================================================================
 
 export interface FetchDocsOptions {
-  topic?: string;
-  mode?: 'code' | 'info';
-  maxPages?: number;
-  force?: boolean;
+  topic?: string | undefined;
+  mode?: 'code' | 'info' | undefined;
+  maxPages?: number | undefined;
+  force?: boolean | undefined;
 }
 
 export interface FetchDocsResult {
@@ -182,7 +183,7 @@ export async function fetchAndCacheDocs(
     }
 
     // Use the first result
-    libraryId = results[0].id;
+    libraryId = results[0]!.id;
   }
 
   // Check if already cached and not expired

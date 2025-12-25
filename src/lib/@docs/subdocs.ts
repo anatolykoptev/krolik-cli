@@ -396,7 +396,7 @@ Add notes here.
 export function createSubDoc(
   projectRoot: string,
   pkg: DiscoveredPackage,
-  options: { force?: boolean; dryRun?: boolean } = {},
+  options: { force?: boolean | undefined; dryRun?: boolean | undefined } = {},
 ): CreateSubDocResult {
   const docPath = join(projectRoot, pkg.path, 'CLAUDE.md');
   const relPath = join(pkg.path, 'CLAUDE.md');
@@ -434,7 +434,7 @@ export function createSubDoc(
  */
 export function createMissingSubDocs(
   projectRoot: string,
-  options: { force?: boolean; dryRun?: boolean } = {},
+  options: { force?: boolean | undefined; dryRun?: boolean | undefined } = {},
 ): CreateSubDocResult[] {
   const packages = discoverPackages(projectRoot);
   const results: CreateSubDocResult[] = [];

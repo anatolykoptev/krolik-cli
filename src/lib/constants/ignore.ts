@@ -66,8 +66,8 @@ export const DEFAULT_IGNORE_PATTERNS = [...ALWAYS_IGNORE_PATTERNS] as const;
 /**
  * Get ignore patterns based on options
  */
-export function getIgnorePatterns(options: { includeTests?: boolean } = {}): string[] {
-  const patterns = [...ALWAYS_IGNORE_PATTERNS];
+export function getIgnorePatterns(options: { includeTests?: boolean | undefined } = {}): string[] {
+  const patterns: string[] = [...ALWAYS_IGNORE_PATTERNS];
 
   if (!options.includeTests) {
     patterns.push(...TEST_IGNORE_PATTERNS);

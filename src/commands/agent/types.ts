@@ -67,17 +67,17 @@ export interface AgentCategoryInfo {
  * Agent command options
  */
 export interface AgentOptions {
-  list?: boolean;
-  category?: AgentCategory;
-  target?: string;
-  file?: string;
-  feature?: string;
-  includeSchema?: boolean;
-  includeRoutes?: boolean;
-  includeGit?: boolean;
-  format?: OutputFormat;
-  verbose?: boolean;
-  dryRun?: boolean;
+  list?: boolean | undefined;
+  category?: AgentCategory | undefined;
+  target?: string | undefined;
+  file?: string | undefined;
+  feature?: string | undefined;
+  includeSchema?: boolean | undefined;
+  includeRoutes?: boolean | undefined;
+  includeGit?: boolean | undefined;
+  format?: OutputFormat | undefined;
+  verbose?: boolean | undefined;
+  dryRun?: boolean | undefined;
 }
 
 /**

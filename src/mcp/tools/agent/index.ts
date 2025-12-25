@@ -11,28 +11,11 @@
  * specialized agents.
  */
 
-import type { FlagSchema } from '../core/flag-builder';
 import { withProjectDetection } from '../core/projects';
 import { registerTool } from '../core/registry';
 import { PROJECT_PROPERTY } from '../core/shared';
 import type { MCPToolDefinition, SchemaProperty } from '../core/types';
 import { runKrolik, TIMEOUT_60S, TIMEOUT_120S } from '../core/utils';
-
-/**
- * Schema for agent tool
- */
-const _agentSchema: FlagSchema = {
-  name: { flag: '', sanitize: 'feature' }, // Positional argument
-  category: { flag: '--category', sanitize: 'feature' },
-  file: { flag: '--file', sanitize: 'path' },
-  feature: { flag: '--feature', sanitize: 'feature' },
-  list: { flag: '--list' },
-  orchestrate: { flag: '--orchestrate' },
-  task: { flag: '--task', sanitize: 'text' },
-  maxAgents: { flag: '--max-agents', sanitize: 'number' },
-  parallel: { flag: '--parallel' },
-  dryRun: { flag: '--dry-run' },
-};
 
 /**
  * Agent tool input schema

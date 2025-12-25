@@ -23,13 +23,13 @@ export interface Memory {
   description: string;
   importance: MemoryImportance;
   project: string;
-  branch?: string;
-  commit?: string;
+  branch?: string | undefined;
+  commit?: string | undefined;
   tags: string[];
-  files?: string[];
-  features?: string[];
+  files?: string[] | undefined;
+  features?: string[] | undefined;
   createdAt: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -39,24 +39,24 @@ export interface MemorySaveOptions {
   type: MemoryType;
   title: string;
   description: string;
-  importance?: MemoryImportance;
-  tags?: string[];
-  files?: string[];
-  features?: string[];
-  metadata?: Record<string, unknown>;
+  importance?: MemoryImportance | undefined;
+  tags?: string[] | undefined;
+  files?: string[] | undefined;
+  features?: string[] | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 /**
  * Memory search options
  */
 export interface MemorySearchOptions {
-  query?: string;
-  type?: MemoryType;
-  importance?: MemoryImportance;
-  project?: string;
-  tags?: string[];
-  features?: string[];
-  limit?: number;
+  query?: string | undefined;
+  type?: MemoryType | undefined;
+  importance?: MemoryImportance | undefined;
+  project?: string | undefined;
+  tags?: string[] | undefined;
+  features?: string[] | undefined;
+  limit?: number | undefined;
 }
 
 /**
@@ -72,6 +72,6 @@ export interface MemorySearchResult {
  */
 export interface MemoryContext {
   project: string;
-  branch?: string;
-  commit?: string;
+  branch?: string | undefined;
+  commit?: string | undefined;
 }

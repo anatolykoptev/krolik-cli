@@ -70,7 +70,7 @@ function parseTypesFileSwc(filePath: string): ExtractedType[] {
     visitNodeWithCallbacks(ast, {
       onTsInterfaceDeclaration: (node, context) => {
         // Only process exported interfaces
-        if (!context.isExported) {
+        if (!context?.isExported) {
           return;
         }
 
@@ -132,7 +132,7 @@ function parseTypesFileSwc(filePath: string): ExtractedType[] {
 
       onTsTypeAliasDeclaration: (node, context) => {
         // Only process exported type aliases
-        if (!context.isExported) {
+        if (!context?.isExported) {
           return;
         }
 

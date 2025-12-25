@@ -82,9 +82,6 @@ export function checkReturnTypesSwc(content: string, filepath: string): QualityI
 
   const lineOffsets = calculateLineOffsets(content);
 
-  // Track variable declarator names for arrow functions
-  const _exportedVarNames = new Map<Node, string>();
-
   // Visit all nodes and detect missing return types on exports
   visitNode(ast, (node, _context) => {
     const nodeType = (node as { type?: string }).type;

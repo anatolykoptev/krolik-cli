@@ -79,7 +79,7 @@ export interface DocSection {
   libraryId: string;
 
   /** Optional topic/category this section covers (e.g., "routing", "hooks") */
-  topic?: string;
+  topic?: string | undefined;
 
   /** Section or page title */
   title: string;
@@ -142,16 +142,16 @@ export interface DocsFetchOptions {
   library: string;
 
   /** Optional specific topic to focus documentation on */
-  topic?: string;
+  topic?: string | undefined;
 
   /** Documentation mode: 'code' for API reference, 'info' for conceptual guides */
-  mode?: 'code' | 'info';
+  mode?: 'code' | 'info' | undefined;
 
   /** Force refresh even if valid cache exists */
-  force?: boolean;
+  force?: boolean | undefined;
 
   /** Maximum number of pages to fetch (defaults to 10) */
-  maxPages?: number;
+  maxPages?: number | undefined;
 }
 
 /**
@@ -174,13 +174,13 @@ export interface DocsSearchOptions {
   query: string;
 
   /** Optional: limit search to specific library */
-  library?: string;
+  library?: string | undefined;
 
   /** Optional: limit search to specific topic */
-  topic?: string;
+  topic?: string | undefined;
 
   /** Maximum number of results to return (defaults to 10) */
-  limit?: number;
+  limit?: number | undefined;
 }
 
 /**
@@ -214,7 +214,7 @@ export interface DetectedLibrary {
   isExpired: boolean;
 
   /** Resolved Context7 library ID, if available */
-  context7Id?: string;
+  context7Id?: string | undefined;
 }
 
 /**

@@ -11,7 +11,7 @@ const API_KEY_PREFIX = 'ctx7sk';
 // ============================================================================
 
 export interface Context7Config {
-  apiKey?: string;
+  apiKey?: string | undefined;
 }
 
 export interface SearchResult {

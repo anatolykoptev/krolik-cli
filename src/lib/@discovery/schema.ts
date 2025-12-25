@@ -240,7 +240,9 @@ function detectPackageType(name: string, pkgPath: string): string {
   // For apps/* directories, check name patterns first (web/mobile priority)
   if (isAppsDir) {
     for (const type of ['web', 'mobile'] as const) {
-      for (const pattern of NAME_PATTERNS[type]) {
+      const patterns = NAME_PATTERNS[type];
+      if (!patterns) continue;
+      for (const pattern of patterns) {
         if (pattern.test(nameLower) || pattern.test(dirName)) {
           return type;
         }
@@ -259,7 +261,9 @@ function detectPackageType(name: string, pkgPath: string): string {
       // For apps, prioritize web/mobile deps
       if (isAppsDir) {
         for (const type of ['web', 'mobile'] as const) {
-          for (const indicator of DEP_INDICATORS[type]) {
+          const indicators = DEP_INDICATORS[type];
+          if (!indicators) continue;
+          for (const indicator of indicators) {
             if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
               return type;
             }
