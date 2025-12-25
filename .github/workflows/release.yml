@@ -31,6 +31,10 @@ jobs:
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
+      # Trusted Publishers requires npm 11.5.1+ for tokenless publishing
+      - name: Update npm for Trusted Publishers
+        run: npm install -g npm@latest
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -45,8 +49,11 @@ jobs:
             git commit -m "chore: release" --no-verify || true
             git push --no-verify
 
-            echo "Publishing to npm..."
-            pnpm changeset:publish
+            echo "Building..."
+            pnpm build
+
+            echo "Publishing to npm with Trusted Publishers (no token needed)..."
+            npm publish --access public
             echo "published=true" >> $GITHUB_OUTPUT
           else
             echo "No changesets found"
@@ -54,8 +61,6 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.changesets.outputs.published == 'true'
