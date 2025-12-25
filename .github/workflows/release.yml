@@ -34,14 +34,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create Release PR or Publish
+      - name: Version and Publish
         id: changesets
-        uses: changesets/action@v1
-        with:
-          version: pnpm changeset:version
-          publish: pnpm changeset:publish
-          title: 'chore: release'
-          commit: 'chore: release'
+        run: |
+          # Check if there are changesets
+          if [ -d ".changeset" ] && ls .changeset/*.md 2>/dev/null | grep -v README.md > /dev/null; then
+            echo "Found changesets, running version..."
+            pnpm changeset:version
+            git add -A
+            git commit -m "chore: release" --no-verify || true
+            git push --no-verify
+
+            echo "Publishing to npm..."
+            pnpm changeset:publish
+            echo "published=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changesets found"
+            echo "published=false" >> $GITHUB_OUTPUT
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
