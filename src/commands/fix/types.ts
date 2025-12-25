@@ -6,6 +6,7 @@
  */
 
 import type { OutputFormat } from '../../types';
+import type { Severity } from '../../types/severity';
 
 // ============================================================================
 // QUALITY ANALYSIS TYPES
@@ -13,8 +14,9 @@ import type { OutputFormat } from '../../types';
 
 /**
  * Severity levels for quality issues
+ * Re-exported from shared severity type for backwards compatibility
  */
-export type QualitySeverity = 'error' | 'warning' | 'info';
+export type QualitySeverity = Severity;
 
 /**
  * Categories of quality issues

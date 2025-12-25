@@ -36,3 +36,4 @@ export type {
   TemplateConfig,
   TrpcConfig,
 } from './config';
+export type { Severity } from './severity';

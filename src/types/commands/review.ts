@@ -3,10 +3,10 @@
  * @description Review command result types
  */
 
-import type { QualitySeverity } from '../../commands/fix/types';
+import type { Severity } from '../severity';
 
-// Type alias for backwards compatibility (ReviewSeverity = QualitySeverity)
-export type ReviewSeverity = QualitySeverity;
+// Type alias for backwards compatibility (ReviewSeverity = Severity)
+export type ReviewSeverity = Severity;
 
 /**
  * Review issue categories

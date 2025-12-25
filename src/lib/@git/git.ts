@@ -3,6 +3,7 @@
  * @description Git operations utilities
  */
 
+import { escapeShellArg } from '../@sanitize';
 import { execLines, shellOpts, tryExec } from '../@shell/shell';
 import type { GitAheadBehind, GitCommit, GitStatus } from './types';
 
@@ -111,7 +112,10 @@ export function getDiffStats(
   head: string,
   cwd?: string,
 ): Array<{ path: string; additions: number; deletions: number }> {
-  const result = tryExec(`git diff --numstat ${base}...${head}`, shellOpts(cwd));
+  const result = tryExec(
+    `git diff --numstat ${escapeShellArg(base)}...${escapeShellArg(head)}`,
+    shellOpts(cwd),
+  );
 
   if (!result.success || !result.output) {
     return [];
@@ -134,7 +138,10 @@ export function getDiffStats(
  * Get file diff
  */
 export function getFileDiff(base: string, head: string, filepath: string, cwd?: string): string {
-  const result = tryExec(`git diff ${base}...${head} -- "${filepath}"`, shellOpts(cwd));
+  const result = tryExec(
+    `git diff ${escapeShellArg(base)}...${escapeShellArg(head)} -- ${escapeShellArg(filepath)}`,
+    shellOpts(cwd),
+  );
   return result.success ? result.output : '';
 }
 
@@ -142,7 +149,7 @@ export function getFileDiff(base: string, head: string, filepath: string, cwd?: 
  * Get staged diff
  */
 export function getStagedDiff(filepath?: string, cwd?: string): string {
-  const fileArg = filepath ? `-- "${filepath}"` : '';
+  const fileArg = filepath ? `-- ${escapeShellArg(filepath)}` : '';
   const result = tryExec(`git diff --cached ${fileArg}`, shellOpts(cwd));
   return result.success ? result.output : '';
 }
@@ -162,9 +169,9 @@ export function getDiff(options?: {
   if (staged) {
     cmd = 'git diff --cached';
   } else if (base && head) {
-    cmd = `git diff ${base}...${head}`;
+    cmd = `git diff ${escapeShellArg(base)}...${escapeShellArg(head)}`;
   } else if (base) {
-    cmd = `git diff ${base}`;
+    cmd = `git diff ${escapeShellArg(base)}`;
   } else {
     cmd = 'git diff';
   }
@@ -205,7 +212,10 @@ export function getChangedFiles(cwd?: string): string[] {
  * Get files changed between two refs
  */
 export function getChangedFilesBetween(base: string, head: string, cwd?: string): string[] {
-  const result = tryExec(`git diff --name-only ${base}...${head}`, shellOpts(cwd));
+  const result = tryExec(
+    `git diff --name-only ${escapeShellArg(base)}...${escapeShellArg(head)}`,
+    shellOpts(cwd),
+  );
   if (!result.success || !result.output) return [];
   return result.output.split('\n').filter(Boolean);
 }
@@ -214,7 +224,10 @@ export function getChangedFilesBetween(base: string, head: string, cwd?: string)
  * Get the merge base between two refs
  */
 export function getMergeBase(ref1: string, ref2: string, cwd?: string): string | null {
-  const result = tryExec(`git merge-base ${ref1} ${ref2}`, shellOpts(cwd));
+  const result = tryExec(
+    `git merge-base ${escapeShellArg(ref1)} ${escapeShellArg(ref2)}`,
+    shellOpts(cwd),
+  );
   return result.success ? result.output : null;
 }
 
@@ -222,6 +235,6 @@ export function getMergeBase(ref1: string, ref2: string, cwd?: string): string |
  * Check if a ref exists
  */
 export function refExists(ref: string, cwd?: string): boolean {
-  const result = tryExec(`git rev-parse --verify ${ref}`, shellOpts(cwd));
+  const result = tryExec(`git rev-parse --verify ${escapeShellArg(ref)}`, shellOpts(cwd));
   return result.success;
 }

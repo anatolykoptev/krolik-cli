@@ -195,8 +195,11 @@ async function buildAiContextData(
     if (schemaDir) {
       try {
         aiData.schema = analyzeSchema(schemaDir);
-      } catch {
+      } catch (error) {
         // Schema analysis failed, continue without
+        if (process.env.DEBUG) {
+          console.error('[context] Schema analysis failed:', error);
+        }
       }
     }
 
@@ -205,8 +208,11 @@ async function buildAiContextData(
     if (routersDir) {
       try {
         aiData.routes = analyzeRoutes(routersDir);
-      } catch {
+      } catch (error) {
         // Routes analysis failed, continue without
+        if (process.env.DEBUG) {
+          console.error('[context] Routes analysis failed:', error);
+        }
       }
     }
 
@@ -456,7 +462,10 @@ function loadRelevantMemory(projectRoot: string, domains: string[]): Memory[] {
     });
 
     return anyResults.map((r) => r.memory);
-  } catch {
+  } catch (error) {
+    if (process.env.DEBUG) {
+      console.error('[context] Memory search failed:', error);
+    }
     return [];
   }
 }
@@ -536,8 +545,11 @@ async function addQualityIssues(
       autoFixable: filteredIssues.filter((i) => i.fixerId).length,
       byCategory,
     };
-  } catch {
+  } catch (error) {
     // Audit failed, continue without quality issues
+    if (process.env.DEBUG) {
+      console.error('[context] Audit analysis failed:', error);
+    }
   }
 }
 
@@ -569,8 +581,11 @@ function buildAdvancedImportGraph(
           aiData.importGraph = graph;
           break; // Use first found graph
         }
-      } catch {
+      } catch (error) {
         // Continue to next directory
+        if (process.env.DEBUG) {
+          console.error('[context] Import graph building failed:', error);
+        }
       }
     }
   }
@@ -592,8 +607,11 @@ function parseDbRelationsFromSchema(projectRoot: string, aiData: AiContextData):
           aiData.dbRelations = relations;
           break;
         }
-      } catch {
+      } catch (error) {
         // Continue to next path
+        if (process.env.DEBUG) {
+          console.error('[context] DB relations parsing failed:', error);
+        }
       }
     }
   }
@@ -625,8 +643,11 @@ function parseApiContractsFromRouters(
         if (contracts.length > 0) {
           aiData.apiContracts = [...(aiData.apiContracts || []), ...contracts];
         }
-      } catch {
+      } catch (error) {
         // Continue to next directory
+        if (process.env.DEBUG) {
+          console.error('[context] API contracts parsing failed:', error);
+        }
       }
     }
   }
@@ -648,8 +669,11 @@ function parseEnvVarsFromProject(projectRoot: string, aiData: AiContextData): vo
     ) {
       aiData.envVars = envReport;
     }
-  } catch {
+  } catch (error) {
     // Continue without env vars
+    if (process.env.DEBUG) {
+      console.error('[context] Environment variables parsing failed:', error);
+    }
   }
 }
 
@@ -677,8 +701,11 @@ async function loadLibraryDocs(
         // Limit to 3 libs
         try {
           await fetchAndCacheDocs(libName, { maxPages: 2 }); // Fetch 2 pages
-        } catch {
+        } catch (error) {
           // Fetch failed, continue with others
+          if (process.env.DEBUG) {
+            console.error('[context] Library docs fetch failed:', error);
+          }
         }
       }
     }
@@ -688,8 +715,11 @@ async function loadLibraryDocs(
       for (const libName of suggestions.toRefresh.slice(0, 2)) {
         try {
           await fetchAndCacheDocs(libName, { force: true, maxPages: 2 });
-        } catch {
+        } catch (error) {
           // Refresh failed, will use expired cache
+          if (process.env.DEBUG) {
+            console.error('[context] Library docs refresh failed:', error);
+          }
         }
       }
     }
@@ -733,8 +763,11 @@ async function loadLibraryDocs(
         });
       }
     }
-  } catch {
+  } catch (error) {
     // Docs cache error, return empty
+    if (process.env.DEBUG) {
+      console.error('[context] Library docs loading failed:', error);
+    }
     return [];
   }
 
@@ -768,8 +801,11 @@ function loadGitHubIssues(projectRoot: string): GitHubIssuesData | undefined {
         labels: issue.labels,
       })),
     };
-  } catch {
+  } catch (error) {
     // gh CLI not available or error occurred
+    if (process.env.DEBUG) {
+      console.error('[context] GitHub issues loading failed:', error);
+    }
     return undefined;
   }
 }
