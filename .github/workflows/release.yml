@@ -54,7 +54,7 @@ jobs:
             pnpm build
 
             echo "Publishing to npmjs.org..."
-            npm publish --access public --provenance
+            npm publish --access public --provenance --registry https://registry.npmjs.org
 
             echo "published=true" >> $GITHUB_OUTPUT
           else
