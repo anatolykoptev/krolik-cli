@@ -2,7 +2,7 @@
 
 ```
      (\(\
-     (-.-) 
+     (-.-)
      o_(")(")
 ```
 
@@ -12,31 +12,17 @@
 [![npm version](https://img.shields.io/npm/v/@anatolykoptev/krolik-cli.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@anatolykoptev/krolik-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://opensource.org/licenses/MIT)
 
-[Get Started](#installation) · [Core Commands](#core-commands) · [MCP Server](#mcp-server-claude-code)
+[Get Started](#installation) · [Commands](#commands) · [MCP Server](#mcp-server)
 
 </div>
 
 ---
 
-## The Problem
+## Why Krolik?
 
-AI assistants spend 60% of their time gathering context: reading files, searching code, understanding project structure. Every session starts from scratch.
+AI assistants spend most of their time gathering context. Every session starts with "let me search the codebase..." followed by dozens of file reads.
 
-## The Solution
-
-**Krolik** collects everything an AI needs in 1-2 seconds:
-
-```bash
-krolik context --feature auth
-```
-
-One command returns: git state, Prisma schema, tRPC routes, project tree, types, imports, env vars, relevant memories from past sessions, and library documentation. All structured as AI-optimized XML.
-
----
-
-## Installation
-
-Available on [npm](https://www.npmjs.com/package/@anatolykoptev/krolik-cli) and [GitHub Packages](https://github.com/anatolykoptev/krolik-cli/packages).
+**Krolik gives AI everything it needs in 1-2 seconds.**
 
 ```bash
 npm i -g @anatolykoptev/krolik-cli
@@ -44,175 +30,118 @@ npm i -g @anatolykoptev/krolik-cli
 
 ---
 
-## Core Commands
+## Commands
 
-### `krolik context` — Instant Project Context
+### `krolik context` — Stop Searching, Start Coding
 
-Replaces 10+ manual searches with a single command. Collects and structures:
-
-- **Git**: branch, diff, staged files, recent commits
-- **Schema**: Prisma models and relations
-- **API**: tRPC routes with inputs/outputs
-- **Architecture**: project tree, patterns, dependencies
-- **Types**: interfaces, type aliases, import graph
-- **Memory**: relevant decisions and patterns from past sessions
-- **Docs**: cached library documentation (via Context7)
+One command replaces 10+ manual searches. AI gets complete project context instantly.
 
 ```bash
-krolik context --feature booking     # Context for a feature
-krolik context --issue 42            # Context from GitHub issue
-krolik context --quick               # Fast mode (schema, routes, git only)
-krolik context --full                # Everything including code analysis
+krolik context --feature auth      # Everything about auth feature
+krolik context --issue 42          # Context from GitHub issue
+krolik context --quick             # Fast mode for simple tasks
 ```
 
-Output is saved to `.krolik/CONTEXT.xml` — AI can reference it anytime.
+**What it collects**: git state, database schema, API routes, project structure, types, past decisions, library docs.
 
 ---
 
-### `krolik mem` — Persistent Memory
+### `krolik mem` — Remember Across Sessions
 
-SQLite database with FTS5 full-text search. Preserves context across sessions.
+AI forgets everything between sessions. Krolik remembers.
 
 ```bash
-# Save a decision
-krolik mem save --type decision \
-  --title "Use tRPC for API" \
-  --description "Type-safe, works well with Prisma"
-
-# Search memories
+krolik mem save --type decision --title "Use tRPC" --description "Type-safe API"
 krolik mem search --query "authentication"
-
-# Recent entries
-krolik mem recent --type bugfix --limit 5
+krolik mem recent --limit 5
 ```
 
-**Memory types**: `observation`, `decision`, `pattern`, `bugfix`, `feature`
+**Memory types**: decisions, patterns, bugfixes, observations, features.
 
-Memories are automatically included in `krolik context` output.
+Memories are automatically included in context — AI sees what was decided before.
 
 ---
 
-### `krolik audit` — Code Quality Analysis
+### `krolik audit` — Find All Quality Issues
 
-Deep analysis that generates a structured report for AI consumption.
+Analyzes entire codebase and creates a prioritized report.
 
 ```bash
-krolik audit                    # Full analysis
-krolik audit --show-fixes       # Include fix previews
+krolik audit
 ```
 
-Creates `.krolik/AI-REPORT.md` with:
-- Prioritized issues (critical → low)
-- Hotspot files (highest issue density)
-- Quick wins (auto-fixable issues)
-- Action plan
+**Output**: `.krolik/AI-REPORT.md` with issues ranked by severity, files with most problems, and quick wins that can be auto-fixed.
 
 ---
 
-### `krolik fix` — Auto-Fix Pipeline
+### `krolik fix` — Auto-Fix Quality Issues
 
-Three-stage pipeline: Biome → TypeScript → 14 custom fixers.
+Fixes what can be fixed automatically. Shows what needs manual attention.
 
 ```bash
-krolik fix --dry-run            # Preview all fixes
-krolik fix                      # Apply safe fixes
-krolik fix --from-audit         # Use cached audit data
-krolik fix --all                # Include risky fixes
+krolik fix --dry-run        # Preview changes
+krolik fix                  # Apply safe fixes
+krolik fix --all            # Include risky fixes
 ```
 
-**Categories**:
-- `lint`: console.log, debugger, alert
-- `type-safety`: any, @ts-ignore, eval, loose equality
-- `complexity`: high cyclomatic complexity, long functions
-- `hardcoded`: magic numbers, URLs
-- `srp`: single responsibility violations
-
-Issues that can't be auto-fixed are formatted as tasks for AI.
+**What it fixes**: console.log, debugger, any types, @ts-ignore, magic numbers, complexity issues, and more.
 
 ---
 
-### `krolik refactor` — Duplicate Detection & Migration
+### `krolik refactor` — Find Duplicates
 
-AST-based analysis using SWC (10-20x faster than ts-morph).
+Finds duplicate functions and types across the codebase.
 
 ```bash
-krolik refactor                      # Find function duplicates
-krolik refactor --types-only         # Find type/interface duplicates
-krolik refactor --structure-only     # Analyze module structure
-krolik refactor --apply              # Apply migrations
+krolik refactor                  # Find duplicates
+krolik refactor --apply          # Apply suggested migrations
 ```
 
-Features:
-- Duplicate functions by signature comparison
-- Duplicate types by structure comparison
-- Module structure scoring
-- Migration plan with import updates
-- Git backup before applying
+**Output**: List of duplicates with locations, suggested consolidation points, migration plan.
 
 ---
 
-### `krolik agent` — Multi-Agent Orchestration
+### `krolik agent` — Run Specialized AI Agents
 
-Run specialized AI agents with project context. Uses [wshobson/agents](https://github.com/wshobson/agents) repository.
+Run expert agents for specific tasks: security audit, performance review, architecture analysis.
 
 ```bash
-krolik agent --list                  # Available agents
-krolik agent security-auditor        # Run specific agent
-krolik agent --category quality      # Run category
-
-# Orchestration mode - analyzes task, selects agents, creates execution plan
-krolik agent --orchestrate --task "review security and performance"
+krolik agent --list                           # Available agents
+krolik agent security-auditor                 # Run specific agent
+krolik agent --orchestrate --task "review"    # Multi-agent mode
 ```
 
-**12 agent categories**: security, performance, architecture, quality, debugging, docs, frontend, backend, database, devops, testing, other
+**12 categories**: security, performance, architecture, quality, debugging, docs, frontend, backend, database, devops, testing, other.
 
 ---
 
 ### Other Commands
 
-| Command | Description |
-|---------|-------------|
-| `krolik status` | Project diagnostics (git, typecheck, lint, TODOs) |
-| `krolik schema` | Prisma schema → structured docs |
-| `krolik routes` | tRPC routes → structured docs |
-| `krolik review` | Code review with AI hints |
-| `krolik docs` | Library documentation cache |
-| `krolik sync` | Update CLAUDE.md with krolik block |
+| Command | What it does |
+|---------|--------------|
+| `krolik status` | Quick health check: git, types, lint, TODOs |
+| `krolik schema` | Database schema as structured docs |
+| `krolik routes` | API routes as structured docs |
+| `krolik review` | Code review for current changes |
+| `krolik docs` | Search library documentation |
 
 ---
 
-## MCP Server (Claude Code)
+## MCP Server
 
-Native [Model Context Protocol](https://modelcontextprotocol.io) integration.
+Native integration with Claude Code via [Model Context Protocol](https://modelcontextprotocol.io).
 
 ```bash
 claude mcp add krolik -- npx @anatolykoptev/krolik-cli mcp
 ```
 
-**14 tools available**:
-
-| Tool | Purpose |
-|------|---------|
-| `krolik_context` | Full project context in 1-2s |
-| `krolik_status` | Quick diagnostics |
-| `krolik_audit` | Deep quality analysis |
-| `krolik_fix` | Auto-fix with preview |
-| `krolik_refactor` | Duplicate detection |
-| `krolik_review` | Code review |
-| `krolik_schema` | Prisma schema |
-| `krolik_routes` | tRPC routes |
-| `krolik_docs` | Library docs search |
-| `krolik_mem_save` | Save memory |
-| `krolik_mem_search` | Search memories |
-| `krolik_mem_recent` | Recent memories |
-| `krolik_agent` | Run AI agents |
-| `krolik_issue` | Parse GitHub issue |
+All commands available as tools. Claude can use them directly during conversation.
 
 ---
 
 ## Configuration
 
-Auto-detection works for most projects. For customization:
+Works out of the box for most projects. Customize if needed:
 
 ```typescript
 // krolik.config.ts
@@ -223,17 +152,6 @@ export default defineConfig({
   paths: {
     web: 'apps/web',
     api: 'packages/api',
-    db: 'packages/db',
-  },
-  features: {
-    prisma: true,
-    trpc: true,
-  },
-  prisma: {
-    schemaDir: 'packages/db/prisma/schema',
-  },
-  trpc: {
-    routersDir: 'packages/api/src/routers',
   },
 });
 ```
