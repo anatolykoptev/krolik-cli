@@ -1,5 +1,15 @@
 # @anatolykoptev/krolik-cli
 
+## 0.1.5
+
+### Patch Changes
+
+- [`ed192c3`](https://github.com/anatolykoptev/krolik-cli/commit/ed192c30d8d669ab78fc2c8822832fda464b0426) - Added release instructions to CONTRIBUTING.md:
+  - Changesets workflow documentation
+  - npm Trusted Publishers setup guide
+  - Manual and automated publishing instructions
+  - Release checklist
+
 ## 0.1.4
 
 ### Patch Changes
