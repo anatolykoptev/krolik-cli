@@ -11,6 +11,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { glob } from 'glob';
 import { fileCache } from '@/lib';
+import { getIgnorePatterns } from '@/lib/constants';
 import { analyzeFile } from './analyzers';
 import { validatePathWithinProject } from './core/path-utils';
 
@@ -79,18 +80,8 @@ export async function analyzeQuality(
     patterns = [path.basename(targetPath)];
   }
 
-  const ignore = [
-    '**/node_modules/**',
-    '**/dist/**',
-    '**/.next/**',
-    '**/coverage/**',
-    '**/*.d.ts',
-    '**/generated/**',
-  ];
-
-  if (!options.includeTests) {
-    ignore.push('**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/__tests__/**');
-  }
+  // Use centralized ignore patterns from lib/constants/ignore.ts
+  const ignore = getIgnorePatterns({ includeTests: options.includeTests });
 
   const files = await glob(patterns, {
     cwd: searchDir,
@@ -168,6 +159,8 @@ export async function analyzeQuality(
       composite: filteredIssues.filter((i) => i.category === 'composite').length,
       agent: filteredIssues.filter((i) => i.category === 'agent').length,
       refine: filteredIssues.filter((i) => i.category === 'refine').length,
+      security: filteredIssues.filter((i) => i.category === 'security').length,
+      modernization: filteredIssues.filter((i) => i.category === 'modernization').length,
     },
   };
 

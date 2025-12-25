@@ -11,6 +11,7 @@
 
 import * as path from 'node:path';
 import { Node, SyntaxKind } from 'ts-morph';
+import { astPool } from '@/lib/@ast';
 import type { SplitConfig, SplitFileResult } from './types';
 
 // ============================================================================
@@ -185,7 +186,6 @@ export function splitFile(
   config: SplitConfig = { byType: true },
 ): SplitFileResult {
   try {
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, filePath);
 
     try {

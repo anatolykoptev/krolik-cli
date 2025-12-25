@@ -125,7 +125,7 @@ export function syncClaudeMd(projectRoot: string, options: SyncOptions = {}): Sy
   const { force = false, dryRun = false } = options;
 
   const claudeMdPath = join(projectRoot, 'CLAUDE.md');
-  const newSection = generateKrolikDocs();
+  const newSection = generateKrolikDocs(projectRoot);
 
   // Case 1: CLAUDE.md doesn't exist
   if (!existsSync(claudeMdPath)) {
@@ -141,7 +141,7 @@ export function syncClaudeMd(projectRoot: string, options: SyncOptions = {}): Sy
       }
     }
 
-    const newContent = generateMinimalClaudeMd(projectName);
+    const newContent = generateMinimalClaudeMd(projectName, projectRoot);
 
     if (!dryRun) {
       writeFileSync(claudeMdPath, newContent, 'utf-8');

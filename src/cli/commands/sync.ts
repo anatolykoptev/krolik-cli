@@ -22,6 +22,7 @@ export function registerSyncCommand(program: Command): void {
     .option('--force', 'Force update even if versions match')
     .option('--dry-run', 'Preview without changes')
     .option('--status', 'Show current sync status')
+    .option('--create-subdocs', 'Create missing CLAUDE.md for packages/apps')
     .action(async (options: CommandOptions) => {
       const { runSync } = await import('../../commands/sync');
       const globalOpts = program.opts();

@@ -22,6 +22,10 @@ export function getFixDifficulty(issue: QualityIssue): FixDifficulty {
     if (msg.includes('console') || msg.includes('debugger') || msg.includes('alert')) {
       return 'trivial';
     }
+    // Empty catch is safe to fix (add comment or log)
+    if (msg.includes('empty catch')) {
+      return 'safe';
+    }
   }
 
   // Safe: unlikely to break anything
@@ -29,11 +33,32 @@ export function getFixDifficulty(issue: QualityIssue): FixDifficulty {
     if (msg.includes('@ts-ignore') || msg.includes('@ts-nocheck')) {
       return 'safe';
     }
+    // Double assertions are safe to flag but risky to auto-fix
+    if (msg.includes('double') || msg.includes('assertion')) {
+      return 'risky';
+    }
+    // Missing return types are safe to add
+    if (msg.includes('return type')) {
+      return 'safe';
+    }
   }
 
   // Magic numbers are safe to extract
   if (category === 'hardcoded') {
     if (msg.includes('number') || msg.includes('magic')) {
+      return 'safe';
+    }
+  }
+
+  // Security issues need manual review - always risky
+  if (category === 'security') {
+    // Command injection and path traversal need manual review
+    return 'risky';
+  }
+
+  // Modernization: require() → import is generally safe
+  if (category === 'modernization') {
+    if (msg.includes('require')) {
       return 'safe';
     }
   }

@@ -113,6 +113,49 @@ export function findGitRoot(startDir: string = process.cwd()): string | null {
 // ============================================================================
 
 /**
+ * Parse pnpm-workspace.yaml to extract package patterns.
+ *
+ * Only extracts entries under the 'packages:' section.
+ * Handles YAML list items like:
+ *   - apps/*
+ *   - packages/*
+ *
+ * @param content - Raw YAML file content
+ * @returns Array of workspace patterns
+ */
+function parsePnpmWorkspaceYaml(content: string): string[] {
+  const patterns: string[] = [];
+  const lines = content.split('\n');
+
+  let inPackagesSection = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Check for section headers (no leading whitespace, ends with colon)
+    if (!line.startsWith(' ') && !line.startsWith('\t') && trimmed.endsWith(':')) {
+      inPackagesSection = trimmed === 'packages:';
+      continue;
+    }
+
+    // Parse list items under packages section
+    if (inPackagesSection && trimmed.startsWith('-')) {
+      // Extract value after '- ', removing quotes if present
+      const value = trimmed
+        .slice(1) // Remove leading '-'
+        .trim()
+        .replace(/^['"]|['"]$/g, ''); // Remove surrounding quotes
+
+      if (value && !value.includes(':')) {
+        patterns.push(value);
+      }
+    }
+  }
+
+  return patterns;
+}
+
+/**
  * Detect monorepo structure and type
  */
 export function detectMonorepo(projectRoot: string): MonorepoInfo | null {
@@ -130,10 +173,9 @@ export function detectMonorepo(projectRoot: string): MonorepoInfo | null {
     const pnpmWorkspace = path.join(projectRoot, 'pnpm-workspace.yaml');
     if (fs.existsSync(pnpmWorkspace)) {
       type = 'pnpm';
-      // Parse yaml for patterns (simplified)
+      // Parse yaml for patterns - only under 'packages:' section
       const content = fs.readFileSync(pnpmWorkspace, 'utf-8');
-      const matches = content.match(/- ['"]?([^'"]+)['"]?/g);
-      patterns = matches?.map((m) => m.replace(/- ['"]?|['"]?$/g, '')) || [];
+      patterns = parsePnpmWorkspaceYaml(content);
     }
 
     // npm/yarn workspaces (package.json)

@@ -6,12 +6,13 @@
  */
 
 import {
+  astPool,
   type createSourceFile,
   extractImports,
   type ImportInfo,
   Node,
   SyntaxKind,
-} from '../../../../lib/@ast';
+} from '@/lib/@ast';
 import type { QualityIssue } from '../../core/types';
 
 /**
@@ -93,7 +94,6 @@ export function analyzeUnusedImports(content: string, file: string): QualityIssu
   const issues: QualityIssue[] = [];
 
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, file);
 
     try {

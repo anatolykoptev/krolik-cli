@@ -18,6 +18,9 @@ import {
 const contextSchema: FlagSchema = {
   feature: COMMON_FLAGS.feature,
   issue: COMMON_FLAGS.issue,
+  quick: { flag: '--quick' },
+  deep: { flag: '--deep' },
+  full: { flag: '--full' },
 };
 
 export const contextTool: MCPToolDefinition = {
@@ -36,8 +39,24 @@ export const contextTool: MCPToolDefinition = {
         type: 'string',
         description: 'GitHub issue number to get context for',
       },
+      quick: {
+        type: 'boolean',
+        description: 'Quick mode: architecture, git, tree, schema, routes only (faster)',
+      },
+      deep: {
+        type: 'boolean',
+        description: 'Deep mode: imports, types, env, contracts (complements quick)',
+      },
+      full: {
+        type: 'boolean',
+        description:
+          'Full mode: all enrichment (--include-code --domain-history --show-deps --with-audit)',
+      },
     },
   },
+  template: { when: 'Before feature/issue work', params: '`feature: "..."` or `issue: "123"`' },
+  workflow: { trigger: 'before_task', order: 1 },
+  category: 'context',
   handler: (args, workspaceRoot) => {
     const result = buildFlags(args, contextSchema);
     if (!result.ok) return result.error;

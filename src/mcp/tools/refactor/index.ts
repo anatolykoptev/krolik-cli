@@ -78,6 +78,9 @@ export const refactorTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'Find duplicates/structure', params: '`dryRun: true`' },
+  workflow: { trigger: 'on_refactor', order: 1 },
+  category: 'code',
   handler: (args, workspaceRoot) => {
     const result = buildFlags(args, refactorSchema);
     if (!result.ok) {

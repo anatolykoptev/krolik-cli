@@ -166,6 +166,8 @@ Examples:
     type: 'object',
     properties: inputSchema,
   },
+  template: { when: 'Multi-agent orchestration', params: '`orchestrate: true, task: "..."`' },
+  category: 'advanced',
 
   handler: (args, workspaceRoot) => {
     return withProjectDetection(args, workspaceRoot, (projectPath) => {

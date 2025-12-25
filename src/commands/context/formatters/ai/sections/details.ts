@@ -145,6 +145,77 @@ export function formatPreCommitSection(lines: string[]): void {
 }
 
 /**
+ * Format memory section (knowledge from previous sessions)
+ */
+export function formatMemorySection(lines: string[], data: AiContextData): void {
+  const { memories } = data;
+  if (!memories || memories.length === 0) return;
+
+  lines.push('  <memory hint="Knowledge from previous sessions">');
+
+  for (const mem of memories.slice(0, MAX_ITEMS_MEDIUM)) {
+    const importance = mem.importance !== 'medium' ? ` importance="${mem.importance}"` : '';
+    const tags = mem.tags.length > 0 ? ` tags="${mem.tags.join(', ')}"` : '';
+
+    lines.push(`    <${mem.type}${importance}${tags}>`);
+    lines.push(`      <title>${escapeXml(mem.title)}</title>`);
+    lines.push(`      <description>${escapeXml(mem.description)}</description>`);
+    lines.push(`    </${mem.type}>`);
+  }
+
+  if (memories.length > MAX_ITEMS_MEDIUM) {
+    lines.push(`    <!-- +${memories.length - MAX_ITEMS_MEDIUM} more memories -->`);
+  }
+
+  lines.push('  </memory>');
+}
+
+/**
+ * Format library documentation section (from Context7)
+ */
+export function formatLibraryDocsSection(lines: string[], data: AiContextData): void {
+  const { libraryDocs } = data;
+  if (!libraryDocs || libraryDocs.length === 0) return;
+
+  // Only include libraries that have sections
+  const withSections = libraryDocs.filter((lib) => lib.sections.length > 0);
+  if (withSections.length === 0) return;
+
+  lines.push('  <library-docs hint="Auto-fetched from Context7 - relevant documentation">');
+
+  for (const lib of withSections) {
+    lines.push(`    <library name="${lib.libraryName}" id="${lib.libraryId}">`);
+
+    for (const section of lib.sections.slice(0, MAX_ITEMS_SMALL)) {
+      lines.push(`      <section title="${escapeXml(section.title)}">`);
+      lines.push(`        <content>${escapeXml(section.content)}</content>`);
+
+      if (section.codeSnippets.length > 0) {
+        for (const snippet of section.codeSnippets.slice(0, 2)) {
+          lines.push('        <code>');
+          lines.push(`          ${escapeXml(snippet.slice(0, 300))}`);
+          if (snippet.length > 300) {
+            lines.push('          <!-- truncated -->');
+          }
+          lines.push('        </code>');
+        }
+      }
+
+      lines.push('      </section>');
+    }
+
+    if (lib.sections.length > MAX_ITEMS_SMALL) {
+      lines.push(`      <!-- +${lib.sections.length - MAX_ITEMS_SMALL} more sections -->`);
+    }
+
+    lines.push('    </library>');
+  }
+
+  lines.push('    <hint>Use "krolik docs search {query}" to find more documentation</hint>');
+  lines.push('  </library-docs>');
+}
+
+/**
  * Format quality issues section (from --with-audit)
  */
 export function formatQualitySection(lines: string[], data: AiContextData): void {

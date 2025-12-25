@@ -17,6 +17,7 @@ import {
   SyntaxKind,
 } from 'ts-morph';
 import { type CreateProjectOptions, createProject } from '@/lib';
+import { astPool } from '@/lib/@ast';
 
 // Re-export for backwards compatibility
 export { createProject, type CreateProjectOptions };
@@ -81,7 +82,6 @@ export function clearPrettierCache(): void {
  */
 export function validateSyntax(code: string, filepath: string): boolean {
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(code, filepath);
 
     try {
@@ -108,7 +108,6 @@ export function getSyntaxErrors(
   filepath: string,
 ): Array<{ line: number; message: string }> {
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(code, filepath);
 
     try {
@@ -151,7 +150,6 @@ export function getSyntaxErrors(
  */
 export function hasDebuggerStatementAtLine(content: string, lineNumber: number): boolean {
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
@@ -177,7 +175,6 @@ export function hasDebuggerStatementAtLine(content: string, lineNumber: number):
  */
 export function hasConsoleCallAtLine(content: string, lineNumber: number): boolean {
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
@@ -204,7 +201,6 @@ export function hasConsoleCallAtLine(content: string, lineNumber: number): boole
  */
 export function hasAlertCallAtLine(content: string, lineNumber: number): boolean {
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {

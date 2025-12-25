@@ -29,5 +29,5 @@ export async function runCodegen(
 
   logger.section(`Codegen: ${target}`);
   logger.info(`Codegen ${target} - implementation pending`);
-  // TODO: Migrate from piternow-wt-fix/scripts/ai/codegen/
+  // TODO: Implement codegen logic
 }

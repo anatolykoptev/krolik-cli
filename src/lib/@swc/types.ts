@@ -50,7 +50,7 @@ export interface FunctionInfo {
 /**
  * Generic visitor callback for AST nodes
  */
-export type VisitorCallback = (node: Node, context: VisitorContext) => void | boolean;
+export type VisitorCallback = (node: Node, context: VisitorContext) => undefined | boolean;
 
 /**
  * Context passed to visitor callbacks
@@ -59,7 +59,7 @@ export interface VisitorContext {
   /** Current node being visited */
   node: Node;
   /** Parent node (if any) */
-  parent?: Node;
+  parent: Node | undefined;
   /** Whether current node is in an exported declaration */
   isExported: boolean;
   /** Depth in the AST tree */
@@ -98,6 +98,36 @@ export interface VisitorCallbacks {
   onFunctionExpression?: VisitorCallback;
   /** Called for ArrowFunctionExpression nodes */
   onArrowFunctionExpression?: VisitorCallback;
+
+  // === TypeScript declaration nodes ===
+  /** Called for TsInterfaceDeclaration nodes */
+  onTsInterfaceDeclaration?: VisitorCallback;
+  /** Called for TsTypeAliasDeclaration nodes */
+  onTsTypeAliasDeclaration?: VisitorCallback;
+  /** Called for TsPropertySignature (interface properties) */
+  onTsPropertySignature?: VisitorCallback;
+
+  // === JSX nodes ===
+  /** Called for JSXElement nodes */
+  onJSXElement?: VisitorCallback;
+  /** Called for JSXOpeningElement nodes */
+  onJSXOpeningElement?: VisitorCallback;
+  /** Called for JSXAttribute nodes */
+  onJSXAttribute?: VisitorCallback;
+  /** Called for JSXText nodes */
+  onJSXText?: VisitorCallback;
+
+  // === Object/Array nodes ===
+  /** Called for ObjectExpression nodes */
+  onObjectExpression?: VisitorCallback;
+  /** Called for KeyValueProperty (object properties) */
+  onKeyValueProperty?: VisitorCallback;
+  /** Called for ArrayExpression nodes */
+  onArrayExpression?: VisitorCallback;
+
+  // === Member access ===
+  /** Called for MemberExpression nodes */
+  onMemberExpression?: VisitorCallback;
 }
 
 /**
@@ -111,7 +141,16 @@ export interface ParseOptions {
   /** Enable JSX parsing */
   jsx?: boolean;
   /** Target ECMAScript version */
-  target?: 'es5' | 'es2015' | 'es2016' | 'es2017' | 'es2018' | 'es2019' | 'es2020' | 'es2021' | 'es2022';
+  target?:
+    | 'es5'
+    | 'es2015'
+    | 'es2016'
+    | 'es2017'
+    | 'es2018'
+    | 'es2019'
+    | 'es2020'
+    | 'es2021'
+    | 'es2022';
 }
 
 /**

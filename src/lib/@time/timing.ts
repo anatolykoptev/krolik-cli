@@ -2,8 +2,6 @@
  * @module lib/timing
  * @description Time measurement utilities
  * @ai-context Use for performance tracking and profiling
- *
- * Ported from piternow scripts/ai/utils.ts
  */
 
 /**

@@ -5,17 +5,16 @@
 
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { KROLIK_VERSION } from '@/version';
 import { registerCommands } from './commands';
 import { addGlobalOptions } from './options';
-
-const VERSION = '1.0.0';
 
 /**
  * ASCII art logo
  */
 const LOGO = `
 ${chalk.green('   (\\(\\ ')}
-${chalk.green('   (-.-) ')}  ${chalk.bold.white('KROLIK CLI')} ${chalk.dim(`v${VERSION}`)}
+${chalk.green('   (-.-) ')}  ${chalk.bold.white('KROLIK CLI')} ${chalk.dim(`v${KROLIK_VERSION}`)}
 ${chalk.green('   o_(")(")')} ${chalk.dim('Fast AI-assisted development toolkit')}
 `;
 

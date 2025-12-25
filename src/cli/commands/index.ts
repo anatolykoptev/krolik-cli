@@ -8,10 +8,12 @@ import { registerAgentCommand } from './agent';
 import { registerAuditCommand } from './audit';
 import { registerCodegenCommand } from './codegen';
 import { registerContextCommand } from './context';
+import { registerDocsCommand } from './docs';
 import { registerFixCommand } from './fix';
 import { registerInitCommand } from './init';
 import { registerIssueCommand } from './issue';
 import { registerMcpCommand } from './mcp';
+import { registerMemCommand } from './mem';
 import { registerQualityCommand } from './quality';
 import { registerRefactorCommand } from './refactor';
 import { registerReviewCommand } from './review';
@@ -49,6 +51,8 @@ export function registerCommands(program: Command): void {
 
   // Integration commands
   registerMcpCommand(program);
+  registerMemCommand(program);
+  registerDocsCommand(program);
   registerSetupCommand(program);
   registerAgentCommand(program);
 

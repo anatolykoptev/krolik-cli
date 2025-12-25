@@ -24,18 +24,13 @@ export function normalizePath(filePath: string, projectRoot?: string): string {
   }
 
   // Try to make relative to common project patterns
-  const patterns = ['/krolik-cli/', '/piternow/', '/packages/', '/apps/', '/src/'];
+  const patterns = ['/packages/', '/apps/', '/src/', '/lib/'];
 
   for (const pattern of patterns) {
     const idx = filePath.indexOf(pattern);
     if (idx !== -1) {
       // Return path from after the pattern prefix (e.g., "src/...")
-      const afterPattern = filePath.substring(idx + 1);
-      // If pattern is like /krolik-cli/, skip to src/
-      if (pattern === '/krolik-cli/' && afterPattern.includes('/src/')) {
-        return afterPattern.substring(afterPattern.indexOf('src/'));
-      }
-      return afterPattern;
+      return filePath.substring(idx + 1);
     }
   }
 
@@ -58,6 +53,7 @@ export function normalizePath(filePath: string, projectRoot?: string): string {
 const CATEGORY_PRIORITY: Record<QualityCategory, PriorityLevel> = {
   'type-safety': 'critical', // Type errors break builds
   'circular-dep': 'critical', // Can cause runtime issues
+  security: 'critical', // Security vulnerabilities need immediate attention
   lint: 'low', // Usually cosmetic
   hardcoded: 'medium', // Maintainability
   documentation: 'low', // Not urgent
@@ -68,6 +64,7 @@ const CATEGORY_PRIORITY: Record<QualityCategory, PriorityLevel> = {
   composite: 'medium', // Multi-file ops
   agent: 'medium', // AI operations
   refine: 'high', // @namespace structure
+  modernization: 'low', // Legacy patterns (require, sync fs)
 };
 
 // ============================================================================
@@ -267,6 +264,8 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     composite: 'Composite Operations',
     agent: 'AI Agent Operations',
     refine: '@Namespace Structure Issues',
+    security: 'Security Issues',
+    modernization: 'Legacy Code Patterns',
   };
 
   const descriptions: Record<QualityCategory, string> = {
@@ -282,6 +281,8 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     composite: 'Multi-file refactoring operations',
     agent: 'AI-assisted code improvements',
     refine: 'Migrate lib/ to @namespace pattern',
+    security: 'Fix security vulnerabilities and unsafe patterns',
+    modernization: 'Update require() to import and sync fs to async',
   };
 
   const group = createGroup(`category:${category}`, issues, titles[category]);

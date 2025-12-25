@@ -7,8 +7,8 @@
  */
 
 import * as crypto from 'node:crypto';
-import { parseSync } from '@swc/core';
 import type { Module, Node } from '@swc/core';
+import { parseSync } from '@swc/core';
 import type { CacheEntry, ParseOptions } from './types';
 import { calculateLineOffsets } from './visitor';
 
@@ -151,11 +151,7 @@ export function parseFileUncached(
 /**
  * Internal: Parse with SWC with proper options
  */
-function parseSyncWithOptions(
-  filePath: string,
-  content: string,
-  options: ParseOptions,
-): Module {
+function parseSyncWithOptions(filePath: string, content: string, options: ParseOptions): Module {
   const syntax = options.syntax ?? 'typescript';
 
   // Auto-detect TSX/JSX from file extension if not specified

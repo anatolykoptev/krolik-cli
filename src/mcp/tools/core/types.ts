@@ -34,6 +34,31 @@ export interface MCPToolDefinition {
   };
   /** Handler function */
   handler: ToolHandler;
+  /** Template config for CLAUDE.md auto-generation */
+  template?: {
+    /** When to use (e.g., "Session start") — shown in "When" column */
+    when: string;
+    /** Example params (e.g., "`fast: true`") — shown in "Params" column */
+    params: string;
+    /** Exclude from template (default: false) */
+    exclude?: boolean;
+  };
+  /** Workflow trigger for auto-execution hints */
+  workflow?: {
+    /** Trigger event */
+    trigger:
+      | 'session_start'
+      | 'before_task'
+      | 'after_code'
+      | 'before_commit'
+      | 'on_decision'
+      | 'on_bugfix'
+      | 'on_refactor';
+    /** Execution order within same trigger (lower = first) */
+    order?: number;
+  };
+  /** Category for grouping in docs */
+  category?: 'start' | 'context' | 'code' | 'memory' | 'advanced';
 }
 
 /**

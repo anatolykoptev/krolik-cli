@@ -7,23 +7,17 @@
  */
 
 import * as crypto from 'node:crypto';
+import type { CallExpression, FunctionDeclaration, Identifier, NumericLiteral } from './index';
 import {
+  countNodeTypes,
+  findNodesByType,
+  getNodeSpan,
+  getNodeText,
+  getNodeType,
+  offsetToPosition,
   parseFile,
   visitNode,
   visitNodeWithCallbacks,
-  getNodeType,
-  getNodeSpan,
-  getNodeText,
-  offsetToPosition,
-  findNodesByType,
-  countNodeTypes,
-} from './index';
-import type {
-  CallExpression,
-  FunctionDeclaration,
-  Identifier,
-  Node,
-  NumericLiteral,
 } from './index';
 
 /**

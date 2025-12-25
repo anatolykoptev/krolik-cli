@@ -29,13 +29,14 @@ export {
   findRoutersDir,
   findTrpcRouters,
 } from './routes';
-export type { SchemaInfo } from './schema';
-// Schema discovery (Prisma, Zod)
+export type { SchemaInfo, SubDocInfo } from './schema';
+// Schema discovery (Prisma, Zod, Sub-docs)
 export {
   discoverSchemas,
   findPrismaSchema,
   findPrismaSchemaFiles,
   findSchemaDir,
+  findSubDocs,
   findZodSchemas,
   findZodSchemasDir,
 } from './schema';

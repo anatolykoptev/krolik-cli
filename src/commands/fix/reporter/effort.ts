@@ -27,6 +27,8 @@ const CATEGORY_BASE_EFFORT: Record<QualityCategory, number> = {
   composite: 15, // Multi-file operation
   agent: 20, // AI-assisted fix
   refine: 35, // @namespace structure migration
+  security: 15, // Security vulnerability fix
+  modernization: 10, // Legacy pattern update
 };
 
 /**
@@ -174,6 +176,12 @@ function generateReason(issue: QualityIssue, difficulty: FixDifficulty): string 
       break;
     case 'circular-dep':
       parts.push('Dependency graph restructuring');
+      break;
+    case 'security':
+      parts.push('Fix security vulnerability');
+      break;
+    case 'modernization':
+      parts.push('Update legacy code pattern');
       break;
     default:
       parts.push('Code modification required');

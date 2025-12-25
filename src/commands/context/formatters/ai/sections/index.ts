@@ -4,9 +4,18 @@
  */
 
 export {
+  formatApiContractsSection,
+  formatDbRelationsSection,
+  formatEnvVarsSection,
+  formatImportGraphSection,
+} from './advanced-analysis';
+export { formatArchitectureSection } from './architecture';
+export {
   formatApproachSection,
   formatComponentsSection,
   formatHintsSection,
+  formatLibraryDocsSection,
+  formatMemorySection,
   formatPreCommitSection,
   formatQualitySection,
   formatTestsSection,

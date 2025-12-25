@@ -19,6 +19,29 @@ const EXTENSION_PRIORITY: Record<string, number> = {
   '.txt': 1,
 };
 
+// Files/patterns to always exclude from diff (noise)
+const NOISE_PATTERNS = [
+  '.krolik/',
+  'krolik.config',
+  'CLAUDE.md',
+  '.lock',
+  'pnpm-lock',
+  'package-lock',
+  'yarn.lock',
+  '.env',
+  '.git/',
+  'node_modules/',
+  'dist/',
+  '.next/',
+  '.turbo/',
+  'coverage/',
+  '*.log',
+  '.DS_Store',
+  'typecheck-cache',
+  'audit-data.json',
+  'AI-REPORT.md',
+];
+
 interface DiffHunk {
   file: string;
   extension: string;
@@ -76,6 +99,28 @@ function getExtension(file: string): string {
 }
 
 /**
+ * Check if file matches any noise pattern
+ */
+function isNoiseFile(file: string): boolean {
+  const fileLower = file.toLowerCase();
+  return NOISE_PATTERNS.some((pattern) => {
+    // Handle glob-like patterns
+    if (pattern.includes('*')) {
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      return regex.test(fileLower);
+    }
+    return fileLower.includes(pattern.toLowerCase());
+  });
+}
+
+/**
+ * Filter out noise files
+ */
+function filterNoise(hunks: DiffHunk[]): DiffHunk[] {
+  return hunks.filter((hunk) => !isNoiseFile(hunk.file));
+}
+
+/**
  * Filter hunks by domain keywords
  */
 function filterByDomain(hunks: DiffHunk[], keywords: string[]): DiffHunk[] {
@@ -88,7 +133,7 @@ function filterByDomain(hunks: DiffHunk[], keywords: string[]): DiffHunk[] {
 }
 
 /**
- * Truncate diff intelligently
+ * Truncate diff intelligently with noise filtering
  */
 export function truncateDiff(
   diff: string,
@@ -98,26 +143,45 @@ export function truncateDiff(
     return { diff: '', truncated: false, summary: '' };
   }
 
-  const totalLines = diff.split('\n').length;
-
-  // If under limit, return as-is
-  if (totalLines <= MAX_DIFF_LINES) {
-    return { diff, truncated: false, summary: '' };
-  }
-
   // Parse into hunks
   let hunks = parseDiffHunks(diff);
+  const originalHunkCount = hunks.length;
 
-  // Filter by domain if keywords provided
-  if (keywords.length > 0) {
-    const filtered = filterByDomain(hunks, keywords);
-    if (filtered.length > 0) {
-      hunks = filtered;
+  // Step 1: Always filter out noise files first
+  hunks = filterNoise(hunks);
+  const noiseFiltered = originalHunkCount - hunks.length;
+
+  // Step 2: Filter by domain if keywords provided
+  if (keywords.length > 0 && hunks.length > 0) {
+    const domainFiltered = filterByDomain(hunks, keywords);
+    // Only use domain filter if it returns results
+    if (domainFiltered.length > 0) {
+      hunks = domainFiltered;
     }
+  }
+
+  // If no hunks left after filtering, return empty
+  if (hunks.length === 0) {
+    const summary = noiseFiltered > 0 ? `(${noiseFiltered} noise files filtered)` : '';
+    return { diff: '', truncated: true, summary };
   }
 
   // Sort by priority (code first, docs last)
   hunks.sort((a, b) => b.priority - a.priority);
+
+  // Calculate total lines
+  const totalLines = hunks.reduce((sum, h) => sum + h.lineCount, 0);
+
+  // If under limit after filtering, join and return
+  if (totalLines <= MAX_DIFF_LINES) {
+    const filteredDiff = hunks.map((h) => h.lines.join('\n')).join('\n');
+    const wasFiltered = noiseFiltered > 0 || hunks.length < originalHunkCount;
+    return {
+      diff: filteredDiff,
+      truncated: wasFiltered,
+      summary: noiseFiltered > 0 ? `(${noiseFiltered} noise files filtered)` : '',
+    };
+  }
 
   // Collect hunks until we hit the limit
   const selectedHunks: DiffHunk[] = [];
@@ -137,10 +201,16 @@ export function truncateDiff(
   const truncatedDiff = selectedHunks.map((h) => h.lines.join('\n')).join('\n');
 
   // Build summary
-  const summary =
-    omittedFiles.length > 0
-      ? `(${omittedFiles.length} files omitted: ${omittedFiles.slice(0, 3).join(', ')}${omittedFiles.length > 3 ? '...' : ''})`
-      : '';
+  const parts: string[] = [];
+  if (noiseFiltered > 0) {
+    parts.push(`${noiseFiltered} noise files filtered`);
+  }
+  if (omittedFiles.length > 0) {
+    parts.push(
+      `${omittedFiles.length} files omitted: ${omittedFiles.slice(0, 3).join(', ')}${omittedFiles.length > 3 ? '...' : ''}`,
+    );
+  }
+  const summary = parts.length > 0 ? `(${parts.join(', ')})` : '';
 
   return {
     diff: truncatedDiff,

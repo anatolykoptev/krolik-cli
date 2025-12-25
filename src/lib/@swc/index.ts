@@ -46,6 +46,25 @@
  * if (result.success) {
  *   // Work with result.ast
  * }
+ *
+ * @example
+ * // Extract information from nodes
+ * import { getCalleeName, collectMethodChain, extractStringArg } from '@/lib/@swc';
+ *
+ * visitNodeWithCallbacks(ast, {
+ *   onCallExpression: (node) => {
+ *     const call = node as unknown as CallExpression;
+ *
+ *     // Extract function name
+ *     const name = getCalleeName(call); // 'register'
+ *
+ *     // Extract string argument
+ *     const fieldName = extractStringArg(call); // 'email'
+ *
+ *     // Collect method chain for Zod schemas
+ *     const methods = collectMethodChain(call); // ['string', 'min', 'max']
+ *   },
+ * });
  */
 
 // Re-export SWC types that are commonly needed
@@ -56,6 +75,9 @@ export type {
   FunctionDeclaration,
   FunctionExpression,
   Identifier,
+  JSXAttribute,
+  JSXOpeningElement,
+  MemberExpression,
   Module,
   Node,
   NumericLiteral,
@@ -64,7 +86,32 @@ export type {
   StringLiteral,
   TsType,
 } from '@swc/core';
+// Export extractor utilities
+export {
+  collectMethodChain,
+  extractAllStringArgs,
+  extractStringArg,
+  extractTypeString,
+  getCalleeName,
+  getCalleeObjectName,
+  getIdentifierName,
+  getJSXAttributeValue,
+  getJSXElementName,
+  getRootObjectName,
+  isCallingFunction,
+  isCallingMethod,
+} from './extractors';
 
+// Export parser functions
+export {
+  clearCache,
+  getCacheStats,
+  getNodeSpan,
+  getNodeText,
+  parseFile,
+  parseFileUncached,
+  validateSyntax,
+} from './parser';
 // Export types
 export type {
   CacheEntry,
@@ -78,25 +125,68 @@ export type {
   VisitorContext,
   VisitorResult,
 } from './types';
-
-// Export parser functions
-export {
-  clearCache,
-  getCacheStats,
-  getNodeSpan,
-  getNodeText,
-  parseFile,
-  parseFileUncached,
-  validateSyntax,
-} from './parser';
-
 // Export visitor functions
 export {
   calculateLineOffsets,
   countNodeTypes,
   findNodesByType,
+  getContext,
   getNodeType,
+  getSnippet,
+  offsetToLine,
   offsetToPosition,
   visitNode,
   visitNodeWithCallbacks,
 } from './visitor';
+
+// ============================================================================
+// DETECTORS
+// ============================================================================
+
+// Export detector types
+export type {
+  DetectorContext,
+  HardcodedDetection,
+  HardcodedType,
+  LintDetection,
+  LintIssueType,
+  ModernizationDetection,
+  ModernizationIssueType,
+  SecurityDetection,
+  SecurityIssueType,
+  TypeSafetyDetection,
+  TypeSafetyIssueType,
+} from './detectors';
+
+// Export all detectors
+export {
+  // Lint detectors
+  detectAlert,
+  // Type-safety detectors
+  detectAnyAnnotation,
+  detectAnyAssertion,
+  // Security detectors
+  detectCommandInjection,
+  detectConsole,
+  detectDebugger,
+  detectDoubleAssertion,
+  detectEmptyCatch,
+  detectEval,
+  // Hardcoded value detectors
+  detectHardcodedUrl,
+  detectHardcodedValue,
+  detectHexColor,
+  detectLintIssue,
+  detectMagicNumber,
+  // Modernization detectors
+  detectModernizationIssue,
+  detectNonNullAssertion,
+  detectPathTraversal,
+  detectRequire,
+  detectSecurityIssue,
+  detectTypeSafetyIssue,
+  isAnyType,
+  isArrayIndex,
+  isInConstDeclaration,
+  isUnknownType,
+} from './detectors';

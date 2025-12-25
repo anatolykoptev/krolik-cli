@@ -54,6 +54,9 @@ export const fixTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'Quality issues found', params: '`dryRun: true` first' },
+  workflow: { trigger: 'after_code', order: 1 },
+  category: 'code',
   handler: (args, workspaceRoot) => {
     const result = buildFlags(args, fixSchema);
     if (!result.ok) {

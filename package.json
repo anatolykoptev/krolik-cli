@@ -47,7 +47,7 @@
   ],
   "scripts": {
     "dev": "tsx watch src/bin/cli.ts",
-    "build": "tsup",
+    "build": "pnpm sync-version && tsup",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
@@ -57,12 +57,16 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "sync-version": "tsx scripts/sync-version.ts",
+    "changeset": "changeset",
+    "changeset:version": "changeset version && pnpm sync-version",
+    "changeset:publish": "pnpm build && changeset publish",
     "prepublishOnly": "pnpm build",
-    "release": "pnpm build && changeset publish",
     "prepare": "husky"
   },
   "dependencies": {
     "@typescript-eslint/parser": "^8.50.0",
+    "better-sqlite3": "^12.5.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "cosmiconfig": "^9.0.0",
@@ -75,9 +79,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
-    "@changesets/cli": "^2.29.5",
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
     "@swc/core": "^1.15.7",
     "@swc/core-darwin-arm64": "^1.15.7",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
@@ -99,6 +105,11 @@
     ],
     "*.{json,md,yml,yaml}": [
       "biome format --write --no-errors-on-unmatched"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
     ]
   }
 }

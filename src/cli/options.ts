@@ -4,8 +4,7 @@
  */
 
 import type { Command } from 'commander';
-
-const VERSION = '1.0.0';
+import { KROLIK_VERSION } from '@/version';
 
 /**
  * Add global options to the program
@@ -14,7 +13,7 @@ export function addGlobalOptions(program: Command): void {
   program
     .name('krolik')
     .description('KROLIK — fast AI-assisted development toolkit (AI-friendly output by default)')
-    .version(VERSION, '-V, --version', 'Output version number')
+    .version(KROLIK_VERSION, '-V, --version', 'Output version number')
     .option('-c, --config <path>', 'Path to config file')
     .option('--project-root <path>', 'Project root directory')
     .option('--cwd <path>', 'Project root directory (alias for --project-root)')

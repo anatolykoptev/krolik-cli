@@ -32,6 +32,8 @@ export const routesTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'API routes questions', params: '—' },
+  category: 'context',
   handler: (args, workspaceRoot) => {
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
       const result = buildFlags(args, routesFlagSchema);

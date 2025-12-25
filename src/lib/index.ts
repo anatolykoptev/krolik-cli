@@ -29,13 +29,26 @@ export * from './@cache';
 export * from './@context';
 // Discovery (project root, schemas, routes)
 export * from './@discovery';
-export type { SyncOptions, SyncResult } from './@docs';
+export type {
+  CreateSubDocResult,
+  DiscoveredPackage,
+  SubDocCandidate,
+  SubDocType,
+  SyncOptions,
+  SyncResult,
+} from './@docs';
 // Documentation injection
 export {
+  createMissingSubDocs,
+  createSubDoc,
   DOCS_VERSION,
+  discoverPackages,
   generateKrolikDocs,
+  getAvailablePackages,
+  getMissingSubDocs,
   getSyncStatus,
   needsSync,
+  SUB_DOC_CANDIDATES,
   syncClaudeMd,
 } from './@docs';
 // Formatters (XML, JSON, Markdown, Text)

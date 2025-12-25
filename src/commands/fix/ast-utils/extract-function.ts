@@ -8,7 +8,12 @@
  * - Async context
  */
 
-import { findDeclaredVariables, findModifiedVariables, findUsedVariables } from '../../../lib/@ast';
+import {
+  astPool,
+  findDeclaredVariables,
+  findModifiedVariables,
+  findUsedVariables,
+} from '@/lib/@ast';
 import type { ExtractFunctionOptions, ExtractFunctionResult } from './types';
 
 /**
@@ -25,7 +30,6 @@ export function extractFunction(
 ): ExtractFunctionResult {
   try {
     // Create project for AST analysis
-    const { astPool } = require('../core/ast-pool');
     const [, cleanup] = astPool.createSourceFile(content, filePath);
 
     try {

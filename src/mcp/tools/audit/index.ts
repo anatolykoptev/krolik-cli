@@ -33,6 +33,9 @@ export const auditTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'Code quality audit', params: '—' },
+  workflow: { trigger: 'on_refactor', order: 2 },
+  category: 'code',
   handler: (args, workspaceRoot) => {
     const result = buildFlags(args, auditSchema);
     if (!result.ok) return result.error;

@@ -31,6 +31,8 @@ export const schemaTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'DB schema questions', params: '—' },
+  category: 'context',
   handler: (args, workspaceRoot) => {
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
       const result = buildFlags(args, schemaFlagSchema);

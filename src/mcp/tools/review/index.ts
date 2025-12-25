@@ -38,6 +38,9 @@ export const reviewTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'After code changes', params: '`staged: true`' },
+  workflow: { trigger: 'before_commit', order: 1 },
+  category: 'code',
   handler: (args, workspaceRoot) => {
     const result = buildFlags(args, reviewSchema);
     if (!result.ok) return result.error;

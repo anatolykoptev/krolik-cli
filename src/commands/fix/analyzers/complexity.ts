@@ -8,7 +8,8 @@
  * - Accurate function boundary detection
  */
 
-import { Node, type Project, type SourceFile, SyntaxKind } from 'ts-morph';
+import { Node, type SourceFile, SyntaxKind } from 'ts-morph';
+import { astPool } from '@/lib/@ast';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 
 // ============================================================================
@@ -49,7 +50,6 @@ const COMPLEXITY_OPERATORS = new Set([
  */
 export function calculateComplexity(code: string): number {
   try {
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(code, 'temp.ts');
     try {
       return calculateComplexityFromAST(sourceFile);
@@ -80,6 +80,34 @@ function calculateComplexityFromAST(sourceFile: SourceFile): number {
     // Binary expressions with && || ??
     if (Node.isBinaryExpression(node)) {
       const operator = node.getOperatorToken().getKind();
+      if (COMPLEXITY_OPERATORS.has(operator)) {
+        complexity++;
+      }
+    }
+  });
+
+  return complexity;
+}
+
+/**
+ * Calculate complexity inline from a node (avoids creating new source file)
+ * Use this when you already have an AST node to avoid N+1 source file creations
+ */
+function calculateComplexityInline(node: Node): number {
+  let complexity = 1; // Base complexity
+
+  // Count decision point nodes in the node and its descendants
+  node.forEachDescendant((child) => {
+    const kind = child.getKind();
+
+    // Direct decision points
+    if (COMPLEXITY_SYNTAX_KINDS.has(kind)) {
+      complexity++;
+    }
+
+    // Binary expressions with && || ??
+    if (Node.isBinaryExpression(child)) {
+      const operator = child.getOperatorToken().getKind();
       if (COMPLEXITY_OPERATORS.has(operator)) {
         complexity++;
       }
@@ -136,7 +164,6 @@ export function analyzeSplitPoints(
   const suggestions: SplitSuggestion[] = [];
 
   try {
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(
       `function __wrapper__() ${bodyText}`,
       'body.ts',
@@ -152,10 +179,9 @@ export function analyzeSplitPoints(
 
       // Analyze direct children of function body
       const statements = body.getStatements();
-      const project = astPool.getProject();
 
       for (const stmt of statements) {
-        const suggestion = analyzeStatement(stmt, functionName, baseLineOffset, project);
+        const suggestion = analyzeStatement(stmt, functionName, baseLineOffset);
         if (suggestion) {
           suggestions.push(suggestion);
         }
@@ -181,7 +207,6 @@ function analyzeStatement(
   stmt: Node,
   parentName: string,
   lineOffset: number,
-  project: Project,
 ): SplitSuggestion | null {
   const startLine = stmt.getStartLineNumber() + lineOffset - 1;
   const endLine = stmt.getEndLineNumber() + lineOffset - 1;
@@ -190,10 +215,8 @@ function analyzeStatement(
   // Skip small blocks
   if (lines < MIN_BLOCK_LINES) return null;
 
-  const stmtText = stmt.getText();
-  const complexity = calculateComplexityFromAST(
-    project.createSourceFile('stmt.ts', stmtText, { overwrite: true }),
-  );
+  // Calculate complexity inline from the statement node (avoids creating temp file)
+  const complexity = calculateComplexityInline(stmt);
 
   // Skip low-complexity blocks
   if (complexity < MIN_BLOCK_COMPLEXITY) return null;
@@ -295,12 +318,10 @@ function generateName(parentName: string, action: string, context: string): stri
  */
 export function extractFunctions(content: string): FunctionInfo[] {
   try {
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
       const functions: FunctionInfo[] = [];
-      const project = astPool.getProject();
 
       // Function declarations
       const funcDecls = sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration);
@@ -310,11 +331,9 @@ export function extractFunctions(content: string): FunctionInfo[] {
         const startLine = func.getStartLineNumber();
         const endLine = func.getEndLineNumber();
         const body = func.getBody();
-        const bodyText = body?.getText() || '';
 
-        const complexity = calculateComplexityFromAST(
-          project.createSourceFile('body.ts', bodyText, { overwrite: true }),
-        );
+        // Calculate complexity inline from body node (avoids creating temp file)
+        const complexity = body ? calculateComplexityInline(body) : 1;
 
         const funcInfo: FunctionInfo = {
           name,
@@ -329,7 +348,8 @@ export function extractFunctions(content: string): FunctionInfo[] {
         };
 
         // Add split suggestions for complex functions
-        if (complexity > 10) {
+        if (complexity > 10 && body) {
+          const bodyText = body.getText();
           const suggestions = analyzeSplitPoints(bodyText, name, startLine);
           if (suggestions.length > 0) {
             funcInfo.splitSuggestions = suggestions;
@@ -352,15 +372,13 @@ export function extractFunctions(content: string): FunctionInfo[] {
           const startLine = varDecl.getStartLineNumber();
           const endLine = init.getEndLineNumber();
           const body = init.getBody();
-          const bodyText = body?.getText() || '';
 
           // Check if exported
           const varStmt = varDecl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
           const isExported = varStmt?.isExported() || false;
 
-          const complexity = calculateComplexityFromAST(
-            project.createSourceFile('body.ts', bodyText, { overwrite: true }),
-          );
+          // Calculate complexity inline from body node (avoids creating temp file)
+          const complexity = body ? calculateComplexityInline(body) : 1;
 
           const funcInfo: FunctionInfo = {
             name,
@@ -375,7 +393,8 @@ export function extractFunctions(content: string): FunctionInfo[] {
           };
 
           // Add split suggestions for complex functions
-          if (complexity > 10) {
+          if (complexity > 10 && body) {
+            const bodyText = body.getText();
             const suggestions = analyzeSplitPoints(bodyText, name, startLine);
             if (suggestions.length > 0) {
               funcInfo.splitSuggestions = suggestions;
@@ -394,15 +413,13 @@ export function extractFunctions(content: string): FunctionInfo[] {
         const startLine = method.getStartLineNumber();
         const endLine = method.getEndLineNumber();
         const body = method.getBody();
-        const bodyText = body?.getText() || '';
 
         // Check if parent class is exported
         const parentClass = method.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
         const isExported = parentClass?.isExported() || false;
 
-        const complexity = calculateComplexityFromAST(
-          project.createSourceFile('body.ts', bodyText, { overwrite: true }),
-        );
+        // Calculate complexity inline from body node (avoids creating temp file)
+        const complexity = body ? calculateComplexityInline(body) : 1;
 
         const funcInfo: FunctionInfo = {
           name,
@@ -417,7 +434,8 @@ export function extractFunctions(content: string): FunctionInfo[] {
         };
 
         // Add split suggestions for complex functions
-        if (complexity > 10) {
+        if (complexity > 10 && body) {
+          const bodyText = body.getText();
           const suggestions = analyzeSplitPoints(bodyText, name, startLine);
           if (suggestions.length > 0) {
             funcInfo.splitSuggestions = suggestions;

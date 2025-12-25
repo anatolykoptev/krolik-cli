@@ -6,6 +6,7 @@
  */
 
 import { type NumericLiteral, SyntaxKind, type VariableDeclaration } from 'ts-morph';
+import { astPool } from '@/lib/@ast';
 import type { FixOperation } from '../../types';
 import { createFullFileReplace, formatWithPrettier } from '../shared';
 import {
@@ -47,7 +48,6 @@ export async function generateNumberFix(
   if (ALLOWED_NUMBERS.has(targetValue)) return null;
 
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {
@@ -160,7 +160,6 @@ export async function generateUrlFix(
   }
 
   try {
-    const { astPool } = require('../../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, 'temp.ts');
 
     try {

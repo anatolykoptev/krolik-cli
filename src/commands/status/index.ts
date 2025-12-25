@@ -3,7 +3,14 @@
  * @description Project status and diagnostics command
  */
 
-import { measureTime } from '../../lib';
+import chalk from 'chalk';
+import {
+  createMissingSubDocs,
+  DOCS_VERSION,
+  measureTime,
+  needsSync,
+  syncClaudeMd,
+} from '../../lib';
 import type { CommandContext, OutputFormat, StatusResult } from '../../types';
 import { checkGit, checkLint, checkTypecheck, toStatusResult } from './checks';
 import { formatAI, formatJson, formatMarkdown, printStatus } from './output';
@@ -100,6 +107,67 @@ export function getProjectStatus(projectRoot: string, options: StatusOptions = {
 }
 
 /**
+ * Auto-sync CLAUDE.md if needed
+ * Runs silently and only shows output if something changed
+ */
+function autoSyncClaudeMd(projectRoot: string, isTextFormat: boolean): void {
+  if (!needsSync(projectRoot)) {
+    return;
+  }
+
+  const result = syncClaudeMd(projectRoot, { silent: true });
+
+  if (result.action === 'skipped') {
+    return;
+  }
+
+  // Show sync message
+  if (isTextFormat) {
+    // Human-readable format
+    if (result.action === 'created') {
+      console.log(chalk.green(`\n📄 Created CLAUDE.md (v${DOCS_VERSION})`));
+    } else if (result.previousVersion) {
+      console.log(
+        chalk.green(`\n📄 CLAUDE.md updated: v${result.previousVersion} → v${DOCS_VERSION}`),
+      );
+    } else {
+      console.log(chalk.green(`\n📄 Added krolik section to CLAUDE.md (v${DOCS_VERSION})`));
+    }
+  } else {
+    // AI-friendly format
+    const action = result.action === 'created' ? 'created' : 'updated';
+    const versionInfo = result.previousVersion
+      ? `${result.previousVersion} → ${DOCS_VERSION}`
+      : `v${DOCS_VERSION}`;
+    console.log(`\n<!-- CLAUDE.md ${action}: ${versionInfo} -->`);
+  }
+}
+
+/**
+ * Auto-create missing CLAUDE.md for packages
+ * Runs silently and only shows output if something was created
+ */
+function autoCreateSubDocs(projectRoot: string, isTextFormat: boolean): void {
+  const results = createMissingSubDocs(projectRoot);
+  const created = results.filter((r) => r.action === 'created');
+
+  if (created.length === 0) {
+    return;
+  }
+
+  if (isTextFormat) {
+    console.log(chalk.green(`\n📄 Created ${created.length} package CLAUDE.md file(s):`));
+    for (const r of created) {
+      console.log(chalk.dim(`   • ${r.path}`));
+    }
+  } else {
+    console.log(
+      `\n<!-- Created ${created.length} sub-docs: ${created.map((r) => r.path).join(', ')} -->`,
+    );
+  }
+}
+
+/**
  * Run status command
  */
 export async function runStatus(ctx: CommandContext & { options: StatusOptions }): Promise<void> {
@@ -112,21 +180,29 @@ export async function runStatus(ctx: CommandContext & { options: StatusOptions }
 
   if (format === 'json') {
     console.log(formatJson(status));
+    autoSyncClaudeMd(config.projectRoot, false);
+    autoCreateSubDocs(config.projectRoot, false);
     return;
   }
 
   if (format === 'markdown') {
     console.log(formatMarkdown(status));
+    autoSyncClaudeMd(config.projectRoot, false);
+    autoCreateSubDocs(config.projectRoot, false);
     return;
   }
 
   if (format === 'text') {
     printStatus(status, logger, options.verbose);
+    autoSyncClaudeMd(config.projectRoot, true);
+    autoCreateSubDocs(config.projectRoot, true);
     return;
   }
 
   // Default: AI-friendly XML format
   console.log(formatAI(status));
+  autoSyncClaudeMd(config.projectRoot, false);
+  autoCreateSubDocs(config.projectRoot, false);
 }
 
 // Re-export types for external use

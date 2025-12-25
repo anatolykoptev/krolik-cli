@@ -28,6 +28,9 @@ export const issueTool: MCPToolDefinition = {
     },
     required: ['number'],
   },
+  template: { when: 'Parse GitHub issue details', params: '`number: "123"`' },
+  workflow: { trigger: 'before_task', order: 2 },
+  category: 'context',
   handler: (args, projectRoot) => {
     const result = buildFlags(args, issueSchema);
     if (!result.ok) return result.error;

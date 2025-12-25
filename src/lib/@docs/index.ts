@@ -13,7 +13,18 @@ export {
   type SyncResult,
   syncClaudeMd,
 } from './inject';
-
+export {
+  type CreateSubDocResult,
+  createMissingSubDocs,
+  createSubDoc,
+  type DiscoveredPackage,
+  discoverPackages,
+  getAvailablePackages,
+  getMissingSubDocs,
+  SUB_DOC_CANDIDATES,
+  type SubDocCandidate,
+  type SubDocType,
+} from './subdocs';
 export {
   DOCS_VERSION,
   generateKrolikDocs,

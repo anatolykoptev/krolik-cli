@@ -148,3 +148,14 @@ export {
   UTIL_FILE_PATTERNS,
   UTIL_FILE_PATTERNS_REGEX,
 } from './file-patterns';
+
+// ============================================================================
+// IGNORE PATTERNS
+// ============================================================================
+
+export {
+  ALWAYS_IGNORE_PATTERNS,
+  DEFAULT_IGNORE_PATTERNS,
+  getIgnorePatterns,
+  TEST_IGNORE_PATTERNS,
+} from './ignore';

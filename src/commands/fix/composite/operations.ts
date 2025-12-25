@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Glob } from 'glob';
 import { SyntaxKind } from 'ts-morph';
+import { astPool } from '@/lib/@ast';
 import { escapeRegex } from '../../../lib/@sanitize/regex';
 import type { FixOperation } from '../types';
 import type {
@@ -120,7 +121,6 @@ function createRenameOperations(file: string, from: string, to: string): FixOper
 
   try {
     const content = fs.readFileSync(file, 'utf-8');
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, file);
 
     try {
@@ -473,7 +473,6 @@ function extractItems(
   exportStatement: string;
 } {
   const content = fs.readFileSync(sourceFile, 'utf-8');
-  const { astPool } = require('../core/ast-pool');
   const [source, cleanup] = astPool.createSourceFile(content, sourceFile);
 
   try {

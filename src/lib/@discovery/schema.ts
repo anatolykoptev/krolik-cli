@@ -10,6 +10,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { detectMonorepo } from './project';
 
 // ============================================================================
 // CONSTANTS
@@ -186,6 +187,148 @@ export function findZodSchemas(dir: string): string[] {
 
   walk(dir);
   return files;
+}
+
+// ============================================================================
+// SUB-DOCS DISCOVERY
+// ============================================================================
+
+export interface SubDocInfo {
+  label: string;
+  path: string;
+}
+
+/** Type labels for package types */
+const TYPE_LABELS: Record<string, string> = {
+  ui: 'UI Components',
+  api: 'API/Backend',
+  db: 'Database',
+  shared: 'Shared Utilities',
+  mobile: 'Mobile App',
+  web: 'Web App',
+};
+
+/** Dependencies that indicate package type */
+const DEP_INDICATORS: Record<string, string[]> = {
+  ui: ['@radix-ui', 'shadcn', '@headlessui', 'react-aria', 'chakra-ui'],
+  api: ['@trpc/server', 'express', 'fastify', 'hono', 'koa', 'graphql'],
+  db: ['prisma', '@prisma/client', 'drizzle-orm', 'typeorm', 'sequelize', 'mongoose'],
+  shared: ['zod', 'yup', 'superstruct'],
+  mobile: ['react-native', 'expo', '@expo', 'nativewind'],
+  web: ['next', 'nuxt', 'remix', 'gatsby', 'astro'],
+};
+
+/** Name patterns for package types */
+const NAME_PATTERNS: Record<string, RegExp[]> = {
+  ui: [/\/ui$/, /[-_]ui$/, /^ui$/],
+  api: [/\/api$/, /[-_]api$/, /^api$/, /\/server$/],
+  db: [/\/db$/, /[-_]db$/, /^db$/, /\/database$/],
+  shared: [/\/shared$/, /[-_]shared$/, /^shared$/, /\/common$/],
+  mobile: [/\/mobile$/, /[-_]mobile$/, /^mobile$/],
+  web: [/\/web$/, /[-_]web$/, /^web$/, /\/frontend$/],
+};
+
+/**
+ * Detect package type from name and dependencies
+ * Priority: name patterns for apps/* > dependencies > name patterns
+ */
+function detectPackageType(name: string, pkgPath: string): string {
+  const nameLower = name.toLowerCase();
+  const dirName = path.basename(pkgPath).toLowerCase();
+  const isAppsDir = pkgPath.includes('/apps/') || pkgPath.startsWith('apps/');
+
+  // For apps/* directories, check name patterns first (web/mobile priority)
+  if (isAppsDir) {
+    for (const type of ['web', 'mobile'] as const) {
+      for (const pattern of NAME_PATTERNS[type]) {
+        if (pattern.test(nameLower) || pattern.test(dirName)) {
+          return type;
+        }
+      }
+    }
+  }
+
+  // Try to read package.json for dependencies
+  const pkgJsonPath = path.join(pkgPath, 'package.json');
+  if (fs.existsSync(pkgJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies };
+      const depNames = Object.keys(allDeps);
+
+      // For apps, prioritize web/mobile deps
+      if (isAppsDir) {
+        for (const type of ['web', 'mobile'] as const) {
+          for (const indicator of DEP_INDICATORS[type]) {
+            if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
+              return type;
+            }
+          }
+        }
+      }
+
+      // Check all dependencies
+      for (const [type, indicators] of Object.entries(DEP_INDICATORS)) {
+        for (const indicator of indicators) {
+          if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
+            return type;
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Check name patterns
+  for (const [type, patterns] of Object.entries(NAME_PATTERNS)) {
+    for (const pattern of patterns) {
+      if (pattern.test(nameLower) || pattern.test(dirName)) {
+        return type;
+      }
+    }
+  }
+
+  return 'generic';
+}
+
+/**
+ * Find sub-documentation files in project (dynamically discovered)
+ *
+ * @param projectRoot - Project root path
+ * @returns Array of found sub-docs with labels and relative paths
+ */
+export function findSubDocs(projectRoot: string): SubDocInfo[] {
+  const found: SubDocInfo[] = [];
+  const monorepo = detectMonorepo(projectRoot);
+
+  if (!monorepo) {
+    // Single project - check root CLAUDE.md
+    return found;
+  }
+
+  // Scan all packages in monorepo
+  for (const pkgDir of monorepo.packages) {
+    const claudeMdPath = path.join(pkgDir, 'CLAUDE.md');
+    const schemaMdPath = path.join(pkgDir, 'prisma', 'SCHEMA.md');
+
+    // Check for CLAUDE.md
+    if (fs.existsSync(claudeMdPath)) {
+      const relPath = path.relative(projectRoot, claudeMdPath);
+      const pkgName = path.basename(pkgDir);
+      const type = detectPackageType(pkgName, pkgDir);
+      const label = TYPE_LABELS[type] || pkgName;
+
+      found.push({ label, path: relPath });
+    }
+    // Check for SCHEMA.md in prisma folder (special case for db packages)
+    else if (fs.existsSync(schemaMdPath)) {
+      const relPath = path.relative(projectRoot, schemaMdPath);
+      found.push({ label: 'Database', path: relPath });
+    }
+  }
+
+  return found;
 }
 
 // ============================================================================

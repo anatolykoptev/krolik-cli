@@ -33,12 +33,7 @@ export const ANALYZER_SKIP_PATTERNS = [
 /**
  * Additional patterns to skip for hardcoded value detection only
  */
-export const HARDCODED_SKIP_PATTERNS = [
-  'tailwind',
-  '.css',
-  '.scss',
-  '.stories.',
-] as const;
+export const HARDCODED_SKIP_PATTERNS = ['tailwind', '.css', '.scss', '.stories.'] as const;
 
 /**
  * Additional patterns to skip for lint rules only

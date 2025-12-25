@@ -3,16 +3,30 @@
  * @description Type definitions for context module
  */
 
+import type { Memory } from '../../lib/@memory';
 import type { ContextResult, KrolikConfig, OutputFormat } from '../../types';
 import type { RoutesOutput } from '../routes/output';
 import type { SchemaOutput } from '../schema/output';
+import type { ArchitecturePatterns } from './helpers';
 import type {
   ComponentInfo,
+  DbRelations,
+  EnvVarsReport,
   ExtractedType,
+  ImportGraph,
   ImportRelation,
+  RouterContract,
   TestInfo,
   ZodSchemaInfo,
 } from './parsers';
+
+/**
+ * Context generation mode
+ * - quick: architecture, git, tree, schema, routes only
+ * - deep: imports, types, env, contracts only (complements quick)
+ * - full: all sections (quick + deep)
+ */
+export type ContextMode = 'quick' | 'deep' | 'full';
 
 /**
  * Context command options
@@ -23,8 +37,14 @@ export interface ContextOptions {
   file?: string;
   format?: OutputFormat;
   verbose?: boolean;
+  /** Quick mode: architecture, git, tree, schema, routes only */
+  quick?: boolean;
+  /** Deep mode: imports, types, env, contracts only (complements --quick) */
+  deep?: boolean;
   /** Include quality issues from audit */
   withAudit?: boolean;
+  /** Include architecture patterns for AI agents (default: true) */
+  architecture?: boolean;
 }
 
 /**
@@ -80,9 +100,32 @@ export interface ContextQualitySummary {
 }
 
 /**
+ * Library documentation for context
+ * Contains auto-fetched docs from Context7
+ */
+export interface LibraryDocsEntry {
+  /** Library name (e.g., "next.js", "prisma") */
+  libraryName: string;
+  /** Context7 library ID */
+  libraryId: string;
+  /** Status of the library (cached, fetched, unavailable) */
+  status: 'cached' | 'fetched' | 'unavailable';
+  /** Relevant documentation sections */
+  sections: Array<{
+    title: string;
+    content: string;
+    codeSnippets: string[];
+  }>;
+}
+
+/**
  * Extended context data for AI output
  */
 export interface AiContextData {
+  /** Context generation mode (quick/deep/full) */
+  mode: ContextMode;
+  /** ISO timestamp when context was generated */
+  generatedAt: string;
   context: ContextResult;
   config?: KrolikConfig;
   schema?: SchemaOutput;
@@ -100,7 +143,21 @@ export interface AiContextData {
   // TypeScript types and dependencies
   types?: ExtractedType[];
   imports?: ImportRelation[];
+  // Import graph with circular dependency detection
+  importGraph?: ImportGraph;
+  // Database relations from Prisma schema
+  dbRelations?: DbRelations;
+  // tRPC API contracts with input/output types
+  apiContracts?: RouterContract[];
+  // Environment variables analysis
+  envVars?: EnvVarsReport;
   // Quality issues (from --with-audit)
   qualityIssues?: ContextQualityIssue[];
   qualitySummary?: ContextQualitySummary;
+  // Memory from previous sessions
+  memories?: Memory[];
+  // Architecture patterns (from --architecture)
+  architecture?: ArchitecturePatterns;
+  // Library documentation from Context7 (auto-fetched)
+  libraryDocs?: LibraryDocsEntry[];
 }

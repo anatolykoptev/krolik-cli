@@ -13,7 +13,7 @@ export const PROJECT_PROPERTY: Record<string, SchemaProperty> = {
   project: {
     type: 'string',
     description:
-      'Project folder name to analyze (e.g., "piternow-wt-fix", "krolik-cli"). If not specified, auto-detects or returns list of available projects.',
+      'Project folder name to analyze (e.g., "my-app", "my-project"). If not specified, auto-detects or returns list of available projects.',
   },
 };
 

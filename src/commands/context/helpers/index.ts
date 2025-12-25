@@ -3,6 +3,10 @@
  * @description File discovery and directory helpers for context generation
  */
 
+export type { ArchitecturePatterns, DetectedPattern } from './architecture';
+// Re-export architecture patterns
+export { collectArchitecturePatterns } from './architecture';
+
 // Re-export discovery
 export { discoverFiles } from './discovery';
 // Re-export file utilities

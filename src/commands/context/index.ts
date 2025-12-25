@@ -13,12 +13,21 @@ import {
   getStatus,
   isGitRepo,
 } from '../../lib';
+import {
+  detectLibraries,
+  fetchAndCacheDocs,
+  getSuggestions,
+  hasContext7ApiKey,
+  searchDocs,
+} from '../../lib/@docs-cache';
+import { type Memory, search as searchMemory } from '../../lib/@memory';
 import type { CommandContext, ContextResult, KrolikConfig } from '../../types';
 import { analyzeRoutes } from '../routes';
 import { analyzeSchema } from '../schema';
 import { detectDomains, findRelatedFiles, generateChecklist, getApproaches } from './domains';
 import { formatAiPrompt, formatJson, formatMarkdown, printContext } from './formatters';
 import {
+  collectArchitecturePatterns,
   DOMAIN_FILE_PATTERNS,
   discoverFiles,
   findRoutersDir,
@@ -27,15 +36,26 @@ import {
 } from './helpers';
 import {
   buildImportGraph,
+  buildImportGraphSwc,
   generateContextHints,
+  parseApiContracts,
   parseComponents,
+  parseDbRelations,
+  parseEnvVars,
   parseTestFiles,
   parseTypesInDir,
   parseZodSchemas,
 } from './parsers';
-import type { AiContextData, ContextOptions, GitContextInfo } from './types';
+import type {
+  AiContextData,
+  ContextMode,
+  ContextOptions,
+  GitContextInfo,
+  LibraryDocsEntry,
+} from './types';
 
 const MAX_COMMITS = 5;
+const MAX_MEMORIES = 10;
 
 /**
  * Generate task context
@@ -118,11 +138,26 @@ export async function runContext(ctx: CommandContext & { options: ContextOptions
 
   // Default: AI-ready structured output
   const aiData = await buildAiContextData(result, config, options);
-  console.log(formatAiPrompt(aiData));
+  const xmlOutput = formatAiPrompt(aiData);
+
+  // Save to .krolik/CONTEXT.xml for AI reference
+  saveContext(projectRoot, xmlOutput);
+
+  console.log(xmlOutput);
 }
 
 /**
  * Build AI context data with all enhanced sections
+ *
+ * Modes:
+ * - Quick (--quick): architecture, git, tree, schema, routes only
+ * - Deep (--deep): imports, types, env, contracts only (complements --quick)
+ * - Full (default): all sections
+ *
+ * Usage:
+ *   krolik context --quick   # Fast overview
+ *   krolik context --deep    # Heavy analysis only
+ *   krolik context           # Everything (quick + deep)
  */
 async function buildAiContextData(
   result: ContextResult,
@@ -131,32 +166,67 @@ async function buildAiContextData(
 ): Promise<AiContextData> {
   // projectRoot is guaranteed to exist at this point
   const projectRoot = config.projectRoot ?? process.cwd();
+  const isQuickMode = options.quick === true;
+  const isDeepMode = options.deep === true;
+
+  // Determine context mode
+  const mode: ContextMode = isQuickMode ? 'quick' : isDeepMode ? 'deep' : 'full';
 
   const aiData: AiContextData = {
+    mode,
+    generatedAt: new Date().toISOString(),
     context: result,
     config,
     checklist: generateChecklist(result.domains),
   };
 
-  // Schema analysis
-  const schemaDir = findSchemaDir(projectRoot);
-  if (schemaDir) {
-    try {
-      aiData.schema = analyzeSchema(schemaDir);
-    } catch {
-      // Schema analysis failed, continue without
+  // =====================================================
+  // QUICK SECTIONS (included in quick and full, NOT in deep)
+  // =====================================================
+  if (!isDeepMode) {
+    // Schema analysis
+    const schemaDir = findSchemaDir(projectRoot);
+    if (schemaDir) {
+      try {
+        aiData.schema = analyzeSchema(schemaDir);
+      } catch {
+        // Schema analysis failed, continue without
+      }
+    }
+
+    // Routes analysis
+    const routersDir = findRoutersDir(projectRoot);
+    if (routersDir) {
+      try {
+        aiData.routes = analyzeRoutes(routersDir);
+      } catch {
+        // Routes analysis failed, continue without
+      }
+    }
+
+    // Git information
+    if (isGitRepo(projectRoot)) {
+      aiData.git = buildGitInfo(projectRoot);
+    }
+
+    // Project tree
+    aiData.tree = generateProjectTree(projectRoot);
+
+    // Architecture patterns (default: ON, unless --no-architecture)
+    if (options.architecture !== false) {
+      aiData.architecture = collectArchitecturePatterns(projectRoot);
     }
   }
 
-  // Routes analysis
-  const routersDir = findRoutersDir(projectRoot);
-  if (routersDir) {
-    try {
-      aiData.routes = analyzeRoutes(routersDir);
-    } catch {
-      // Routes analysis failed, continue without
-    }
+  // Quick mode: stop here with minimal context
+  if (isQuickMode) {
+    aiData.hints = generateContextHints(result.domains);
+    return aiData;
   }
+
+  // =====================================================
+  // DEEP SECTIONS (included in deep and full, NOT in quick)
+  // =====================================================
 
   // Discover related files
   aiData.files = discoverFiles(projectRoot, result.domains);
@@ -179,21 +249,31 @@ async function buildAiContextData(
   // Parse TypeScript types and imports
   parseTypesAndImports(projectRoot, result.domains, aiData);
 
+  // Build advanced import graph with circular dependency detection
+  buildAdvancedImportGraph(projectRoot, result.domains, aiData);
+
+  // Parse database relations from Prisma schema
+  parseDbRelationsFromSchema(projectRoot, aiData);
+
+  // Parse API contracts from tRPC routers
+  parseApiContractsFromRouters(projectRoot, result.domains, aiData);
+
+  // Parse environment variables
+  parseEnvVarsFromProject(projectRoot, aiData);
+
   // Generate hints
   aiData.hints = generateContextHints(result.domains);
-
-  // Git information
-  if (isGitRepo(projectRoot)) {
-    aiData.git = buildGitInfo(projectRoot);
-  }
-
-  // Project tree
-  aiData.tree = generateProjectTree(projectRoot);
 
   // Quality issues (--with-audit)
   if (options.withAudit) {
     await addQualityIssues(projectRoot, result.relatedFiles, aiData);
   }
+
+  // Load relevant memories from previous sessions
+  aiData.memories = loadRelevantMemory(projectRoot, result.domains);
+
+  // Load library documentation from Context7 (auto-fetch if needed)
+  aiData.libraryDocs = await loadLibraryDocs(projectRoot, result.domains);
 
   return aiData;
 }
@@ -322,6 +402,49 @@ function parseTypesAndImports(projectRoot: string, domains: string[], aiData: Ai
 }
 
 /**
+ * Load relevant memories for the current context
+ */
+function loadRelevantMemory(projectRoot: string, domains: string[]): Memory[] {
+  const projectName = path.basename(projectRoot);
+
+  try {
+    // First try to find memories matching features/domains
+    if (domains.length > 0) {
+      const domainResults = searchMemory({
+        project: projectName,
+        features: domains.map((d) => d.toLowerCase()),
+        limit: MAX_MEMORIES,
+      });
+
+      if (domainResults.length > 0) {
+        return domainResults.map((r) => r.memory);
+      }
+    }
+
+    // Fallback: get recent high-importance memories
+    const recentResults = searchMemory({
+      project: projectName,
+      importance: 'high',
+      limit: MAX_MEMORIES,
+    });
+
+    if (recentResults.length > 0) {
+      return recentResults.map((r) => r.memory);
+    }
+
+    // Final fallback: any recent memories
+    const anyResults = searchMemory({
+      project: projectName,
+      limit: MAX_MEMORIES,
+    });
+
+    return anyResults.map((r) => r.memory);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Build git context info
  */
 function buildGitInfo(projectRoot: string): GitContextInfo {
@@ -398,6 +521,226 @@ async function addQualityIssues(
     };
   } catch {
     // Audit failed, continue without quality issues
+  }
+}
+
+/**
+ * Build advanced import graph with circular dependency detection
+ */
+function buildAdvancedImportGraph(
+  projectRoot: string,
+  _domains: string[],
+  aiData: AiContextData,
+): void {
+  // Directories to analyze for import graph
+  const importDirs = [
+    'packages/api/src',
+    'packages/shared/src',
+    'apps/web/src',
+    'apps/web/components',
+    'src',
+  ];
+
+  for (const dir of importDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      try {
+        // Use empty patterns to include all files
+        const graph = buildImportGraphSwc(fullPath, []);
+
+        if (graph.nodes.length > 0) {
+          aiData.importGraph = graph;
+          break; // Use first found graph
+        }
+      } catch {
+        // Continue to next directory
+      }
+    }
+  }
+}
+
+/**
+ * Parse database relations from Prisma schema
+ */
+function parseDbRelationsFromSchema(projectRoot: string, aiData: AiContextData): void {
+  // parseDbRelations expects a directory containing schema.prisma and/or models/
+  const schemaDirs = ['packages/db/prisma', 'prisma'];
+
+  for (const schemaDir of schemaDirs) {
+    const fullPath = path.join(projectRoot, schemaDir);
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+      try {
+        const relations = parseDbRelations(fullPath);
+        if (relations.models.length > 0 || relations.relations.length > 0) {
+          aiData.dbRelations = relations;
+          break;
+        }
+      } catch {
+        // Continue to next path
+      }
+    }
+  }
+}
+
+/**
+ * Parse API contracts from tRPC routers
+ */
+function parseApiContractsFromRouters(
+  projectRoot: string,
+  domains: string[],
+  aiData: AiContextData,
+): void {
+  // Filter patterns for domain-specific routers
+  const patterns = domains.map((d) => d.toLowerCase());
+
+  const routerDirs = [
+    'packages/api/src/routers',
+    'packages/api/src/router',
+    'src/server/routers',
+    'src/routers',
+  ];
+
+  for (const dir of routerDirs) {
+    const fullPath = path.join(projectRoot, dir);
+    if (fs.existsSync(fullPath)) {
+      try {
+        const contracts = parseApiContracts(fullPath, patterns);
+        if (contracts.length > 0) {
+          aiData.apiContracts = [...(aiData.apiContracts || []), ...contracts];
+        }
+      } catch {
+        // Continue to next directory
+      }
+    }
+  }
+}
+
+/**
+ * Parse environment variables from project
+ */
+function parseEnvVarsFromProject(projectRoot: string, aiData: AiContextData): void {
+  try {
+    // parseEnvVars scans projectRoot for both:
+    // - .env files (to get definitions)
+    // - TypeScript files (to find process.env usages)
+    const envReport = parseEnvVars(projectRoot);
+    if (
+      envReport.usages.length > 0 ||
+      envReport.definitions.length > 0 ||
+      envReport.missing.length > 0
+    ) {
+      aiData.envVars = envReport;
+    }
+  } catch {
+    // Continue without env vars
+  }
+}
+
+/**
+ * Load library documentation from Context7 cache (with auto-fetch)
+ * Auto-fetches missing/expired libraries if CONTEXT7_API_KEY is set
+ */
+async function loadLibraryDocs(
+  projectRoot: string,
+  domains: string[],
+): Promise<LibraryDocsEntry[]> {
+  const results: LibraryDocsEntry[] = [];
+
+  try {
+    // Detect libraries from package.json
+    const detected = detectLibraries(projectRoot);
+    if (detected.length === 0) return [];
+
+    const suggestions = getSuggestions(detected);
+    const apiAvailable = hasContext7ApiKey();
+
+    // Auto-fetch missing libraries if API key is available
+    if (apiAvailable && suggestions.toFetch.length > 0) {
+      for (const libName of suggestions.toFetch.slice(0, 3)) {
+        // Limit to 3 libs
+        try {
+          await fetchAndCacheDocs(libName, { maxPages: 2 }); // Fetch 2 pages
+        } catch {
+          // Fetch failed, continue with others
+        }
+      }
+    }
+
+    // Auto-refresh expired libraries (limit to 2)
+    if (apiAvailable && suggestions.toRefresh.length > 0) {
+      for (const libName of suggestions.toRefresh.slice(0, 2)) {
+        try {
+          await fetchAndCacheDocs(libName, { force: true, maxPages: 2 });
+        } catch {
+          // Refresh failed, will use expired cache
+        }
+      }
+    }
+
+    // Build search query from domains
+    const searchQuery = domains
+      .filter((d) => !['general', 'development', 'context'].includes(d.toLowerCase()))
+      .join(' ')
+      .trim();
+
+    // Search for relevant docs for each cached library
+    for (const lib of detected) {
+      if (!lib.context7Id) continue;
+
+      // Search cache for relevant sections
+      const searchResults =
+        searchQuery.length > 0
+          ? searchDocs({ query: searchQuery, library: lib.name, limit: 3 })
+          : [];
+
+      if (searchResults.length === 0 && !lib.isCached) {
+        results.push({
+          libraryName: lib.name,
+          libraryId: lib.context7Id,
+          status: 'unavailable',
+          sections: [],
+        });
+        continue;
+      }
+
+      if (searchResults.length > 0) {
+        results.push({
+          libraryName: lib.name,
+          libraryId: lib.context7Id,
+          status: lib.isExpired ? 'cached' : 'cached',
+          sections: searchResults.map((r) => ({
+            title: r.section.title,
+            content: r.section.content.slice(0, 500), // Truncate for context
+            codeSnippets: r.section.codeSnippets.slice(0, 2), // Max 2 snippets
+          })),
+        });
+      }
+    }
+  } catch {
+    // Docs cache error, return empty
+    return [];
+  }
+
+  return results;
+}
+
+/**
+ * Save context to .krolik/CONTEXT.xml for AI reference
+ * Always saves the latest context, overwriting previous
+ */
+function saveContext(projectRoot: string, xmlContent: string): void {
+  try {
+    const krolikDir = path.join(projectRoot, '.krolik');
+
+    // Create .krolik directory if it doesn't exist
+    if (!fs.existsSync(krolikDir)) {
+      fs.mkdirSync(krolikDir, { recursive: true });
+    }
+
+    const contextPath = path.join(krolikDir, 'CONTEXT.xml');
+    fs.writeFileSync(contextPath, xmlContent, 'utf-8');
+  } catch {
+    // Silently fail if we can't save (e.g., permission issues)
   }
 }
 

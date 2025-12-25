@@ -116,7 +116,7 @@ function fixUrlIssue(issue: QualityIssue, content: string): FixOperation | null 
     line: 1,
     endLine: issue.line,
     oldCode: lines.slice(0, issue.line).join('\n'),
-    newCode: constDeclaration + lines.slice(0, issue.line - 1).join('\n') + '\n' + newLine,
+    newCode: `${constDeclaration + lines.slice(0, issue.line - 1).join('\n')}\n${newLine}`,
   };
 }
 

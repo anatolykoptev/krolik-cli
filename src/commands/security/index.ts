@@ -40,5 +40,5 @@ export async function runSecurity(
   // text format
   logger.section('Security Analysis');
   logger.info('Security command - implementation pending');
-  // TODO: Migrate from piternow-wt-fix/scripts/ai/security.ts
+  // TODO: Implement security analysis logic
 }

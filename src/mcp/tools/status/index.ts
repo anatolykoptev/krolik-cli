@@ -25,6 +25,9 @@ export const statusTool: MCPToolDefinition = {
       },
     },
   },
+  template: { when: 'Session start', params: '`fast: true`' },
+  workflow: { trigger: 'session_start', order: 1 },
+  category: 'start',
   handler: (args, workspaceRoot) => {
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
       const flags = args.fast ? '--fast' : '';

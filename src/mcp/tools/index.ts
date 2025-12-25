@@ -19,8 +19,10 @@
 import './agent';
 import './audit';
 import './context';
+import './docs';
 import './fix';
 import './issue';
+import './memory';
 import './refactor';
 import './review';
 import './routes';

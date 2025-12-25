@@ -10,6 +10,7 @@
  */
 
 import { type Block, type IfStatement, Node, SyntaxKind } from 'ts-morph';
+import { astPool } from '@/lib/@ast';
 import type { ReduceNestingResult } from './types';
 
 const MIN_STATEMENTS_TO_TRANSFORM = 3;
@@ -34,7 +35,6 @@ const OPERATOR_INVERSIONS: Record<string, string> = {
  */
 function invertCondition(condition: string): string {
   try {
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(`const x = ${condition};`, 'temp.ts');
 
     try {
@@ -234,7 +234,6 @@ export function reduceNesting(
   targetLine?: number,
 ): ReduceNestingResult {
   try {
-    const { astPool } = require('../core/ast-pool');
     const [sourceFile, cleanup] = astPool.createSourceFile(content, filePath);
 
     try {

@@ -31,7 +31,9 @@ export type QualityCategory =
   | 'lint' // Universal lint rules (no-console, no-debugger, etc.)
   | 'composite' // Composite transform operations
   | 'agent' // AI agent operations
-  | 'refine'; // @namespace structure violations
+  | 'refine' // @namespace structure violations
+  | 'security' // Command injection, path traversal, SQL injection
+  | 'modernization'; // Legacy patterns (require, sync fs)
 
 /**
  * A single quality issue found in a file

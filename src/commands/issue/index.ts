@@ -29,5 +29,5 @@ export async function runIssue(context: CommandContext & { options: IssueOptions
   // text format
   logger.section('Issue Parser');
   logger.info('Issue command - implementation pending');
-  // TODO: Migrate from piternow-wt-fix/scripts/ai/issue-parser.ts
+  // TODO: Implement issue parsing logic
 }

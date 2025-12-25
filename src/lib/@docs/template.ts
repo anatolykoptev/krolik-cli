@@ -2,67 +2,74 @@
  * @module lib/@docs/template
  * @description Krolik documentation template for CLAUDE.md injection
  *
- * This template is injected into project's CLAUDE.md file to provide
- * AI assistants with up-to-date krolik CLI documentation.
+ * MINIMAL: Only includes info NOT available through MCP tool definitions:
+ * - Quick Start workflow (order of operations)
+ * - Context cache location
+ * - Sub-docs paths
+ *
+ * Tools descriptions, params, "when to use" are available via MCP toolset.
  */
 
-/** Version of the documentation template */
-export const DOCS_VERSION = '1.2.0';
+import { findSubDocs, type SubDocInfo } from '@/lib/@discovery';
+import { getAllTools } from '@/mcp/tools';
+import { KROLIK_VERSION, TEMPLATE_VERSION } from '@/version';
+
+// Re-export for backwards compatibility
+export { KROLIK_VERSION, TEMPLATE_VERSION as DOCS_VERSION } from '@/version';
 
 /** Start/end markers for krolik section in CLAUDE.md */
 export const KROLIK_SECTION_START = '<!-- krolik:start -->';
 export const KROLIK_SECTION_END = '<!-- krolik:end -->';
 
 /**
- * Generate compact krolik documentation for CLAUDE.md
- * Optimized for minimal token usage while preserving essential info
+ * Generate Quick Start from session_start workflow + context
  */
-export function generateKrolikDocs(): string {
+function formatQuickStart(): string {
+  const tools = getAllTools();
+  const sessionStart = tools
+    .filter((t) => t.workflow?.trigger === 'session_start')
+    .sort((a, b) => (a.workflow?.order ?? 99) - (b.workflow?.order ?? 99));
+
+  const contextTool = tools.find((t) => t.name === 'krolik_context');
+
+  if (sessionStart.length === 0) return '';
+
+  const steps = sessionStart.map((t) => t.name);
+  if (contextTool) steps.push(contextTool.name);
+
+  return steps.join(' → ');
+}
+
+/**
+ * Format Sub-docs as compact list
+ */
+function formatSubDocs(subDocs: SubDocInfo[]): string {
+  if (subDocs.length === 0) return '';
+
+  const items = subDocs.map((doc) => `- ${doc.label}: \`${doc.path}\``).join('\n');
+  return `**Sub-docs:**
+${items}`;
+}
+
+/**
+ * Generate minimal krolik documentation for CLAUDE.md
+ * Only includes info NOT available through MCP
+ */
+export function generateKrolikDocs(projectRoot?: string): string {
+  const subDocs = projectRoot ? findSubDocs(projectRoot) : [];
+  const quickStart = formatQuickStart();
+  const subDocsSection = formatSubDocs(subDocs);
+
   return `${KROLIK_SECTION_START}
-<!-- version: ${DOCS_VERSION} | auto-updated by krolik CLI -->
+<!-- krolik: ${KROLIK_VERSION} | template: ${TEMPLATE_VERSION} -->
 
-## 🐰 Krolik CLI
+## 🐰 Krolik
 
-> AI-toolkit for development. Auto-updated — do not edit manually.
+**Start:** ${quickStart}
 
-### Core Commands (use these!)
+**Context:** \`.krolik/CONTEXT.xml\` (missing? run \`krolik_context -q\`)
 
-| Command | Use | Key Flags |
-|---------|-----|-----------|
-| **context** | Get task context | \`--feature <name>\`, \`--issue <n>\`, \`--full\` |
-| **refactor** | AST analysis, duplicates | \`--dry-run\`, \`--apply\`, \`--types-only\` |
-| **audit** | Code quality → AI-REPORT.md | \`--path <dir>\` |
-| **fix** | Auto-fix issues | \`--dry-run\`, \`--quick\`, \`--deep\`, \`--full\` |
-
-### Workflow
-
-\`\`\`bash
-krolik context --feature booking  # 1. Understand task
-krolik refactor --dry-run         # 2. Find duplicates, structure issues
-krolik audit                      # 3. Quality analysis → .krolik/AI-REPORT.md
-krolik fix --dry-run              # 4. Preview fixes
-krolik fix --yes                  # 5. Apply fixes
-\`\`\`
-
-### MCP Tools
-
-| Tool | Use |
-|------|-----|
-| \`krolik_context\` | Before task — feature/issue context |
-| \`krolik_audit\` | Code quality analysis |
-| \`krolik_fix\` | Auto-fix issues |
-| \`krolik_status\` | Project state — git, typecheck, TODOs |
-| \`krolik_schema\` | DB work — Prisma models |
-| \`krolik_routes\` | API work — tRPC routers |
-| \`krolik_review\` | Code review changes |
-
-### Fix Presets
-
-\`\`\`bash
-krolik fix --quick  # trivial (console, debugger) + biome
-krolik fix --deep   # safe fixes + biome + typecheck
-krolik fix --full   # all fixes + backup
-\`\`\`
+${subDocsSection}
 
 ${KROLIK_SECTION_END}`;
 }
@@ -70,14 +77,14 @@ ${KROLIK_SECTION_END}`;
 /**
  * Minimal CLAUDE.md template for projects without one
  */
-export function generateMinimalClaudeMd(projectName: string): string {
+export function generateMinimalClaudeMd(projectName: string, projectRoot?: string): string {
   return `# CLAUDE.md — ${projectName}
 
 > AI instructions for this project.
 
 ---
 
-${generateKrolikDocs()}
+${generateKrolikDocs(projectRoot)}
 
 ---
 
