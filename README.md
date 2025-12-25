@@ -1,75 +1,160 @@
-# KROLIK CLI
+<div align="center">
+
+```
+     (\(\
+     (-.-)    KROLIK
+     o_(")(")
+```
+
+### Fast AI-Assisted Development Toolkit for TypeScript
 
 [![CI](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml)
-[![npm version](https://badge.fury.io/js/%40anatolykoptev%2Fkrolik-cli.svg)](https://badge.fury.io/js/%40anatolykoptev%2Fkrolik-cli)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/@anatolykoptev/krolik-cli.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@anatolykoptev/krolik-cli)
+[![npm downloads](https://img.shields.io/npm/dm/@anatolykoptev/krolik-cli.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@anatolykoptev/krolik-cli)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://opensource.org/licenses/MIT)
 
-```
-   (\(\
-   (-.-)
-   o_(")(")
-```
+[Installation](#installation) · [Quick Start](#quick-start) · [Documentation](#commands) · [MCP Integration](#mcp-server)
 
-Fast AI-assisted development toolkit for TypeScript projects.
+</div>
+
+---
+
+**Krolik** is a CLI toolkit that supercharges AI-assisted development. It provides instant project context, automated code quality fixes, and seamless Claude Code integration — all optimized for speed.
+
+### Why Krolik?
+
+- **🚀 10x Faster Context** — Get complete project context in seconds, not minutes of manual exploration
+- **🔧 Auto-Fix Pipeline** — Biome + TypeScript + custom fixers in one command
+- **🧠 Persistent Memory** — SQLite-backed memory with FTS5 search across sessions
+- **📚 Docs at Your Fingertips** — Cached library documentation via Context7
+- **🤖 Multi-Agent Orchestration** — Run specialized AI agents for complex analysis
+- **🔌 Native MCP Support** — First-class Claude Code integration with 14 tools
+
+---
 
 ## Installation
 
-Published on [npm](https://www.npmjs.com/package/@anatolykoptev/krolik-cli) and [GitHub Packages](https://github.com/anatolykoptev/krolik-cli/packages).
+Available on [npm](https://www.npmjs.com/package/@anatolykoptev/krolik-cli) and [GitHub Packages](https://github.com/anatolykoptev/krolik-cli/packages).
 
 ```bash
-npm i -g @anatolykoptev/krolik-cli    # Global
-pnpm add -D @anatolykoptev/krolik-cli # Dev dependency
-npx @anatolykoptev/krolik-cli status  # No install
+# Global installation
+npm i -g @anatolykoptev/krolik-cli
+
+# Or run directly with npx
+npx @anatolykoptev/krolik-cli status
+```
+
+## Quick Start
+
+```bash
+# Get instant project diagnostics
+krolik status --fast
+
+# Generate AI context for a feature
+krolik context --feature auth
+
+# Find and fix code quality issues
+krolik fix --dry-run    # Preview
+krolik fix              # Apply
+
+# Review your changes before commit
+krolik review --staged
 ```
 
 ## Commands
 
+### Analysis & Diagnostics
+
 | Command | Description |
 |---------|-------------|
-| `status [--fast]` | Project diagnostics (git, typecheck, lint, TODOs) |
-| `audit [--path]` | Code quality audit → AI report |
-| `fix [--dry-run] [--category]` | Auto-fix issues (Biome + TS + custom) |
-| `context --feature/--issue` | AI context for tasks |
-| `refactor [--apply]` | Find duplicates, restructure modules |
-| `review [--staged] [--pr]` | Code review with AI hints |
-| `schema/routes [--save]` | Prisma/tRPC analysis |
-| `mem save/search/recent` | Persistent memory (SQLite + FTS5) |
-| `docs detect/fetch/search` | Library docs cache (Context7) |
-| `agent [--orchestrate]` | Run specialized AI agents |
-| `sync` | Update CLAUDE.md krolik block |
-| `init/issue/codegen/security/setup` | Other utilities |
+| `krolik status` | Project health: git, typecheck, lint, TODOs |
+| `krolik audit` | Deep code quality analysis → AI report |
+| `krolik schema` | Prisma schema documentation |
+| `krolik routes` | tRPC routes documentation |
 
-### Fix Categories
+### Code Quality
 
-```bash
-krolik fix --dry-run              # Preview
-krolik fix --category lint        # console, debugger
-krolik fix --category type-safety # any, @ts-ignore
-krolik fix --category complexity  # High complexity
-krolik fix --all                  # Include risky fixes
-```
+| Command | Description |
+|---------|-------------|
+| `krolik fix` | Auto-fix issues (Biome + TS + 15 custom fixers) |
+| `krolik fix --category lint` | Fix console.log, debugger, alert |
+| `krolik fix --category type-safety` | Fix `any`, `@ts-ignore`, loose equality |
+| `krolik refactor` | Find duplicates, restructure modules |
 
-## MCP Server (Claude Code)
+### AI Context
+
+| Command | Description |
+|---------|-------------|
+| `krolik context --feature <name>` | Full context for a feature |
+| `krolik context --issue <number>` | Context from GitHub issue |
+| `krolik mem save/search/recent` | Persistent memory across sessions |
+| `krolik docs fetch/search` | Library docs cache (Context7) |
+
+### Code Review & Agents
+
+| Command | Description |
+|---------|-------------|
+| `krolik review` | AI-assisted code review |
+| `krolik review --staged` | Review only staged changes |
+| `krolik agent --orchestrate` | Multi-agent task analysis |
+
+## MCP Server
+
+Krolik provides native [Model Context Protocol](https://modelcontextprotocol.io) support for Claude Code.
+
+### Setup
 
 ```bash
 claude mcp add krolik -- npx @anatolykoptev/krolik-cli mcp
 ```
 
-**Tools:** `krolik_status`, `krolik_audit`, `krolik_context`, `krolik_fix`, `krolik_refactor`, `krolik_review`, `krolik_schema`, `krolik_routes`, `krolik_issue`, `krolik_docs`, `krolik_mem_*`, `krolik_agent`
+### Available Tools
+
+| Tool | What it does |
+|------|--------------|
+| `krolik_status` | Instant project diagnostics |
+| `krolik_context` | AI-optimized context generation |
+| `krolik_fix` | Analyze and fix code issues |
+| `krolik_audit` | Deep quality analysis |
+| `krolik_refactor` | Duplicate detection |
+| `krolik_review` | Code review with suggestions |
+| `krolik_schema` | Prisma schema as structured data |
+| `krolik_routes` | tRPC routes as structured data |
+| `krolik_docs` | Search cached library docs |
+| `krolik_mem_*` | Persistent memory operations |
+| `krolik_agent` | Run specialized AI agents |
 
 ## Configuration
 
+Auto-detection works out of the box. For customization, create `krolik.config.ts`:
+
 ```typescript
-// krolik.config.ts
 import { defineConfig } from '@anatolykoptev/krolik-cli';
 
 export default defineConfig({
   name: 'my-project',
-  paths: { web: 'apps/web', api: 'packages/api', db: 'packages/db' },
-  features: { prisma: true, trpc: true, nextjs: true },
+  paths: {
+    web: 'apps/web',
+    api: 'packages/api',
+    db: 'packages/db',
+  },
+  features: {
+    prisma: true,
+    trpc: true,
+    nextjs: true,
+  },
 });
 ```
 
 ## Requirements
 
-Node.js >= 20 | [MIT License](LICENSE)
+- Node.js >= 20.0.0
+- TypeScript >= 5.0.0
+
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](CONTRIBUTING.md) before submitting a PR.
+
+## License
+
+[MIT](LICENSE) © Anatoly Koptev
