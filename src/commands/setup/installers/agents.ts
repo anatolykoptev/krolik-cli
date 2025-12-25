@@ -5,11 +5,11 @@
 
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { getAgentsVersion, updateAgentsRepo as updateAgentsRepoShared } from '../../../lib/@agents';
+import { isGitAvailable } from '../../../lib/@git';
 import { getPlugin } from '../core/config';
 import { AGENTS_DIR, AGENTS_PLUGINS_DIR } from '../core/paths';
 import type { InstallerOptions, InstallResult } from '../core/types';
-import { getAgentsVersion, isGitAvailable } from './utils';
 
 const AGENTS_REPO = 'https://github.com/wshobson/agents.git';
 
@@ -87,14 +87,10 @@ export async function installAgentsRepo(opts: InstallerOptions): Promise<Install
 
 /**
  * Update agents repository
+ * Wrapper around shared updateAgentsRepo with logging
  */
 export async function updateAgentsRepo(opts: InstallerOptions): Promise<InstallResult> {
   const { dryRun, logger } = opts;
-
-  if (!fs.existsSync(path.join(AGENTS_DIR, '.git'))) {
-    logger.info('  🤖 Agents not installed (run krolik setup --agents)');
-    return { success: false, error: 'Not installed' };
-  }
 
   logger.info('  🤖 Updating agents...');
 
@@ -103,41 +99,20 @@ export async function updateAgentsRepo(opts: InstallerOptions): Promise<InstallR
     return { success: true, message: 'Dry run' };
   }
 
-  try {
-    spawnSync('git', ['fetch', 'origin'], {
-      cwd: AGENTS_DIR,
-      stdio: 'pipe',
-      timeout: 30000,
-    });
+  const result = updateAgentsRepoShared();
 
-    const statusResult = spawnSync('git', ['status', '-uno'], {
-      cwd: AGENTS_DIR,
-      stdio: 'pipe',
-      encoding: 'utf8',
-    });
-
-    if (statusResult.stdout?.includes('behind')) {
-      const pullResult = spawnSync('git', ['pull', '--ff-only'], {
-        cwd: AGENTS_DIR,
-        stdio: 'pipe',
-        encoding: 'utf8',
-        timeout: 60000,
-      });
-
-      if (pullResult.status === 0) {
-        const version = getAgentsVersion();
-        logger.info(`     ✅ Updated to ${version?.version || 'latest'}`);
-        return { success: true, message: 'Updated' };
-      }
-
-      throw new Error(pullResult.stderr || 'Pull failed');
-    }
-
-    logger.info('     Already up to date');
-    return { success: true, message: 'Already up to date' };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`     ❌ Update failed: ${message}`);
-    return { success: false, error: message };
+  if (!result.success) {
+    const errorMsg = result.error || 'Unknown error';
+    logger.error(`     ❌ Update failed: ${errorMsg}`);
+    return { success: false, error: errorMsg };
   }
+
+  if (result.updated) {
+    const version = getAgentsVersion();
+    logger.info(`     ✅ Updated to ${version?.version || 'latest'}`);
+    return { success: true, message: 'Updated' };
+  }
+
+  logger.info('     Already up to date');
+  return { success: true, message: 'Already up to date' };
 }

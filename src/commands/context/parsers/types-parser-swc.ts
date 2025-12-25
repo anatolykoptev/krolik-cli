@@ -8,43 +8,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory } from '@/lib/@fs';
 import { getNodeSpan, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
-
-/**
- * Extracted TypeScript interface/type
- */
-export interface ExtractedType {
-  name: string;
-  kind: 'interface' | 'type';
-  file: string;
-  properties?: TypeProperty[];
-  extends?: string[];
-  description?: string;
-}
-
-/**
- * Property of an interface/type
- */
-export interface TypeProperty {
-  name: string;
-  type: string;
-  optional: boolean;
-  description?: string;
-}
-
-/**
- * Import relationship
- */
-export interface ImportRelation {
-  file: string;
-  imports: ImportItem[];
-}
-
-export interface ImportItem {
-  from: string;
-  names: string[];
-  isTypeOnly: boolean;
-}
+import type { ExtractedType, ImportItem, ImportRelation, TypeProperty } from './types';
 
 const MAX_TYPES_PER_FILE = 10;
 const MAX_PROPERTIES = 15;
@@ -306,7 +272,7 @@ function extractJsDocDescription(content: string, nodeStart: number): string | n
 
   // Match last JSDoc comment before the node
   // Pattern: /** ... */ with optional whitespace after
-  const jsdocMatch = beforeNode.match(/\/\*\*\s*\n\s*\*\s*([^\n]+)[^]*?\*\/\s*$/);
+  const jsdocMatch = beforeNode.match(/\/\*\*\s*\n\s*\*\s*([^\n]+)[\s\S]*?\*\/\s*$/);
 
   if (jsdocMatch?.[1]) {
     return jsdocMatch[1].trim();
@@ -376,39 +342,18 @@ function parseImportsSwc(filePath: string): ImportItem[] {
 export function parseTypesInDir(dir: string, patterns: string[]): ExtractedType[] {
   const results: ExtractedType[] = [];
 
-  if (!fs.existsSync(dir)) return results;
-
-  function scanDir(currentDir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      // Only .ts files (not .tsx for components)
-      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
-      if (entry.name.endsWith('.test.ts')) continue;
-
-      // Match patterns if provided
-      if (patterns.length > 0) {
-        const nameLower = entry.name.toLowerCase();
-        if (!patterns.some((p) => nameLower.includes(p.toLowerCase()))) continue;
-      }
-
+  scanDirectory(
+    dir,
+    (fullPath) => {
       results.push(...parseTypesFileSwc(fullPath));
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.ts'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(dir);
   return results;
 }
 
@@ -418,42 +363,21 @@ export function parseTypesInDir(dir: string, patterns: string[]): ExtractedType[
 export function buildImportGraph(dir: string, patterns: string[]): ImportRelation[] {
   const graph: ImportRelation[] = [];
 
-  if (!fs.existsSync(dir)) return graph;
-
-  function scanDir(currentDir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      if (!entry.isFile()) continue;
-      if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue;
-      if (entry.name.endsWith('.test.ts') || entry.name.endsWith('.test.tsx')) continue;
-
-      // Match patterns if provided
-      if (patterns.length > 0) {
-        const nameLower = entry.name.toLowerCase();
-        if (!patterns.some((p) => nameLower.includes(p.toLowerCase()))) continue;
-      }
-
+  scanDirectory(
+    dir,
+    (fullPath) => {
       const imports = parseImportsSwc(fullPath);
       if (imports.length > 0) {
         const relativePath = path.relative(dir, fullPath);
         graph.push({ file: relativePath, imports });
       }
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.ts', '.tsx'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(dir);
   return graph;
 }

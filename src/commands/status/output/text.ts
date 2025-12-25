@@ -3,6 +3,7 @@
  * @description Text format output for CLI
  */
 
+import { formatJson as formatJsonBase } from '@/lib/@formatters';
 import type { Logger, StatusResult } from '../../../types';
 import {
   buildStackSummary,
@@ -139,5 +140,5 @@ export function printStatus(status: StatusResult, logger: Logger, verbose = fals
  * Format status as JSON string
  */
 export function formatJson(status: StatusResult): string {
-  return JSON.stringify(status, null, 2);
+  return formatJsonBase(status);
 }

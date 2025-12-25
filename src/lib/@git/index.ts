@@ -28,3 +28,5 @@ export * from './github';
 export * from './local';
 // Remote git operations (external repositories)
 export * from './remote';
+// Shared type definitions
+export type { GitAheadBehind, GitCommit, GitStatus } from './types';

@@ -13,6 +13,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory } from '@/lib/@fs';
 
 /**
  * Field definition in Zod schema
@@ -77,40 +78,27 @@ export function parseApiContracts(routersDir: string, patterns: string[]): Route
     return contracts;
   }
 
-  function scanDir(dir: string, relativePath = ''): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
+  scanDirectory(
+    routersDir,
+    (fullPath) => {
+      const relativePath = path.relative(routersDir, fullPath);
 
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      const currentRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+      // Skip index and _app files
+      const fileName = path.basename(fullPath);
+      if (fileName === 'index.ts' || fileName === '_app.ts') return;
 
-      if (entry.isDirectory() && !entry.name.startsWith('.')) {
-        scanDir(fullPath, currentRelPath);
-        continue;
-      }
-
-      // Only process .ts files, skip tests and index files
-      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
-      if (entry.name.endsWith('.test.ts') || entry.name.endsWith('.spec.ts')) continue;
-      if (entry.name === 'index.ts' || entry.name === '_app.ts') continue;
-
-      // Filter by patterns if provided
-      if (patterns.length > 0 && !matchesPatterns(entry.name, patterns)) continue;
-
-      const contract = parseRouterFile(fullPath, currentRelPath);
+      const contract = parseRouterFile(fullPath, relativePath);
       if (contract) {
         // Always include routers, even if they have no procedures yet (might be parsing issue)
         contracts.push(contract);
       }
-    }
-  }
-
-  scanDir(routersDir);
+    },
+    {
+      patterns,
+      extensions: ['.ts'],
+      includeTests: false,
+    },
+  );
 
   // Sort by procedure count (most important routers first)
   contracts.sort((a, b) => b.procedures.length - a.procedures.length);
@@ -195,7 +183,7 @@ function parseProceduresFromBody(
   // Parse each procedure property by finding name: Procedure pattern
   // This avoids matching schema object properties
   const procNameRegex = /^\s*(\w+)\s*:\s*(\w+Procedure|\w+Router)/gm;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = procNameRegex.exec(routerBody)) !== null) {
     const procedureName = match[1];
@@ -416,7 +404,7 @@ function extractInlineZodFields(zodText: string): SchemaField[] {
 
   // Parse each field: fieldName: z.type().modifiers()
   const fieldRegex = /(\w+)\s*:\s*z\.(\w+)([^,}]*)/g;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = fieldRegex.exec(objectContent)) !== null) {
     const [, fieldName, zodType, modifiers] = match;
@@ -537,15 +525,6 @@ function parseZodFieldChain(name: string, zodType: string, modifiers: string): S
   }
 
   return field;
-}
-
-/**
- * Check if file matches patterns
- */
-function matchesPatterns(fileName: string, patterns: string[]): boolean {
-  if (patterns.length === 0) return true;
-  const nameLower = fileName.toLowerCase();
-  return patterns.some((p) => nameLower.includes(p.toLowerCase()));
 }
 
 /**

@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { DOMAIN_APPROACHES, DOMAIN_FILES } from '../../config/domains';
+import { DOMAIN_FILES, getApproaches as getApproachesFromConfig } from '../../config/domains';
 import { detectDomainsFromText } from '../../lib/domains';
 import type { KrolikConfig } from '../../types';
 
@@ -42,24 +42,10 @@ export function findRelatedFiles(domains: string[], projectRoot: string): string
 
 /**
  * Get suggested approaches for domains
+ * Re-exports canonical version from config/domains
  */
 export function getApproaches(domains: string[]): string[] {
-  const approaches: string[] = ['1. Read relevant CLAUDE.md files for project rules'];
-
-  for (const domain of domains) {
-    const domainApproaches = DOMAIN_APPROACHES[domain] || [];
-    for (const approach of domainApproaches) {
-      if (!approaches.includes(approach)) {
-        approaches.push(approach);
-      }
-    }
-  }
-
-  approaches.push(
-    `${approaches.length + 1}. Run \`pnpm typecheck && pnpm lint\` before committing`,
-  );
-
-  return approaches;
+  return getApproachesFromConfig(domains);
 }
 
 /**

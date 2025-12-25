@@ -3,7 +3,7 @@
  * @description Review output formatters
  */
 
-import { escapeXml } from '../../lib';
+import { escapeXml, formatJson as formatJsonBase } from '@/lib/@formatters';
 import type { Logger, ReviewResult } from '../../types';
 
 /**
@@ -93,7 +93,7 @@ export function printReview(review: ReviewResult, logger: Logger): void {
  * Format review as JSON
  */
 export function formatJson(review: ReviewResult): string {
-  return JSON.stringify(review, null, 2);
+  return formatJsonBase(review);
 }
 
 /**

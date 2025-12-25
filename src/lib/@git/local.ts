@@ -4,42 +4,11 @@
  */
 
 import { execLines, shellOpts, tryExec } from '../@shell/shell';
+import type { GitAheadBehind, GitCommit, GitStatus } from './types';
 
 const MAGIC_3_VALUE = 3;
 
 const MAGIC_3 = MAGIC_3_VALUE;
-
-/**
- * Git status information
- */
-export interface GitStatus {
-  /** Files with modifications */
-  modified: string[];
-  /** Untracked files */
-  untracked: string[];
-  /** Staged files */
-  staged: string[];
-  /** Has any changes */
-  hasChanges: boolean;
-}
-
-/**
- * Commit information
- */
-export interface GitCommit {
-  hash: string;
-  message: string;
-  author?: string;
-  date?: string;
-}
-
-/**
- * Ahead/behind remote status
- */
-export interface GitAheadBehind {
-  ahead: number;
-  behind: number;
-}
 
 /**
  * Check if current directory is a git repository

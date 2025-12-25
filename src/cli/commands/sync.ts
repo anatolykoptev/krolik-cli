@@ -6,11 +6,7 @@
 import type { Command } from 'commander';
 import { loadConfig } from '../../config';
 import { createLogger } from '../../lib/@log';
-
-/** Command options type */
-interface CommandOptions {
-  [key: string]: unknown;
-}
+import type { CommandOptions } from '../types';
 
 /**
  * Register sync command

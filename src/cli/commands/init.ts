@@ -4,11 +4,7 @@
  */
 
 import type { Command } from 'commander';
-
-/** Command options type */
-interface CommandOptions {
-  [key: string]: unknown;
-}
+import type { CommandOptions } from '../types';
 
 /** Helper to create command context */
 async function createContext(program: Command, options: CommandOptions) {

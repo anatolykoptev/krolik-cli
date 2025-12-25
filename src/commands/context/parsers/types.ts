@@ -49,3 +49,42 @@ export interface TestInfo {
     tests: string[];
   }[];
 }
+
+/**
+ * Extracted TypeScript interface/type
+ */
+export interface ExtractedType {
+  name: string;
+  kind: 'interface' | 'type';
+  file: string;
+  properties?: TypeProperty[];
+  extends?: string[];
+  description?: string;
+}
+
+/**
+ * Property of an interface/type
+ */
+export interface TypeProperty {
+  name: string;
+  type: string;
+  optional: boolean;
+  description?: string;
+}
+
+/**
+ * Import relationship
+ */
+export interface ImportRelation {
+  file: string;
+  imports: ImportItem[];
+}
+
+/**
+ * Import item from a TypeScript file
+ */
+export interface ImportItem {
+  from: string;
+  names: string[];
+  isTypeOnly: boolean;
+}

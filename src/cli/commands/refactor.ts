@@ -4,11 +4,7 @@
  */
 
 import type { Command } from 'commander';
-
-/** Command options type */
-interface CommandOptions {
-  [key: string]: unknown;
-}
+import type { CommandOptions } from '../types';
 
 /**
  * Register refactor command

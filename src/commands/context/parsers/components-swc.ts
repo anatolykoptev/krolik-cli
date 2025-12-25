@@ -14,6 +14,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CallExpression, Identifier, JSXAttrValue, Module, Node } from '@swc/core';
+import { scanDirectory } from '@/lib/@fs';
 import { getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
 import type { ComponentInfo } from './types';
 
@@ -28,37 +29,19 @@ const BUILT_IN_HOOKS = ['useCallback', 'useEffect', 'useMemo', 'useState', 'useR
 export function parseComponents(componentsDir: string, patterns: string[]): ComponentInfo[] {
   const results: ComponentInfo[] = [];
 
-  if (!fs.existsSync(componentsDir)) return results;
-
-  function scanDir(dir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-
-      // Recurse into non-hidden directories
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      // Skip non-tsx files
-      if (!entry.isFile() || !entry.name.endsWith('.tsx')) continue;
-
-      // Skip files not matching patterns
-      if (!matchesPatterns(entry.name, patterns)) continue;
-
+  scanDirectory(
+    componentsDir,
+    (fullPath) => {
       const info = analyzeComponentSwc(fullPath);
       if (info) results.push(info);
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.tsx'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(componentsDir);
   return results;
 }
 
@@ -484,12 +467,4 @@ function extractFeatures(content: string): string[] {
     if (fm[1]) features.push(fm[1].trim());
   }
   return features;
-}
-
-/**
- * Check if file matches any pattern
- */
-function matchesPatterns(fileName: string, patterns: string[]): boolean {
-  const nameLower = fileName.toLowerCase();
-  return patterns.some((p) => nameLower.includes(p.toLowerCase()));
 }

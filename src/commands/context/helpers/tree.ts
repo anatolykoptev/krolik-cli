@@ -131,6 +131,9 @@ function scanDir(state: TreeState, dir: string, prefix: string, depth: number): 
   processFiles(state, files, prefix, depth);
 }
 
+// Note: tree.ts uses a custom scanDir with sorted output and tree formatting
+// This is intentionally kept separate from the unified scanner
+
 /**
  * Generate project tree structure
  */

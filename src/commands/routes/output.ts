@@ -3,6 +3,7 @@
  * @description Routes output formatters
  */
 
+import { formatJson as formatJsonBase } from '@/lib/@formatters';
 import type { Logger } from '../../types';
 import type { TrpcRouter } from './parser';
 
@@ -79,7 +80,7 @@ export function printRoutes(data: RoutesOutput, logger: Logger): void {
  * Format routes as JSON
  */
 export function formatJson(data: RoutesOutput): string {
-  return JSON.stringify(data, null, 2);
+  return formatJsonBase(data);
 }
 
 /**

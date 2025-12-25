@@ -10,92 +10,26 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 // Import shared utilities from lib
 import {
-  AGENTS_REPO_URL,
-  getAgentsHome,
+  cloneAgentsRepo,
   getAgentsPluginsDir,
-  getKrolikHome,
+  getAgentsVersion,
+  getRepoStats,
+  type RepoStats,
+  updateAgentsRepo,
+  type VersionInfo,
 } from '../../lib/@agents';
-import { cloneRepo, getGitVersion, isGitAvailable, pullRepo } from '../../lib/@git';
 import { parseFrontmatter as parseMarkdownFrontmatter } from '../../lib/@markdown';
 import { getCategoryForPlugin } from './categories';
 import type { AgentCategory, AgentDefinition } from './types';
 
-export type { RepoStats } from '../../lib/@agents';
 // Re-export shared utilities for backward compatibility
-export { getRepoStats } from '../../lib/@agents';
-export type { VersionInfo } from '../../lib/@git';
+export { cloneAgentsRepo, getAgentsVersion, getRepoStats, updateAgentsRepo };
+export type { RepoStats, VersionInfo };
 
 /**
  * Default path for development
  */
 const DEFAULT_AGENTS_PATH = '../agents/plugins';
-
-/**
- * Clone agents repository to ~/.krolik/agents
- */
-export function cloneAgentsRepo(): { success: boolean; path: string; error?: string } {
-  const agentsHome = getAgentsHome();
-  const krolikHome = getKrolikHome();
-
-  // Ensure ~/.krolik exists
-  if (!fs.existsSync(krolikHome)) {
-    fs.mkdirSync(krolikHome, { recursive: true });
-  }
-
-  // Check if already cloned
-  if (fs.existsSync(path.join(agentsHome, 'plugins'))) {
-    return { success: true, path: path.join(agentsHome, 'plugins') };
-  }
-
-  // Check git availability
-  if (!isGitAvailable()) {
-    return {
-      success: false,
-      path: '',
-      error: 'Git is not installed. Please install git and try again.',
-    };
-  }
-
-  const result = cloneRepo(AGENTS_REPO_URL, agentsHome);
-
-  if (result.success) {
-    console.log(`✅ Agents installed to ${agentsHome}`);
-    return { success: true, path: path.join(agentsHome, 'plugins') };
-  }
-
-  return { success: false, path: '', error: `Failed to clone agents: ${result.error}` };
-}
-
-/**
- * Update agents repository
- */
-export function updateAgentsRepo(): { success: boolean; updated: boolean; error?: string } {
-  const agentsHome = getAgentsHome();
-
-  if (!fs.existsSync(path.join(agentsHome, '.git'))) {
-    return {
-      success: false,
-      updated: false,
-      error: 'Agents not installed. Run krolik agent --install first.',
-    };
-  }
-
-  const result = pullRepo(agentsHome);
-
-  if (result.success && result.updated) {
-    console.log('✅ Agents updated');
-  }
-
-  return result;
-}
-
-/**
- * Get agents version info
- * Wrapper around shared getGitVersion
- */
-export function getAgentsVersion(): { version: string; date: string } | null {
-  return getGitVersion(getAgentsHome());
-}
 
 /**
  * Parse agent frontmatter from markdown content

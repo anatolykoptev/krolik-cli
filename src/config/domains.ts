@@ -208,6 +208,10 @@ export const DOMAIN_APPROACHES: Record<string, string[]> = {
 
 /**
  * Detect domains from text (issue title, description, etc.)
+ * Uses DOMAIN_KEYWORDS mapping to detect which domain a task belongs to
+ * This is kept for backward compatibility with existing code
+ *
+ * @deprecated Use detectDomainsFromText from lib/domains for config-aware detection
  */
 export function detectDomains(text: string): string[] {
   const lowerText = text.toLowerCase();
@@ -245,16 +249,23 @@ export function getRelatedFiles(domains: string[]): string[] {
 
 /**
  * Get suggested approaches for domains
+ * Includes standard first and last steps for all tasks
  */
 export function getApproaches(domains: string[]): string[] {
-  const approaches: string[] = [];
+  const approaches: string[] = ['1. Read relevant CLAUDE.md files for project rules'];
 
   for (const domain of domains) {
-    const steps = DOMAIN_APPROACHES[domain];
-    if (steps) {
-      approaches.push(...steps);
+    const domainApproaches = DOMAIN_APPROACHES[domain] || [];
+    for (const approach of domainApproaches) {
+      if (!approaches.includes(approach)) {
+        approaches.push(approach);
+      }
     }
   }
 
-  return [...new Set(approaches)];
+  approaches.push(
+    `${approaches.length + 1}. Run \`pnpm typecheck && pnpm lint\` before committing`,
+  );
+
+  return approaches;
 }

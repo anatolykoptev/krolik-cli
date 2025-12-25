@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory } from '@/lib/@fs';
 import type { ZodField, ZodSchemaInfo } from './types';
 
 /**
@@ -98,45 +99,22 @@ function parseSchemaFile(filePath: string): ZodSchemaInfo[] {
 }
 
 /**
- * Check if file matches patterns
- */
-function matchesPatterns(fileName: string, patterns: string[]): boolean {
-  if (patterns.length === 0) return true;
-  const nameLower = fileName.toLowerCase();
-  return patterns.some((p) => nameLower.includes(p.toLowerCase()));
-}
-
-/**
  * Parse Zod schema files to extract input/output schemas
  */
 export function parseZodSchemas(schemasDir: string, patterns: string[]): ZodSchemaInfo[] {
   const results: ZodSchemaInfo[] = [];
 
-  if (!fs.existsSync(schemasDir)) return results;
-
-  function scanDir(dir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-
-      if (entry.isDirectory() && !entry.name.startsWith('.')) {
-        scanDir(fullPath);
-        continue;
-      }
-
-      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
-      if (!matchesPatterns(entry.name, patterns)) continue;
-
+  scanDirectory(
+    schemasDir,
+    (fullPath) => {
       results.push(...parseSchemaFile(fullPath));
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.ts'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(schemasDir);
   return results;
 }

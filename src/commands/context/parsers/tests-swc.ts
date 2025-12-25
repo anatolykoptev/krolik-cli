@@ -13,6 +13,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CallExpression, Identifier, Node } from '@swc/core';
+import { scanDirectory } from '@/lib/@fs';
 import { extractStringArg, getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
 import type { TestInfo } from './types';
 
@@ -148,28 +149,6 @@ function getCalleeName(call: CallExpression): string | null {
 }
 
 /**
- * Check if file matches test patterns
- */
-function matchesPatterns(fileName: string, patterns: string[]): boolean {
-  if (patterns.length === 0) return true;
-  const nameLower = fileName.toLowerCase();
-  return patterns.some((p) => nameLower.includes(p.toLowerCase()));
-}
-
-/**
- * Check if entry is a test file
- */
-function isTestFile(entry: fs.Dirent): boolean {
-  return (
-    entry.isFile() &&
-    (entry.name.endsWith('.test.ts') ||
-      entry.name.endsWith('.test.tsx') ||
-      entry.name.endsWith('.spec.ts') ||
-      entry.name.endsWith('.spec.tsx'))
-  );
-}
-
-/**
  * Parse test files to extract describe/it blocks using SWC AST
  *
  * @param testsDir - Directory containing test files
@@ -179,37 +158,17 @@ function isTestFile(entry: fs.Dirent): boolean {
 export function parseTestFiles(testsDir: string, patterns: string[]): TestInfo[] {
   const results: TestInfo[] = [];
 
-  if (!fs.existsSync(testsDir)) return results;
-
-  function scanDir(dir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-
-      // Recurse into subdirectories
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      // Skip non-test files
-      if (!isTestFile(entry)) continue;
-
-      // Skip files not matching patterns
-      if (!matchesPatterns(entry.name, patterns)) continue;
-
-      // Analyze and collect
+  scanDirectory(
+    testsDir,
+    (fullPath) => {
       const info = analyzeTestSwc(fullPath);
       if (info) results.push(info);
-    }
-  }
+    },
+    {
+      patterns,
+      onlyTests: true,
+    },
+  );
 
-  scanDir(testsDir);
   return results;
 }

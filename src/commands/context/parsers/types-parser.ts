@@ -5,42 +5,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-
-/**
- * Extracted TypeScript interface/type
- */
-export interface ExtractedType {
-  name: string;
-  kind: 'interface' | 'type';
-  file: string;
-  properties?: TypeProperty[];
-  extends?: string[];
-  description?: string;
-}
-
-/**
- * Property of an interface/type
- */
-export interface TypeProperty {
-  name: string;
-  type: string;
-  optional: boolean;
-  description?: string;
-}
-
-/**
- * Import relationship
- */
-export interface ImportRelation {
-  file: string;
-  imports: ImportItem[];
-}
-
-export interface ImportItem {
-  from: string;
-  names: string[];
-  isTypeOnly: boolean;
-}
+import { scanDirectory } from '@/lib/@fs';
+import type { ExtractedType, ImportItem, ImportRelation, TypeProperty } from './types';
 
 const MAX_TYPES_PER_FILE = 10;
 const MAX_PROPERTIES = 15;
@@ -63,7 +29,7 @@ function parseTypesFile(filePath: string): ExtractedType[] {
   // Extract interfaces
   const interfaceRegex =
     /(?:\/\*\*\s*\n(?:\s*\*[^\n]*\n)*\s*\*\/\s*\n)?export\s+interface\s+(\w+)(?:\s+extends\s+([^{]+))?\s*\{([^}]+)\}/g;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = interfaceRegex.exec(content)) !== null) {
     const name = match[1];
@@ -86,7 +52,7 @@ function parseTypesFile(filePath: string): ExtractedType[] {
     // Extract JSDoc description
     const jsdocMatch = content
       .slice(0, match.index)
-      .match(/\/\*\*\s*\n\s*\*\s*([^\n]+)\n[^]*?\*\/\s*$/);
+      .match(/\/\*\*\s*\n\s*\*\s*([^\n]+)\n[\s\S]*?\*\/\s*$/);
     if (jsdocMatch?.[1]) {
       type.description = jsdocMatch[1].trim();
     }
@@ -95,7 +61,7 @@ function parseTypesFile(filePath: string): ExtractedType[] {
   }
 
   // Extract type aliases
-  const typeRegex = /(?:\/\*\*[^]*?\*\/\s*)?export\s+type\s+(\w+)\s*=\s*([^;]+);/g;
+  const typeRegex = /(?:\/\*\*[\s\S]*?\*\/\s*)?export\s+type\s+(\w+)\s*=\s*([^;]+);/g;
 
   while ((match = typeRegex.exec(content)) !== null) {
     const name = match[1];
@@ -132,8 +98,8 @@ function parseProperties(body: string): TypeProperty[] {
   const properties: TypeProperty[] = [];
 
   // Match: propertyName?: Type;
-  const propRegex = /(?:\/\*\*[^]*?\*\/\s*)?(\w+)(\?)?:\s*([^;]+);/g;
-  let match;
+  const propRegex = /(?:\/\*\*[\s\S]*?\*\/\s*)?(\w+)(\?)?:\s*([^;]+);/g;
+  let match: RegExpExecArray | null;
 
   while ((match = propRegex.exec(body)) !== null) {
     const name = match[1];
@@ -169,7 +135,7 @@ function parseImports(filePath: string): ImportItem[] {
   // Match: import { A, B } from "module"
   // Match: import type { A, B } from "module"
   const importRegex = /import\s+(type\s+)?\{\s*([^}]+)\s*\}\s+from\s+["']([^"']+)["']/g;
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = importRegex.exec(content)) !== null) {
     const isTypeOnly = Boolean(match[1]);
@@ -197,39 +163,18 @@ function parseImports(filePath: string): ImportItem[] {
 export function parseTypesInDir(dir: string, patterns: string[]): ExtractedType[] {
   const results: ExtractedType[] = [];
 
-  if (!fs.existsSync(dir)) return results;
-
-  function scanDir(currentDir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      // Only .ts files (not .tsx for components)
-      if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
-      if (entry.name.endsWith('.test.ts')) continue;
-
-      // Match patterns if provided
-      if (patterns.length > 0) {
-        const nameLower = entry.name.toLowerCase();
-        if (!patterns.some((p) => nameLower.includes(p.toLowerCase()))) continue;
-      }
-
+  scanDirectory(
+    dir,
+    (fullPath) => {
       results.push(...parseTypesFile(fullPath));
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.ts'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(dir);
   return results;
 }
 
@@ -239,42 +184,21 @@ export function parseTypesInDir(dir: string, patterns: string[]): ExtractedType[
 export function buildImportGraph(dir: string, patterns: string[]): ImportRelation[] {
   const graph: ImportRelation[] = [];
 
-  if (!fs.existsSync(dir)) return graph;
-
-  function scanDir(currentDir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      if (!entry.isFile()) continue;
-      if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue;
-      if (entry.name.endsWith('.test.ts') || entry.name.endsWith('.test.tsx')) continue;
-
-      // Match patterns if provided
-      if (patterns.length > 0) {
-        const nameLower = entry.name.toLowerCase();
-        if (!patterns.some((p) => nameLower.includes(p.toLowerCase()))) continue;
-      }
-
+  scanDirectory(
+    dir,
+    (fullPath) => {
       const imports = parseImports(fullPath);
       if (imports.length > 0) {
         const relativePath = path.relative(dir, fullPath);
         graph.push({ file: relativePath, imports });
       }
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.ts', '.tsx'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(dir);
   return graph;
 }

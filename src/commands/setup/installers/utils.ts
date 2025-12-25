@@ -8,6 +8,15 @@
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
+import type { RepoStats } from '../../../lib/@agents';
+import {
+  getAgentsHome,
+  getAgentsPluginsDir,
+  getAgentsVersion,
+  getRepoStats,
+} from '../../../lib/@agents';
+import type { VersionInfo } from '../../../lib/@git';
+import { isGitAvailable } from '../../../lib/@git';
 import {
   INSTALLED_PLUGINS_PATH,
   KNOWN_MARKETPLACES_PATH,
@@ -16,23 +25,9 @@ import {
 } from '../core/paths';
 import type { PluginConfig } from '../core/types';
 
-export type { RepoStats } from '../../../lib/@agents';
 // Re-export from shared lib
-export {
-  getAgentsHome,
-  getAgentsPluginsDir,
-  getRepoStats,
-} from '../../../lib/@agents';
-export type { VersionInfo } from '../../../lib/@git';
-export {
-  getGitVersion,
-  isGitAvailable,
-} from '../../../lib/@git';
-
-import type { RepoStats } from '../../../lib/@agents';
-import { getAgentsHome, getAgentsPluginsDir, getRepoStats } from '../../../lib/@agents';
-import type { VersionInfo } from '../../../lib/@git';
-import { getGitVersion } from '../../../lib/@git';
+export type { RepoStats, VersionInfo };
+export { getAgentsHome, getAgentsPluginsDir, getAgentsVersion, isGitAvailable };
 
 /**
  * Ensure all required directories exist
@@ -96,14 +91,6 @@ export function registerPlugin(plugin: PluginConfig, installLocation: string): v
   };
 
   fs.writeFileSync(INSTALLED_PLUGINS_PATH, JSON.stringify(installed, null, 2));
-}
-
-/**
- * Get agents version info from git
- * Wrapper around shared getGitVersion using agents home path
- */
-export function getAgentsVersion(): VersionInfo | null {
-  return getGitVersion(getAgentsHome());
 }
 
 /**

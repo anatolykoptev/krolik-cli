@@ -3,6 +3,7 @@
  * @description Schema output formatters (text, json, markdown)
  */
 
+import { formatJson as formatJsonBase } from '@/lib/@formatters';
 import type { Logger } from '../../types';
 import { groupByDomain, groupByFile } from './grouping';
 import type { PrismaEnum, PrismaModel } from './parser';
@@ -55,7 +56,7 @@ export function printSchema(
  * Format schema as JSON
  */
 export function formatJson(data: SchemaOutput): string {
-  return JSON.stringify(data, null, 2);
+  return formatJsonBase(data);
 }
 
 /**

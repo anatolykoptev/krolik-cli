@@ -12,6 +12,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory } from '@/lib/@fs';
 import { parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
 
 /**
@@ -87,48 +88,20 @@ function collectFileImports(
   patterns: string[],
   result: Map<string, ImportStatement[]>,
 ): void {
-  function scanDir(currentDir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        // Skip node_modules and hidden directories
-        if (entry.name.startsWith('.') || entry.name === 'node_modules') {
-          continue;
-        }
-        scanDir(fullPath);
-        continue;
-      }
-
-      // Only process TypeScript files
-      if (!entry.isFile()) continue;
-      if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue;
-      if (entry.name.endsWith('.test.ts') || entry.name.endsWith('.test.tsx')) continue;
-      if (entry.name.endsWith('.spec.ts') || entry.name.endsWith('.spec.tsx')) continue;
-
-      // Filter by patterns
-      if (patterns.length > 0) {
-        const nameLower = entry.name.toLowerCase();
-        if (!patterns.some((p) => nameLower.includes(p.toLowerCase()))) {
-          continue;
-        }
-      }
-
+  scanDirectory(
+    dir,
+    (fullPath) => {
       const imports = parseImportStatements(fullPath);
       if (imports.length > 0) {
         result.set(fullPath, imports);
       }
-    }
-  }
-
-  scanDir(dir);
+    },
+    {
+      patterns,
+      extensions: ['.ts', '.tsx'],
+      includeTests: false,
+    },
+  );
 }
 
 /**

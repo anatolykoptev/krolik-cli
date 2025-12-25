@@ -161,4 +161,11 @@ export async function startMCPServer(config: ResolvedConfig): Promise<MCPServer>
   return server;
 }
 
-// Tools are now exported from ./tools/index
+// Re-export tools for backward compatibility
+// Import triggers side-effect registrations in ./tools/index.ts
+import { getToolDefinitions } from './tools';
+
+/**
+ * All registered MCP tools (for testing and introspection)
+ */
+export const TOOLS = getToolDefinitions();

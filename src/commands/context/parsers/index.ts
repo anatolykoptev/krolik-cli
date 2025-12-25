@@ -61,7 +61,11 @@ export { parseTestFiles } from './tests-swc';
 // Re-export types
 export type {
   ComponentInfo,
+  ExtractedType,
+  ImportItem,
+  ImportRelation,
   TestInfo,
+  TypeProperty,
   ZodField,
   ZodSchemaInfo,
 } from './types';
@@ -69,12 +73,6 @@ export {
   buildImportGraph as buildImportGraphRegex,
   parseTypesInDir as parseTypesInDirRegex,
 } from './types-parser';
-export type {
-  ExtractedType,
-  ImportItem,
-  ImportRelation,
-  TypeProperty,
-} from './types-parser-swc';
 export { buildImportGraph, parseTypesInDir } from './types-parser-swc';
 export { parseZodSchemas as parseZodSchemasRegex } from './zod';
 export { parseZodSchemas } from './zod-swc';

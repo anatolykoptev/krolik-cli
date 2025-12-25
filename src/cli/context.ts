@@ -8,11 +8,7 @@ import { loadConfig } from '../config';
 import { needsSync, syncClaudeMd } from '../lib/@docs/inject';
 import { createLogger } from '../lib/@log';
 import type { OutputFormat } from '../types';
-
-/** Command options type */
-interface CommandOptions {
-  [key: string]: unknown;
-}
+import type { CommandOptions } from './types';
 
 /**
  * Determine output format from options

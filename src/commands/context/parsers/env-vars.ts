@@ -13,6 +13,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory as scanDir } from '@/lib/@fs';
 import {
   getNodeSpan,
   type Identifier,
@@ -228,50 +229,18 @@ function parseEnvFile(filePath: string): EnvVarDefinition[] {
 function scanDirectory(dir: string, usages: EnvVarUsage[], patterns?: string[]): void {
   if (!fs.existsSync(dir)) return;
 
-  function scan(currentDir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        // Skip node_modules, .git, dist, build
-        if (
-          entry.name === 'node_modules' ||
-          entry.name === '.git' ||
-          entry.name === 'dist' ||
-          entry.name === 'build' ||
-          entry.name === '.next'
-        ) {
-          continue;
-        }
-        scan(fullPath);
-        continue;
-      }
-
-      // Only process .ts, .tsx, .js, .jsx files
-      if (!entry.isFile()) continue;
-      if (!/\.(ts|tsx|js|jsx)$/.test(entry.name)) continue;
-      if (entry.name.endsWith('.test.ts') || entry.name.endsWith('.test.tsx')) continue;
-      if (entry.name.endsWith('.spec.ts') || entry.name.endsWith('.spec.tsx')) continue;
-
-      // Apply pattern filter if provided
-      if (patterns && patterns.length > 0) {
-        const nameLower = entry.name.toLowerCase();
-        if (!patterns.some((p) => nameLower.includes(p.toLowerCase()))) continue;
-      }
-
+  scanDir(
+    dir,
+    (fullPath) => {
       const fileUsages = parseEnvVarsInFile(fullPath);
       usages.push(...fileUsages);
-    }
-  }
-
-  scan(dir);
+    },
+    {
+      patterns: patterns ?? [],
+      extensions: ['.ts', '.tsx', '.js', '.jsx'],
+      includeTests: false,
+    },
+  );
 }
 
 /**

@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory } from '@/lib/@fs';
 import type { ComponentInfo } from './types';
 
 const MAX_IMPORTS = 10;
@@ -192,49 +193,23 @@ function detectErrorHandling(content: string): string | undefined {
 }
 
 /**
- * Check if file matches any pattern
- */
-function matchesPatterns(fileName: string, patterns: string[]): boolean {
-  const nameLower = fileName.toLowerCase();
-  return patterns.some((p) => nameLower.includes(p.toLowerCase()));
-}
-
-/**
  * Parse React component files to extract metadata
  */
 export function parseComponents(componentsDir: string, patterns: string[]): ComponentInfo[] {
   const results: ComponentInfo[] = [];
 
-  if (!fs.existsSync(componentsDir)) return results;
-
-  function scanDir(dir: string): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-
-      // Recurse into non-hidden directories
-      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
-        scanDir(fullPath);
-        continue;
-      }
-
-      // Skip non-tsx files
-      if (!entry.isFile() || !entry.name.endsWith('.tsx')) continue;
-
-      // Skip files not matching patterns
-      if (!matchesPatterns(entry.name, patterns)) continue;
-
+  scanDirectory(
+    componentsDir,
+    (fullPath) => {
       const info = analyzeComponent(fullPath);
       if (info) results.push(info);
-    }
-  }
+    },
+    {
+      patterns,
+      extensions: ['.tsx'],
+      includeTests: false,
+    },
+  );
 
-  scanDir(componentsDir);
   return results;
 }
