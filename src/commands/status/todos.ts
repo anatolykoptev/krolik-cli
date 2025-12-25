@@ -195,6 +195,35 @@ export function extractTodos(
 }
 
 /**
+ * Detect the first marker (TODO, FIXME, HACK, XXX) in a line
+ * Returns the first marker found, or the fallback type
+ */
+function detectFirstMarker(
+  content: string,
+  fallback: 'TODO' | 'FIXME' | 'HACK',
+): 'TODO' | 'FIXME' | 'HACK' | 'XXX' {
+  const markers: Array<{ type: 'TODO' | 'FIXME' | 'HACK' | 'XXX'; index: number }> = [];
+
+  // Find positions of all markers
+  const todoIdx = content.indexOf('TODO');
+  if (todoIdx !== -1) markers.push({ type: 'TODO', index: todoIdx });
+
+  const fixmeIdx = content.indexOf('FIXME');
+  if (fixmeIdx !== -1) markers.push({ type: 'FIXME', index: fixmeIdx });
+
+  const hackIdx = content.indexOf('HACK');
+  if (hackIdx !== -1) markers.push({ type: 'HACK', index: hackIdx });
+
+  const xxxIdx = content.indexOf('XXX');
+  if (xxxIdx !== -1) markers.push({ type: 'XXX', index: xxxIdx });
+
+  // Return the first marker found (by position)
+  if (markers.length === 0) return fallback;
+  markers.sort((a, b) => a.index - b.index);
+  return markers[0]?.type ?? fallback;
+}
+
+/**
  * Parse grep output with context into TodoItem array
  */
 function parseTodoLinesWithContext(
@@ -226,7 +255,8 @@ function parseTodoLinesWithContext(
       const file = matchLine[1];
       const lineNum = matchLine[2];
       const content = matchLine[3];
-      const actualType = content.includes('HACK') ? 'HACK' : content.includes('XXX') ? 'XXX' : type;
+      // Find the first marker in the line (TODO, FIXME, HACK, XXX)
+      const actualType = detectFirstMarker(content, type);
       const text = extractCommentText(content, actualType);
 
       if (text) {
