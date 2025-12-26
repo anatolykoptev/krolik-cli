@@ -77,52 +77,63 @@ export function findAgentsPath(projectRoot: string): string | null {
 }
 
 /**
+ * Parse a single agent file and create AgentDefinition
+ */
+function parseAgentFile(filePath: string, pluginName: string): AgentDefinition | null {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const parsed = parseFrontmatter(content);
+
+  const agentDef: AgentDefinition = {
+    name: parsed.name,
+    description: parsed.description,
+    content: parsed.body,
+    category: getCategoryForPlugin(pluginName),
+    plugin: pluginName,
+    filePath,
+    componentType: 'agent',
+  };
+
+  if (parsed.model && ['sonnet', 'opus', 'haiku', 'inherit'].includes(parsed.model)) {
+    agentDef.model = parsed.model as 'sonnet' | 'opus' | 'haiku' | 'inherit';
+  }
+
+  return agentDef;
+}
+
+/**
+ * Load agents from a single plugin directory
+ */
+function loadAgentsFromPlugin(agentsPath: string, pluginName: string): AgentDefinition[] {
+  const agentsDir = path.join(agentsPath, pluginName, 'agents');
+  if (!fs.existsSync(agentsDir)) return [];
+
+  const agentFiles = fs.readdirSync(agentsDir, { withFileTypes: true });
+  const agents: AgentDefinition[] = [];
+
+  for (const file of agentFiles) {
+    if (!file.isFile() || !file.name.endsWith('.md')) continue;
+    if (file.name === 'SKILL.md') continue;
+
+    const filePath = path.join(agentsDir, file.name);
+    const agent = parseAgentFile(filePath, pluginName);
+    if (agent) agents.push(agent);
+  }
+
+  return agents;
+}
+
+/**
  * Load all agents from repository
  */
 export function loadAllAgents(agentsPath: string): AgentDefinition[] {
-  const agents: AgentDefinition[] = [];
-
-  if (!fs.existsSync(agentsPath)) {
-    return agents;
-  }
+  if (!fs.existsSync(agentsPath)) return [];
 
   const plugins = fs.readdirSync(agentsPath, { withFileTypes: true });
+  const agents: AgentDefinition[] = [];
 
   for (const plugin of plugins) {
     if (!plugin.isDirectory()) continue;
-
-    const pluginPath = path.join(agentsPath, plugin.name);
-    const agentsDir = path.join(pluginPath, 'agents');
-
-    if (!fs.existsSync(agentsDir)) continue;
-
-    const agentFiles = fs.readdirSync(agentsDir, { withFileTypes: true });
-
-    for (const file of agentFiles) {
-      if (!file.isFile() || !file.name.endsWith('.md')) continue;
-      if (file.name === 'SKILL.md') continue; // Skip skill files
-
-      const filePath = path.join(agentsDir, file.name);
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const parsed = parseFrontmatter(content);
-
-      const agentDef: AgentDefinition = {
-        name: parsed.name,
-        description: parsed.description,
-        content: parsed.body,
-        category: getCategoryForPlugin(plugin.name),
-        plugin: plugin.name,
-        filePath,
-        componentType: 'agent',
-      };
-
-      // Only add model if it's a valid value
-      if (parsed.model && ['sonnet', 'opus', 'haiku', 'inherit'].includes(parsed.model)) {
-        agentDef.model = parsed.model as 'sonnet' | 'opus' | 'haiku' | 'inherit';
-      }
-
-      agents.push(agentDef);
-    }
+    agents.push(...loadAgentsFromPlugin(agentsPath, plugin.name));
   }
 
   return agents;

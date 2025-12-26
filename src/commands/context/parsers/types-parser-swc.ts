@@ -16,6 +16,73 @@ const MAX_TYPES_PER_FILE = 10;
 const MAX_PROPERTIES = 15;
 
 /**
+ * Type alias node structure for extraction
+ */
+interface TypeAliasNode {
+  id: { value: string };
+  typeAnnotation: {
+    type: string;
+    span?: { start: number; end: number };
+    members?: Array<{
+      type: string;
+      key?: { type: string; value?: string };
+      typeAnnotation?: unknown;
+      optional?: boolean;
+    }>;
+  };
+}
+
+/**
+ * Extract type from type alias declaration
+ */
+function extractTypeFromAlias(
+  typeAliasNode: TypeAliasNode,
+  fileName: string,
+  content: string,
+): ExtractedType {
+  const name = typeAliasNode.id.value;
+  const typeAnnotation = typeAliasNode.typeAnnotation;
+
+  // Check if it's an object-like type (TsTypeLiteral)
+  if (typeAnnotation.type === 'TsTypeLiteral' && typeAnnotation.members) {
+    return {
+      name,
+      kind: 'type',
+      file: fileName,
+      properties: parsePropertiesFromBody(typeAnnotation.members, content),
+    };
+  }
+
+  // Union/intersection/other types - store as description
+  const typeText = extractTypeTextFromSpan(typeAnnotation, content);
+  const truncatedType =
+    typeText && typeText.length < 100 ? typeText : `${typeText?.slice(0, 97)}...`;
+
+  return {
+    name,
+    kind: 'type',
+    file: fileName,
+    ...(truncatedType && { description: truncatedType }),
+  };
+}
+
+/**
+ * Extract type text from span-based node
+ */
+function extractTypeTextFromSpan(
+  typeAnnotation: { span?: { start: number; end: number } },
+  content: string,
+): string | null {
+  if (!typeAnnotation.span) {
+    return null;
+  }
+  // Adjust span offsets (-1 at start, -1 at end to exclude semicolon)
+  const start = typeAnnotation.span.start - 1;
+  const end = typeAnnotation.span.end - 1;
+  return content.slice(start, end).trim();
+}
+
+/**
  * Parse TypeScript file for interfaces and types using SWC AST
  */
 function parseTypesFileSwc(filePath: string): ExtractedType[] {
@@ -120,41 +187,8 @@ function parseTypesFileSwc(filePath: string): ExtractedType[] {
           return;
         }
 
-        const typeAnnotation = typeAliasNode.typeAnnotation;
-
-        // Check if it's an object-like type (TsTypeLiteral)
-        if (typeAnnotation.type === 'TsTypeLiteral' && typeAnnotation.members) {
-          types.push({
-            name,
-            kind: 'type',
-            file: fileName,
-            properties: parsePropertiesFromBody(typeAnnotation.members, content),
-          });
-        } else {
-          // Union/intersection/other types - store as description
-          // Use span-based extraction with offset adjustment
-          const typeAnnotationWithSpan = typeAliasNode.typeAnnotation as {
-            span?: { start: number; end: number };
-          };
-
-          let typeText: string | null = null;
-          if (typeAnnotationWithSpan.span) {
-            // Adjust span offsets (-1 at start, -1 at end to exclude semicolon)
-            const start = typeAnnotationWithSpan.span.start - 1;
-            const end = typeAnnotationWithSpan.span.end - 1;
-            typeText = content.slice(start, end).trim();
-          }
-
-          const truncatedType =
-            typeText && typeText.length < 100 ? typeText : `${typeText?.slice(0, 97)}...`;
-
-          types.push({
-            name,
-            kind: 'type',
-            file: fileName,
-            ...(truncatedType && { description: truncatedType }),
-          });
-        }
+        const extractedType = extractTypeFromAlias(typeAliasNode, fileName, content);
+        types.push(extractedType);
 
         // Extract JSDoc description
         const span = getNodeSpan(node);
@@ -177,17 +211,71 @@ function parseTypesFileSwc(filePath: string): ExtractedType[] {
 }
 
 /**
+ * Member node structure for property parsing
+ */
+interface PropertyMember {
+  type: string;
+  key?: { type: string; value?: string };
+  typeAnnotation?: unknown;
+  optional?: boolean;
+}
+
+/**
+ * Extract property name from key node
+ */
+function extractPropertyName(key: { type: string; value?: string }): string | null {
+  if (key.type === 'Identifier' && key.value) {
+    return key.value;
+  }
+  if (key.type === 'StringLiteral' && key.value) {
+    return key.value;
+  }
+  return null;
+}
+
+/**
+ * Extract type text from type annotation
+ */
+function extractPropertyTypeText(typeAnnotation: unknown, content: string): string {
+  const typeAnnotationNode = typeAnnotation as {
+    typeAnnotation?: {
+      type?: string;
+      kind?: string;
+      span?: { start: number; end: number };
+    };
+  };
+
+  const actualTypeNode = typeAnnotationNode.typeAnnotation;
+  if (!actualTypeNode) {
+    return 'unknown';
+  }
+
+  // For TsKeywordType (string, number, boolean, etc.), use the kind property
+  if (actualTypeNode.type === 'TsKeywordType' && actualTypeNode.kind) {
+    return actualTypeNode.kind;
+  }
+
+  // For other types, extract text directly from source
+  if (actualTypeNode.span) {
+    // NOTE: SWC spans appear to be off by 1 byte at the start and include
+    // the trailing semicolon. Adjust accordingly.
+    const start = actualTypeNode.span.start - 1;
+    const end = actualTypeNode.span.end - 1;
+    const extracted = content.slice(start, end);
+
+    if (extracted) {
+      const cleaned = extracted.trim();
+      return cleaned.length > 50 ? `${cleaned.slice(0, 47)}...` : cleaned;
+    }
+  }
+
+  return 'unknown';
+}
+
+/**
  * Parse properties from interface/type body
  */
-function parsePropertiesFromBody(
-  members: Array<{
-    type: string;
-    key?: { type: string; value?: string };
-    typeAnnotation?: unknown;
-    optional?: boolean;
-  }>,
-  content: string,
-): TypeProperty[] {
+function parsePropertiesFromBody(members: PropertyMember[], content: string): TypeProperty[] {
   const properties: TypeProperty[] = [];
 
   for (const member of members) {
@@ -195,61 +283,18 @@ function parsePropertiesFromBody(
       break;
     }
 
-    // Only handle property signatures
-    if (member.type !== 'TsPropertySignature') {
+    if (member.type !== 'TsPropertySignature' || !member.key) {
       continue;
     }
 
-    // Extract property name
-    const key = member.key;
-    if (!key) {
-      continue;
-    }
-
-    let name: string | null = null;
-    if (key.type === 'Identifier' && key.value) {
-      name = key.value;
-    } else if (key.type === 'StringLiteral' && key.value) {
-      name = key.value;
-    }
-
+    const name = extractPropertyName(member.key);
     if (!name) {
       continue;
     }
 
-    // Extract type annotation
-    let typeText = 'unknown';
-    if (member.typeAnnotation) {
-      const typeAnnotationNode = member.typeAnnotation as {
-        typeAnnotation?: {
-          type?: string;
-          kind?: string;
-          span?: { start: number; end: number };
-        };
-      };
-
-      // Get the actual type annotation node
-      const actualTypeNode = typeAnnotationNode.typeAnnotation;
-      if (actualTypeNode) {
-        // For TsKeywordType (string, number, boolean, etc.), use the kind property
-        if (actualTypeNode.type === 'TsKeywordType' && actualTypeNode.kind) {
-          typeText = actualTypeNode.kind;
-        } else if (actualTypeNode.span) {
-          // For other types, extract text directly from source
-          // NOTE: SWC spans appear to be off by 1 byte at the start and include
-          // the trailing semicolon. Adjust accordingly.
-          const start = actualTypeNode.span.start - 1;
-          const end = actualTypeNode.span.end - 1; // Excludes semicolon
-          const extracted = content.slice(start, end);
-
-          if (extracted) {
-            // Clean up and truncate
-            const cleaned = extracted.trim();
-            typeText = cleaned.length > 50 ? `${cleaned.slice(0, 47)}...` : cleaned;
-          }
-        }
-      }
-    }
+    const typeText = member.typeAnnotation
+      ? extractPropertyTypeText(member.typeAnnotation, content)
+      : 'unknown';
 
     properties.push({
       name,

@@ -171,48 +171,121 @@ export function formatMemorySection(lines: string[], data: AiContextData): void 
 }
 
 /**
+ * Format code snippet for library documentation
+ */
+function formatCodeSnippet(lines: string[], snippet: string): void {
+  lines.push('        <code>');
+  lines.push(`          ${escapeXml(snippet.slice(0, 300))}`);
+  if (snippet.length > 300) {
+    lines.push('          <!-- truncated -->');
+  }
+  lines.push('        </code>');
+}
+
+/**
+ * Format a single library section
+ */
+function formatLibrarySection(
+  lines: string[],
+  section: { title: string; content: string; codeSnippets: string[] },
+): void {
+  lines.push(`      <section title="${escapeXml(section.title)}">`);
+  lines.push(`        <content>${escapeXml(section.content)}</content>`);
+
+  for (const snippet of section.codeSnippets.slice(0, 2)) {
+    formatCodeSnippet(lines, snippet);
+  }
+
+  lines.push('      </section>');
+}
+
+/**
+ * Format a single library entry
+ */
+function formatLibraryEntry(
+  lines: string[],
+  lib: {
+    libraryName: string;
+    libraryId: string;
+    sections: { title: string; content: string; codeSnippets: string[] }[];
+  },
+): void {
+  lines.push(`    <library name="${lib.libraryName}" id="${lib.libraryId}">`);
+
+  for (const section of lib.sections.slice(0, MAX_ITEMS_SMALL)) {
+    formatLibrarySection(lines, section);
+  }
+
+  if (lib.sections.length > MAX_ITEMS_SMALL) {
+    lines.push(`      <!-- +${lib.sections.length - MAX_ITEMS_SMALL} more sections -->`);
+  }
+
+  lines.push('    </library>');
+}
+
+/**
  * Format library documentation section (from Context7)
  */
 export function formatLibraryDocsSection(lines: string[], data: AiContextData): void {
   const { libraryDocs } = data;
   if (!libraryDocs || libraryDocs.length === 0) return;
 
-  // Only include libraries that have sections
   const withSections = libraryDocs.filter((lib) => lib.sections.length > 0);
   if (withSections.length === 0) return;
 
   lines.push('  <library-docs hint="Auto-fetched from Context7 - relevant documentation">');
 
   for (const lib of withSections) {
-    lines.push(`    <library name="${lib.libraryName}" id="${lib.libraryId}">`);
-
-    for (const section of lib.sections.slice(0, MAX_ITEMS_SMALL)) {
-      lines.push(`      <section title="${escapeXml(section.title)}">`);
-      lines.push(`        <content>${escapeXml(section.content)}</content>`);
-
-      if (section.codeSnippets.length > 0) {
-        for (const snippet of section.codeSnippets.slice(0, 2)) {
-          lines.push('        <code>');
-          lines.push(`          ${escapeXml(snippet.slice(0, 300))}`);
-          if (snippet.length > 300) {
-            lines.push('          <!-- truncated -->');
-          }
-          lines.push('        </code>');
-        }
-      }
-
-      lines.push('      </section>');
-    }
-
-    if (lib.sections.length > MAX_ITEMS_SMALL) {
-      lines.push(`      <!-- +${lib.sections.length - MAX_ITEMS_SMALL} more sections -->`);
-    }
-
-    lines.push('    </library>');
+    formatLibraryEntry(lines, lib);
   }
 
   lines.push('    <hint>Use "krolik docs search {query}" to find more documentation</hint>');
   lines.push('  </library-docs>');
+}
+
+/**
+ * Format quality summary section
+ */
+function formatQualitySummary(
+  lines: string[],
+  summary: NonNullable<AiContextData['qualitySummary']>,
+): void {
+  lines.push(`    <summary total="${summary.totalIssues}" auto-fixable="${summary.autoFixable}">`);
+  for (const [category, count] of Object.entries(summary.byCategory)) {
+    lines.push(`      <category name="${category}" count="${count}"/>`);
+  }
+  lines.push('    </summary>');
+}
+
+/**
+ * Format a single quality issue
+ */
+function formatQualityIssue(
+  lines: string[],
+  issue: NonNullable<AiContextData['qualityIssues']>[0],
+): void {
+  const fixable = issue.autoFixable ? ' fixable="true"' : '';
+  const fixerId = issue.fixerId ? ` fixer="${issue.fixerId}"` : '';
+  lines.push(
+    `      <issue line="${issue.line || 0}" severity="${issue.severity}" category="${issue.category}"${fixable}${fixerId}>`,
+  );
+  lines.push(`        ${escapeXml(issue.message)}`);
+  lines.push('      </issue>');
+}
+
+/**
+ * Group quality issues by file
+ */
+function groupQualityIssuesByFile(
+  qualityIssues: NonNullable<AiContextData['qualityIssues']>,
+): Map<string, NonNullable<AiContextData['qualityIssues']>> {
+  const byFile = new Map<string, NonNullable<AiContextData['qualityIssues']>>();
+  for (const issue of qualityIssues) {
+    const existing = byFile.get(issue.file) || [];
+    existing.push(issue);
+    byFile.set(issue.file, existing);
+  }
+  return byFile;
 }
 
 /**
@@ -224,35 +297,16 @@ export function formatQualitySection(lines: string[], data: AiContextData): void
 
   lines.push('  <quality-issues>');
 
-  // Summary
   if (qualitySummary) {
-    lines.push(
-      `    <summary total="${qualitySummary.totalIssues}" auto-fixable="${qualitySummary.autoFixable}">`,
-    );
-    for (const [category, count] of Object.entries(qualitySummary.byCategory)) {
-      lines.push(`      <category name="${category}" count="${count}"/>`);
-    }
-    lines.push('    </summary>');
+    formatQualitySummary(lines, qualitySummary);
   }
 
-  // Issues grouped by file
-  const byFile = new Map<string, typeof qualityIssues>();
-  for (const issue of qualityIssues) {
-    const existing = byFile.get(issue.file) || [];
-    existing.push(issue);
-    byFile.set(issue.file, existing);
-  }
+  const byFile = groupQualityIssuesByFile(qualityIssues);
 
   for (const [file, issues] of byFile) {
     lines.push(`    <file path="${file}">`);
     for (const issue of issues.slice(0, MAX_ITEMS_MEDIUM)) {
-      const fixable = issue.autoFixable ? ' fixable="true"' : '';
-      const fixerId = issue.fixerId ? ` fixer="${issue.fixerId}"` : '';
-      lines.push(
-        `      <issue line="${issue.line || 0}" severity="${issue.severity}" category="${issue.category}"${fixable}${fixerId}>`,
-      );
-      lines.push(`        ${escapeXml(issue.message)}`);
-      lines.push('      </issue>');
+      formatQualityIssue(lines, issue);
     }
     if (issues.length > MAX_ITEMS_MEDIUM) {
       lines.push(`      <!-- +${issues.length - MAX_ITEMS_MEDIUM} more issues -->`);
@@ -260,13 +314,111 @@ export function formatQualitySection(lines: string[], data: AiContextData): void
     lines.push('    </file>');
   }
 
-  // Quick fix hint
   const fixableCount = qualityIssues.filter((i) => i.autoFixable).length;
   if (fixableCount > 0) {
     lines.push(`    <hint>Run 'krolik fix --quick' to auto-fix ${fixableCount} issues</hint>`);
   }
 
   lines.push('  </quality-issues>');
+}
+
+type TodoItem = NonNullable<AiContextData['todos']>[0];
+
+/**
+ * Count TODOs by type
+ */
+function countTodosByType(todos: TodoItem[]): {
+  TODO: number;
+  FIXME: number;
+  HACK: number;
+  XXX: number;
+} {
+  return {
+    TODO: todos.filter((t) => t.type === 'TODO').length,
+    FIXME: todos.filter((t) => t.type === 'FIXME').length,
+    HACK: todos.filter((t) => t.type === 'HACK').length,
+    XXX: todos.filter((t) => t.type === 'XXX').length,
+  };
+}
+
+/**
+ * Group TODOs by file and sort by count (most first)
+ */
+function groupTodosByFile(todos: TodoItem[]): [string, TodoItem[]][] {
+  const byFile = new Map<string, TodoItem[]>();
+  for (const todo of todos) {
+    const existing = byFile.get(todo.file) || [];
+    existing.push(todo);
+    byFile.set(todo.file, existing);
+  }
+  return [...byFile.entries()].sort((a, b) => b[1].length - a[1].length);
+}
+
+/**
+ * Format a single TODO item (nested in file)
+ */
+function formatTodoItemNested(lines: string[], todo: TodoItem): void {
+  const contextAttr = todo.context ? ` context="${escapeXml(todo.context)}"` : '';
+  lines.push(`      <todo line="${todo.line}" type="${todo.type}"${contextAttr}>`);
+  lines.push(`        ${escapeXml(todo.text)}`);
+  lines.push('      </todo>');
+}
+
+/**
+ * Format a single TODO item (standalone)
+ */
+function formatTodoItemStandalone(lines: string[], todo: TodoItem): void {
+  const contextAttr = todo.context ? ` context="${escapeXml(todo.context)}"` : '';
+  const genericAttr = todo.isGeneric ? ' generic="true"' : '';
+  lines.push(
+    `    <todo file="${escapeXml(todo.file)}" line="${todo.line}" type="${todo.type}"${contextAttr}${genericAttr}>`,
+  );
+  lines.push(`      ${escapeXml(todo.text)}`);
+  lines.push('    </todo>');
+}
+
+/**
+ * Format TODOs for a file with many items (grouped)
+ */
+function formatGroupedFileTodos(
+  lines: string[],
+  file: string,
+  fileTodos: TodoItem[],
+  displayedRef: { count: number },
+): void {
+  const actionable = fileTodos.filter((t) => !t.isGeneric);
+  const generic = fileTodos.filter((t) => t.isGeneric);
+
+  lines.push(`    <file path="${escapeXml(file)}" todos="${fileTodos.length}">`);
+
+  for (const todo of actionable.slice(0, 3)) {
+    formatTodoItemNested(lines, todo);
+    displayedRef.count++;
+  }
+
+  const remaining = fileTodos.length - Math.min(actionable.length, 3);
+  if (remaining > 0) {
+    lines.push(
+      `      <!-- +${remaining} more (${generic.length} generic like "implement test") -->`,
+    );
+  }
+
+  lines.push('    </file>');
+}
+
+/**
+ * Format TODOs for a file with few items (individual)
+ */
+function formatIndividualFileTodos(
+  lines: string[],
+  fileTodos: TodoItem[],
+  displayedRef: { count: number },
+): void {
+  for (const todo of fileTodos) {
+    if (displayedRef.count >= MAX_ITEMS_LARGE) break;
+    formatTodoItemStandalone(lines, todo);
+    displayedRef.count++;
+  }
 }
 
 /**
@@ -276,13 +428,7 @@ export function formatTodosSection(lines: string[], data: AiContextData): void {
   const { todos } = data;
   if (!todos || todos.length === 0) return;
 
-  // Count by type and generic status
-  const counts = {
-    TODO: todos.filter((t) => t.type === 'TODO').length,
-    FIXME: todos.filter((t) => t.type === 'FIXME').length,
-    HACK: todos.filter((t) => t.type === 'HACK').length,
-    XXX: todos.filter((t) => t.type === 'XXX').length,
-  };
+  const counts = countTodosByType(todos);
   const genericCount = todos.filter((t) => t.isGeneric).length;
   const actionableCount = todos.length - genericCount;
 
@@ -293,64 +439,20 @@ export function formatTodosSection(lines: string[], data: AiContextData): void {
     `    <summary todo="${counts.TODO}" fixme="${counts.FIXME}" hack="${counts.HACK}" xxx="${counts.XXX}" />`,
   );
 
-  // Group by file
-  const byFile = new Map<string, typeof todos>();
-  for (const todo of todos) {
-    const existing = byFile.get(todo.file) || [];
-    existing.push(todo);
-    byFile.set(todo.file, existing);
-  }
+  const sortedFiles = groupTodosByFile(todos);
+  const displayedRef = { count: 0 };
 
-  // Sort files by number of TODOs (most first)
-  const sortedFiles = [...byFile.entries()].sort((a, b) => b[1].length - a[1].length);
-
-  let displayed = 0;
   for (const [file, fileTodos] of sortedFiles) {
-    if (displayed >= MAX_ITEMS_LARGE) break;
+    if (displayedRef.count >= MAX_ITEMS_LARGE) break;
 
-    // If file has many TODOs, group them
     if (fileTodos.length > 3) {
-      const actionable = fileTodos.filter((t) => !t.isGeneric);
-      const generic = fileTodos.filter((t) => t.isGeneric);
-
-      lines.push(`    <file path="${escapeXml(file)}" todos="${fileTodos.length}">`);
-
-      // Show actionable TODOs first (up to 3)
-      for (const todo of actionable.slice(0, 3)) {
-        const contextAttr = todo.context ? ` context="${escapeXml(todo.context)}"` : '';
-        lines.push(`      <todo line="${todo.line}" type="${todo.type}"${contextAttr}>`);
-        lines.push(`        ${escapeXml(todo.text)}`);
-        lines.push('      </todo>');
-        displayed++;
-      }
-
-      // Summarize remaining
-      const remaining = fileTodos.length - Math.min(actionable.length, 3);
-      if (remaining > 0) {
-        lines.push(
-          `      <!-- +${remaining} more (${generic.length} generic like "implement test") -->`,
-        );
-      }
-
-      lines.push('    </file>');
+      formatGroupedFileTodos(lines, file, fileTodos, displayedRef);
     } else {
-      // Show individual TODOs for files with few items
-      for (const todo of fileTodos) {
-        if (displayed >= MAX_ITEMS_LARGE) break;
-
-        const contextAttr = todo.context ? ` context="${escapeXml(todo.context)}"` : '';
-        const genericAttr = todo.isGeneric ? ' generic="true"' : '';
-        lines.push(
-          `    <todo file="${escapeXml(todo.file)}" line="${todo.line}" type="${todo.type}"${contextAttr}${genericAttr}>`,
-        );
-        lines.push(`      ${escapeXml(todo.text)}`);
-        lines.push('    </todo>');
-        displayed++;
-      }
+      formatIndividualFileTodos(lines, fileTodos, displayedRef);
     }
   }
 
-  const remaining = todos.length - displayed;
+  const remaining = todos.length - displayedRef.count;
   if (remaining > 0) {
     lines.push(`    <!-- +${remaining} more TODOs -->`);
   }

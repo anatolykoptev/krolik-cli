@@ -132,6 +132,66 @@ function filterByDomain(hunks: DiffHunk[], keywords: string[]): DiffHunk[] {
   });
 }
 
+/** Result of applying filters to diff hunks */
+interface FilterResult {
+  hunks: DiffHunk[];
+  noiseFiltered: number;
+}
+
+/**
+ * Apply noise and domain filters to hunks
+ */
+function applyFilters(hunks: DiffHunk[], keywords: string[]): FilterResult {
+  const originalCount = hunks.length;
+  let filtered = filterNoise(hunks);
+  const noiseFiltered = originalCount - filtered.length;
+
+  if (keywords.length > 0 && filtered.length > 0) {
+    const domainFiltered = filterByDomain(filtered, keywords);
+    if (domainFiltered.length > 0) {
+      filtered = domainFiltered;
+    }
+  }
+
+  return { hunks: filtered, noiseFiltered };
+}
+
+/**
+ * Select hunks that fit within line limit
+ */
+function selectHunksWithinLimit(hunks: DiffHunk[]): { selected: DiffHunk[]; omitted: string[] } {
+  const selected: DiffHunk[] = [];
+  const omitted: string[] = [];
+  let currentLineCount = 0;
+
+  for (const hunk of hunks) {
+    if (currentLineCount + hunk.lineCount <= MAX_DIFF_LINES) {
+      selected.push(hunk);
+      currentLineCount += hunk.lineCount;
+    } else {
+      omitted.push(hunk.file);
+    }
+  }
+
+  return { selected, omitted };
+}
+
+/**
+ * Build summary string from filter results
+ */
+function buildSummary(noiseFiltered: number, omittedFiles: string[]): string {
+  const parts: string[] = [];
+  if (noiseFiltered > 0) {
+    parts.push(`${noiseFiltered} noise files filtered`);
+  }
+  if (omittedFiles.length > 0) {
+    const preview = omittedFiles.slice(0, 3).join(', ');
+    const suffix = omittedFiles.length > 3 ? '...' : '';
+    parts.push(`${omittedFiles.length} files omitted: ${preview}${suffix}`);
+  }
+  return parts.length > 0 ? `(${parts.join(', ')})` : '';
+}
+
 /**
  * Truncate diff intelligently with noise filtering
  */
@@ -143,39 +203,20 @@ export function truncateDiff(
     return { diff: '', truncated: false, summary: '' };
   }
 
-  // Parse into hunks
-  let hunks = parseDiffHunks(diff);
-  const originalHunkCount = hunks.length;
+  const originalHunks = parseDiffHunks(diff);
+  const { hunks, noiseFiltered } = applyFilters(originalHunks, keywords);
 
-  // Step 1: Always filter out noise files first
-  hunks = filterNoise(hunks);
-  const noiseFiltered = originalHunkCount - hunks.length;
-
-  // Step 2: Filter by domain if keywords provided
-  if (keywords.length > 0 && hunks.length > 0) {
-    const domainFiltered = filterByDomain(hunks, keywords);
-    // Only use domain filter if it returns results
-    if (domainFiltered.length > 0) {
-      hunks = domainFiltered;
-    }
-  }
-
-  // If no hunks left after filtering, return empty
   if (hunks.length === 0) {
     const summary = noiseFiltered > 0 ? `(${noiseFiltered} noise files filtered)` : '';
     return { diff: '', truncated: true, summary };
   }
 
-  // Sort by priority (code first, docs last)
   hunks.sort((a, b) => b.priority - a.priority);
-
-  // Calculate total lines
   const totalLines = hunks.reduce((sum, h) => sum + h.lineCount, 0);
 
-  // If under limit after filtering, join and return
   if (totalLines <= MAX_DIFF_LINES) {
     const filteredDiff = hunks.map((h) => h.lines.join('\n')).join('\n');
-    const wasFiltered = noiseFiltered > 0 || hunks.length < originalHunkCount;
+    const wasFiltered = noiseFiltered > 0 || hunks.length < originalHunks.length;
     return {
       diff: filteredDiff,
       truncated: wasFiltered,
@@ -183,38 +224,12 @@ export function truncateDiff(
     };
   }
 
-  // Collect hunks until we hit the limit
-  const selectedHunks: DiffHunk[] = [];
-  let currentLineCount = 0;
-  const omittedFiles: string[] = [];
-
-  for (const hunk of hunks) {
-    if (currentLineCount + hunk.lineCount <= MAX_DIFF_LINES) {
-      selectedHunks.push(hunk);
-      currentLineCount += hunk.lineCount;
-    } else {
-      omittedFiles.push(hunk.file);
-    }
-  }
-
-  // Build truncated diff
-  const truncatedDiff = selectedHunks.map((h) => h.lines.join('\n')).join('\n');
-
-  // Build summary
-  const parts: string[] = [];
-  if (noiseFiltered > 0) {
-    parts.push(`${noiseFiltered} noise files filtered`);
-  }
-  if (omittedFiles.length > 0) {
-    parts.push(
-      `${omittedFiles.length} files omitted: ${omittedFiles.slice(0, 3).join(', ')}${omittedFiles.length > 3 ? '...' : ''}`,
-    );
-  }
-  const summary = parts.length > 0 ? `(${parts.join(', ')})` : '';
+  const { selected, omitted } = selectHunksWithinLimit(hunks);
+  const truncatedDiff = selected.map((h) => h.lines.join('\n')).join('\n');
 
   return {
     diff: truncatedDiff,
     truncated: true,
-    summary,
+    summary: buildSummary(noiseFiltered, omitted),
   };
 }

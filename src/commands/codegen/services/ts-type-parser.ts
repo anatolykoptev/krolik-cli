@@ -122,87 +122,103 @@ function parseTypeString(typeText: string): Partial<ParsedProperty> {
   return { type: trimmed };
 }
 
+/** Member type for parsing */
+type MemberNode = {
+  type: string;
+  key?: { type: string; value?: string };
+  typeAnnotation?: unknown;
+  optional?: boolean;
+};
+
+/** Type annotation node structure */
+type TypeAnnotationNode = {
+  typeAnnotation?: {
+    type?: string;
+    kind?: string;
+    span?: { start: number; end: number };
+  };
+};
+
+/**
+ * Extract property name from member key
+ */
+function extractPropertyName(key: { type: string; value?: string }): string | undefined {
+  if ((key.type === 'Identifier' || key.type === 'StringLiteral') && key.value) {
+    return key.value;
+  }
+  return undefined;
+}
+
+/**
+ * Extract type text from type annotation node
+ */
+function extractTypeText(typeAnnotation: unknown, content: string): string {
+  const typeAnnotationNode = typeAnnotation as TypeAnnotationNode;
+  const actualTypeNode = typeAnnotationNode.typeAnnotation;
+
+  if (!actualTypeNode) {
+    return 'unknown';
+  }
+
+  // For TsKeywordType (string, number, boolean, etc.), use the kind property
+  if (actualTypeNode.type === 'TsKeywordType' && actualTypeNode.kind) {
+    return actualTypeNode.kind;
+  }
+
+  // For other types, extract text directly from source
+  if (actualTypeNode.span) {
+    // NOTE: SWC spans appear to be off by 1 byte at the start
+    const start = actualTypeNode.span.start - 1;
+    const end = actualTypeNode.span.end - 1;
+    const extracted = content.slice(start, end);
+    if (extracted) {
+      return extracted.trim();
+    }
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Build a ParsedProperty from member data
+ */
+function buildParsedProperty(name: string, typeText: string, optional: boolean): ParsedProperty {
+  const parsedType = parseTypeString(typeText);
+
+  return {
+    name,
+    type: parsedType.type ?? typeText,
+    optional: optional || parsedType.optional === true,
+    nullable: parsedType.nullable ?? false,
+    ...parsedType,
+  };
+}
+
 /**
  * Parse properties from interface/type body
  */
-function parsePropertiesFromMembers(
-  members: Array<{
-    type: string;
-    key?: { type: string; value?: string };
-    typeAnnotation?: unknown;
-    optional?: boolean;
-  }>,
-  content: string,
-): ParsedProperty[] {
+function parsePropertiesFromMembers(members: MemberNode[], content: string): ParsedProperty[] {
   const properties: ParsedProperty[] = [];
 
   for (const member of members) {
-    // Only handle property signatures
     if (member.type !== 'TsPropertySignature') {
       continue;
     }
 
-    // Extract property name
-    const key = member.key;
-    if (!key) {
+    if (!member.key) {
       continue;
     }
 
-    let name: string | undefined;
-    if (key.type === 'Identifier' && key.value) {
-      name = key.value;
-    } else if (key.type === 'StringLiteral' && key.value) {
-      name = key.value;
-    }
-
+    const name = extractPropertyName(member.key);
     if (!name) {
       continue;
     }
 
-    // Extract type annotation
-    let typeText = 'unknown';
-    const optional = member.optional ?? false;
-    const nullable = false;
+    const typeText = member.typeAnnotation
+      ? extractTypeText(member.typeAnnotation, content)
+      : 'unknown';
 
-    if (member.typeAnnotation) {
-      const typeAnnotationNode = member.typeAnnotation as {
-        typeAnnotation?: {
-          type?: string;
-          kind?: string;
-          span?: { start: number; end: number };
-        };
-      };
-
-      const actualTypeNode = typeAnnotationNode.typeAnnotation;
-      if (actualTypeNode) {
-        // For TsKeywordType (string, number, boolean, etc.), use the kind property
-        if (actualTypeNode.type === 'TsKeywordType' && actualTypeNode.kind) {
-          typeText = actualTypeNode.kind;
-        } else if (actualTypeNode.span) {
-          // For other types, extract text directly from source
-          // NOTE: SWC spans appear to be off by 1 byte at the start
-          const start = actualTypeNode.span.start - 1;
-          const end = actualTypeNode.span.end - 1;
-          const extracted = content.slice(start, end);
-
-          if (extracted) {
-            typeText = extracted.trim();
-          }
-        }
-      }
-    }
-
-    // Parse the type string for additional info
-    const parsedType = parseTypeString(typeText);
-
-    const property: ParsedProperty = {
-      name,
-      type: parsedType.type ?? typeText,
-      optional: optional || parsedType.optional === true,
-      nullable: parsedType.nullable ?? nullable,
-      ...parsedType,
-    };
-
+    const property = buildParsedProperty(name, typeText, member.optional ?? false);
     properties.push(property);
   }
 

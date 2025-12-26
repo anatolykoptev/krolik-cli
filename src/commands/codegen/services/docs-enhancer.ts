@@ -58,8 +58,9 @@ export class DocsEnhancer implements IDocsEnhancer {
     const cacheKey = `${generatorId}:${options.name}`;
 
     // Check session cache
-    if (sessionCache.has(cacheKey)) {
-      return sessionCache.get(cacheKey)!;
+    const cached = sessionCache.get(cacheKey);
+    if (cached) {
+      return cached;
     }
 
     const strategy = STRATEGIES[generatorId];

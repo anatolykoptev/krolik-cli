@@ -47,6 +47,91 @@ export interface AgentCommandOptions extends AgentOptions {
 }
 
 /**
+ * Handle --install flag
+ */
+function handleInstall(logger: CommandContext['logger']): void {
+  logger.info('Hint: Use "krolik setup --agents" instead');
+  const result = cloneAgentsRepo();
+  if (!result.success) {
+    logger.error(result.error || 'Failed to install agents');
+    process.exit(1);
+  }
+  const version = getAgentsVersion();
+  if (version) {
+    logger.info(`Agents version: ${version.version} (${version.date})`);
+  }
+}
+
+/**
+ * Handle --update flag
+ */
+function handleUpdate(logger: CommandContext['logger']): void {
+  logger.info('Hint: Use "krolik setup --update" instead');
+  const result = updateAgentsRepo();
+  if (!result.success) {
+    logger.error(result.error || 'Failed to update agents');
+    process.exit(1);
+  }
+  if (result.updated) {
+    logger.info('Agents updated successfully');
+  } else {
+    logger.info('Agents are already up to date');
+  }
+}
+
+/**
+ * Ensure agents are installed, auto-install if needed
+ */
+function ensureAgentsInstalled(projectRoot: string, logger: CommandContext['logger']): string {
+  const agentsPath = findAgentsPath(projectRoot);
+  if (agentsPath) return agentsPath;
+
+  logger.info('Agents not found. Installing wshobson/agents...');
+  const result = cloneAgentsRepo();
+  if (!result.success) {
+    logger.error(result.error || 'Failed to install agents');
+    logger.info(
+      'You can manually install: git clone https://github.com/wshobson/agents ~/.krolik/agents',
+    );
+    process.exit(1);
+  }
+  if (!result.path) {
+    logger.error('Failed to get agents path after installation');
+    process.exit(1);
+  }
+  return result.path;
+}
+
+/**
+ * Handle agent not found - suggest similar agents
+ */
+function handleAgentNotFound(
+  agentsPath: string,
+  agentName: string,
+  logger: CommandContext['logger'],
+): never {
+  logger.error(`Agent "${agentName}" not found`);
+  logger.info('Use --list to see available agents');
+
+  const allAgents = loadAllAgents(agentsPath);
+  const similar = allAgents.filter(
+    (a) =>
+      a.name.includes(agentName) ||
+      agentName.includes(a.name) ||
+      a.description.toLowerCase().includes(agentName.toLowerCase()),
+  );
+  if (similar.length > 0) {
+    logger.info(
+      `\nDid you mean: ${similar
+        .slice(0, 5)
+        .map((a) => a.name)
+        .join(', ')}`,
+    );
+  }
+  process.exit(1);
+}
+
+/**
  * Run agent command
  */
 export async function runAgent(
@@ -55,55 +140,18 @@ export async function runAgent(
   const { config, logger, options } = ctx;
   const projectRoot = config.projectRoot;
 
-  // Handle --install flag (redirect to setup --agents)
   if (options.install) {
-    logger.info('Hint: Use "krolik setup --agents" instead');
-    const result = cloneAgentsRepo();
-    if (!result.success) {
-      logger.error(result.error || 'Failed to install agents');
-      process.exit(1);
-    }
-    const version = getAgentsVersion();
-    if (version) {
-      logger.info(`Agents version: ${version.version} (${version.date})`);
-    }
+    handleInstall(logger);
     return;
   }
 
-  // Handle --update flag (redirect to setup --update)
   if (options.update) {
-    logger.info('Hint: Use "krolik setup --update" instead');
-    const result = updateAgentsRepo();
-    if (!result.success) {
-      logger.error(result.error || 'Failed to update agents');
-      process.exit(1);
-    }
-    if (result.updated) {
-      logger.info('Agents updated successfully');
-    } else {
-      logger.info('Agents are already up to date');
-    }
+    handleUpdate(logger);
     return;
   }
 
-  // Find agents repository
-  let agentsPath = findAgentsPath(projectRoot);
+  const agentsPath = ensureAgentsInstalled(projectRoot, logger);
 
-  // Auto-install if not found
-  if (!agentsPath) {
-    logger.info('Agents not found. Installing wshobson/agents...');
-    const result = cloneAgentsRepo();
-    if (!result.success) {
-      logger.error(result.error || 'Failed to install agents');
-      logger.info(
-        'You can manually install: git clone https://github.com/wshobson/agents ~/.krolik/agents',
-      );
-      process.exit(1);
-    }
-    agentsPath = result.path;
-  }
-
-  // Handle --list flag
   if (options.list) {
     const version = getAgentsVersion();
     if (version) {
@@ -113,14 +161,12 @@ export async function runAgent(
     return;
   }
 
-  // Handle --orchestrate flag (multi-agent coordination)
   if (options.orchestrate) {
     const task = options.task || options.agentName || 'analyze the project';
     await runOrchestration(projectRoot, task, options);
     return;
   }
 
-  // Get agent name from options
   const agentName = options.agentName;
   if (!agentName) {
     logger.error('Agent name is required');
@@ -130,39 +176,17 @@ export async function runAgent(
     process.exit(1);
   }
 
-  // Try to resolve as category first
   const category = resolveCategory(agentName);
   if (category) {
     await runCategoryAgents(agentsPath, category, projectRoot, options);
     return;
   }
 
-  // Try to find specific agent
   const agent = loadAgentByName(agentsPath, agentName);
   if (!agent) {
-    logger.error(`Agent "${agentName}" not found`);
-    logger.info('Use --list to see available agents');
-
-    // Suggest similar agents
-    const allAgents = loadAllAgents(agentsPath);
-    const similar = allAgents.filter(
-      (a) =>
-        a.name.includes(agentName) ||
-        agentName.includes(a.name) ||
-        a.description.toLowerCase().includes(agentName.toLowerCase()),
-    );
-    if (similar.length > 0) {
-      logger.info(
-        `\nDid you mean: ${similar
-          .slice(0, 5)
-          .map((a) => a.name)
-          .join(', ')}`,
-      );
-    }
-    process.exit(1);
+    handleAgentNotFound(agentsPath, agentName, logger);
   }
 
-  // Run single agent
   await runSingleAgent(agent, projectRoot, options);
 }
 

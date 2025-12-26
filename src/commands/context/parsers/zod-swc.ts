@@ -29,6 +29,52 @@ interface ObjectExpressionNode {
 }
 
 /**
+ * Variable declarator structure for schema parsing
+ */
+interface VariableDeclarator {
+  id: { type: string; value?: string };
+  init?: Node;
+}
+
+/**
+ * Process a single variable declarator for Zod schema
+ */
+function processSchemaDeclarator(
+  decl: VariableDeclarator,
+  content: string,
+  fileName: string,
+): ZodSchemaInfo | null {
+  // Check if variable name ends with "Schema"
+  const varName = decl.id.type === 'Identifier' ? (decl.id as { value: string }).value : null;
+
+  if (!varName || !varName.endsWith('Schema')) {
+    return null;
+  }
+
+  // Check if init is z.object() call
+  if (!decl.init || getNodeType(decl.init) !== 'CallExpression') {
+    return null;
+  }
+
+  const callExpr = decl.init as unknown as CallExpression;
+
+  // Check if it's z.object()
+  if (!isZodObjectCall(callExpr)) {
+    return null;
+  }
+
+  // Extract fields from the first argument (ObjectExpression)
+  const fields = extractZodFields(callExpr, content);
+
+  return {
+    name: varName,
+    type: getSchemaType(varName),
+    fields,
+    file: fileName,
+  };
+}
+
+/**
  * Parse a single schema file using SWC AST
  */
 function parseSchemaFileSwc(filePath: string): ZodSchemaInfo[] {
@@ -53,41 +99,14 @@ function parseSchemaFileSwc(filePath: string): ZodSchemaInfo[] {
 
       // Get the variable declarator
       const varDecl = node as unknown as {
-        declarations: Array<{
-          id: { type: string; value?: string };
-          init?: Node;
-        }>;
+        declarations: VariableDeclarator[];
       };
 
       for (const decl of varDecl.declarations) {
-        // Check if variable name ends with "Schema"
-        const varName = decl.id.type === 'Identifier' ? (decl.id as { value: string }).value : null;
-
-        if (!varName || !varName.endsWith('Schema')) {
-          continue;
+        const schema = processSchemaDeclarator(decl, content, fileName);
+        if (schema) {
+          schemas.push(schema);
         }
-
-        // Check if init is z.object() call
-        if (!decl.init || getNodeType(decl.init) !== 'CallExpression') {
-          continue;
-        }
-
-        const callExpr = decl.init as unknown as CallExpression;
-
-        // Check if it's z.object()
-        if (!isZodObjectCall(callExpr)) {
-          continue;
-        }
-
-        // Extract fields from the first argument (ObjectExpression)
-        const fields = extractZodFields(callExpr, content);
-
-        schemas.push({
-          name: varName,
-          type: getSchemaType(varName),
-          fields,
-          file: fileName,
-        });
       }
     },
   });

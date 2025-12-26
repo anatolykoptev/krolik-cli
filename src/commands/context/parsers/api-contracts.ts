@@ -137,7 +137,16 @@ function parseRouterFile(filePath: string, relativePath: string): RouterContract
     };
   }
 
-  const startIdx = routerCallMatch.index! + routerCallMatch[0].length - 1;
+  const matchIndex = routerCallMatch.index;
+  if (matchIndex === undefined) {
+    return {
+      name: routerName,
+      path: relativePath,
+      procedures,
+      subRouters,
+    };
+  }
+  const startIdx = matchIndex + routerCallMatch[0].length - 1;
 
   // Find matching closing brace
   let depth = 1;
@@ -217,45 +226,75 @@ function parseProceduresFromBody(
 }
 
 /**
+ * State for tracking string parsing
+ */
+interface StringState {
+  inString: boolean;
+  stringChar: string;
+}
+
+/**
+ * Update string tracking state based on current character
+ */
+function updateStringState(char: string, prevChar: string, state: StringState): StringState {
+  if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
+    if (!state.inString) {
+      return { inString: true, stringChar: char };
+    } else if (char === state.stringChar) {
+      return { inString: false, stringChar: '' };
+    }
+  }
+  return state;
+}
+
+/**
+ * Depth tracking state for parsing
+ */
+interface DepthState {
+  paren: number;
+  brace: number;
+}
+
+/**
+ * Update depth tracking based on character
+ */
+function updateDepthState(char: string, state: DepthState): DepthState {
+  const parenDelta = char === '(' ? 1 : char === ')' ? -1 : 0;
+  const braceDelta = char === '{' ? 1 : char === '}' ? -1 : 0;
+  return {
+    paren: state.paren + parenDelta,
+    brace: state.brace + braceDelta,
+  };
+}
+
+/**
+ * Check if we've reached the end of a procedure value
+ */
+function isEndOfProcedureValue(char: string, depth: DepthState): boolean {
+  return depth.paren === 0 && depth.brace === 0 && (char === ',' || char === '}');
+}
+
+/**
  * Extract procedure value from router body starting at given index
  * Handles nested parens, braces, and strings
  */
 function extractProcedureValue(text: string, startIdx: number): string | null {
   let endIdx = startIdx;
-  let depth = 0;
-  let braceDepth = 0;
-  let inString = false;
-  let stringChar = '';
+  let depthState: DepthState = { paren: 0, brace: 0 };
+  let stringState: StringState = { inString: false, stringChar: '' };
 
   for (let i = startIdx; i < text.length; i++) {
-    const char = text[i];
-    const prevChar = i > 0 ? text[i - 1] : '';
+    const char = text[i] ?? '';
+    const prevChar = i > 0 ? (text[i - 1] ?? '') : '';
 
-    // Track string state
-    if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
-      if (!inString) {
-        inString = true;
-        stringChar = char;
-      } else if (char === stringChar) {
-        inString = false;
-        stringChar = '';
-      }
-    }
+    stringState = updateStringState(char, prevChar, stringState);
+    if (stringState.inString) continue;
 
-    if (inString) continue;
+    depthState = updateDepthState(char, depthState);
 
-    // Track parenthesis and brace depth
-    if (char === '(') depth++;
-    if (char === ')') depth--;
-    if (char === '{') braceDepth++;
-    if (char === '}') braceDepth--;
-
-    // End when we hit a comma or closing brace at depth 0
-    if (depth === 0 && braceDepth === 0) {
-      if (char === ',' || char === '}') {
-        endIdx = i;
-        break;
-      }
+    if (isEndOfProcedureValue(char, depthState)) {
+      endIdx = i;
+      break;
     }
 
     endIdx = i + 1;
@@ -420,15 +459,11 @@ function extractInlineZodFields(zodText: string): SchemaField[] {
 }
 
 /**
- * Parse Zod field chain (type + modifiers)
+ * Resolve Zod type from type name and modifiers
  */
-function parseZodFieldChain(name: string, zodType: string, modifiers: string): SchemaField | null {
+function resolveZodType(zodType: string, modifiers: string, validations: string[]): string {
   let type = zodType;
-  let required = true;
-  const validations: string[] = [];
-  let defaultValue: string | undefined;
 
-  // Handle enum
   if (type === 'enum') {
     const enumMatch = modifiers.match(/\(\s*\[([^\]]+)\]/);
     if (enumMatch?.[1]) {
@@ -438,23 +473,14 @@ function parseZodFieldChain(name: string, zodType: string, modifiers: string): S
         .slice(0, 3);
       type = `enum(${values.join('|')})`;
     }
-  }
-
-  // Handle nativeEnum
-  if (type === 'nativeEnum') {
+  } else if (type === 'nativeEnum') {
     type = 'enum';
-  }
-
-  // Handle array
-  if (type === 'array') {
+  } else if (type === 'array') {
     const arrayMatch = modifiers.match(/\(\s*z\.(\w+)/);
     if (arrayMatch?.[1]) {
       type = `${arrayMatch[1]}[]`;
     }
-  }
-
-  // Handle coerce
-  if (type === 'coerce') {
+  } else if (type === 'coerce') {
     const coerceMatch = modifiers.match(/\.(\w+)/);
     if (coerceMatch?.[1]) {
       type = coerceMatch[1];
@@ -462,24 +488,19 @@ function parseZodFieldChain(name: string, zodType: string, modifiers: string): S
     }
   }
 
-  // Check for optional
-  if (modifiers.includes('.optional()')) {
-    required = false;
-  }
+  return type;
+}
 
-  // Check for nullable
+/**
+ * Extract validations from Zod modifiers
+ */
+function extractZodValidations(modifiers: string): string[] {
+  const validations: string[] = [];
+
   if (modifiers.includes('.nullable()')) {
     validations.push('nullable');
   }
 
-  // Extract default value
-  const defaultMatch = modifiers.match(/\.default\(\s*(['"]?)([^'")\s]+)\1\s*\)/);
-  if (defaultMatch?.[2]) {
-    defaultValue = defaultMatch[2];
-    required = false;
-  }
-
-  // Extract validations
   const minMatch = modifiers.match(/\.min\(\s*(\d+)\s*\)/);
   if (minMatch?.[1]) {
     validations.push(`min:${minMatch[1]}`);
@@ -490,24 +511,34 @@ function parseZodFieldChain(name: string, zodType: string, modifiers: string): S
     validations.push(`max:${maxMatch[1]}`);
   }
 
-  if (modifiers.includes('.email()')) {
-    validations.push('email');
+  const simpleValidators = ['email', 'url', 'uuid', 'int', 'positive'];
+  for (const validator of simpleValidators) {
+    if (modifiers.includes(`.${validator}()`)) {
+      validations.push(validator);
+    }
   }
 
-  if (modifiers.includes('.url()')) {
-    validations.push('url');
+  return validations;
+}
+
+/**
+ * Parse Zod field chain (type + modifiers)
+ */
+function parseZodFieldChain(name: string, zodType: string, modifiers: string): SchemaField | null {
+  const validations = extractZodValidations(modifiers);
+  const type = resolveZodType(zodType, modifiers, validations);
+
+  let required = true;
+  let defaultValue: string | undefined;
+
+  if (modifiers.includes('.optional()')) {
+    required = false;
   }
 
-  if (modifiers.includes('.uuid()')) {
-    validations.push('uuid');
-  }
-
-  if (modifiers.includes('.int()')) {
-    validations.push('int');
-  }
-
-  if (modifiers.includes('.positive()')) {
-    validations.push('positive');
+  const defaultMatch = modifiers.match(/\.default\(\s*(['"]?)([^'")\s]+)\1\s*\)/);
+  if (defaultMatch?.[2]) {
+    defaultValue = defaultMatch[2];
+    required = false;
   }
 
   const field: SchemaField = {
@@ -528,12 +559,81 @@ function parseZodFieldChain(name: string, zodType: string, modifiers: string): S
 }
 
 /**
+ * Format input contract as XML lines
+ */
+function formatInputXml(input: InputContract): string[] {
+  const lines: string[] = [];
+  lines.push(`        <input schema="${input.schema}">`);
+  for (const field of input.fields) {
+    const fieldAttrs = [
+      `name="${field.name}"`,
+      `type="${field.type}"`,
+      `required="${field.required}"`,
+    ];
+    if (field.validation) {
+      fieldAttrs.push(`validation="${escapeXml(field.validation)}"`);
+    }
+    if (field.defaultValue) {
+      fieldAttrs.push(`default="${escapeXml(field.defaultValue)}"`);
+    }
+    lines.push(`          <field ${fieldAttrs.join(' ')} />`);
+  }
+  lines.push('        </input>');
+  return lines;
+}
+
+/**
+ * Format output contract as XML lines
+ */
+function formatOutputXml(output: OutputContract): string[] {
+  const lines: string[] = [];
+  const outputAttrs = [`schema="${output.schema}"`];
+  if (output.fields && output.fields.length > 0) {
+    lines.push(`        <output ${outputAttrs.join(' ')}>`);
+    for (const field of output.fields) {
+      const fieldAttrs = [`name="${field.name}"`, `type="${field.type}"`];
+      lines.push(`          <field ${fieldAttrs.join(' ')} />`);
+    }
+    lines.push('        </output>');
+  } else {
+    lines.push(`        <output ${outputAttrs.join(' ')} />`);
+  }
+  return lines;
+}
+
+/**
+ * Format procedure as XML lines
+ */
+function formatProcedureXml(proc: ProcedureContract): string[] {
+  const lines: string[] = [];
+  const attrs = [`name="${proc.name}"`, `type="${proc.type}"`, `protection="${proc.protection}"`];
+
+  if (proc.rateLimit) {
+    attrs.push(`rate-limit="${proc.rateLimit.bucket}"`);
+  }
+
+  lines.push(`      <procedure ${attrs.join(' ')}>`);
+
+  if (proc.input) {
+    lines.push(...formatInputXml(proc.input));
+  }
+
+  if (proc.output) {
+    lines.push(...formatOutputXml(proc.output));
+  }
+
+  lines.push('      </procedure>');
+  return lines;
+}
+
+/**
  * Format API contracts as XML for AI context
  */
 export function formatApiContractsXml(contracts: RouterContract[]): string {
+  const totalProcedures = contracts.reduce((sum, c) => sum + c.procedures.length, 0);
   const lines: string[] = [
     '<api-contracts>',
-    `  <summary>Found ${contracts.length} routers with ${contracts.reduce((sum, c) => sum + c.procedures.length, 0)} procedures</summary>`,
+    `  <summary>Found ${contracts.length} routers with ${totalProcedures} procedures</summary>`,
   ];
 
   for (const contract of contracts) {
@@ -547,56 +647,7 @@ export function formatApiContractsXml(contracts: RouterContract[]): string {
     lines.push(`    <procedures count="${contract.procedures.length}">`);
 
     for (const proc of contract.procedures) {
-      const attrs = [
-        `name="${proc.name}"`,
-        `type="${proc.type}"`,
-        `protection="${proc.protection}"`,
-      ];
-
-      if (proc.rateLimit) {
-        attrs.push(`rate-limit="${proc.rateLimit.bucket}"`);
-      }
-
-      lines.push(`      <procedure ${attrs.join(' ')}>`);
-
-      // Input
-      if (proc.input) {
-        lines.push(`        <input schema="${proc.input.schema}">`);
-        if (proc.input.fields.length > 0) {
-          for (const field of proc.input.fields) {
-            const fieldAttrs = [
-              `name="${field.name}"`,
-              `type="${field.type}"`,
-              `required="${field.required}"`,
-            ];
-            if (field.validation) {
-              fieldAttrs.push(`validation="${escapeXml(field.validation)}"`);
-            }
-            if (field.defaultValue) {
-              fieldAttrs.push(`default="${escapeXml(field.defaultValue)}"`);
-            }
-            lines.push(`          <field ${fieldAttrs.join(' ')} />`);
-          }
-        }
-        lines.push('        </input>');
-      }
-
-      // Output
-      if (proc.output) {
-        const outputAttrs = [`schema="${proc.output.schema}"`];
-        if (proc.output.fields && proc.output.fields.length > 0) {
-          lines.push(`        <output ${outputAttrs.join(' ')}>`);
-          for (const field of proc.output.fields) {
-            const fieldAttrs = [`name="${field.name}"`, `type="${field.type}"`];
-            lines.push(`          <field ${fieldAttrs.join(' ')} />`);
-          }
-          lines.push('        </output>');
-        } else {
-          lines.push(`        <output ${outputAttrs.join(' ')} />`);
-        }
-      }
-
-      lines.push('      </procedure>');
+      lines.push(...formatProcedureXml(proc));
     }
 
     lines.push('    </procedures>');

@@ -9,6 +9,7 @@
 import * as fs from 'node:fs';
 import { saveKrolikFile } from '../../lib';
 import type { CommandContext, OutputFormat } from '../../types';
+import type { FixerRegistry } from '../fix/core/registry';
 import type { AIReport } from '../fix/reporter/types';
 import { getProjectStatus } from '../status';
 import { formatReportOutput, type ReportSummary } from '../status/output';
@@ -78,6 +79,96 @@ function extractReportSummary(report: AIReport, relativePath: string): ReportSum
 }
 
 /**
+ * Read file content safely, returning empty string if file doesn't exist
+ */
+function readFileContent(filePath: string): string {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
+}
+
+/**
+ * Format the diff section of a fix preview
+ */
+function formatDiffLines(fixOp: { oldCode?: string; newCode?: string; action: string }): string[] {
+  const lines: string[] = [];
+  lines.push('    <diff>');
+  lines.push(`- ${fixOp.oldCode?.trim() ?? ''}`);
+
+  if (fixOp.newCode) {
+    lines.push(`+ ${fixOp.newCode.trim()}`);
+  } else if (fixOp.action === 'delete-line') {
+    lines.push('+ (line removed)');
+  }
+
+  lines.push('    </diff>');
+  return lines;
+}
+
+/**
+ * Format a single fix preview entry
+ */
+function formatFixPreview(
+  issue: AIReport['quickWins'][0]['issue'],
+  fixOp: { oldCode?: string; newCode?: string; action: string },
+): string[] {
+  const relativePath = issue.file.replace(/.*\/krolik-cli\//, '');
+  const lines: string[] = [];
+
+  lines.push(`  <fix file="${relativePath}:${issue.line || 0}" action="${fixOp.action}">`);
+  lines.push(`    <message>${issue.message}</message>`);
+  lines.push(...formatDiffLines(fixOp));
+  lines.push('  </fix>');
+  lines.push('');
+
+  return lines;
+}
+
+/**
+ * Try to generate a fix preview for a single quick win issue
+ * Returns the formatted lines if successful, null otherwise
+ */
+async function tryGeneratePreview(
+  issue: AIReport['quickWins'][0]['issue'],
+  registry: FixerRegistry,
+): Promise<string[] | null> {
+  if (!issue.fixerId) {
+    return null;
+  }
+
+  const fixer = registry.get(issue.fixerId);
+  if (!fixer) {
+    return null;
+  }
+
+  const content = readFileContent(issue.file);
+  if (!content) {
+    return null;
+  }
+
+  try {
+    const fixOp = (await fixer.fix(
+      {
+        file: issue.file,
+        ...(issue.line !== undefined && { line: issue.line }),
+        severity: 'warning',
+        category: issue.category,
+        message: issue.message,
+        ...(issue.snippet !== undefined && { snippet: issue.snippet }),
+        ...(issue.fixerId !== undefined && { fixerId: issue.fixerId }),
+      },
+      content,
+    )) as { oldCode?: string; newCode?: string; action: string } | null;
+
+    if (!fixOp?.oldCode) {
+      return null;
+    }
+
+    return formatFixPreview(issue, fixOp);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Generate fix previews for quick wins
  */
 async function generateFixPreviews(
@@ -90,69 +181,24 @@ async function generateFixPreviews(
 
   const { registry } = await import('../fix/fixers');
   const lines: string[] = [];
+  const maxPreviews = 10;
+  let previewCount = 0;
 
   lines.push('<fix-previews>');
   lines.push('  <info>Auto-fixable issues with diff previews</info>');
   lines.push('');
 
-  let previewCount = 0;
-  const maxPreviews = 10; // Limit to avoid overwhelming output
-
   for (const win of report.quickWins) {
     if (previewCount >= maxPreviews) {
-      lines.push(
-        `  <note>... and ${report.quickWins.length - previewCount} more auto-fixable issues</note>`,
-      );
+      const remaining = report.quickWins.length - previewCount;
+      lines.push(`  <note>... and ${remaining} more auto-fixable issues</note>`);
       break;
     }
 
-    const { issue } = win;
-
-    // Try to get fixer and generate preview
-    if (issue.fixerId) {
-      const fixer = registry.get(issue.fixerId);
-      if (fixer) {
-        try {
-          // Read file content
-          const content = fs.existsSync(issue.file) ? fs.readFileSync(issue.file, 'utf-8') : '';
-
-          if (content) {
-            const fixOp = await fixer.fix(
-              {
-                file: issue.file,
-                ...(issue.line !== undefined && { line: issue.line }),
-                severity: 'warning',
-                category: issue.category,
-                message: issue.message,
-                ...(issue.snippet !== undefined && { snippet: issue.snippet }),
-                ...(issue.fixerId !== undefined && { fixerId: issue.fixerId }),
-              },
-              content,
-            );
-
-            if (fixOp?.oldCode) {
-              const relativePath = issue.file.replace(/.*\/krolik-cli\//, '');
-              lines.push(
-                `  <fix file="${relativePath}:${issue.line || 0}" action="${fixOp.action}">`,
-              );
-              lines.push(`    <message>${issue.message}</message>`);
-              lines.push('    <diff>');
-              lines.push(`- ${fixOp.oldCode.trim()}`);
-              if (fixOp.newCode) {
-                lines.push(`+ ${fixOp.newCode.trim()}`);
-              } else if (fixOp.action === 'delete-line') {
-                lines.push('+ (line removed)');
-              }
-              lines.push('    </diff>');
-              lines.push('  </fix>');
-              lines.push('');
-              previewCount++;
-            }
-          }
-        } catch {
-          // Skip issues that can't be previewed
-        }
-      }
+    const previewLines = await tryGeneratePreview(win.issue, registry);
+    if (previewLines) {
+      lines.push(...previewLines);
+      previewCount++;
     }
   }
 

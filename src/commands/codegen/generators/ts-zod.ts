@@ -22,6 +22,57 @@ import type { GeneratedFile, GeneratorMetadata, GeneratorOptions } from '../type
 import { BaseGenerator } from './base';
 
 /**
+ * Convert literal value to Zod literal type
+ */
+function literalToZod(literalValue: string | number | boolean): string {
+  if (typeof literalValue === 'string') {
+    return `z.literal('${literalValue}')`;
+  }
+  return `z.literal(${literalValue})`;
+}
+
+/**
+ * Convert array type to Zod array
+ */
+function arrayToZod(arrayType: string): string {
+  return `z.array(${primitiveToZod(arrayType)})`;
+}
+
+/**
+ * Convert Record type to Zod record
+ */
+function recordToZod(recordTypes: { key: string; value: string }): string {
+  const keyZod = primitiveToZod(recordTypes.key);
+  const valueZod = primitiveToZod(recordTypes.value);
+  return `z.record(${keyZod}, ${valueZod})`;
+}
+
+/**
+ * Convert union types to Zod union
+ */
+function unionToZod(unionTypes: string[]): string {
+  if (unionTypes.length === 1 && unionTypes[0]) {
+    return primitiveToZod(unionTypes[0]);
+  }
+  const unionZodTypes = unionTypes.map((t) => primitiveToZod(t));
+  return `z.union([${unionZodTypes.join(', ')}])`;
+}
+
+/**
+ * Apply nullable and optional modifiers to Zod type
+ */
+function applyModifiers(zodType: string, nullable: boolean, optional: boolean): string {
+  let result = zodType;
+  if (nullable) {
+    result = `${result}.nullable()`;
+  }
+  if (optional) {
+    result = `${result}.optional()`;
+  }
+  return result;
+}
+
+/**
  * Convert TypeScript type to Zod type
  */
 function tsTypeToZod(property: ParsedProperty): string {
@@ -29,50 +80,19 @@ function tsTypeToZod(property: ParsedProperty): string {
 
   let zodType: string;
 
-  // Handle literal types
   if (literalValue !== undefined) {
-    if (typeof literalValue === 'string') {
-      zodType = `z.literal('${literalValue}')`;
-    } else if (typeof literalValue === 'number') {
-      zodType = `z.literal(${literalValue})`;
-    } else {
-      zodType = `z.literal(${literalValue})`;
-    }
-  }
-  // Handle arrays
-  else if (arrayType) {
-    const innerZod = primitiveToZod(arrayType);
-    zodType = `z.array(${innerZod})`;
-  }
-  // Handle Record<K, V>
-  else if (recordTypes) {
-    const keyZod = primitiveToZod(recordTypes.key);
-    const valueZod = primitiveToZod(recordTypes.value);
-    zodType = `z.record(${keyZod}, ${valueZod})`;
-  }
-  // Handle union types
-  else if (unionTypes && unionTypes.length > 0) {
-    if (unionTypes.length === 1 && unionTypes[0]) {
-      zodType = primitiveToZod(unionTypes[0]);
-    } else {
-      const unionZodTypes = unionTypes.map((t) => primitiveToZod(t));
-      zodType = `z.union([${unionZodTypes.join(', ')}])`;
-    }
-  }
-  // Handle primitive types
-  else {
+    zodType = literalToZod(literalValue);
+  } else if (arrayType) {
+    zodType = arrayToZod(arrayType);
+  } else if (recordTypes) {
+    zodType = recordToZod(recordTypes);
+  } else if (unionTypes && unionTypes.length > 0) {
+    zodType = unionToZod(unionTypes);
+  } else {
     zodType = primitiveToZod(type);
   }
 
-  // Apply modifiers
-  if (nullable) {
-    zodType = `${zodType}.nullable()`;
-  }
-  if (optional) {
-    zodType = `${zodType}.optional()`;
-  }
-
-  return zodType;
+  return applyModifiers(zodType, nullable, optional);
 }
 
 /**

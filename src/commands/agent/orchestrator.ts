@@ -359,13 +359,20 @@ export const BUILTIN_AGENTS: AgentDefinition[] = [ORCHESTRATOR_AGENT, TASK_ROUTE
 // ============================================================================
 
 /**
- * Analyze a task and determine which agents to invoke
+ * Detected task type with score
  */
-export function analyzeTask(task: string): TaskAnalysis {
-  const normalizedTask = task.toLowerCase();
-  const detectedTypes: Array<{ type: TaskType; score: number; keywords: string[] }> = [];
+interface DetectedType {
+  type: TaskType;
+  score: number;
+  keywords: string[];
+}
 
-  // Score each task type by keyword matches
+/**
+ * Score task against all keyword configurations
+ */
+function scoreTaskTypes(normalizedTask: string): DetectedType[] {
+  const detectedTypes: DetectedType[] = [];
+
   for (const [taskType, config] of Object.entries(TASK_KEYWORDS)) {
     const matchedKeywords: string[] = [];
     for (const keyword of config.keywords) {
@@ -382,46 +389,75 @@ export function analyzeTask(task: string): TaskAnalysis {
     }
   }
 
-  // Sort by score descending
-  detectedTypes.sort((a, b) => b.score - a.score);
+  return detectedTypes.sort((a, b) => b.score - a.score);
+}
 
-  // Determine primary task type
-  let taskType: TaskType = 'unknown';
-  let confidence = 0;
-  let keywords: string[] = [];
+/**
+ * Collect unique categories from detected types
+ */
+function collectCategories(detectedTypes: DetectedType[]): AgentCategory[] {
   const categories: AgentCategory[] = [];
-
-  if (detectedTypes.length > 0) {
-    const primary = detectedTypes[0]!;
-    taskType = primary.type;
-    confidence = Math.min(primary.score / 3, 1); // Normalize to 0-1
-    keywords = primary.keywords;
-
-    // If multiple high-scoring types, it's multi-domain
-    const second = detectedTypes[1];
-    if (detectedTypes.length >= 2 && second && second.score >= 2) {
-      taskType = 'multi-domain';
-      confidence = 0.8;
-      keywords = detectedTypes.flatMap((d) => d.keywords);
-    }
-
-    // Collect categories from all detected types
-    for (const detected of detectedTypes) {
-      const config = TASK_KEYWORDS[detected.type];
-      for (const cat of config.categories) {
-        if (!categories.includes(cat)) {
-          categories.push(cat);
-        }
+  for (const detected of detectedTypes) {
+    const config = TASK_KEYWORDS[detected.type];
+    for (const cat of config.categories) {
+      if (!categories.includes(cat)) {
+        categories.push(cat);
       }
     }
   }
+  return categories;
+}
+
+/**
+ * Determine primary task type from detected types
+ */
+function determinePrimaryType(detectedTypes: DetectedType[]): {
+  taskType: TaskType;
+  confidence: number;
+  keywords: string[];
+} {
+  if (detectedTypes.length === 0) {
+    return { taskType: 'unknown', confidence: 0, keywords: [] };
+  }
+
+  const primary = detectedTypes[0];
+  if (!primary) {
+    return { taskType: 'unknown', confidence: 0, keywords: [] };
+  }
+
+  const second = detectedTypes[1];
+  const isMultiDomain = detectedTypes.length >= 2 && second && second.score >= 2;
+
+  if (isMultiDomain) {
+    return {
+      taskType: 'multi-domain',
+      confidence: 0.8,
+      keywords: detectedTypes.flatMap((d) => d.keywords),
+    };
+  }
+
+  return {
+    taskType: primary.type,
+    confidence: Math.min(primary.score / 3, 1),
+    keywords: primary.keywords,
+  };
+}
+
+/**
+ * Analyze a task and determine which agents to invoke
+ */
+export function analyzeTask(task: string): TaskAnalysis {
+  const normalizedTask = task.toLowerCase();
+  const detectedTypes = scoreTaskTypes(normalizedTask);
+  const { taskType, confidence, keywords } = determinePrimaryType(detectedTypes);
+  const categories = collectCategories(detectedTypes);
 
   return {
     task,
     taskType,
     confidence,
     categories,
-    agents: [], // Will be filled by getAgentRecommendations
+    agents: [],
     strategy: categories.length > 2 ? 'mixed' : 'sequential',
     keywords,
   };

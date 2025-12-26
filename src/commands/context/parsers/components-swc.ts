@@ -128,38 +128,43 @@ function detectClientComponent(ast: Module, content: string): boolean {
 }
 
 /**
+ * Process import declaration node and extract import names
+ */
+function processImportDeclaration(node: Node, imports: string[]): void {
+  const importDecl = node as {
+    source?: { value?: string };
+    specifiers?: Array<{ local?: { value?: string }; type?: string }>;
+  };
+
+  const source = importDecl.source?.value ?? '';
+
+  // Skip react and next imports
+  if (source.includes('react') || source.includes('next')) {
+    return;
+  }
+
+  // Extract named imports
+  if (importDecl.specifiers) {
+    for (const spec of importDecl.specifiers) {
+      // ImportSpecifier has local.value
+      if (spec.type === 'ImportSpecifier' || spec.type === 'ImportDefaultSpecifier') {
+        const name = spec.local?.value;
+        if (name) {
+          imports.push(name);
+        }
+      }
+    }
+  }
+}
+
+/**
  * Extract imports from AST (exclude react/next)
  */
 function extractImportsFromAst(ast: Module): string[] {
   const imports: string[] = [];
 
   visitNodeWithCallbacks(ast, {
-    onImportDeclaration: (node) => {
-      const importDecl = node as {
-        source?: { value?: string };
-        specifiers?: Array<{ local?: { value?: string }; type?: string }>;
-      };
-
-      const source = importDecl.source?.value ?? '';
-
-      // Skip react and next imports
-      if (source.includes('react') || source.includes('next')) {
-        return;
-      }
-
-      // Extract named imports
-      if (importDecl.specifiers) {
-        for (const spec of importDecl.specifiers) {
-          // ImportSpecifier has local.value
-          if (spec.type === 'ImportSpecifier' || spec.type === 'ImportDefaultSpecifier') {
-            const name = spec.local?.value;
-            if (name) {
-              imports.push(name);
-            }
-          }
-        }
-      }
-    },
+    onImportDeclaration: (node) => processImportDeclaration(node, imports),
   });
 
   return [...new Set(imports)];
@@ -191,105 +196,124 @@ function extractHooksFromAst(ast: Module): string[] {
   return Array.from(hooks);
 }
 
+// JSX form elements to look for
+const FORM_ELEMENTS = [
+  'Input',
+  'Select',
+  'DatePicker',
+  'Textarea',
+  'FormField',
+  'input',
+  'select',
+  'textarea',
+];
+
+/**
+ * Process JSX opening element to extract form field names
+ */
+function processJsxFormElement(node: Node, fields: Set<string>): void {
+  const opening = node as {
+    name?: Node;
+    attributes?: Node[];
+  };
+
+  if (!opening.name) return;
+
+  // Get element name
+  const nameNode = opening.name;
+  let elementName = '';
+
+  if (getNodeType(nameNode) === 'Identifier') {
+    elementName = (nameNode as Identifier).value;
+  } else if (getNodeType(nameNode) === 'JSXMemberExpression') {
+    // Handle <Form.Field>
+    const memberExpr = nameNode as { property?: { value?: string } };
+    elementName = memberExpr.property?.value ?? '';
+  }
+
+  // Check if it's a form element or Controller
+  const isFormElement = FORM_ELEMENTS.includes(elementName);
+  const isController = elementName === 'Controller';
+
+  if (!isFormElement && !isController) return;
+
+  // Extract name/id attributes
+  extractFieldNamesFromAttributes(opening.attributes, isFormElement, isController, fields);
+}
+
+/**
+ * Extract field names from JSX attributes
+ */
+function extractFieldNamesFromAttributes(
+  attributes: Node[] | undefined,
+  isFormElement: boolean,
+  isController: boolean,
+  fields: Set<string>,
+): void {
+  if (!attributes) return;
+
+  for (const attr of attributes) {
+    if (getNodeType(attr) !== 'JSXAttribute') continue;
+
+    const jsxAttr = attr as {
+      name?: { value?: string };
+      value?: JSXAttrValue;
+    };
+
+    const attrName = jsxAttr.name?.value;
+
+    // For form elements, extract name/id
+    // For Controller, extract name
+    if (
+      (isFormElement && (attrName === 'name' || attrName === 'id')) ||
+      (isController && attrName === 'name')
+    ) {
+      // Extract string value
+      if (jsxAttr.value) {
+        const fieldName = extractJsxAttrValue(jsxAttr.value);
+        if (fieldName && fieldName.length > 1) {
+          fields.add(fieldName);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Process register() call to extract field name
+ */
+function processRegisterCall(node: Node, fields: Set<string>): void {
+  const call = node as CallExpression;
+  const callee = call.callee;
+
+  // Check for register() calls
+  if (getNodeType(callee) !== 'Identifier') return;
+
+  const id = callee as Identifier;
+  if (id.value !== 'register') return;
+
+  // Get first argument
+  if (call.arguments.length === 0) return;
+
+  const firstArg = call.arguments[0];
+  if (firstArg && getNodeType(firstArg.expression) === 'StringLiteral') {
+    const literal = firstArg.expression as { value?: string };
+    const fieldName = literal.value;
+    if (fieldName && fieldName.length > 1) {
+      fields.add(fieldName);
+    }
+  }
+}
+
 /**
  * Extract form fields from AST (JSX attributes + function calls)
  */
 function extractFormFieldsFromAst(ast: Module): string[] {
   const fields = new Set<string>();
 
-  // JSX form elements to look for
-  const FORM_ELEMENTS = [
-    'Input',
-    'Select',
-    'DatePicker',
-    'Textarea',
-    'FormField',
-    'input',
-    'select',
-    'textarea',
-  ];
-
   visitNodeWithCallbacks(ast, {
-    // Extract from JSX elements
-    onJSXOpeningElement: (node) => {
-      const opening = node as {
-        name?: Node;
-        attributes?: Node[];
-      };
-
-      if (!opening.name) return;
-
-      // Get element name
-      const nameNode = opening.name;
-      let elementName = '';
-
-      if (getNodeType(nameNode) === 'Identifier') {
-        elementName = (nameNode as Identifier).value;
-      } else if (getNodeType(nameNode) === 'JSXMemberExpression') {
-        // Handle <Form.Field>
-        const memberExpr = nameNode as { property?: { value?: string } };
-        elementName = memberExpr.property?.value ?? '';
-      }
-
-      // Check if it's a form element or Controller
-      const isFormElement = FORM_ELEMENTS.includes(elementName);
-      const isController = elementName === 'Controller';
-
-      if (!isFormElement && !isController) return;
-
-      // Extract name/id attributes
-      if (opening.attributes) {
-        for (const attr of opening.attributes) {
-          if (getNodeType(attr) !== 'JSXAttribute') continue;
-
-          const jsxAttr = attr as {
-            name?: { value?: string };
-            value?: JSXAttrValue;
-          };
-
-          const attrName = jsxAttr.name?.value;
-
-          // For form elements, extract name/id
-          // For Controller, extract name
-          if (
-            (isFormElement && (attrName === 'name' || attrName === 'id')) ||
-            (isController && attrName === 'name')
-          ) {
-            // Extract string value
-            if (jsxAttr.value) {
-              const fieldName = extractJsxAttrValue(jsxAttr.value);
-              if (fieldName && fieldName.length > 1) {
-                fields.add(fieldName);
-              }
-            }
-          }
-        }
-      }
-    },
-
-    // Extract from register("fieldName") calls
-    onCallExpression: (node) => {
-      const call = node as CallExpression;
-      const callee = call.callee;
-
-      // Check for register() calls
-      if (getNodeType(callee) === 'Identifier') {
-        const id = callee as Identifier;
-        if (id.value === 'register') {
-          // Get first argument
-          if (call.arguments.length > 0) {
-            const firstArg = call.arguments[0];
-            if (firstArg && getNodeType(firstArg.expression) === 'StringLiteral') {
-              const literal = firstArg.expression as { value?: string };
-              const fieldName = literal.value;
-              if (fieldName && fieldName.length > 1) {
-                fields.add(fieldName);
-              }
-            }
-          }
-        }
-      }
-    },
+    onJSXOpeningElement: (node) => processJsxFormElement(node, fields),
+    onCallExpression: (node) => processRegisterCall(node, fields),
   });
 
   return Array.from(fields);
@@ -363,64 +387,82 @@ function detectStateManagementFromAst(ast: Module, content: string): string | un
 }
 
 /**
+ * State object for error handling detection
+ */
+interface ErrorHandlingState {
+  hasTryCatch: boolean;
+  hasOnError: boolean;
+  hasToastError: boolean;
+  hasSetError: boolean;
+  hasErrorBoundary: boolean;
+}
+
+/**
+ * Process call expression to detect error handling patterns
+ */
+function processErrorHandlingCall(node: Node, state: ErrorHandlingState): void {
+  const call = node as CallExpression;
+  const callee = call.callee;
+
+  // toast.error, console.error, etc.
+  if (getNodeType(callee) === 'MemberExpression') {
+    const member = callee as {
+      object?: Node;
+      property?: Node;
+    };
+
+    if (member.property && getNodeType(member.property) === 'Identifier') {
+      const prop = member.property as Identifier;
+
+      if (member.object && getNodeType(member.object) === 'Identifier') {
+        const obj = member.object as Identifier;
+
+        if (obj.value === 'toast' && prop.value === 'error') {
+          state.hasToastError = true;
+        }
+      }
+    }
+  }
+
+  // setError calls
+  if (getNodeType(callee) === 'Identifier') {
+    const id = callee as Identifier;
+    if (id.value === 'setError') {
+      state.hasSetError = true;
+    }
+  }
+}
+
+/**
  * Detect error handling patterns from AST
  */
 function detectErrorHandlingFromAst(ast: Module, content: string): string | undefined {
   const patterns: string[] = [];
 
-  let hasTryCatch = false;
-  let hasOnError = false;
-  let hasToastError = false;
-  let hasSetError = false;
-  let hasErrorBoundary = false;
+  const state: ErrorHandlingState = {
+    hasTryCatch: false,
+    hasOnError: false,
+    hasToastError: false,
+    hasSetError: false,
+    hasErrorBoundary: false,
+  };
 
   visitNodeWithCallbacks(ast, {
     // Detect try-catch
     onNode: (node) => {
       if (getNodeType(node) === 'TryStatement') {
-        hasTryCatch = true;
+        state.hasTryCatch = true;
       }
     },
 
     // Detect toast.error, setError calls
-    onCallExpression: (node) => {
-      const call = node as CallExpression;
-      const callee = call.callee;
-
-      // toast.error, console.error, etc.
-      if (getNodeType(callee) === 'MemberExpression') {
-        const member = callee as {
-          object?: Node;
-          property?: Node;
-        };
-
-        if (member.property && getNodeType(member.property) === 'Identifier') {
-          const prop = member.property as Identifier;
-
-          if (member.object && getNodeType(member.object) === 'Identifier') {
-            const obj = member.object as Identifier;
-
-            if (obj.value === 'toast' && prop.value === 'error') {
-              hasToastError = true;
-            }
-          }
-        }
-      }
-
-      // setError calls
-      if (getNodeType(callee) === 'Identifier') {
-        const id = callee as Identifier;
-        if (id.value === 'setError') {
-          hasSetError = true;
-        }
-      }
-    },
+    onCallExpression: (node) => processErrorHandlingCall(node, state),
 
     // Detect onError in JSX
     onJSXAttribute: (node) => {
       const attr = node as { name?: { value?: string } };
       if (attr.name?.value === 'onError') {
-        hasOnError = true;
+        state.hasOnError = true;
       }
     },
 
@@ -430,17 +472,17 @@ function detectErrorHandlingFromAst(ast: Module, content: string): string | unde
       if (opening.name && getNodeType(opening.name) === 'Identifier') {
         const id = opening.name as Identifier;
         if (id.value === 'ErrorBoundary') {
-          hasErrorBoundary = true;
+          state.hasErrorBoundary = true;
         }
       }
     },
   });
 
-  if (hasTryCatch) patterns.push('try-catch');
-  if (hasOnError || content.includes('error:')) patterns.push('callback');
-  if (hasToastError || content.includes('showError')) patterns.push('toast');
-  if (hasSetError || content.includes('formState.errors')) patterns.push('form-errors');
-  if (hasErrorBoundary) patterns.push('boundary');
+  if (state.hasTryCatch) patterns.push('try-catch');
+  if (state.hasOnError || content.includes('error:')) patterns.push('callback');
+  if (state.hasToastError || content.includes('showError')) patterns.push('toast');
+  if (state.hasSetError || content.includes('formState.errors')) patterns.push('form-errors');
+  if (state.hasErrorBoundary) patterns.push('boundary');
 
   if (patterns.length > 0) {
     return patterns.join(', ');

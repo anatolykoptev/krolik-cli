@@ -30,6 +30,53 @@ interface DescribeBlock {
 }
 
 /**
+ * Handle describe() block detection
+ */
+function handleDescribeBlock(
+  call: CallExpression,
+  describeStack: DescribeBlock[],
+  describes: DescribeBlock[],
+): void {
+  const describeName = extractStringArg(call);
+  if (describeName) {
+    const block: DescribeBlock = {
+      name: describeName,
+      tests: [],
+      depth: describeStack.length,
+    };
+    describeStack.push(block);
+    describes.push(block);
+  }
+}
+
+/**
+ * Handle it() / test() block detection
+ */
+function handleTestBlock(
+  call: CallExpression,
+  describeStack: DescribeBlock[],
+  describes: DescribeBlock[],
+): void {
+  const testName = extractStringArg(call);
+  if (!testName) return;
+
+  const currentDescribe = describeStack[describeStack.length - 1];
+  if (currentDescribe) {
+    if (currentDescribe.tests.length < MAX_TESTS_PER_DESCRIBE) {
+      currentDescribe.tests.push(testName);
+    }
+  } else {
+    // Test outside describe - create synthetic root
+    const rootBlock: DescribeBlock = {
+      name: '(root)',
+      tests: [testName],
+      depth: 0,
+    };
+    describes.push(rootBlock);
+  }
+}
+
+/**
  * Analyze a single test file using SWC AST
  */
 function analyzeTestSwc(filePath: string): TestInfo | null {
@@ -55,40 +102,10 @@ function analyzeTestSwc(filePath: string): TestInfo | null {
 
         if (!calleeName) return;
 
-        // Handle describe() blocks
         if (calleeName === 'describe') {
-          const describeName = extractStringArg(call);
-          if (describeName) {
-            const block: DescribeBlock = {
-              name: describeName,
-              tests: [],
-              depth: describeStack.length,
-            };
-            describeStack.push(block);
-            describes.push(block);
-          }
-        }
-
-        // Handle it() / test() blocks
-        if (calleeName === 'it' || calleeName === 'test') {
-          const testName = extractStringArg(call);
-          if (testName) {
-            // Add to current describe block, or create root one
-            const currentDescribe = describeStack[describeStack.length - 1];
-            if (currentDescribe) {
-              if (currentDescribe.tests.length < MAX_TESTS_PER_DESCRIBE) {
-                currentDescribe.tests.push(testName);
-              }
-            } else {
-              // Test outside describe - create synthetic root
-              const rootBlock: DescribeBlock = {
-                name: '(root)',
-                tests: [testName],
-                depth: 0,
-              };
-              describes.push(rootBlock);
-            }
-          }
+          handleDescribeBlock(call, describeStack, describes);
+        } else if (calleeName === 'it' || calleeName === 'test') {
+          handleTestBlock(call, describeStack, describes);
         }
       },
 

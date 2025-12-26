@@ -142,50 +142,13 @@ function writeFiles(
 }
 
 /**
- * Run codegen command
+ * Build generator options from command options
  */
-export async function runCodegen(
-  context: CommandContext & { options: CodegenCommandOptions },
-): Promise<void> {
-  const { config, logger, options } = context;
-  const projectRoot = config.projectRoot;
-
-  // Handle --list flag
-  if (options.list) {
-    listGenerators();
-    return;
-  }
-
-  // Get target from options
-  const target = options.target as GeneratorTarget | undefined;
-
-  if (!target) {
-    logger.error('No target specified. Use --list to see available generators.');
-    console.log(chalk.dim('  Example: krolik codegen trpc-route --name booking'));
-    return;
-  }
-
-  // Validate target
-  if (!isValidTarget(target)) {
-    logger.error(`Invalid target: ${target}`);
-    console.log(chalk.dim(`Valid targets: ${getValidTargets().join(', ')}`));
-    return;
-  }
-
-  // Get generator
-  const generator = getGenerator(target);
-  if (!generator) {
-    logger.error(`Generator not found: ${target}`);
-    return;
-  }
-
-  logger.section(`Codegen: ${generator.metadata.name}`);
-
-  // Prepare generator options
-  const generatorOptions: import('./types').GeneratorOptions & {
-    bundleType?: string;
-    fromType?: string;
-  } = {
+function buildGeneratorOptions(
+  options: CodegenCommandOptions,
+  projectRoot: string,
+): import('./types').GeneratorOptions & { bundleType?: string; fromType?: string } {
+  return {
     name: options.name ?? '',
     projectRoot,
     ...(options.path !== undefined || options.output !== undefined
@@ -199,8 +162,106 @@ export async function runCodegen(
     ...(options.noDocs !== undefined ? { noDocs: options.noDocs } : {}),
     ...(options.bundle !== undefined ? { bundleType: options.bundle } : {}),
   };
+}
 
-  // Generate files
+/**
+ * Handle dry run preview output
+ */
+function handleDryRun(files: GeneratedFile[], projectRoot: string): void {
+  console.log(chalk.yellow('\nDry run - no files will be written.\n'));
+  for (const file of files) {
+    console.log(formatFilePreview(file, projectRoot));
+  }
+  console.log(chalk.dim('\nRun without --dry-run to create files.'));
+}
+
+/**
+ * Display docs enhancement information for generated files
+ */
+function displayEnhancementInfo(files: GeneratedFile[]): void {
+  const enhancedFiles = files.filter((f) => f.docsEnhanced);
+  if (enhancedFiles.length === 0) {
+    return;
+  }
+
+  console.log('');
+  console.log(chalk.cyan('Docs Enhancement:'));
+  for (const file of enhancedFiles) {
+    const meta = file.docsEnhanced;
+    if (!meta) continue;
+    console.log(`  ${chalk.dim('-')} ${file.path}`);
+    console.log(`    ${chalk.dim('Source:')} ${meta.library}`);
+    if (meta.topics.length > 0) {
+      console.log(`    ${chalk.dim('Topics:')} ${meta.topics.join(', ')}`);
+    }
+    console.log(`    ${chalk.dim('Snippets:')} ${meta.snippetsCount}`);
+  }
+}
+
+/**
+ * Display summary of written and skipped files
+ */
+function displaySummary(written: string[], skipped: string[]): void {
+  console.log('');
+  if (written.length > 0) {
+    console.log(chalk.green(`Created ${written.length} file(s).`));
+  }
+  if (skipped.length > 0) {
+    console.log(chalk.yellow(`Skipped ${skipped.length} file(s).`));
+  }
+}
+
+/**
+ * Validate target and get generator
+ */
+function validateAndGetGenerator(
+  target: string | undefined,
+  logger: { error: (msg: string) => void },
+): import('./types').Generator | null {
+  if (!target) {
+    logger.error('No target specified. Use --list to see available generators.');
+    console.log(chalk.dim('  Example: krolik codegen trpc-route --name booking'));
+    return null;
+  }
+
+  if (!isValidTarget(target)) {
+    logger.error(`Invalid target: ${target}`);
+    console.log(chalk.dim(`Valid targets: ${getValidTargets().join(', ')}`));
+    return null;
+  }
+
+  const generator = getGenerator(target as GeneratorTarget);
+  if (!generator) {
+    logger.error(`Generator not found: ${target}`);
+    return null;
+  }
+
+  return generator;
+}
+
+/**
+ * Run codegen command
+ */
+export async function runCodegen(
+  context: CommandContext & { options: CodegenCommandOptions },
+): Promise<void> {
+  const { config, logger, options } = context;
+  const projectRoot = config.projectRoot;
+
+  if (options.list) {
+    listGenerators();
+    return;
+  }
+
+  const generator = validateAndGetGenerator(options.target, logger);
+  if (!generator) {
+    return;
+  }
+
+  logger.section(`Codegen: ${generator.metadata.name}`);
+
+  const generatorOptions = buildGeneratorOptions(options, projectRoot);
+
   let files: GeneratedFile[];
   try {
     files = generator.generate(generatorOptions);
@@ -215,19 +276,11 @@ export async function runCodegen(
     return;
   }
 
-  // Dry run: show preview
   if (options.dryRun) {
-    console.log(chalk.yellow('\nDry run - no files will be written.\n'));
-
-    for (const file of files) {
-      console.log(formatFilePreview(file, projectRoot));
-    }
-
-    console.log(chalk.dim('\nRun without --dry-run to create files.'));
+    handleDryRun(files, projectRoot);
     return;
   }
 
-  // Write files
   const { written, skipped } = writeFiles(
     files,
     projectRoot,
@@ -235,32 +288,8 @@ export async function runCodegen(
     logger,
   );
 
-  // Show docs enhancement info
-  const enhancedFiles = files.filter((f) => f.docsEnhanced);
-  if (enhancedFiles.length > 0) {
-    console.log('');
-    console.log(chalk.cyan('Docs Enhancement:'));
-    for (const file of enhancedFiles) {
-      const meta = file.docsEnhanced!;
-      console.log(`  ${chalk.dim('-')} ${file.path}`);
-      console.log(`    ${chalk.dim('Source:')} ${meta.library}`);
-      if (meta.topics.length > 0) {
-        console.log(`    ${chalk.dim('Topics:')} ${meta.topics.join(', ')}`);
-      }
-      console.log(`    ${chalk.dim('Snippets:')} ${meta.snippetsCount}`);
-    }
-  }
-
-  // Summary
-  console.log('');
-  if (written.length > 0) {
-    console.log(chalk.green(`Created ${written.length} file(s).`));
-  }
-  if (skipped.length > 0) {
-    console.log(chalk.yellow(`Skipped ${skipped.length} file(s).`));
-  }
-
-  // Clear enhancer cache
+  displayEnhancementInfo(files);
+  displaySummary(written, skipped);
   clearEnhancerCache();
 }
 

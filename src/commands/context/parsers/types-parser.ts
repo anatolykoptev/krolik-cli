@@ -12,6 +12,70 @@ const MAX_TYPES_PER_FILE = 10;
 const MAX_PROPERTIES = 15;
 
 /**
+ * Extract interface from regex match
+ */
+function extractInterface(
+  match: RegExpExecArray,
+  content: string,
+  fileName: string,
+): ExtractedType | null {
+  const name = match[1];
+  const extendsStr = match[2];
+  const body = match[3];
+
+  if (!name) return null;
+
+  const type: ExtractedType = {
+    name,
+    kind: 'interface',
+    file: fileName,
+    properties: parseProperties(body ?? ''),
+  };
+
+  if (extendsStr) {
+    type.extends = extendsStr.split(',').map((s) => s.trim());
+  }
+
+  // Extract JSDoc description
+  const jsdocMatch = content
+    .slice(0, match.index)
+    .match(/\/\*\*\s*\n\s*\*\s*([^\n]+)\n[\s\S]*?\*\/\s*$/);
+  if (jsdocMatch?.[1]) {
+    type.description = jsdocMatch[1].trim();
+  }
+
+  return type;
+}
+
+/**
+ * Extract type alias from regex match
+ */
+function extractTypeAlias(match: RegExpExecArray, fileName: string): ExtractedType | null {
+  const name = match[1];
+  const value = match[2]?.trim();
+
+  if (!name || !value) return null;
+
+  // Parse object-like types
+  if (value.startsWith('{')) {
+    return {
+      name,
+      kind: 'type',
+      file: fileName,
+      properties: parseProperties(value.slice(1, -1)),
+    };
+  }
+
+  // Union/intersection types
+  return {
+    name,
+    kind: 'type',
+    file: fileName,
+    ...(value.length < 100 && { description: value }),
+  };
+}
+
+/**
  * Parse TypeScript file for interfaces and types
  */
 function parseTypesFile(filePath: string): ExtractedType[] {
@@ -32,60 +96,16 @@ function parseTypesFile(filePath: string): ExtractedType[] {
   let match: RegExpExecArray | null;
 
   while ((match = interfaceRegex.exec(content)) !== null) {
-    const name = match[1];
-    const extendsStr = match[2];
-    const body = match[3];
-
-    if (!name) continue;
-
-    const type: ExtractedType = {
-      name,
-      kind: 'interface',
-      file: fileName,
-      properties: parseProperties(body ?? ''),
-    };
-
-    if (extendsStr) {
-      type.extends = extendsStr.split(',').map((s) => s.trim());
-    }
-
-    // Extract JSDoc description
-    const jsdocMatch = content
-      .slice(0, match.index)
-      .match(/\/\*\*\s*\n\s*\*\s*([^\n]+)\n[\s\S]*?\*\/\s*$/);
-    if (jsdocMatch?.[1]) {
-      type.description = jsdocMatch[1].trim();
-    }
-
-    types.push(type);
+    const extracted = extractInterface(match, content, fileName);
+    if (extracted) types.push(extracted);
   }
 
   // Extract type aliases
   const typeRegex = /(?:\/\*\*[\s\S]*?\*\/\s*)?export\s+type\s+(\w+)\s*=\s*([^;]+);/g;
 
   while ((match = typeRegex.exec(content)) !== null) {
-    const name = match[1];
-    const value = match[2]?.trim();
-
-    if (!name || !value) continue;
-
-    // Parse object-like types
-    if (value.startsWith('{')) {
-      types.push({
-        name,
-        kind: 'type',
-        file: fileName,
-        properties: parseProperties(value.slice(1, -1)),
-      });
-    } else {
-      // Union/intersection types
-      types.push({
-        name,
-        kind: 'type',
-        file: fileName,
-        ...(value.length < 100 && { description: value }),
-      });
-    }
+    const extracted = extractTypeAlias(match, fileName);
+    if (extracted) types.push(extracted);
   }
 
   return types.slice(0, MAX_TYPES_PER_FILE);

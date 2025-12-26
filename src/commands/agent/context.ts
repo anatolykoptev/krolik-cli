@@ -12,65 +12,89 @@ import { search, searchByFeatures } from '../../lib/@memory';
 import type { AgentContext, AgentOptions, LibraryDocSnippet } from './types';
 
 /**
+ * Enrich context with schema if enabled
+ */
+function enrichWithSchema(context: AgentContext, projectRoot: string, include: boolean): void {
+  if (include === false) return;
+  const schema = getSchema(projectRoot);
+  if (schema) context.schema = schema;
+}
+
+/**
+ * Enrich context with routes if enabled
+ */
+function enrichWithRoutes(context: AgentContext, projectRoot: string, include: boolean): void {
+  if (include === false) return;
+  const routes = getRoutes(projectRoot);
+  if (routes) context.routes = routes;
+}
+
+/**
+ * Enrich context with git info if enabled
+ */
+function enrichWithGitInfo(context: AgentContext, projectRoot: string, include: boolean): void {
+  if (include === false) return;
+  const gitStatus = getGitStatus(projectRoot);
+  const gitDiff = getGitDiff(projectRoot);
+  if (gitStatus) context.gitStatus = gitStatus;
+  if (gitDiff) context.gitDiff = gitDiff;
+}
+
+/**
+ * Enrich context with target file content
+ */
+function enrichWithTargetFile(context: AgentContext, projectRoot: string, file?: string): void {
+  if (!file) return;
+  const filePath = path.resolve(projectRoot, file);
+  if (fs.existsSync(filePath)) {
+    context.targetFile = file;
+    context.targetContent = fs.readFileSync(filePath, 'utf-8');
+  }
+}
+
+/**
+ * Enrich context with feature and library docs
+ */
+function enrichWithFeature(context: AgentContext, projectRoot: string, feature?: string): void {
+  if (!feature) return;
+  context.feature = feature;
+  const libraryDocs = enrichWithLibraryDocs(feature, projectRoot);
+  if (libraryDocs.length > 0) {
+    context.libraryDocs = libraryDocs;
+  }
+}
+
+/**
+ * Enrich context with memories if enabled
+ */
+function enrichWithMemories(
+  context: AgentContext,
+  projectRoot: string,
+  feature?: string,
+  include?: boolean,
+): void {
+  if (include === false) return;
+  const memories = loadAgentMemories(projectRoot, feature);
+  if (memories.length > 0) {
+    context.memories = memories;
+  }
+}
+
+/**
  * Build agent context from project
  */
 export async function buildAgentContext(
   projectRoot: string,
   options: AgentOptions,
 ): Promise<AgentContext> {
-  const context: AgentContext = {
-    projectRoot,
-  };
+  const context: AgentContext = { projectRoot };
 
-  // Include schema if requested or by default for db-related agents
-  if (options.includeSchema !== false) {
-    const schema = getSchema(projectRoot);
-    if (schema) context.schema = schema;
-  }
-
-  // Include routes if requested or by default for api-related agents
-  if (options.includeRoutes !== false) {
-    const routes = getRoutes(projectRoot);
-    if (routes) context.routes = routes;
-  }
-
-  // Include git info if requested
-  if (options.includeGit !== false) {
-    const gitStatus = getGitStatus(projectRoot);
-    const gitDiff = getGitDiff(projectRoot);
-    if (gitStatus) context.gitStatus = gitStatus;
-    if (gitDiff) context.gitDiff = gitDiff;
-  }
-
-  // Include target file content if specified
-  if (options.file) {
-    const filePath = path.resolve(projectRoot, options.file);
-    if (fs.existsSync(filePath)) {
-      context.targetFile = options.file;
-      context.targetContent = fs.readFileSync(filePath, 'utf-8');
-    }
-  }
-
-  // Include feature name if specified
-  if (options.feature) {
-    context.feature = options.feature;
-  }
-
-  // Include library documentation if feature is specified
-  if (options.feature) {
-    const libraryDocs = enrichWithLibraryDocs(options.feature, projectRoot);
-    if (libraryDocs.length > 0) {
-      context.libraryDocs = libraryDocs;
-    }
-  }
-
-  // Include memories if enabled (default: true)
-  if (options.includeMemory !== false) {
-    const memories = loadAgentMemories(projectRoot, options.feature);
-    if (memories.length > 0) {
-      context.memories = memories;
-    }
-  }
+  enrichWithSchema(context, projectRoot, options.includeSchema !== false);
+  enrichWithRoutes(context, projectRoot, options.includeRoutes !== false);
+  enrichWithGitInfo(context, projectRoot, options.includeGit !== false);
+  enrichWithTargetFile(context, projectRoot, options.file);
+  enrichWithFeature(context, projectRoot, options.feature);
+  enrichWithMemories(context, projectRoot, options.feature, options.includeMemory);
 
   return context;
 }

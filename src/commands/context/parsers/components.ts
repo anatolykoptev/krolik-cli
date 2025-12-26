@@ -102,56 +102,66 @@ function analyzeComponent(filePath: string): ComponentInfo | null {
   return result;
 }
 
+/** Patterns for extracting form field names */
+const FIELD_PATTERNS: RegExp[] = [
+  // JSX components with name/id
+  /<Input[^>]*(?:name|id)=["'](\w+)["']/g,
+  /<Select[^>]*(?:name|id)=["'](\w+)["']/g,
+  /<DatePicker[^>]*(?:name|id)=["'](\w+)["']/g,
+  /<Textarea[^>]*(?:name|id)=["'](\w+)["']/g,
+  // HTML inputs with name
+  /<input[^>]*name=["'](\w+)["']/g,
+  /<select[^>]*name=["'](\w+)["']/g,
+  /<textarea[^>]*name=["'](\w+)["']/g,
+  // react-hook-form
+  /register\(["'](\w+)["']\)/g,
+  /Controller[^}]+name:\s*["'](\w+)["']/g,
+  // shadcn/ui FormField
+  /<FormField[^}]*name=["'](\w+)["']/g,
+  /FormField\s+name=["'](\w+)["']/g,
+  // useState with object
+  /useState\(\{\s*(\w+):/g,
+  // formData patterns
+  /formData\.(\w+)/g,
+];
+
+/**
+ * Add field to array if valid and not duplicate
+ */
+function addFieldIfValid(fields: string[], fieldName: string | undefined): void {
+  if (fieldName && !fields.includes(fieldName) && fieldName.length > 1) {
+    fields.push(fieldName);
+  }
+}
+
+/**
+ * Extract fields from useState object literal
+ */
+function extractUseStateFields(content: string, fields: string[]): void {
+  const useStateMatch = content.match(/useState\(\{([^}]+)\}\)/);
+  if (!useStateMatch?.[1]) return;
+
+  const stateFields = useStateMatch[1].match(/(\w+)\s*:/g);
+  if (!stateFields) return;
+
+  for (const f of stateFields) {
+    addFieldIfValid(fields, f.replace(/\s*:$/, ''));
+  }
+}
+
 /**
  * Extract form fields from component content
  */
 function extractFormFields(content: string): string[] {
   const fields: string[] = [];
-  const fieldPatterns = [
-    // JSX components with name/id
-    /<Input[^>]*(?:name|id)=["'](\w+)["']/g,
-    /<Select[^>]*(?:name|id)=["'](\w+)["']/g,
-    /<DatePicker[^>]*(?:name|id)=["'](\w+)["']/g,
-    /<Textarea[^>]*(?:name|id)=["'](\w+)["']/g,
-    // HTML inputs with name
-    /<input[^>]*name=["'](\w+)["']/g,
-    /<select[^>]*name=["'](\w+)["']/g,
-    /<textarea[^>]*name=["'](\w+)["']/g,
-    // react-hook-form
-    /register\(["'](\w+)["']\)/g,
-    /Controller[^}]+name:\s*["'](\w+)["']/g,
-    // shadcn/ui FormField
-    /<FormField[^}]*name=["'](\w+)["']/g,
-    /FormField\s+name=["'](\w+)["']/g,
-    // useState with object
-    /useState\(\{\s*(\w+):/g,
-    // formData patterns
-    /formData\.(\w+)/g,
-  ];
 
-  for (const pattern of fieldPatterns) {
-    const matches = content.matchAll(pattern);
-    for (const m of matches) {
-      if (m[1] && !fields.includes(m[1]) && m[1].length > 1) {
-        fields.push(m[1]);
-      }
+  for (const pattern of FIELD_PATTERNS) {
+    for (const m of content.matchAll(pattern)) {
+      addFieldIfValid(fields, m[1]);
     }
   }
 
-  // Also extract fields from useState object literal
-  const useStateMatch = content.match(/useState\(\{([^}]+)\}\)/);
-  if (useStateMatch?.[1]) {
-    const stateObj = useStateMatch[1];
-    const stateFields = stateObj.match(/(\w+)\s*:/g);
-    if (stateFields) {
-      for (const f of stateFields) {
-        const fieldName = f.replace(/\s*:$/, '');
-        if (fieldName && !fields.includes(fieldName) && fieldName.length > 1) {
-          fields.push(fieldName);
-        }
-      }
-    }
-  }
+  extractUseStateFields(content, fields);
 
   return fields;
 }

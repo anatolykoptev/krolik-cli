@@ -461,67 +461,115 @@ ${methodTests ? `\n\n${methodTests}` : ''}
 }
 
 /**
+ * Mock value patterns for type inference
+ * Order matters: array patterns must come before primitive patterns
+ * (e.g., 'string[]' should match array, not string)
+ */
+const TYPE_MOCK_PATTERNS: Array<{ match: (type: string) => boolean; value: string }> = [
+  { match: (t) => t.endsWith('[]') || t.includes('array'), value: '[]' },
+  { match: (t) => t === 'string' || t.includes('string'), value: "''" },
+  { match: (t) => t === 'number' || t.includes('number'), value: '0' },
+  { match: (t) => t === 'boolean' || t.includes('boolean'), value: 'false' },
+  { match: (t) => t === 'object' || t.startsWith('{'), value: '{}' },
+  { match: (t) => t === 'null', value: 'null' },
+  { match: (t) => t === 'undefined', value: 'undefined' },
+];
+
+/**
+ * Mock value patterns for parameter name inference
+ */
+const NAME_MOCK_PATTERNS: Array<{ keywords: string[]; value: string }> = [
+  { keywords: ['name', 'text', 'str', 'body', 'content'], value: "''" },
+  { keywords: ['id', 'count', 'num'], value: '0' },
+  { keywords: ['is', 'has', 'should'], value: 'false' },
+  { keywords: ['items', 'list', 'arr'], value: '[]' },
+  { keywords: ['options', 'config', 'data'], value: '{}' },
+];
+
+/**
+ * Infer mock value from type annotation
+ */
+function getMockValueFromType(type: string): string | null {
+  const lowerType = type.toLowerCase();
+  for (const pattern of TYPE_MOCK_PATTERNS) {
+    if (pattern.match(lowerType)) {
+      return pattern.value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Infer mock value from parameter name
+ */
+function getMockValueFromName(name: string): string | null {
+  const lowerName = name.toLowerCase();
+  for (const pattern of NAME_MOCK_PATTERNS) {
+    if (pattern.keywords.some((keyword) => lowerName.includes(keyword))) {
+      return pattern.value;
+    }
+  }
+  return null;
+}
+
+/**
  * Generate mock value based on parameter name and type
  */
 function generateMockValue(name: string, type?: string): string {
   // Infer from type annotation
   if (type) {
-    const lowerType = type.toLowerCase();
-    if (lowerType === 'string' || lowerType.includes('string')) return "''";
-    if (lowerType === 'number' || lowerType.includes('number')) return '0';
-    if (lowerType === 'boolean' || lowerType.includes('boolean')) return 'false';
-    if (lowerType.endsWith('[]') || lowerType.includes('array')) return '[]';
-    if (lowerType === 'object' || lowerType.startsWith('{')) return '{}';
-    if (lowerType === 'null') return 'null';
-    if (lowerType === 'undefined') return 'undefined';
+    const typeValue = getMockValueFromType(type);
+    if (typeValue !== null) return typeValue;
   }
 
   // Infer from parameter name
-  const lowerName = name.toLowerCase();
-  if (lowerName.includes('name') || lowerName.includes('text') || lowerName.includes('str'))
-    return "''";
-  if (lowerName.includes('id') || lowerName.includes('count') || lowerName.includes('num'))
-    return '0';
-  if (lowerName.includes('is') || lowerName.includes('has') || lowerName.includes('should'))
-    return 'false';
-  if (lowerName.includes('items') || lowerName.includes('list') || lowerName.includes('arr'))
-    return '[]';
-  if (lowerName.includes('options') || lowerName.includes('config') || lowerName.includes('data'))
-    return '{}';
-  if (lowerName === 'body' || lowerName === 'content') return "''";
+  const nameValue = getMockValueFromName(name);
+  if (nameValue !== null) return nameValue;
 
   // Default
   return "'' // TODO: add test input";
 }
 
 /**
+ * Function prefix to action verb mapping
+ * Format: [prefix, action template, slice length]
+ * Action template uses '{rest}' as placeholder for the remaining part of the name
+ */
+const FUNCTION_ACTION_MAP: Array<{ prefix: string; action: string; sliceLen: number }> = [
+  { prefix: 'get', action: 'get {rest}', sliceLen: 3 },
+  { prefix: 'fetch', action: 'fetch {rest}', sliceLen: 5 },
+  { prefix: 'parse', action: 'parse {rest}', sliceLen: 5 },
+  { prefix: 'create', action: 'create {rest}', sliceLen: 6 },
+  { prefix: 'update', action: 'update {rest}', sliceLen: 6 },
+  { prefix: 'delete', action: 'delete {rest}', sliceLen: 6 },
+  { prefix: 'remove', action: 'remove {rest}', sliceLen: 6 },
+  { prefix: 'validate', action: 'validate {rest}', sliceLen: 8 },
+  { prefix: 'check', action: 'check {rest}', sliceLen: 5 },
+  { prefix: 'is', action: 'check if {rest}', sliceLen: 2 },
+  { prefix: 'has', action: 'check if has {rest}', sliceLen: 3 },
+  { prefix: 'transform', action: 'transform {rest}', sliceLen: 9 },
+  { prefix: 'convert', action: 'convert {rest}', sliceLen: 7 },
+  { prefix: 'format', action: 'format {rest}', sliceLen: 6 },
+  { prefix: 'calculate', action: 'calculate {rest}', sliceLen: 9 },
+  { prefix: 'find', action: 'find {rest}', sliceLen: 4 },
+  { prefix: 'search', action: 'search {rest}', sliceLen: 6 },
+  { prefix: 'load', action: 'load {rest}', sliceLen: 4 },
+  { prefix: 'save', action: 'save {rest}', sliceLen: 4 },
+  { prefix: 'handle', action: 'handle {rest}', sliceLen: 6 },
+  { prefix: 'process', action: 'process {rest}', sliceLen: 7 },
+];
+
+/**
  * Get action verb from function name
  */
 function getFunctionAction(name: string): string {
-  // Common prefixes and their actions
-  if (name.startsWith('get')) return `get ${name.slice(3).toLowerCase()}`;
-  if (name.startsWith('fetch')) return `fetch ${name.slice(5).toLowerCase()}`;
-  if (name.startsWith('parse')) return `parse ${name.slice(5).toLowerCase()}`;
-  if (name.startsWith('create')) return `create ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('update')) return `update ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('delete')) return `delete ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('remove')) return `remove ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('validate')) return `validate ${name.slice(8).toLowerCase()}`;
-  if (name.startsWith('check')) return `check ${name.slice(5).toLowerCase()}`;
-  if (name.startsWith('is')) return `check if ${name.slice(2).toLowerCase()}`;
-  if (name.startsWith('has')) return `check if has ${name.slice(3).toLowerCase()}`;
-  if (name.startsWith('transform')) return `transform ${name.slice(9).toLowerCase()}`;
-  if (name.startsWith('convert')) return `convert ${name.slice(7).toLowerCase()}`;
-  if (name.startsWith('format')) return `format ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('calculate')) return `calculate ${name.slice(9).toLowerCase()}`;
-  if (name.startsWith('find')) return `find ${name.slice(4).toLowerCase()}`;
-  if (name.startsWith('search')) return `search ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('load')) return `load ${name.slice(4).toLowerCase()}`;
-  if (name.startsWith('save')) return `save ${name.slice(4).toLowerCase()}`;
-  if (name.startsWith('handle')) return `handle ${name.slice(6).toLowerCase()}`;
-  if (name.startsWith('process')) return `process ${name.slice(7).toLowerCase()}`;
-
-  return `work`;
+  for (const { prefix, action, sliceLen } of FUNCTION_ACTION_MAP) {
+    if (name.startsWith(prefix)) {
+      const rest = name.slice(sliceLen).toLowerCase();
+      return action.replace('{rest}', rest);
+    }
+  }
+  return 'work';
 }
 
 /**
