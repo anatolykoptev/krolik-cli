@@ -319,16 +319,16 @@ export async function runRefactor(
 /**
  * Format and print analysis
  */
-export function printAnalysis(
+export async function printAnalysis(
   analysis: RefactorAnalysis,
   projectRoot: string,
   targetPath: string,
   options: RefactorOptions = {},
-): void {
+): Promise<void> {
   const format = options.format ?? 'text';
 
   // Generate enhanced XML for saving (always)
-  const enhanced = createEnhancedAnalysis(analysis, projectRoot, targetPath);
+  const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath);
   const xmlOutput = formatAiNativeXml(enhanced);
 
   // Always save to .krolik/REFACTOR.xml for AI access
@@ -488,7 +488,7 @@ export async function refactorCommand(
         const pkgOptions = { ...options, path: resolved.relativePath };
 
         const analysis = await runRefactor(projectRoot, pkgOptions);
-        printAnalysis(analysis, projectRoot, resolved.targetPath, options);
+        await printAnalysis(analysis, projectRoot, resolved.targetPath, options);
 
         // Apply if requested
         if (options.apply && !options.dryRun) {
@@ -519,7 +519,7 @@ export async function refactorCommand(
     const analysis = await runRefactor(projectRoot, { ...options, path: resolved.relativePath });
 
     // Print results
-    printAnalysis(analysis, projectRoot, resolved.targetPath, options);
+    await printAnalysis(analysis, projectRoot, resolved.targetPath, options);
 
     // Track what was applied
     let appliedMigrations = false;

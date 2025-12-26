@@ -140,3 +140,9 @@ export {
   listDirectory,
   readPackageJson,
 } from './helpers';
+
+// ============================================================================
+// REUSABLE MODULES (from reusable.ts)
+// ============================================================================
+
+export { analyzeReusableModules, getQuickReusableSummary } from './reusable';

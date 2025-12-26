@@ -70,6 +70,12 @@ export type {
   Recommendation,
   // Recommendations
   RecommendationCategory,
+  // Reusable modules
+  ReusabilityLevel,
+  ReusableCategory,
+  ReusableModuleSummary,
+  ReusableModulesByCategory,
+  ReusableModulesInfo,
   TechStack,
   // Architecture
   ViolationType,

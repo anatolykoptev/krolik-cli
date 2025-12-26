@@ -268,6 +268,86 @@ export interface EnhancedMigrationPlan extends MigrationPlan {
 }
 
 // ============================================================================
+// REUSABLE MODULES
+// ============================================================================
+
+/**
+ * Reusable module category
+ */
+export type ReusableCategory =
+  | 'ui-component'
+  | 'hook'
+  | 'utility'
+  | 'type'
+  | 'schema'
+  | 'service'
+  | 'constant'
+  | 'context'
+  | 'hoc'
+  | 'model'
+  | 'unknown';
+
+/**
+ * Reusability level
+ */
+export type ReusabilityLevel = 'core' | 'high' | 'medium' | 'low' | 'none';
+
+/**
+ * Summary of a reusable module for AI output
+ */
+export interface ReusableModuleSummary {
+  /** Relative path */
+  path: string;
+  /** Module name */
+  name: string;
+  /** Category */
+  category: ReusableCategory;
+  /** Reusability level */
+  level: ReusabilityLevel;
+  /** Reusability score (0-100) */
+  score: number;
+  /** Number of exports */
+  exportCount: number;
+  /** Number of files importing this module */
+  importedByCount: number;
+  /** Description if available */
+  description?: string;
+}
+
+/**
+ * Reusable modules grouped by category
+ */
+export interface ReusableModulesByCategory {
+  'ui-component': ReusableModuleSummary[];
+  hook: ReusableModuleSummary[];
+  utility: ReusableModuleSummary[];
+  type: ReusableModuleSummary[];
+  schema: ReusableModuleSummary[];
+  service: ReusableModuleSummary[];
+  constant: ReusableModuleSummary[];
+  context: ReusableModuleSummary[];
+  hoc: ReusableModuleSummary[];
+  model: ReusableModuleSummary[];
+  unknown: ReusableModuleSummary[];
+}
+
+/**
+ * Reusable modules analysis result
+ */
+export interface ReusableModulesInfo {
+  /** Total reusable modules found */
+  totalModules: number;
+  /** Total exports across all modules */
+  totalExports: number;
+  /** Modules grouped by category */
+  byCategory: ReusableModulesByCategory;
+  /** Top reusable modules (core + high) */
+  topModules: ReusableModuleSummary[];
+  /** Scan duration in ms */
+  scanDurationMs: number;
+}
+
+// ============================================================================
 // ENHANCED ANALYSIS
 // ============================================================================
 
@@ -287,4 +367,6 @@ export interface EnhancedRefactorAnalysis extends RefactorAnalysis {
   enhancedMigration: EnhancedMigrationPlan;
   /** Prioritized recommendations */
   recommendations: Recommendation[];
+  /** Reusable modules analysis */
+  reusableModules?: ReusableModulesInfo;
 }

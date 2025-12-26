@@ -13,12 +13,14 @@ import type {
   EnhancedRefactorAnalysis,
   MigrationPlan,
   RefactorAnalysis,
+  ReusableModulesInfo,
 } from '../core';
 import { analyzeArchHealth } from './architecture';
 import { detectProjectContext } from './context';
 import { classifyDomains } from './domains';
 import { generateAiNavigation } from './navigation';
 import { generateRecommendations } from './recommendations';
+import { analyzeReusableModules } from './reusable';
 
 // ============================================================================
 // ENHANCED MIGRATION PLAN
@@ -118,13 +120,24 @@ export function createEnhancedMigrationPlan(
 // ============================================================================
 
 /**
+ * Options for enhanced analysis
+ */
+export interface EnhancedAnalysisOptions {
+  /** Include reusable modules analysis (default: true) */
+  includeReusable?: boolean;
+}
+
+/**
  * Create enhanced AI-native refactor analysis
  */
-export function createEnhancedAnalysis(
+export async function createEnhancedAnalysis(
   baseAnalysis: RefactorAnalysis,
   projectRoot: string,
   targetPath: string,
-): EnhancedRefactorAnalysis {
+  options: EnhancedAnalysisOptions = {},
+): Promise<EnhancedRefactorAnalysis> {
+  const { includeReusable = true } = options;
+
   // Detect project context
   const projectContext = detectProjectContext(projectRoot);
 
@@ -143,7 +156,17 @@ export function createEnhancedAnalysis(
   // Create enhanced migration plan
   const enhancedMigration = createEnhancedMigrationPlan(baseAnalysis.migration, archHealth);
 
-  return {
+  // Analyze reusable modules
+  let reusableModules: ReusableModulesInfo | undefined;
+  if (includeReusable) {
+    try {
+      reusableModules = await analyzeReusableModules(projectRoot, targetPath);
+    } catch {
+      // Silently skip if reusable analysis fails
+    }
+  }
+
+  const result: EnhancedRefactorAnalysis = {
     ...baseAnalysis,
     projectContext,
     archHealth,
@@ -152,4 +175,10 @@ export function createEnhancedAnalysis(
     enhancedMigration,
     recommendations,
   };
+
+  if (reusableModules) {
+    result.reusableModules = reusableModules;
+  }
+
+  return result;
 }
