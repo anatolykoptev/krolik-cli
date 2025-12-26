@@ -17,6 +17,8 @@ export default defineConfig([
     target: 'node20',
     outDir: 'dist',
     shims: true,
+    // SWC has native bindings that can't be bundled
+    external: ['@swc/core', '@swc/wasm'],
   },
   // CLI entry with shebang
   {
