@@ -7,12 +7,9 @@
 
 import * as fs from 'node:fs';
 import type {
-  ArrowFunctionExpression,
   ClassDeclaration,
   ClassMember,
   ClassMethod,
-  ExportDeclaration,
-  ExportDefaultDeclaration,
   FunctionDeclaration,
   FunctionExpression,
   Identifier,
@@ -22,11 +19,29 @@ import type {
   Param,
   Pattern,
   TsType,
-  VariableDeclaration,
   VariableDeclarator,
 } from '@swc/core';
 import { parseFile as swcParseFile } from '@/lib/@swc';
+import {
+  isArrowFunction,
+  isAssignmentPattern,
+  isClassDeclaration,
+  isClassMethod,
+  isExportDeclaration,
+  isExportDefaultDeclaration,
+  isFunctionDeclaration,
+  isFunctionExpression,
+  isIdentifier,
+  isTsEnum,
+  isTsInterface,
+  isTsTypeAlias,
+  isVariableDeclaration,
+} from './guards';
 import type { ExportedMember, MethodInfo, ParamInfo, SourceAnalysisResult } from './types';
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
 
 /**
  * Analyze a source file and extract exported functions and classes
@@ -47,13 +62,9 @@ export function analyzeSourceFile(filePath: string, content?: string): SourceAna
   try {
     const sourceContent = content ?? fs.readFileSync(filePath, 'utf-8');
     const { ast } = swcParseFile(filePath, sourceContent);
-
     const exports = extractExports(ast, sourceContent);
 
-    return {
-      success: true,
-      exports,
-    };
+    return { success: true, exports };
   } catch (error) {
     return {
       success: false,
@@ -64,446 +75,358 @@ export function analyzeSourceFile(filePath: string, content?: string): SourceAna
 }
 
 /**
- * Extract all exports from the module AST
+ * Extract type as string from source content using span positions
  */
-function extractExports(ast: Module, content: string): ExportedMember[] {
-  const exports: ExportedMember[] = [];
+export function extractTypeString(typeNode: TsType, content: string): string {
+  const span = (typeNode as { span?: { start: number; end: number } }).span;
+  if (!span) return 'unknown';
 
-  for (const item of ast.body) {
-    const exported = extractExportedMember(item, content);
-    if (exported) {
-      exports.push(...exported);
-    }
-  }
-
-  return exports;
+  // SWC uses 1-based offsets
+  const typeText = content.slice(span.start - 1, span.end - 1).trim();
+  return typeText.length > 50 ? `${typeText.slice(0, 47)}...` : typeText || 'unknown';
 }
 
-/**
- * Extract exported member from a module item
- */
-function extractExportedMember(item: ModuleItem, content: string): ExportedMember[] | null {
-  const itemType = (item as { type?: string }).type;
+// ============================================================================
+// MEMBER BUILDER
+// ============================================================================
 
-  // Handle: export function foo() {}
-  if (itemType === 'ExportDeclaration') {
-    const exportDecl = item as unknown as ExportDeclaration;
-    return extractFromDeclaration(exportDecl.declaration as Node, content, false);
-  }
-
-  // Handle: export default function() {} or export default class {}
-  if (itemType === 'ExportDefaultDeclaration') {
-    const defaultExport = item as unknown as ExportDefaultDeclaration;
-    const decl = defaultExport.decl as Node;
-    return extractFromDeclaration(decl, content, true);
-  }
-
-  return null;
+interface FunctionMemberOptions {
+  name: string;
+  params: ParamInfo[];
+  returnType?: string;
+  isAsync: boolean;
+  isDefault: boolean;
 }
 
-/**
- * Extract member info from a declaration node
- */
-function extractFromDeclaration(
-  node: Node,
-  content: string,
-  isDefault: boolean,
-): ExportedMember[] | null {
-  const nodeType = (node as { type?: string }).type;
-
-  // Function declaration: export function foo() {}
-  if (nodeType === 'FunctionDeclaration') {
-    const func = node as unknown as FunctionDeclaration;
-    const member = extractFunctionMember(func, content, isDefault);
-    return member ? [member] : null;
-  }
-
-  // Function expression: export default function() {}
-  if (nodeType === 'FunctionExpression') {
-    const func = node as unknown as FunctionExpression;
-    const member = extractFunctionExpressionMember(func, content, isDefault);
-    return member ? [member] : null;
-  }
-
-  // Class declaration: export class Foo {}
-  if (nodeType === 'ClassDeclaration') {
-    const cls = node as unknown as ClassDeclaration;
-    const member = extractClassMember(cls, content, isDefault);
-    return member ? [member] : null;
-  }
-
-  // Variable declaration: export const foo = () => {}
-  if (nodeType === 'VariableDeclaration') {
-    const varDecl = node as unknown as VariableDeclaration;
-    return extractVariableDeclarationMembers(varDecl, content, isDefault);
-  }
-
-  return null;
-}
-
-/**
- * Extract member from function declaration
- */
-function extractFunctionMember(
-  func: FunctionDeclaration,
-  content: string,
-  isDefault: boolean,
-): ExportedMember | null {
-  const name = func.identifier?.value ?? 'default';
-  const params = extractParams(func.params ?? [], content);
-  const returnType = extractReturnType(func.returnType, content);
-  const isAsync = func.async ?? false;
-
-  const result: ExportedMember = {
-    name,
+function buildFunctionMember(opts: FunctionMemberOptions): ExportedMember {
+  const member: ExportedMember = {
+    name: opts.name,
     kind: 'function',
-    params,
-    isAsync,
-    isDefault,
+    params: opts.params,
+    isAsync: opts.isAsync,
+    isDefault: opts.isDefault,
   };
-
-  if (returnType !== undefined) {
-    result.returnType = returnType;
-  }
-
-  return result;
+  if (opts.returnType) member.returnType = opts.returnType;
+  return member;
 }
 
-/**
- * Extract member from function expression (for default exports)
- */
-function extractFunctionExpressionMember(
-  func: FunctionExpression,
-  content: string,
-  isDefault: boolean,
-): ExportedMember | null {
-  const name = func.identifier?.value ?? 'default';
-  const params = extractParams(func.params ?? [], content);
-  const returnType = extractReturnType(func.returnType, content);
-  const isAsync = func.async ?? false;
-
-  const result: ExportedMember = {
-    name,
-    kind: 'function',
-    params,
-    isAsync,
-    isDefault,
-  };
-
-  if (returnType !== undefined) {
-    result.returnType = returnType;
-  }
-
-  return result;
-}
-
-/**
- * Extract member from class declaration
- */
-function extractClassMember(
-  cls: ClassDeclaration,
-  content: string,
-  isDefault: boolean,
-): ExportedMember | null {
-  const name = cls.identifier?.value ?? 'default';
-  const methods = extractClassMethods(cls.body ?? [], content);
-
+function buildClassMember(name: string, methods: MethodInfo[], isDefault: boolean): ExportedMember {
   return {
     name,
     kind: 'class',
-    params: [], // Classes don't have top-level params
+    params: [],
     isAsync: false,
     isDefault,
     methods,
   };
 }
 
-/**
- * Extract members from variable declaration (for arrow functions)
- */
-function extractVariableDeclarationMembers(
-  varDecl: VariableDeclaration,
+// ============================================================================
+// EXTRACTION
+// ============================================================================
+
+function extractExports(ast: Module, content: string): ExportedMember[] {
+  const exports: ExportedMember[] = [];
+
+  for (const item of ast.body) {
+    const extracted = extractFromModuleItem(item, content);
+    if (extracted) exports.push(...extracted);
+  }
+
+  return exports;
+}
+
+function extractFromModuleItem(item: ModuleItem, content: string): ExportedMember[] | null {
+  if (isExportDeclaration(item)) {
+    return extractFromDeclaration(item.declaration as Node, content, false);
+  }
+
+  if (isExportDefaultDeclaration(item)) {
+    return extractFromDeclaration(item.decl as Node, content, true);
+  }
+
+  return null;
+}
+
+function extractFromDeclaration(
+  node: Node,
+  content: string,
+  isDefault: boolean,
+): ExportedMember[] | null {
+  // Function: export function foo() {} or export default function() {}
+  if (isFunctionDeclaration(node)) {
+    return [extractFunction(node, content, isDefault)];
+  }
+
+  if (isFunctionExpression(node)) {
+    return [extractFunction(node, content, isDefault)];
+  }
+
+  // Class: export class Foo {}
+  if (isClassDeclaration(node)) {
+    return [extractClass(node, content, isDefault)];
+  }
+
+  // Variable: export const foo = () => {}
+  if (isVariableDeclaration(node)) {
+    return extractFromVariableDeclaration(node, content, isDefault);
+  }
+
+  // Type alias: export type Foo = { ... }
+  if (isTsTypeAlias(node)) {
+    return [extractTypeAlias(node, content)];
+  }
+
+  // Interface: export interface Bar { ... }
+  if (isTsInterface(node)) {
+    return [extractInterface(node, content)];
+  }
+
+  // Enum: export enum Baz { ... }
+  if (isTsEnum(node)) {
+    return [extractEnum(node)];
+  }
+
+  return null;
+}
+
+// ============================================================================
+// FUNCTION EXTRACTION (unified for FunctionDeclaration + FunctionExpression)
+// ============================================================================
+
+function extractFunction(
+  func: FunctionDeclaration | FunctionExpression,
+  content: string,
+  isDefault: boolean,
+): ExportedMember {
+  const returnType = extractReturnType(func.returnType, content);
+  return buildFunctionMember({
+    name: func.identifier?.value ?? 'default',
+    params: extractParams(func.params ?? [], content),
+    isAsync: func.async ?? false,
+    isDefault,
+    ...(returnType ? { returnType } : {}),
+  });
+}
+
+function extractFromVariableDeclaration(
+  varDecl: { declarations: VariableDeclarator[] },
   content: string,
   isDefault: boolean,
 ): ExportedMember[] {
   const members: ExportedMember[] = [];
 
   for (const declarator of varDecl.declarations) {
-    const member = extractFromDeclarator(declarator, content, isDefault);
-    if (member) {
-      members.push(member);
+    const init = declarator.init;
+    if (!init) continue;
+
+    const name = isIdentifier(declarator.id) ? declarator.id.value : 'anonymous';
+
+    // Arrow function
+    if (isArrowFunction(init)) {
+      const returnType = extractReturnType(init.returnType, content);
+      members.push(
+        buildFunctionMember({
+          name,
+          params: extractArrowParams(init.params ?? [], content),
+          isAsync: init.async ?? false,
+          isDefault,
+          ...(returnType ? { returnType } : {}),
+        }),
+      );
+      continue;
+    }
+
+    // Function expression
+    if (isFunctionExpression(init)) {
+      const returnType = extractReturnType(init.returnType, content);
+      members.push(
+        buildFunctionMember({
+          name: name !== 'anonymous' ? name : (init.identifier?.value ?? 'anonymous'),
+          params: extractParams(init.params ?? [], content),
+          isAsync: init.async ?? false,
+          isDefault,
+          ...(returnType ? { returnType } : {}),
+        }),
+      );
     }
   }
 
   return members;
 }
 
-/**
- * Extract member from variable declarator
- */
-function extractFromDeclarator(
-  declarator: VariableDeclarator,
-  content: string,
-  isDefault: boolean,
-): ExportedMember | null {
-  const init = declarator.init;
-  if (!init) return null;
+// ============================================================================
+// CLASS EXTRACTION
+// ============================================================================
 
-  const initType = (init as { type?: string }).type;
-
-  // Arrow function: export const foo = () => {}
-  if (initType === 'ArrowFunctionExpression') {
-    const arrow = init as unknown as ArrowFunctionExpression;
-    const name = extractPatternName(declarator.id) ?? 'anonymous';
-    const params = extractArrowParams(arrow.params ?? [], content);
-    const returnType = extractReturnType(arrow.returnType, content);
-    const isAsync = arrow.async ?? false;
-
-    const result: ExportedMember = {
-      name,
-      kind: 'function',
-      params,
-      isAsync,
-      isDefault,
-    };
-
-    if (returnType !== undefined) {
-      result.returnType = returnType;
-    }
-
-    return result;
-  }
-
-  // Function expression: export const foo = function() {}
-  if (initType === 'FunctionExpression') {
-    const func = init as unknown as FunctionExpression;
-    const name = extractPatternName(declarator.id) ?? func.identifier?.value ?? 'anonymous';
-    const params = extractParams(func.params ?? [], content);
-    const returnType = extractReturnType(func.returnType, content);
-    const isAsync = func.async ?? false;
-
-    const result: ExportedMember = {
-      name,
-      kind: 'function',
-      params,
-      isAsync,
-      isDefault,
-    };
-
-    if (returnType !== undefined) {
-      result.returnType = returnType;
-    }
-
-    return result;
-  }
-
-  return null;
+function extractClass(cls: ClassDeclaration, content: string, isDefault: boolean): ExportedMember {
+  return buildClassMember(
+    cls.identifier?.value ?? 'default',
+    extractClassMethods(cls.body ?? [], content),
+    isDefault,
+  );
 }
 
-/**
- * Extract parameter info from function params
- */
-function extractParams(params: Param[], content: string): ParamInfo[] {
-  return params.map((param) => extractParamInfo(param, content));
-}
-
-/**
- * Extract parameter info from arrow function params (Pattern[])
- */
-function extractArrowParams(params: Pattern[], content: string): ParamInfo[] {
-  return params.map((pat) => extractPatternParamInfo(pat, content));
-}
-
-/**
- * Extract info from a single parameter
- */
-function extractParamInfo(param: Param, content: string): ParamInfo {
-  const pat = param.pat as Pattern;
-  return extractPatternParamInfo(pat, content);
-}
-
-/**
- * Extract param info from a pattern node
- */
-function extractPatternParamInfo(pat: Pattern, content: string): ParamInfo {
-  const patType = (pat as { type?: string }).type;
-
-  // Simple identifier: (name: string)
-  if (patType === 'Identifier') {
-    const ident = pat as unknown as Identifier;
-    const typeAnnotation = (ident as { typeAnnotation?: { typeAnnotation?: TsType } })
-      .typeAnnotation;
-    const typeStr = typeAnnotation?.typeAnnotation
-      ? extractTypeString(typeAnnotation.typeAnnotation, content)
-      : undefined;
-
-    const result: ParamInfo = {
-      name: ident.value,
-      isOptional: ident.optional ?? false,
-      hasDefault: false,
-    };
-
-    if (typeStr !== undefined) {
-      result.type = typeStr;
-    }
-
-    return result;
-  }
-
-  // Assignment pattern: (name = 'default')
-  if (patType === 'AssignmentPattern') {
-    const assign = pat as unknown as { left: Pattern };
-    const leftName = extractPatternName(assign.left);
-    return {
-      name: leftName ?? 'param',
-      isOptional: true,
-      hasDefault: true,
-    };
-  }
-
-  // Rest parameter: (...args)
-  if (patType === 'RestElement') {
-    const rest = pat as unknown as { argument: Pattern };
-    const argName = extractPatternName(rest.argument);
-    return {
-      name: argName ?? 'args',
-      type: 'unknown[]',
-      isOptional: true,
-      hasDefault: false,
-    };
-  }
-
-  // Object pattern: ({ a, b })
-  if (patType === 'ObjectPattern') {
-    return {
-      name: 'options',
-      type: 'object',
-      isOptional: false,
-      hasDefault: false,
-    };
-  }
-
-  // Array pattern: ([a, b])
-  if (patType === 'ArrayPattern') {
-    return {
-      name: 'items',
-      type: 'unknown[]',
-      isOptional: false,
-      hasDefault: false,
-    };
-  }
-
-  return {
-    name: 'param',
-    isOptional: false,
-    hasDefault: false,
-  };
-}
-
-/**
- * Extract name from a pattern node
- */
-function extractPatternName(pat: Pattern): string | null {
-  const patType = (pat as { type?: string }).type;
-
-  if (patType === 'Identifier') {
-    return (pat as unknown as Identifier).value;
-  }
-
-  return null;
-}
-
-/**
- * Extract return type as string
- */
-function extractReturnType(
-  returnType: { typeAnnotation?: TsType } | undefined,
-  content: string,
-): string | undefined {
-  if (!returnType?.typeAnnotation) {
-    return undefined;
-  }
-
-  return extractTypeString(returnType.typeAnnotation, content);
-}
-
-/**
- * Extract type as string from source content
- */
-export function extractTypeString(typeNode: TsType, content: string): string {
-  const span = (typeNode as { span?: { start: number; end: number } }).span;
-  if (!span) {
-    return 'unknown';
-  }
-
-  // SWC uses 1-based offsets
-  const start = span.start - 1;
-  const end = span.end - 1;
-
-  let typeText = content.slice(start, end).trim();
-
-  // Truncate long types
-  if (typeText.length > 50) {
-    typeText = `${typeText.slice(0, 47)}...`;
-  }
-
-  return typeText || 'unknown';
-}
-
-/**
- * Extract methods from class body
- */
 function extractClassMethods(body: ClassMember[], content: string): MethodInfo[] {
   const methods: MethodInfo[] = [];
 
   for (const member of body) {
-    const memberType = (member as { type?: string }).type;
+    if (!isClassMethod(member)) continue;
 
-    if (memberType === 'ClassMethod') {
-      const method = member as unknown as ClassMethod;
-      const methodInfo = extractMethodInfo(method, content);
-      if (methodInfo) {
-        methods.push(methodInfo);
-      }
-    }
+    const method = member as ClassMethod;
+    if (!isIdentifier(method.key)) continue;
+
+    const name = method.key.value;
+    if (name.startsWith('#')) continue; // Skip private
+
+    const info: MethodInfo = {
+      name,
+      params: extractParams(method.function?.params ?? [], content),
+      isAsync: method.function?.async ?? false,
+      isStatic: method.isStatic ?? false,
+    };
+
+    const returnType = extractReturnType(method.function?.returnType, content);
+    if (returnType) info.returnType = returnType;
+
+    methods.push(info);
   }
 
   return methods;
 }
 
-/**
- * Extract method info from class method
- */
-function extractMethodInfo(method: ClassMethod, content: string): MethodInfo | null {
-  const keyType = (method.key as { type?: string }).type;
-  let name: string;
+// ============================================================================
+// PARAMETER EXTRACTION
+// ============================================================================
 
-  if (keyType === 'Identifier') {
-    name = (method.key as unknown as Identifier).value;
-  } else {
-    return null; // Skip computed property names
+function extractParams(params: Param[], content: string): ParamInfo[] {
+  return params.map((p) => extractPatternParam(p.pat, content));
+}
+
+function extractArrowParams(params: Pattern[], content: string): ParamInfo[] {
+  return params.map((p) => extractPatternParam(p, content));
+}
+
+function extractPatternParam(pat: Pattern, content: string): ParamInfo {
+  // Simple identifier: (name: string)
+  if (isIdentifier(pat)) {
+    const typeAnnotation = (pat as unknown as { typeAnnotation?: { typeAnnotation?: TsType } })
+      .typeAnnotation?.typeAnnotation;
+    const typeStr = typeAnnotation ? extractTypeString(typeAnnotation, content) : undefined;
+
+    return {
+      name: pat.value,
+      isOptional: (pat as Identifier & { optional?: boolean }).optional ?? false,
+      hasDefault: false,
+      ...(typeStr ? { type: typeStr } : {}),
+    };
   }
 
-  // Skip private methods (starting with #)
-  if (name.startsWith('#')) {
-    return null;
+  // Assignment pattern: (name = 'default')
+  if (isAssignmentPattern(pat)) {
+    const assign = pat as unknown as { left: Pattern };
+    const leftName = isIdentifier(assign.left) ? assign.left.value : 'param';
+    return { name: leftName, isOptional: true, hasDefault: true };
   }
 
-  const params = extractParams(method.function?.params ?? [], content);
-  const returnType = extractReturnType(method.function?.returnType, content);
-  const isAsync = method.function?.async ?? false;
-  const isStatic = method.isStatic ?? false;
+  // Rest parameter: (...args)
+  if ((pat as { type?: string }).type === 'RestElement') {
+    const rest = pat as unknown as { argument: Pattern };
+    const argName = isIdentifier(rest.argument) ? rest.argument.value : 'args';
+    return { name: argName, type: 'unknown[]', isOptional: true, hasDefault: false };
+  }
 
-  const result: MethodInfo = {
-    name,
-    params,
-    isAsync,
-    isStatic,
+  // Object pattern: ({ a, b })
+  if ((pat as { type?: string }).type === 'ObjectPattern') {
+    return { name: 'options', type: 'object', isOptional: false, hasDefault: false };
+  }
+
+  // Array pattern: ([a, b])
+  if ((pat as { type?: string }).type === 'ArrayPattern') {
+    return { name: 'items', type: 'unknown[]', isOptional: false, hasDefault: false };
+  }
+
+  return { name: 'param', isOptional: false, hasDefault: false };
+}
+
+// ============================================================================
+// TYPE/INTERFACE/ENUM EXTRACTION
+// ============================================================================
+
+function extractTypeAlias(node: Node, content: string): ExportedMember {
+  const typeAlias = node as unknown as {
+    id: Identifier;
+    typeAnnotation: { span?: { start: number; end: number } };
   };
 
-  if (returnType !== undefined) {
-    result.returnType = returnType;
-  }
+  const typeDef = extractSpanText(typeAlias.typeAnnotation, content);
+  const member: ExportedMember = {
+    name: typeAlias.id.value,
+    kind: 'type',
+    params: [],
+    isAsync: false,
+    isDefault: false,
+  };
+  if (typeDef) member.typeDefinition = typeDef;
+  return member;
+}
 
-  return result;
+function extractInterface(node: Node, content: string): ExportedMember {
+  const iface = node as unknown as {
+    id: Identifier;
+    body: { span?: { start: number; end: number } };
+  };
+
+  const typeDef = extractSpanText(iface.body, content);
+  const member: ExportedMember = {
+    name: iface.id.value,
+    kind: 'interface',
+    params: [],
+    isAsync: false,
+    isDefault: false,
+  };
+  if (typeDef) member.typeDefinition = typeDef;
+  return member;
+}
+
+function extractEnum(node: Node): ExportedMember {
+  const enumDecl = node as unknown as {
+    id: Identifier;
+    members: Array<{ id: Identifier }>;
+  };
+
+  const enumValues = enumDecl.members
+    .map((m) => (isIdentifier(m.id) ? m.id.value : null))
+    .filter((v): v is string => v !== null);
+
+  return {
+    name: enumDecl.id.value,
+    kind: 'enum',
+    params: [],
+    isAsync: false,
+    isDefault: false,
+    enumValues,
+  };
+}
+
+function extractSpanText(
+  node: { span?: { start: number; end: number } } | undefined,
+  content: string,
+): string | undefined {
+  if (!node?.span) return undefined;
+  const text = content.slice(node.span.start - 1, node.span.end - 1).trim();
+  return text.length > 100 ? `${text.slice(0, 97)}...` : text || undefined;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function extractReturnType(
+  returnType: { typeAnnotation?: TsType } | undefined,
+  content: string,
+): string | undefined {
+  return returnType?.typeAnnotation
+    ? extractTypeString(returnType.typeAnnotation, content)
+    : undefined;
 }

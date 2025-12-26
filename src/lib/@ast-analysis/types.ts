@@ -25,14 +25,19 @@ export interface MethodInfo {
 }
 
 /**
- * Information about an exported member (function or class)
+ * Kind of exported member
+ */
+export type ExportKind = 'function' | 'class' | 'type' | 'interface' | 'enum' | 'const';
+
+/**
+ * Information about an exported member
  */
 export interface ExportedMember {
-  /** Name of the exported function/class */
+  /** Name of the exported function/class/type */
   name: string;
-  /** Type: function or class */
-  kind: 'function' | 'class';
-  /** Parameter names */
+  /** Kind of export */
+  kind: ExportKind;
+  /** Parameter names (for functions) */
   params: ParamInfo[];
   /** Return type as string (if available) */
   returnType?: string;
@@ -42,6 +47,10 @@ export interface ExportedMember {
   isDefault: boolean;
   /** For classes: methods info */
   methods?: MethodInfo[];
+  /** For enums: enum values */
+  enumValues?: string[];
+  /** For types/interfaces: the type definition as string */
+  typeDefinition?: string;
 }
 
 /**
