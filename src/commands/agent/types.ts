@@ -9,11 +9,13 @@
  * - Skill: progressive disclosure knowledge (SKILL.md in skills/[name]/ folder)
  */
 
+import type { Memory } from '../../lib/@memory';
 import type { OutputFormat } from '../../types';
 
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@git';
+export type { Memory } from '../../lib/@memory';
 
 /**
  * Component type in wshobson/agents
@@ -75,9 +77,19 @@ export interface AgentOptions {
   includeSchema?: boolean | undefined;
   includeRoutes?: boolean | undefined;
   includeGit?: boolean | undefined;
+  includeMemory?: boolean | undefined;
   format?: OutputFormat | undefined;
   verbose?: boolean | undefined;
   dryRun?: boolean | undefined;
+}
+
+/**
+ * Library documentation snippet for agent context
+ */
+export interface LibraryDocSnippet {
+  library: string;
+  title: string;
+  snippet: string;
 }
 
 /**
@@ -92,6 +104,8 @@ export interface AgentContext {
   targetFile?: string;
   targetContent?: string;
   feature?: string;
+  libraryDocs?: LibraryDocSnippet[];
+  memories?: Memory[];
 }
 
 /**

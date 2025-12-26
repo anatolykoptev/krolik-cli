@@ -250,3 +250,145 @@ export interface DocsCacheStats {
   /** ISO timestamp of the newest cached library, if any */
   newestFetch?: string;
 }
+
+// ============================================================================
+// Registry Types - Dynamic Library Resolution
+// ============================================================================
+
+/**
+ * Source of library resolution.
+ * Indicates where the Context7 ID was obtained from.
+ */
+export type ResolutionSource = 'cache' | 'api' | 'default';
+
+/**
+ * Result of library ID resolution.
+ *
+ * Contains the resolved Context7 ID along with metadata about
+ * how the resolution was performed.
+ *
+ * @example
+ * ```ts
+ * const result: ResolutionResult = {
+ *   context7Id: '/vercel/next.js',
+ *   displayName: 'Next.js',
+ *   source: 'cache',
+ *   confidence: 1.0
+ * }
+ * ```
+ */
+export interface ResolutionResult {
+  /** Resolved Context7 library ID (e.g., '/vercel/next.js') */
+  context7Id: string;
+
+  /** Human-readable library name */
+  displayName: string;
+
+  /** How the resolution was obtained */
+  source: ResolutionSource;
+
+  /** Confidence score from 0.0 to 1.0 */
+  confidence: number;
+}
+
+/**
+ * Library mapping stored in the registry database.
+ *
+ * Maps npm package names to Context7 library IDs with metadata.
+ *
+ * @example
+ * ```ts
+ * const mapping: LibraryMapping = {
+ *   id: 1,
+ *   npmName: 'next',
+ *   context7Id: '/vercel/next.js',
+ *   displayName: 'Next.js',
+ *   stars: 125000,
+ *   benchmarkScore: 85,
+ *   resolvedAt: '2025-12-24T10:00:00Z',
+ *   isManual: false
+ * }
+ * ```
+ */
+export interface LibraryMapping {
+  /** Database primary key */
+  id: number;
+
+  /** NPM package name (normalized to lowercase) */
+  npmName: string;
+
+  /** Resolved Context7 library ID */
+  context7Id: string;
+
+  /** Human-readable library name */
+  displayName: string;
+
+  /** GitHub stars count (if available) */
+  stars: number;
+
+  /** Context7 benchmark score (0-100) */
+  benchmarkScore: number;
+
+  /** ISO timestamp when mapping was resolved */
+  resolvedAt: string;
+
+  /** Whether this mapping was manually registered */
+  isManual: boolean;
+}
+
+/**
+ * Topic associated with a library.
+ *
+ * Topics are learned from usage patterns to improve
+ * documentation fetching relevance.
+ *
+ * @example
+ * ```ts
+ * const topic: LibraryTopic = {
+ *   id: 1,
+ *   context7Id: '/vercel/next.js',
+ *   topic: 'app-router',
+ *   usageCount: 15,
+ *   lastUsedAt: '2025-12-24T10:00:00Z',
+ *   isDefault: true
+ * }
+ * ```
+ */
+export interface LibraryTopic {
+  /** Database primary key */
+  id: number;
+
+  /** Context7 library ID this topic belongs to */
+  context7Id: string;
+
+  /** Topic name (e.g., 'routing', 'hooks') */
+  topic: string;
+
+  /** Number of times this topic has been used */
+  usageCount: number;
+
+  /** ISO timestamp of last usage */
+  lastUsedAt: string;
+
+  /** Whether this is a default (seeded) topic */
+  isDefault: boolean;
+}
+
+/**
+ * Registry statistics.
+ *
+ * Provides overview of the library registry state.
+ */
+export interface RegistryStats {
+  /** Total number of npm->Context7 mappings */
+  totalMappings: number;
+
+  /** Number of unique Context7 library IDs */
+  uniqueLibraries: number;
+
+  /** Total number of topics across all libraries */
+  totalTopics: number;
+
+  /** Number of manually registered mappings */
+  manualMappings: number;
+}

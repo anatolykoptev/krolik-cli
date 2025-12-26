@@ -246,3 +246,79 @@ export function shouldSkipEntry(
   if (skipHidden && name.startsWith('.')) return true;
   return skipDirs.includes(name);
 }
+
+/**
+ * Simple walk options (subset of ScanOptions for common use cases)
+ */
+export interface WalkOptions {
+  /**
+   * File extensions to include (with or without leading dot)
+   * @example ['.ts', '.tsx'] or ['ts', 'tsx']
+   */
+  extensions?: string[];
+
+  /**
+   * Directories to exclude (defaults to DEFAULT_SKIP_DIRS)
+   */
+  exclude?: string[];
+
+  /**
+   * Maximum directory depth to scan (0 = current dir only)
+   * @default Infinity
+   */
+  maxDepth?: number;
+}
+
+/**
+ * Walk a directory tree and invoke callback for each matching file
+ *
+ * This is a simplified version of scanDirectory for common use cases.
+ * For more complex filtering, use scanDirectory directly.
+ *
+ * @param dir - Root directory to walk
+ * @param callback - Function invoked for each matching file (receives full path)
+ * @param options - Walk configuration
+ *
+ * @example
+ * // Walk all TypeScript files
+ * walk('src', (file) => console.log(file), {
+ *   extensions: ['.ts', '.tsx'],
+ * });
+ *
+ * @example
+ * // Walk with custom exclusions
+ * walk('src', (file) => files.push(file), {
+ *   extensions: ['.ts'],
+ *   exclude: ['node_modules', 'dist', '__tests__'],
+ * });
+ */
+export function walk(
+  dir: string,
+  callback: (file: string) => void,
+  options: WalkOptions = {},
+): void {
+  const { extensions = [], exclude = [...DEFAULT_SKIP_DIRS], maxDepth = Infinity } = options;
+
+  scanDirectory(dir, (fullPath) => callback(fullPath), {
+    extensions,
+    skipDirs: exclude,
+    maxDepth,
+    includeTests: true, // walk includes all files matching extensions
+  });
+}
+
+/**
+ * Walk a directory and return array of matching file paths
+ *
+ * @param dir - Root directory to walk
+ * @param options - Walk configuration
+ * @returns Array of absolute file paths
+ *
+ * @example
+ * const files = walkSync('src', { extensions: ['.ts', '.tsx'] });
+ */
+export function walkSync(dir: string, options: WalkOptions = {}): string[] {
+  const results: string[] = [];
+  walk(dir, (fullPath) => results.push(fullPath), options);
+  return results;
+}

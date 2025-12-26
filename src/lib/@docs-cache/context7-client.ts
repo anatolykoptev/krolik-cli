@@ -6,6 +6,12 @@
 const BASE_URL = 'https://context7.com/api';
 const API_KEY_PREFIX = 'ctx7sk';
 
+/** Default HTTP request timeout in milliseconds */
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Maximum query length for input validation */
+const MAX_QUERY_LENGTH = 500;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -113,22 +119,45 @@ export class Context7Client {
    * Search for libraries by name
    */
   async searchLibrary(query: string): Promise<SearchLibraryResponse> {
-    const url = new URL(`${BASE_URL}/v2/search`);
-    url.searchParams.set('query', query);
-
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Context7 API error: ${response.status} ${response.statusText}`);
+    // Input validation
+    if (!query || typeof query !== 'string') {
+      throw new Error('Search query is required');
     }
 
-    return response.json() as Promise<SearchLibraryResponse>;
+    const sanitizedQuery = query.trim().slice(0, MAX_QUERY_LENGTH);
+    if (sanitizedQuery.length === 0) {
+      throw new Error('Search query cannot be empty');
+    }
+
+    const url = new URL(`${BASE_URL}/v2/search`);
+    url.searchParams.set('query', sanitizedQuery);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Context7 API error: ${response.status} ${response.statusText}`);
+      }
+
+      return response.json() as Promise<SearchLibraryResponse>;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Context7 API request timed out');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   /**
@@ -139,60 +168,91 @@ export class Context7Client {
     libraryId: string,
     options: GetDocsOptions = {},
   ): Promise<CodeDocsResponse | InfoDocsResponse> {
-    // Clean library ID
-    const cleaned = libraryId.startsWith('/') ? libraryId.slice(1) : libraryId;
-    const parts = cleaned.split('/');
+    // Input validation
+    if (!libraryId || typeof libraryId !== 'string') {
+      throw new Error('Library ID is required');
+    }
+
+    // Clean and validate library ID
+    const cleaned = libraryId.trim().startsWith('/') ? libraryId.trim().slice(1) : libraryId.trim();
+    const parts = cleaned.split('/').filter(Boolean);
 
     if (parts.length < 2) {
       throw new Error(`Invalid library ID format: ${libraryId}. Expected format: /owner/repo`);
     }
 
-    const [owner, repo] = parts;
+    // Validate owner/repo format (alphanumeric, dots, hyphens, underscores)
+    const validPattern = /^[\w.-]+$/;
+    const owner = parts[0];
+    const repo = parts[1];
+    if (!owner || !repo || !validPattern.test(owner) || !validPattern.test(repo)) {
+      throw new Error('Invalid characters in library ID');
+    }
+
     const mode = options.mode || 'code';
 
     // Build endpoint: /v2/docs/{mode}/{owner}/{repo}[/{version}]
     const pathParts = ['v2', 'docs', mode, owner, repo];
     if (options.version) {
-      pathParts.push(options.version);
+      const sanitizedVersion = options.version.trim().slice(0, 50);
+      if (sanitizedVersion && validPattern.test(sanitizedVersion)) {
+        pathParts.push(sanitizedVersion);
+      }
     }
 
     const url = new URL(`${BASE_URL}/${pathParts.join('/')}`);
 
-    // Query params
+    // Query params with validation
     url.searchParams.set('type', 'json');
     if (options.topic) {
-      url.searchParams.set('topic', options.topic);
+      const sanitizedTopic = options.topic.trim().slice(0, 100);
+      if (sanitizedTopic) {
+        url.searchParams.set('topic', sanitizedTopic);
+      }
     }
-    if (options.page !== undefined) {
-      url.searchParams.set('page', String(options.page));
+    if (options.page !== undefined && options.page >= 1) {
+      url.searchParams.set('page', String(Math.floor(options.page)));
     }
-    if (options.limit !== undefined) {
-      url.searchParams.set('limit', String(options.limit));
+    if (options.limit !== undefined && options.limit >= 1 && options.limit <= 100) {
+      url.searchParams.set('limit', String(Math.floor(options.limit)));
     }
 
     const fullUrl = url.toString();
 
-    // Debug logging
+    // Debug logging (without exposing API key)
     if (process.env.DEBUG) {
       console.error('[Context7] GET', fullUrl);
     }
 
-    const response = await fetch(fullUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      throw new Error(
-        `Context7 API error: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`,
-      );
+    try {
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(
+          `Context7 API error: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ''}`,
+        );
+      }
+
+      return response.json() as Promise<CodeDocsResponse | InfoDocsResponse>;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Context7 API request timed out');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    return response.json() as Promise<CodeDocsResponse | InfoDocsResponse>;
   }
 }
 

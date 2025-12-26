@@ -7,6 +7,7 @@ Thank you for your interest in contributing to Krolik CLI. This document provide
 - [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
 - [Code Style](#code-style)
+- [Custom CLAUDE.md Sections](#custom-claudemd-sections)
 - [Testing](#testing)
 - [Pull Request Process](#pull-request-process)
 - [Code of Conduct](#code-of-conduct)
@@ -27,7 +28,7 @@ Before you begin, ensure you have the following installed:
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/<your-username>/krolik-cli.git
+   git clone https://github.com/anatolykoptev/krolik-cli.git
    cd krolik-cli
    ```
 
@@ -199,6 +200,29 @@ Run Biome checks:
 pnpm check        # Check all issues
 pnpm check:fix    # Auto-fix all issues
 ```
+
+## Custom CLAUDE.md Sections
+
+`src/lib/@docs/sections/` — plugin system for `<!-- krolik:start -->` block.
+
+```typescript
+// src/lib/@docs/sections/providers/my-section.ts
+import type { SectionProvider } from '../types';
+import { SectionPriority } from '../types';
+
+export const mySection: SectionProvider = {
+  id: 'my-section',
+  name: 'My Section',
+  priority: SectionPriority.CUSTOM, // 100=startup, 200=cache, 300=subdocs, 400=tools, 500=custom
+  dependencies: ['context-cache'], // optional
+  shouldRender: (ctx) => ctx.tools.length > 0, // optional
+  render: (ctx) => `### My Section\nctx: projectRoot, tools, subDocs, version, cache`,
+};
+
+// Register in providers/index.ts → registerBuiltinSections()
+```
+
+Test: `pnpm build && ./dist/bin/cli.js sync`
 
 ## Testing
 

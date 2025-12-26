@@ -6,7 +6,10 @@
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { AgentContext, AgentOptions } from './types';
+import { detectLibraries, searchDocs } from '../../lib/@docs-cache';
+import type { Memory } from '../../lib/@memory';
+import { search, searchByFeatures } from '../../lib/@memory';
+import type { AgentContext, AgentOptions, LibraryDocSnippet } from './types';
 
 /**
  * Build agent context from project
@@ -53,7 +56,108 @@ export async function buildAgentContext(
     context.feature = options.feature;
   }
 
+  // Include library documentation if feature is specified
+  if (options.feature) {
+    const libraryDocs = enrichWithLibraryDocs(options.feature, projectRoot);
+    if (libraryDocs.length > 0) {
+      context.libraryDocs = libraryDocs;
+    }
+  }
+
+  // Include memories if enabled (default: true)
+  if (options.includeMemory !== false) {
+    const memories = loadAgentMemories(projectRoot, options.feature);
+    if (memories.length > 0) {
+      context.memories = memories;
+    }
+  }
+
   return context;
+}
+
+/**
+ * Enrich agent context with library documentation
+ *
+ * Searches cached documentation for relevant snippets based on the task/feature.
+ * Uses libraries detected from the project's package.json.
+ *
+ * @param task - The task or feature name to search for
+ * @param projectRoot - Project root directory
+ * @returns Array of relevant documentation snippets
+ */
+function enrichWithLibraryDocs(task: string, projectRoot: string): LibraryDocSnippet[] {
+  try {
+    const libs = detectLibraries(projectRoot);
+    if (libs.length === 0) return [];
+
+    // Search across all detected libraries
+    const results = searchDocs({
+      query: task,
+      limit: 5,
+    });
+
+    return results.map((r) => ({
+      library: r.libraryName,
+      title: r.section.title,
+      snippet: r.section.content.slice(0, 300),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Load relevant memories for agent context
+ *
+ * Strategy:
+ * 1. If feature is provided, search by feature for relevant memories
+ * 2. Fallback: get critical/high importance patterns and decisions
+ *
+ * @param projectRoot - Project root directory (used to derive project name)
+ * @param feature - Optional feature/domain to filter memories by
+ * @returns Array of relevant Memory objects (max 5 to avoid context bloat)
+ */
+function loadAgentMemories(projectRoot: string, feature?: string): Memory[] {
+  const maxMemories = 5;
+
+  try {
+    // Derive project name from directory
+    const projectName = path.basename(projectRoot);
+
+    // Strategy 1: If feature provided, search by features
+    if (feature) {
+      const results = searchByFeatures(projectName, [feature], maxMemories);
+      if (results.length > 0) {
+        return results.map((r) => r.memory);
+      }
+    }
+
+    // Strategy 2: Fallback to critical/high importance patterns and decisions
+    const criticalResults = search({
+      project: projectName,
+      importance: 'critical',
+      limit: maxMemories,
+    });
+
+    if (criticalResults.length >= maxMemories) {
+      return criticalResults.map((r) => r.memory);
+    }
+
+    // Fill remaining slots with high importance patterns/decisions
+    const remaining = maxMemories - criticalResults.length;
+    const highResults = search({
+      project: projectName,
+      importance: 'high',
+      limit: remaining,
+    });
+
+    const memories = [...criticalResults.map((r) => r.memory), ...highResults.map((r) => r.memory)];
+
+    return memories.slice(0, maxMemories);
+  } catch {
+    // Handle errors gracefully - return empty array on failure
+    return [];
+  }
 }
 
 /**
@@ -184,6 +288,33 @@ ${context.gitStatus}
     sections.push(`<git-diff>
 ${context.gitDiff}
 </git-diff>`);
+  }
+
+  if (context.libraryDocs && context.libraryDocs.length > 0) {
+    const docsContent = context.libraryDocs
+      .map(
+        (doc) => `<doc library="${doc.library}" title="${doc.title}">
+${doc.snippet}
+</doc>`,
+      )
+      .join('\n');
+    sections.push(`<library-docs>
+${docsContent}
+</library-docs>`);
+  }
+
+  if (context.memories && context.memories.length > 0) {
+    const memoriesContent = context.memories
+      .map(
+        (mem) => `<memory type="${mem.type}" importance="${mem.importance}">
+  <title>${mem.title}</title>
+  <description>${mem.description}</description>${mem.tags.length > 0 ? `\n  <tags>${mem.tags.join(', ')}</tags>` : ''}${mem.features && mem.features.length > 0 ? `\n  <features>${mem.features.join(', ')}</features>` : ''}
+</memory>`,
+      )
+      .join('\n');
+    sections.push(`<memories>
+${memoriesContent}
+</memories>`);
   }
 
   return `<project-context>

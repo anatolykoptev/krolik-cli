@@ -6,6 +6,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tryExec } from '../../lib';
+import { walkSync } from '../../lib/@fs';
 
 // ============================================================================
 // TYPES
@@ -284,41 +285,62 @@ export function getFileStats(cwd: string, fast = true): FileStats {
     linesOfCode: 0,
   };
 
+  // Use walkSync from @fs/scanner for file counting
+  const sourceExtensions = ['.ts', '.tsx', '.js', '.jsx'];
+  const testPattern = /\.(test|spec)\.(ts|tsx|js|jsx)$/;
+  const configPattern = /\.(config\.[^.]+|env.*|tsconfig.*\.json)$/i;
+
   if (fast) {
-    // Quick count using find
-    const srcResult = tryExec(
-      'find . -type f \\( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" \\) ! -path "*/node_modules/*" ! -path "*/.next/*" ! -path "*/dist/*" 2>/dev/null | wc -l',
-      { cwd, silent: true },
-    );
-    const testResult = tryExec(
-      'find . -type f \\( -name "*.test.ts" -o -name "*.test.tsx" -o -name "*.spec.ts" -o -name "*.spec.tsx" \\) ! -path "*/node_modules/*" 2>/dev/null | wc -l',
-      { cwd, silent: true },
-    );
-    const configResult = tryExec(
-      'find . -maxdepth 2 -type f \\( -name "*.config.*" -o -name ".env*" -o -name "tsconfig*.json" \\) 2>/dev/null | wc -l',
-      { cwd, silent: true },
-    );
+    // Quick count using walkSync
+    const sourceFiles = walkSync(cwd, {
+      extensions: sourceExtensions,
+      exclude: ['node_modules', '.next', 'dist', '.git', '.turbo', 'coverage', 'build'],
+    });
+
+    const testFiles = sourceFiles.filter((f) => testPattern.test(path.basename(f)));
+    const nonTestSourceFiles = sourceFiles.filter((f) => !testPattern.test(path.basename(f)));
+
+    // Config files (maxDepth: 2)
+    const configFiles = walkSync(cwd, {
+      maxDepth: 2,
+      exclude: ['node_modules', '.next', 'dist', '.git'],
+    }).filter((f) => {
+      const basename = path.basename(f);
+      return (
+        configPattern.test(basename) ||
+        basename.startsWith('.env') ||
+        basename.startsWith('tsconfig')
+      );
+    });
 
     return {
-      totalFiles: 0,
-      sourceFiles: Number.parseInt(srcResult.output?.trim() || '0', 10),
-      testFiles: Number.parseInt(testResult.output?.trim() || '0', 10),
-      configFiles: Number.parseInt(configResult.output?.trim() || '0', 10),
+      totalFiles: sourceFiles.length,
+      sourceFiles: nonTestSourceFiles.length,
+      testFiles: testFiles.length,
+      configFiles: configFiles.length,
       linesOfCode: 0,
     };
   }
 
   // Full count with LOC (slower)
-  const locResult = tryExec(
-    'find . -type f \\( -name "*.ts" -o -name "*.tsx" \\) ! -path "*/node_modules/*" ! -path "*/.next/*" ! -path "*/dist/*" -exec wc -l {} + 2>/dev/null | tail -1',
-    { cwd, silent: true },
-  );
+  const tsFiles = walkSync(cwd, {
+    extensions: ['.ts', '.tsx'],
+    exclude: ['node_modules', '.next', 'dist', '.git', '.turbo', 'coverage', 'build'],
+  });
 
-  const loc = Number.parseInt(locResult.output?.split(/\s+/)[0] || '0', 10);
+  let totalLoc = 0;
+  for (const file of tsFiles) {
+    try {
+      const content = fs.readFileSync(file, 'utf-8');
+      totalLoc += content.split('\n').length;
+    } catch {
+      // Skip unreadable files
+    }
+  }
 
   return {
     ...defaultStats,
-    linesOfCode: loc,
+    linesOfCode: totalLoc,
   };
 }
 

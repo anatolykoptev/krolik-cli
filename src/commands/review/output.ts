@@ -40,13 +40,13 @@ export function printReview(review: ReviewResult, logger: Logger): void {
   console.log('');
 
   // Affected features
-  if (review.affectedFeatures.length <= 0) return;
-
-  console.log('=== Affected Features ===');
-  for (const feature of review.affectedFeatures) {
-    console.log(`  - ${feature}`);
+  if (review.affectedFeatures.length > 0) {
+    console.log('=== Affected Features ===');
+    for (const feature of review.affectedFeatures) {
+      console.log(`  - ${feature}`);
+    }
+    console.log('');
   }
-  console.log('');
 
   // Files
   console.log('=== Changed Files ===');
@@ -85,8 +85,18 @@ export function printReview(review: ReviewResult, logger: Logger): void {
   } else {
     console.log('=== No Issues Found ===');
   }
-
   console.log('');
+
+  // Documentation references
+  if (review.docsReferences && review.docsReferences.length > 0) {
+    console.log('=== Best Practices ===');
+    console.log('\x1b[36mRelevant documentation from cached library docs:\x1b[0m');
+    for (const ref of review.docsReferences) {
+      console.log(`  \x1b[1m${ref.title}\x1b[0m (${ref.library})`);
+      console.log(`    ${ref.snippet}`);
+    }
+    console.log('');
+  }
 }
 
 /**
@@ -156,6 +166,19 @@ export function formatAI(review: ReviewResult): string {
     lines.push('  </issues>');
   } else {
     lines.push('  <issues count="0" />');
+  }
+
+  // Documentation references (best practices from cached docs)
+  if (review.docsReferences && review.docsReferences.length > 0) {
+    lines.push('');
+    lines.push('  <docs-references>');
+    for (const ref of review.docsReferences) {
+      lines.push(`    <reference library="${escapeXml(ref.library)}">`);
+      lines.push(`      <title>${escapeXml(ref.title)}</title>`);
+      lines.push(`      <snippet>${escapeXml(ref.snippet)}</snippet>`);
+      lines.push('    </reference>');
+    }
+    lines.push('  </docs-references>');
   }
 
   lines.push('</code-review>');
@@ -241,6 +264,20 @@ export function formatMarkdown(review: ReviewResult): string {
       for (const issue of grouped.info) {
         lines.push(`- **[${issue.category}]** \`${issue.file}\`: ${issue.message}`);
       }
+      lines.push('');
+    }
+  }
+
+  // Documentation references
+  if (review.docsReferences && review.docsReferences.length > 0) {
+    lines.push('## Best Practices');
+    lines.push('');
+    lines.push('Relevant documentation from cached library docs:');
+    lines.push('');
+    for (const ref of review.docsReferences) {
+      lines.push(`### ${ref.title} (${ref.library})`);
+      lines.push('');
+      lines.push(`> ${ref.snippet}`);
       lines.push('');
     }
   }

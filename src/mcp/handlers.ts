@@ -39,17 +39,18 @@ export function handleToolsList(): MCPResult {
 
 /**
  * Handle tools/call request
+ * Supports both sync and async tool handlers
  *
  * @param params - Request params with tool name and arguments
  * @param projectRoot - Project root directory
- * @returns Tool execution result
+ * @returns Tool execution result (may be a Promise)
  */
-export function handleToolsCall(params: unknown, projectRoot: string): MCPResult {
+export async function handleToolsCall(params: unknown, projectRoot: string): Promise<MCPResult> {
   const { name, arguments: args = {} } = params as {
     name: string;
     arguments?: Record<string, unknown>;
   };
-  const result = runTool(name, args, projectRoot);
+  const result = await runTool(name, args, projectRoot);
   return { content: [{ type: 'text', text: result }] };
 }
 

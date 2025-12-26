@@ -65,8 +65,13 @@ export function buildHandlerRegistry(): Record<string, MCPToolDefinition['handle
 
 /**
  * Run a tool by name
+ * Supports both sync and async handlers
  */
-export function runTool(name: string, args: Record<string, unknown>, projectRoot: string): string {
+export function runTool(
+  name: string,
+  args: Record<string, unknown>,
+  projectRoot: string,
+): string | Promise<string> {
   const tool = toolRegistry.find((t) => t.name === name);
   if (!tool) {
     throw new Error(`Unknown tool: ${name}`);

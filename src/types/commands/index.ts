@@ -21,6 +21,7 @@ export type {
 
 // Review command
 export type {
+  DocReference,
   FileChange,
   ReviewCategory,
   ReviewIssue,

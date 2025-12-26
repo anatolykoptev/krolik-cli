@@ -9,8 +9,11 @@
  * - Flag building for CLI commands
  * - Project detection and resolution
  * - Common utility functions
+ * - Standardized error handling
  */
 
+// Error handling
+export * from './errors';
 // Flag builder
 export * from './flag-builder';
 // Project detection

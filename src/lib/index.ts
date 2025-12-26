@@ -8,11 +8,14 @@
  * - @cache - Caching utilities (file cache)
  * - @context - File type detection, skip logic
  * - @discovery - Project root, schemas, routes
+ * - @docs - CLAUDE.md injection and sync
+ * - @docs-cache - Context7 API documentation cache
  * - @formatters - XML, JSON, Markdown, Text
  * - @fs - File system operations
- * - @git - Git and GitHub operations
+ * - @git - Git and GitHub operationsLf
  * - @log - Logging utilities
  * - @markdown - Markdown utilities (frontmatter)
+ * - @memory - SQLite-based persistent memory
  * - @patterns - Lint, hardcoded, complexity patterns
  * - @sanitize - Input sanitization and validation
  * - @shell - Shell execution
@@ -51,6 +54,28 @@ export {
   SUB_DOC_CANDIDATES,
   syncClaudeMd,
 } from './@docs';
+export type {
+  CachedLibrary,
+  DetectedLibrary,
+  DocSection,
+  FetchDocsResult,
+  LibraryMapping,
+  ResolutionResult,
+} from './@docs-cache';
+// Context7 documentation cache
+export {
+  detectLibraries,
+  fetchAndCacheDocs,
+  fetchLibraryWithTopics,
+  getLibraryByName,
+  getSectionsByLibrary,
+  getSuggestions,
+  getTopicsForLibrary,
+  hasContext7ApiKey,
+  listLibraries,
+  resolveLibraryId,
+  searchDocs,
+} from './@docs-cache';
 // Formatters (XML, JSON, Markdown, Text)
 export * from './@formatters';
 // File system

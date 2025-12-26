@@ -1,16 +1,227 @@
 /**
  * @module mcp/tools/memory
  * @description krolik_mem_* tools - Memory system for observations, decisions, patterns
+ *
+ * Uses direct function imports instead of CLI subprocess calls for better performance.
  */
 
+import * as path from 'node:path';
+import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@git';
 import {
-  type MCPToolDefinition,
-  PROJECT_PROPERTY,
-  registerTool,
-  runKrolik,
-  TIMEOUT_60S,
-  withProjectDetection,
-} from '../core';
+  type Memory,
+  type MemoryContext,
+  type MemorySaveOptions,
+  type MemorySearchOptions,
+  type MemorySearchResult,
+  type MemoryType,
+  recent,
+  save,
+  search,
+} from '../../../lib/@memory';
+import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
+import { formatError, formatMCPError } from '../core/errors';
+import { escapeXml, truncate } from '../core/formatting';
+import { resolveProjectPath } from '../core/projects';
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Git context result type
+ */
+interface GitContext {
+  branch?: string | undefined;
+  commit?: string | undefined;
+}
+
+/**
+ * Get git context for memory storage
+ */
+function getGitContext(projectPath: string): GitContext {
+  if (!isGitRepo(projectPath)) {
+    return {};
+  }
+
+  const branch = getCurrentBranch(projectPath) ?? undefined;
+  const commits = getRecentCommits(1, projectPath);
+  const commit = commits[0]?.hash;
+
+  return { branch, commit };
+}
+
+/**
+ * Format a single memory entry as XML
+ */
+function formatMemoryXml(memory: Memory, relevance?: number): string {
+  const lines: string[] = [];
+  const relevanceAttr = relevance !== undefined ? ` relevance="${relevance.toFixed(2)}"` : '';
+
+  lines.push(
+    `  <memory id="${escapeXml(memory.id)}" type="${memory.type}" importance="${memory.importance}"${relevanceAttr}>`,
+  );
+  lines.push(`    <title>${escapeXml(memory.title)}</title>`);
+  lines.push(`    <description>${escapeXml(truncate(memory.description, 500))}</description>`);
+  lines.push(`    <project>${escapeXml(memory.project)}</project>`);
+
+  if (memory.branch) {
+    lines.push(`    <branch>${escapeXml(memory.branch)}</branch>`);
+  }
+
+  if (memory.commit) {
+    lines.push(`    <commit>${escapeXml(memory.commit)}</commit>`);
+  }
+
+  if (memory.tags.length > 0) {
+    lines.push(`    <tags>${memory.tags.map(escapeXml).join(', ')}</tags>`);
+  }
+
+  if (memory.files && memory.files.length > 0) {
+    lines.push(`    <files>${memory.files.map(escapeXml).join(', ')}</files>`);
+  }
+
+  if (memory.features && memory.features.length > 0) {
+    lines.push(`    <features>${memory.features.map(escapeXml).join(', ')}</features>`);
+  }
+
+  lines.push(`    <createdAt>${memory.createdAt}</createdAt>`);
+  lines.push('  </memory>');
+
+  return lines.join('\n');
+}
+
+// ============================================================================
+// ARGUMENT INTERFACES
+// ============================================================================
+
+/**
+ * Arguments for save action
+ */
+interface SaveArgs {
+  type: MemoryType;
+  title: string;
+  description: string;
+  importance?: 'low' | 'medium' | 'high' | 'critical' | undefined;
+  tags?: string | undefined;
+  files?: string | undefined;
+  features?: string | undefined;
+}
+
+/**
+ * Arguments for search action
+ */
+interface SearchArgs {
+  query?: string | undefined;
+  type?: MemoryType | undefined;
+  tags?: string | undefined;
+  features?: string | undefined;
+  limit?: number | undefined;
+}
+
+/**
+ * Arguments for recent action
+ */
+interface RecentArgs {
+  type?: MemoryType | undefined;
+  limit?: number | undefined;
+}
+
+// ============================================================================
+// ACTION HANDLERS
+// ============================================================================
+
+/**
+ * Handle save action - save a new memory entry
+ */
+function handleSave(args: SaveArgs, projectPath: string): string {
+  const projectName = path.basename(projectPath);
+  const gitContext = getGitContext(projectPath);
+
+  const saveOptions: MemorySaveOptions = {
+    type: args.type,
+    title: args.title,
+    description: args.description,
+    importance: args.importance,
+    tags: args.tags ? args.tags.split(',').map((t) => t.trim()) : undefined,
+    files: args.files ? args.files.split(',').map((f) => f.trim()) : undefined,
+    features: args.features ? args.features.split(',').map((f) => f.trim()) : undefined,
+  };
+
+  const context: MemoryContext = {
+    project: projectName,
+    branch: gitContext.branch,
+    commit: gitContext.commit,
+  };
+
+  const memory = save(saveOptions, context);
+
+  const lines: string[] = [
+    '<memory-save status="success">',
+    formatMemoryXml(memory),
+    '</memory-save>',
+  ];
+
+  return lines.join('\n');
+}
+
+/**
+ * Handle search action - search memory entries
+ */
+function handleSearch(args: SearchArgs, projectPath: string): string {
+  const projectName = path.basename(projectPath);
+
+  const searchOptions: MemorySearchOptions = {
+    query: args.query,
+    type: args.type,
+    project: projectName,
+    tags: args.tags ? args.tags.split(',').map((t) => t.trim()) : undefined,
+    features: args.features ? args.features.split(',').map((f) => f.trim()) : undefined,
+    limit: args.limit ?? 10,
+  };
+
+  const results: MemorySearchResult[] = search(searchOptions);
+
+  if (results.length === 0) {
+    return '<memory-search count="0"><message>No memories found matching the criteria.</message></memory-search>';
+  }
+
+  const lines: string[] = [`<memory-search count="${results.length}">`];
+
+  for (const result of results) {
+    lines.push(formatMemoryXml(result.memory, result.relevance));
+  }
+
+  lines.push('</memory-search>');
+  return lines.join('\n');
+}
+
+/**
+ * Handle recent action - get recent memory entries
+ */
+function handleRecent(args: RecentArgs, projectPath: string): string {
+  const projectName = path.basename(projectPath);
+  const limit = args.limit ?? 10;
+
+  const memories: Memory[] = recent(projectName, limit, args.type);
+
+  if (memories.length === 0) {
+    const typeFilter = args.type ? ` of type "${args.type}"` : '';
+    return `<memory-recent count="0"><message>No memories found${typeFilter}.</message></memory-recent>`;
+  }
+
+  const lines: string[] = [`<memory-recent count="${memories.length}">`];
+
+  for (const memory of memories) {
+    lines.push(formatMemoryXml(memory));
+  }
+
+  lines.push('</memory-recent>');
+  return lines.join('\n');
+}
+
+// ============================================================================
+// TOOL DEFINITIONS
+// ============================================================================
 
 /**
  * krolik_mem_save - Save a memory entry
@@ -66,20 +277,33 @@ Examples:
     required: ['type', 'title', 'description'],
   },
   handler: (args, workspaceRoot) => {
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const flags: string[] = [];
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
 
-      if (args.type) flags.push(`--type "${args.type}"`);
-      if (args.title) flags.push(`--title "${String(args.title).replace(/"/g, '\\"')}"`);
-      if (args.description)
-        flags.push(`--description "${String(args.description).replace(/"/g, '\\"')}"`);
-      if (args.importance) flags.push(`--importance "${args.importance}"`);
-      if (args.tags) flags.push(`--tags "${args.tags}"`);
-      if (args.files) flags.push(`--files "${args.files}"`);
-      if (args.features) flags.push(`--features "${args.features}"`);
+    if ('error' in resolved) {
+      // Check if it's a "project not found" vs "multiple projects" scenario
+      if (resolved.error.includes('not found')) {
+        return formatMCPError('E101', { requested: projectArg });
+      }
+      // Return as-is for project list (already formatted)
+      return resolved.error;
+    }
 
-      return runKrolik(`mem save ${flags.join(' ')}`, projectPath, TIMEOUT_60S);
-    });
+    const saveArgs: SaveArgs = {
+      type: args.type as MemoryType,
+      title: args.title as string,
+      description: args.description as string,
+      importance: args.importance as SaveArgs['importance'],
+      tags: args.tags as string | undefined,
+      files: args.files as string | undefined,
+      features: args.features as string | undefined,
+    };
+
+    try {
+      return handleSave(saveArgs, resolved.path);
+    } catch (error) {
+      return formatError(error);
+    }
   },
 };
 
@@ -124,17 +348,31 @@ Examples:
     },
   },
   handler: (args, workspaceRoot) => {
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const flags: string[] = [];
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
 
-      if (args.query) flags.push(`--query "${String(args.query).replace(/"/g, '\\"')}"`);
-      if (args.type) flags.push(`--type "${args.type}"`);
-      if (args.tags) flags.push(`--tags "${args.tags}"`);
-      if (args.features) flags.push(`--features "${args.features}"`);
-      if (args.limit) flags.push(`--limit ${args.limit}`);
+    if ('error' in resolved) {
+      // Check if it's a "project not found" vs "multiple projects" scenario
+      if (resolved.error.includes('not found')) {
+        return formatMCPError('E101', { requested: projectArg });
+      }
+      // Return as-is for project list (already formatted)
+      return resolved.error;
+    }
 
-      return runKrolik(`mem search ${flags.join(' ')}`, projectPath, TIMEOUT_60S);
-    });
+    const searchArgs: SearchArgs = {
+      query: args.query as string | undefined,
+      type: args.type as MemoryType | undefined,
+      tags: args.tags as string | undefined,
+      features: args.features as string | undefined,
+      limit: args.limit as number | undefined,
+    };
+
+    try {
+      return handleSearch(searchArgs, resolved.path);
+    } catch (error) {
+      return formatError(error);
+    }
   },
 };
 
@@ -168,14 +406,24 @@ Useful for:
     },
   },
   handler: (args, workspaceRoot) => {
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const flags: string[] = [];
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
 
-      if (args.limit) flags.push(`--limit ${args.limit}`);
-      if (args.type) flags.push(`--type "${args.type}"`);
+    if ('error' in resolved) {
+      return resolved.error;
+    }
 
-      return runKrolik(`mem recent ${flags.join(' ')}`, projectPath, TIMEOUT_60S);
-    });
+    const recentArgs: RecentArgs = {
+      limit: args.limit as number | undefined,
+      type: args.type as MemoryType | undefined,
+    };
+
+    try {
+      return handleRecent(recentArgs, resolved.path);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return `<memory-recent status="error"><message>${escapeXml(message)}</message></memory-recent>`;
+    }
   },
 };
 

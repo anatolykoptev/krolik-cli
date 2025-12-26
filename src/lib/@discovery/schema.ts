@@ -10,6 +10,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { walk } from '../@fs';
 import { detectMonorepo } from './project';
 
 // ============================================================================
@@ -159,33 +160,24 @@ export function findZodSchemas(dir: string): string[] {
 
   const files: string[] = [];
 
-  function walk(currentDir: string): void {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        // Skip node_modules and common non-code directories
-        if (!['node_modules', '.git', 'dist', 'build'].includes(entry.name)) {
-          walk(fullPath);
-        }
-      } else if (entry.isFile()) {
-        // Check for Zod schema file patterns
-        if (
-          entry.name.endsWith('.schema.ts') ||
-          entry.name.endsWith('.schemas.ts') ||
-          entry.name.endsWith('.validator.ts') ||
-          entry.name === 'schemas.ts' ||
-          entry.name === 'validators.ts'
-        ) {
-          files.push(fullPath);
-        }
+  walk(
+    dir,
+    (fullPath) => {
+      const fileName = path.basename(fullPath);
+      // Check for Zod schema file patterns
+      if (
+        fileName.endsWith('.schema.ts') ||
+        fileName.endsWith('.schemas.ts') ||
+        fileName.endsWith('.validator.ts') ||
+        fileName === 'schemas.ts' ||
+        fileName === 'validators.ts'
+      ) {
+        files.push(fullPath);
       }
-    }
-  }
+    },
+    { extensions: ['.ts'], exclude: ['node_modules', '.git', 'dist', 'build'] },
+  );
 
-  walk(dir);
   return files;
 }
 

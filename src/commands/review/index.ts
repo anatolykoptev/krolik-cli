@@ -4,8 +4,10 @@
  */
 
 import { escapeXml } from '../../lib';
+import { detectLibraries, searchDocs } from '../../lib/@docs-cache';
 import type {
   CommandContext,
+  DocReference,
   FileChange,
   OutputFormat,
   ReviewIssue,
@@ -73,6 +75,9 @@ export function generateReview(
 
   const affectedFeatures = detectAffectedFeatures(files);
 
+  // Find relevant documentation from cached library docs
+  const docsReferences = findRelevantDocs(issues, options.cwd);
+
   return {
     title: options.title,
     description: options.description || '',
@@ -89,7 +94,55 @@ export function generateReview(
       testsRequired: needsTests(files),
       docsRequired: needsDocs(files),
     },
+    ...(docsReferences.length > 0 ? { docsReferences } : {}),
   };
+}
+
+/**
+ * Framework names that support best practices documentation
+ */
+const FRAMEWORK_NAMES = ['next.js', 'react', 'express', 'fastify', 'hono', 'prisma', 'trpc'];
+
+/**
+ * Find relevant documentation from cached library docs based on review issues
+ */
+function findRelevantDocs(issues: ReviewIssue[], projectRoot?: string): DocReference[] {
+  if (!projectRoot || issues.length === 0) {
+    return [];
+  }
+
+  try {
+    // Detect libraries in the project
+    const detectedLibs = detectLibraries(projectRoot);
+
+    // Find the primary framework
+    const framework = detectedLibs.find((lib) => FRAMEWORK_NAMES.includes(lib.name));
+
+    if (!framework || !framework.isCached) {
+      return [];
+    }
+
+    // Build search query from unique issue categories
+    const categories = [...new Set(issues.map((i) => i.category))];
+    const docsQuery = categories.slice(0, 3).join(' ');
+
+    // Search for relevant documentation
+    const results = searchDocs({
+      query: docsQuery,
+      library: framework.name,
+      limit: 3,
+    });
+
+    // Map to DocReference format
+    return results.map((r) => ({
+      library: r.libraryName,
+      title: r.section.title,
+      snippet: r.section.content.slice(0, 200) + (r.section.content.length > 200 ? '...' : ''),
+    }));
+  } catch {
+    // Silently fail if docs cache is not available
+    return [];
+  }
 }
 
 /**

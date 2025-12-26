@@ -20,6 +20,7 @@ import {
 import {
   detectLibraries,
   fetchAndCacheDocs,
+  getSectionsByLibrary,
   getSuggestions,
   hasContext7ApiKey,
   searchDocs,
@@ -735,10 +736,21 @@ async function loadLibraryDocs(
       if (!lib.context7Id) continue;
 
       // Search cache for relevant sections
-      const searchResults =
+      let searchResults =
         searchQuery.length > 0
           ? searchDocs({ query: searchQuery, library: lib.name, limit: 3 })
           : [];
+
+      // If domain-specific search found nothing but library is cached,
+      // fall back to getting general sections (first 3)
+      if (searchResults.length === 0 && lib.isCached && lib.context7Id) {
+        const sections = getSectionsByLibrary(lib.context7Id);
+        searchResults = sections.slice(0, 3).map((section) => ({
+          section,
+          libraryName: lib.name,
+          relevance: 0.5,
+        }));
+      }
 
       if (searchResults.length === 0 && !lib.isCached) {
         results.push({
@@ -754,12 +766,20 @@ async function loadLibraryDocs(
         results.push({
           libraryName: lib.name,
           libraryId: lib.context7Id,
-          status: lib.isExpired ? 'cached' : 'cached',
+          status: lib.isExpired ? 'expired' : 'cached',
           sections: searchResults.map((r) => ({
             title: r.section.title,
             content: r.section.content.slice(0, 500), // Truncate for context
             codeSnippets: r.section.codeSnippets.slice(0, 2), // Max 2 snippets
           })),
+        });
+      } else if (lib.isCached) {
+        // Library is cached but no sections found (empty cache)
+        results.push({
+          libraryName: lib.name,
+          libraryId: lib.context7Id,
+          status: 'cached',
+          sections: [],
         });
       }
     }

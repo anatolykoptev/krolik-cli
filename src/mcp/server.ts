@@ -48,15 +48,16 @@ export class MCPServer {
 
   /**
    * Handle MCP request message
+   * Supports async handlers for tools/call
    */
-  handleRequest(message: MCPMessage): MCPMessage {
+  async handleRequest(message: MCPMessage): Promise<MCPMessage> {
     const response: MCPMessage = { jsonrpc: '2.0' };
     if (message.id !== undefined) {
       response.id = message.id;
     }
 
     try {
-      response.result = this.routeMethod(message.method, message.params);
+      response.result = await this.routeMethod(message.method, message.params);
     } catch (error: unknown) {
       const err = error as { message?: string };
       response.error = {
@@ -70,8 +71,9 @@ export class MCPServer {
 
   /**
    * Route method to appropriate handler
+   * Returns Promise for tools/call (async), MCPResult for others
    */
-  private routeMethod(method: string | undefined, params: unknown): MCPResult {
+  private routeMethod(method: string | undefined, params: unknown): MCPResult | Promise<MCPResult> {
     switch (method) {
       case 'initialize':
         return handleInitialize();
@@ -92,14 +94,18 @@ export class MCPServer {
 
   /**
    * Process a complete JSON-RPC message
+   * Handles async tool calls properly
    */
-  private processMessage(message: MCPMessage, onResponse: (response: MCPMessage) => void): void {
+  private async processMessage(
+    message: MCPMessage,
+    onResponse: (response: MCPMessage) => void,
+  ): Promise<void> {
     // Guard: ignore notification messages
     if (message.method?.startsWith('notifications/')) {
       return;
     }
 
-    const response = this.handleRequest(message);
+    const response = await this.handleRequest(message);
 
     // Guard: only send response if message has ID
     if (response.id === undefined) {
@@ -129,8 +135,11 @@ export class MCPServer {
       try {
         const message = JSON.parse(buffer) as MCPMessage;
         buffer = '';
+        // Handle async processMessage with proper error handling
         this.processMessage(message, (response) => {
           console.log(JSON.stringify(response));
+        }).catch((e) => {
+          process.stderr.write(`Error processing message: ${e}\n`);
         });
       } catch (e) {
         if (!(e instanceof SyntaxError)) {

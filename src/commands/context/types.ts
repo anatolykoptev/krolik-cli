@@ -111,8 +111,8 @@ export interface LibraryDocsEntry {
   libraryName: string;
   /** Context7 library ID */
   libraryId: string;
-  /** Status of the library (cached, fetched, unavailable) */
-  status: 'cached' | 'fetched' | 'unavailable';
+  /** Status of the library (cached, expired, fetched, unavailable) */
+  status: 'cached' | 'expired' | 'fetched' | 'unavailable';
   /** Relevant documentation sections */
   sections: Array<{
     title: string;

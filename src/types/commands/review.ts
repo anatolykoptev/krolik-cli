@@ -37,6 +37,15 @@ export interface FileChange {
 }
 
 /**
+ * Documentation reference from library docs cache
+ */
+export interface DocReference {
+  library: string;
+  title: string;
+  snippet: string;
+}
+
+/**
  * Review result
  */
 export interface ReviewResult {
@@ -55,4 +64,6 @@ export interface ReviewResult {
     testsRequired: boolean;
     docsRequired: boolean;
   };
+  /** Relevant documentation references from cached library docs */
+  docsReferences?: DocReference[];
 }

@@ -39,7 +39,6 @@ export {
   strikethrough,
   table,
   taskList,
-  truncate as truncateMd,
 } from './markdown';
 // Text formatting
 export {

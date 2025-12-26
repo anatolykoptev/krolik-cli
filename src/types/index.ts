@@ -8,6 +8,7 @@ export type {
   CommandContext,
   CommandResult,
   ContextResult,
+  DocReference,
   FileChange,
   Logger,
   LogLevel,

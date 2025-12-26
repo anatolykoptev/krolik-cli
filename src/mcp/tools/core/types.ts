@@ -5,8 +5,12 @@
 
 /**
  * Handler function signature
+ * Supports both sync and async handlers
  */
-export type ToolHandler = (args: Record<string, unknown>, workspaceRoot: string) => string;
+export type ToolHandler = (
+  args: Record<string, unknown>,
+  workspaceRoot: string,
+) => string | Promise<string>;
 
 /**
  * JSON Schema property definition

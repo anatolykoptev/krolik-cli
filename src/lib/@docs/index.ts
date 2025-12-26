@@ -13,6 +13,18 @@ export {
   type SyncResult,
   syncClaudeMd,
 } from './inject';
+// Re-export section system types
+export type {
+  SectionContext,
+  SectionId,
+  SectionPriorityValue,
+  SectionProvider,
+  SectionRegistrationOptions,
+  SectionRegistry,
+  SectionRenderContext,
+  SectionResult,
+} from './sections';
+export { SectionPriority } from './sections';
 export {
   type CreateSubDocResult,
   createMissingSubDocs,
@@ -28,7 +40,11 @@ export {
 export {
   DOCS_VERSION,
   generateKrolikDocs,
+  generateKrolikDocsAsync,
   generateMinimalClaudeMd,
+  generateMinimalClaudeMdAsync,
   KROLIK_SECTION_END,
   KROLIK_SECTION_START,
+  registerSection,
+  TEMPLATE_VERSION,
 } from './template';

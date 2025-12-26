@@ -24,6 +24,8 @@ export {
 } from './backup';
 // GitHub CLI wrapper
 export * from './github';
+// Re-export GitInfo type from local
+export type { GitInfo } from './local';
 // Local git operations (project repository)
 export * from './local';
 // Remote git operations (external repositories)

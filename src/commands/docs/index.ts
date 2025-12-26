@@ -8,6 +8,7 @@ import {
   deleteLibrary,
   detectLibraries,
   fetchAndCacheDocs,
+  fetchLibraryWithTopics,
   getLibraryByName,
   getSuggestions,
   hasContext7ApiKey,
@@ -20,9 +21,12 @@ import type { CommandContext, OutputFormat } from '../../types';
 interface DocsFetchOptions {
   library: string;
   topic?: string;
+  topics?: string[];
+  withTopics?: boolean;
   mode?: 'code' | 'info';
   force?: boolean;
   maxPages?: number;
+  pagesPerTopic?: number;
   format?: OutputFormat;
 }
 
@@ -102,10 +106,76 @@ export async function runDocsFetch(
 
   // Direct API fetch
   try {
+    // Use multi-topic fetching if --with-topics or --topics is specified
+    if (options.withTopics || (options.topics && options.topics.length > 0)) {
+      const result = await fetchLibraryWithTopics(libraryName, {
+        topics: options.topics,
+        usePreferredTopics: options.withTopics ?? true,
+        mode: options.mode,
+        pagesPerTopic: options.pagesPerTopic,
+        force: options.force,
+      });
+
+      if (result.fromCache) {
+        if (format === 'json') {
+          console.log(
+            JSON.stringify(
+              {
+                status: 'cached',
+                library: result.libraryName,
+                libraryId: result.libraryId,
+                topics: result.topics,
+                totalSnippets: result.totalSnippets,
+                message: 'Documentation already cached. Use --force to refresh.',
+              },
+              null,
+              2,
+            ),
+          );
+          return;
+        }
+
+        console.log(`<docs-fetch library="${result.libraryName}" status="cached" mode="multi-topic">
+  <library-id>${result.libraryId}</library-id>
+  <topics>${result.topics.join(', ') || 'general'}</topics>
+  <total-snippets>${result.totalSnippets}</total-snippets>
+  <message>Already cached. Use --force to refresh.</message>
+</docs-fetch>`);
+        return;
+      }
+
+      if (format === 'json') {
+        console.log(
+          JSON.stringify(
+            {
+              status: 'fetched',
+              library: result.libraryName,
+              libraryId: result.libraryId,
+              topics: result.topics,
+              sectionsAdded: result.totalSections,
+              totalSnippets: result.totalSnippets,
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+
+      console.log(`<docs-fetch library="${result.libraryName}" status="fetched" mode="multi-topic">
+  <library-id>${result.libraryId}</library-id>
+  <topics>${result.topics.join(', ') || 'general'}</topics>
+  <sections-added>${result.totalSections}</sections-added>
+  <total-snippets>${result.totalSnippets}</total-snippets>
+</docs-fetch>`);
+      return;
+    }
+
+    // Single topic or general fetch
     const result = await fetchAndCacheDocs(libraryName, {
       topic: options.topic,
       mode: options.mode,
-      maxPages: options.maxPages ?? 3,
+      maxPages: options.maxPages,
       force: options.force,
     });
 

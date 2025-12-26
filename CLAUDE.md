@@ -38,15 +38,52 @@ krolik-cli/
 - Helpers: `tests/helpers/`, debug scripts: `tests/scripts/`
 
 <!-- krolik:start -->
-<!-- version: 4.0.0 | auto-updated -->
+<!-- version: 6.0.0 | auto-updated -->
 
 ## 🐰 Krolik
 
-**Start:** krolik_status → krolik_mem_recent → krolik_context
+### Session Startup
 
-**Context:** `.krolik/CONTEXT.xml` (missing? run `krolik_context -q`)
+**FIRST:** Call these tools at session start:
 
+1. `krolik_status` `fast: true`
+2. `krolik_mem_recent` `limit: 5`
+3. `krolik_context` `feature: "..."` or `issue: "123"` (if working on specific feature)
 
+### Context Cache
+
+**FIRST:** Read `.krolik/CONTEXT.xml` — if missing, run `krolik_context -q`
+
+```xml
+<context mode="quick|deep|full" generated="ISO-timestamp">
+```
+
+| Mode | Sections | Use |
+|------|----------|-----|
+| `quick` | architecture, git, tree, schema, routes | Fast overview |
+| `deep` | imports, types, env, contracts | Heavy analysis |
+| `full` | all sections | Complete context |
+
+**Refresh if:** file missing, stale (>1h), or wrong mode
+
+### Tools
+
+| When | Tool | Params |
+|------|------|--------|
+| **Session start** | `krolik_status` | `fast: true` |
+| **Before feature/issue work** | `krolik_context` | `feature: "..."` or `issue: "123"` |
+| **Need library API docs** | `krolik_docs` | `action: "search", query: "..."` |
+| **Parse GitHub issue details** | `krolik_issue` | `number: "123"` |
+| **API routes questions** | `krolik_routes` | — |
+| **DB schema questions** | `krolik_schema` | — |
+| **Code quality audit** | `krolik_audit` | — |
+| **Quality issues found** | `krolik_fix` | `dryRun: true` first |
+| **Find duplicates/structure** | `krolik_refactor` | `dryRun: true` |
+| **After code changes** | `krolik_review` | `staged: true` |
+| **Get recent memories** | `krolik_mem_recent` | `limit: 5` |
+| **Save decision/pattern/bugfix** | `krolik_mem_save` | `type: "decision", title: "..."` |
+| **Search memories by query** | `krolik_mem_search` | `query: "authentication"` |
+| **Multi-agent orchestration** | `krolik_agent` | `orchestrate: true, task: "..."` |
 
 <!-- krolik:end -->
 

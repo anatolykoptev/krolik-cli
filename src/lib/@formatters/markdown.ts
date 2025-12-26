@@ -267,10 +267,4 @@ export function buildDocument(sections: MarkdownSection[]): string {
     .join('\n\n');
 }
 
-/**
- * Truncate text with ellipsis
- */
-export function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength - 3)}...`;
-}
+// Note: Use truncate from './text' instead - this was removed to avoid duplication

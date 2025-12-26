@@ -6,12 +6,42 @@
 import * as fs from 'node:fs';
 import { homedir } from 'node:os';
 import * as path from 'node:path';
-import Database from 'better-sqlite3';
+import Database, { type Statement } from 'better-sqlite3';
 
 const MEMORY_DIR = path.join(homedir(), '.krolik', 'memory');
 const DB_PATH = path.join(MEMORY_DIR, 'memories.db');
 
 let dbInstance: Database.Database | null = null;
+
+/**
+ * Cache for prepared statements to avoid re-preparing the same SQL
+ */
+const stmtCache = new Map<string, Statement<unknown[], unknown>>();
+
+/**
+ * Get or create a prepared statement from cache
+ * @param db - Database instance
+ * @param sql - SQL query string
+ * @returns Cached or newly prepared statement
+ */
+export function prepareStatement<BindParams extends unknown[] = unknown[], Result = unknown>(
+  db: Database.Database,
+  sql: string,
+): Statement<BindParams, Result> {
+  let stmt = stmtCache.get(sql);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    stmtCache.set(sql, stmt);
+  }
+  return stmt as Statement<BindParams, Result>;
+}
+
+/**
+ * Clear the statement cache (useful for testing or when closing database)
+ */
+export function clearStatementCache(): void {
+  stmtCache.clear();
+}
 
 /**
  * Current schema version
@@ -55,6 +85,8 @@ export function getDatabase(): Database.Database {
  */
 export function closeDatabase(): void {
   if (dbInstance) {
+    // Clear statement cache before closing to avoid stale references
+    clearStatementCache();
     dbInstance.close();
     dbInstance = null;
   }
@@ -65,9 +97,9 @@ export function closeDatabase(): void {
  */
 function getSchemaVersion(db: Database.Database): number {
   try {
-    const row = db.prepare('SELECT MAX(version) as version FROM schema_versions').get() as
-      | { version: number | null }
-      | undefined;
+    const sql = 'SELECT MAX(version) as version FROM schema_versions';
+    const stmt = prepareStatement<[], { version: number | null }>(db, sql);
+    const row = stmt.get();
     return row?.version ?? 0;
   } catch {
     return 0;
@@ -159,10 +191,8 @@ function runMigrations(db: Database.Database): void {
     `);
 
     // Record migration
-    db.prepare('INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)').run(
-      1,
-      new Date().toISOString(),
-    );
+    const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
+    prepareStatement<[number, string]>(db, insertVersionSql).run(1, new Date().toISOString());
   }
 
   // Migration 2: Documentation cache tables
@@ -229,10 +259,8 @@ function runMigrations(db: Database.Database): void {
     `);
 
     // Record migration
-    db.prepare('INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)').run(
-      2,
-      new Date().toISOString(),
-    );
+    const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
+    prepareStatement<[number, string]>(db, insertVersionSql).run(2, new Date().toISOString());
   }
 }
 
@@ -255,8 +283,11 @@ export function getDatabaseStats(): {
   const db = getDatabase();
   const stats = fs.statSync(DB_PATH);
 
-  const countRow = db.prepare('SELECT COUNT(*) as count FROM memories').get() as { count: number };
-  const versionRow = db.prepare('SELECT MAX(version) as version FROM schema_versions').get() as {
+  const countSql = 'SELECT COUNT(*) as count FROM memories';
+  const countRow = prepareStatement<[], { count: number }>(db, countSql).get() as { count: number };
+
+  const versionSql = 'SELECT MAX(version) as version FROM schema_versions';
+  const versionRow = prepareStatement<[], { version: number | null }>(db, versionSql).get() as {
     version: number | null;
   };
 

@@ -10,6 +10,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { walk } from '../@fs';
 
 // ============================================================================
 // CONSTANTS
@@ -86,32 +87,23 @@ export function findTrpcRouters(dir: string): string[] {
 
   const files: string[] = [];
 
-  function walk(currentDir: string): void {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        // Skip node_modules
-        if (entry.name !== 'node_modules') {
-          walk(fullPath);
-        }
-      } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-        // Check for router file patterns
-        if (
-          entry.name.endsWith('.router.ts') ||
-          entry.name.endsWith('Router.ts') ||
-          entry.name === 'index.ts' ||
-          entry.name === '_app.ts'
-        ) {
-          files.push(fullPath);
-        }
+  walk(
+    dir,
+    (fullPath) => {
+      const fileName = path.basename(fullPath);
+      // Check for router file patterns
+      if (
+        fileName.endsWith('.router.ts') ||
+        fileName.endsWith('Router.ts') ||
+        fileName === 'index.ts' ||
+        fileName === '_app.ts'
+      ) {
+        files.push(fullPath);
       }
-    }
-  }
+    },
+    { extensions: ['.ts'], exclude: ['node_modules'] },
+  );
 
-  walk(dir);
   return files;
 }
 
@@ -145,31 +137,22 @@ export function findNextjsApiRoutes(dir: string): string[] {
 
   const files: string[] = [];
 
-  function walk(currentDir: string): void {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        walk(fullPath);
-      } else if (entry.isFile()) {
-        // App Router: route.ts
-        if (entry.name === 'route.ts' || entry.name === 'route.js') {
-          files.push(fullPath);
-        }
-        // Pages Router: any .ts/.js file (except _*.ts)
-        else if (
-          (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) &&
-          !entry.name.startsWith('_')
-        ) {
-          files.push(fullPath);
-        }
+  walk(
+    dir,
+    (fullPath) => {
+      const fileName = path.basename(fullPath);
+      // App Router: route.ts
+      if (fileName === 'route.ts' || fileName === 'route.js') {
+        files.push(fullPath);
       }
-    }
-  }
+      // Pages Router: any .ts/.js file (except _*.ts)
+      else if (!fileName.startsWith('_')) {
+        files.push(fullPath);
+      }
+    },
+    { extensions: ['.ts', '.js'], exclude: [] },
+  );
 
-  walk(dir);
   return files;
 }
 
@@ -199,33 +182,25 @@ export function findExpressRoutes(dir: string): string[] {
 
   const files: string[] = [];
 
-  function walk(currentDir: string): void {
-    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        if (entry.name !== 'node_modules') {
-          walk(fullPath);
-        }
-      } else if (entry.isFile()) {
-        // Common patterns: *.route.ts, *.routes.ts, index.ts
-        if (
-          entry.name.endsWith('.route.ts') ||
-          entry.name.endsWith('.routes.ts') ||
-          entry.name.endsWith('.route.js') ||
-          entry.name.endsWith('.routes.js') ||
-          entry.name === 'index.ts' ||
-          entry.name === 'index.js'
-        ) {
-          files.push(fullPath);
-        }
+  walk(
+    dir,
+    (fullPath) => {
+      const fileName = path.basename(fullPath);
+      // Common patterns: *.route.ts, *.routes.ts, index.ts
+      if (
+        fileName.endsWith('.route.ts') ||
+        fileName.endsWith('.routes.ts') ||
+        fileName.endsWith('.route.js') ||
+        fileName.endsWith('.routes.js') ||
+        fileName === 'index.ts' ||
+        fileName === 'index.js'
+      ) {
+        files.push(fullPath);
       }
-    }
-  }
+    },
+    { extensions: ['.ts', '.js'], exclude: ['node_modules'] },
+  );
 
-  walk(dir);
   return files;
 }
 

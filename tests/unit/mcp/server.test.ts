@@ -52,9 +52,9 @@ describe('mcp/server', () => {
     });
 
     describe('handleRequest', () => {
-      it('should handle initialize request', () => {
+      it('should handle initialize request', async () => {
         const server = new MCPServer(mockConfig);
-        const response = server.handleRequest({
+        const response = await server.handleRequest({
           jsonrpc: '2.0',
           id: 1,
           method: 'initialize',
@@ -68,9 +68,9 @@ describe('mcp/server', () => {
         expect(response.result).toHaveProperty('capabilities');
       });
 
-      it('should handle tools/list request', () => {
+      it('should handle tools/list request', async () => {
         const server = new MCPServer(mockConfig);
-        const response = server.handleRequest({
+        const response = await server.handleRequest({
           jsonrpc: '2.0',
           id: 2,
           method: 'tools/list',
@@ -82,9 +82,9 @@ describe('mcp/server', () => {
         expect(Array.isArray((response.result as { tools: unknown[] }).tools)).toBe(true);
       });
 
-      it('should handle resources/list request', () => {
+      it('should handle resources/list request', async () => {
         const server = new MCPServer(mockConfig);
-        const response = server.handleRequest({
+        const response = await server.handleRequest({
           jsonrpc: '2.0',
           id: 3,
           method: 'resources/list',
@@ -95,9 +95,9 @@ describe('mcp/server', () => {
         expect(response.result).toHaveProperty('resources');
       });
 
-      it('should return error for unknown method', () => {
+      it('should return error for unknown method', async () => {
         const server = new MCPServer(mockConfig);
-        const response = server.handleRequest({
+        const response = await server.handleRequest({
           jsonrpc: '2.0',
           id: 4,
           method: 'unknown/method',
@@ -108,9 +108,9 @@ describe('mcp/server', () => {
         expect(response.error?.code).toBe(-32601);
       });
 
-      it('should handle notification without id', () => {
+      it('should handle notification without id', async () => {
         const server = new MCPServer(mockConfig);
-        const response = server.handleRequest({
+        const response = await server.handleRequest({
           jsonrpc: '2.0',
           method: 'notifications/initialized',
           params: {},

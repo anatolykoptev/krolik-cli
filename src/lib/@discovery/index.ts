@@ -12,6 +12,7 @@
 export type { MonorepoInfo, ProjectInfo } from './project';
 // Project discovery
 export {
+  clearPackageJsonCache,
   detectMonorepo,
   findGitRoot,
   findPackageJson,

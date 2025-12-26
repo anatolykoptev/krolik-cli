@@ -5,11 +5,14 @@
  * Scans project dependencies to identify libraries that have Context7 documentation.
  * Supports both single-package projects and monorepos (pnpm, npm, yarn workspaces).
  *
+ * Now uses dynamic registry for library resolution, allowing detection of any
+ * library with Context7 documentation, not just predefined ones.
+ *
  * @example
  * ```ts
  * import { detectLibraries, getSuggestions } from '@/lib/@docs-cache';
  *
- * const detected = detectLibraries('/path/to/project');
+ * const detected = await detectLibraries('/path/to/project');
  * const { toFetch, toRefresh } = getSuggestions(detected);
  * ```
  */
@@ -18,7 +21,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import { detectMonorepo } from '../@discovery';
-import { resolveLibraryId } from './fetcher';
+import { initializeRegistry, resolveLibraryIdSync } from './registry';
 import { getLibraryByName } from './storage';
 import type { DetectedLibrary } from './types';
 
@@ -27,10 +30,10 @@ import type { DetectedLibrary } from './types';
 // ============================================================================
 
 /**
- * Libraries with Context7 documentation support.
- * Each entry maps NPM package patterns to a canonical library name.
+ * Common libraries known to have Context7 documentation.
+ * Used for quick sync detection. Other libraries are resolved via API.
  */
-const SUPPORTED_LIBRARIES: ReadonlyArray<{
+const COMMON_LIBRARIES: ReadonlyArray<{
   readonly patterns: readonly string[];
   readonly name: string;
 }> = [
@@ -46,6 +49,18 @@ const SUPPORTED_LIBRARIES: ReadonlyArray<{
   { patterns: ['react-native'], name: 'react-native' },
   { patterns: ['zustand'], name: 'zustand' },
   { patterns: ['@tanstack/react-query', '@tanstack/query-core'], name: 'tanstack-query' },
+  { patterns: ['express'], name: 'express' },
+  { patterns: ['fastify'], name: 'fastify' },
+  { patterns: ['hono'], name: 'hono' },
+  { patterns: ['@supabase/supabase-js'], name: 'supabase' },
+  { patterns: ['mongoose'], name: 'mongoose' },
+  { patterns: ['@clerk/nextjs', '@clerk/clerk-react'], name: 'clerk' },
+  { patterns: ['@auth/core', 'next-auth'], name: 'auth.js' },
+  { patterns: ['lucide-react', 'lucide'], name: 'lucide' },
+  { patterns: ['@radix-ui/'], name: 'radix-ui' },
+  { patterns: ['@shadcn/ui'], name: 'shadcn-ui' },
+  { patterns: ['vitest'], name: 'vitest' },
+  { patterns: ['playwright'], name: 'playwright' },
 ] as const;
 
 // ============================================================================
@@ -190,7 +205,9 @@ function matchesLibrary(depName: string, patterns: readonly string[]): boolean {
 }
 
 /**
- * Check cache status for a library.
+ * Check cache status for a library (synchronous).
+ *
+ * Uses the registry for library ID resolution.
  *
  * @param libraryName - Canonical library name
  * @returns Object with cache status info
@@ -200,7 +217,8 @@ function checkCacheStatus(libraryName: string): {
   isExpired: boolean;
   context7Id: string | undefined;
 } {
-  const context7Id = resolveLibraryId(libraryName) ?? undefined;
+  // Use sync resolution from registry
+  const context7Id = resolveLibraryIdSync(libraryName) ?? undefined;
 
   if (!context7Id) {
     return { isCached: false, isExpired: false, context7Id: undefined };
@@ -220,10 +238,13 @@ function checkCacheStatus(libraryName: string): {
 // ============================================================================
 
 /**
- * Detect supported libraries in a project.
+ * Detect libraries with Context7 documentation in a project.
  *
  * Scans all package.json files (including monorepo workspaces) and identifies
  * libraries that have Context7 documentation available.
+ *
+ * Uses the dynamic registry for resolution, allowing detection of any
+ * library with Context7 documentation, not just predefined ones.
  *
  * @param projectRoot - Project root directory
  * @returns Array of detected libraries with cache status
@@ -238,13 +259,17 @@ function checkCacheStatus(libraryName: string): {
  * ```
  */
 export function detectLibraries(projectRoot: string): DetectedLibrary[] {
+  // Initialize registry with default mappings
+  initializeRegistry();
+
   const allDeps = collectAllDependencies(projectRoot);
   const depNames = Array.from(allDeps.keys());
 
   const detected: DetectedLibrary[] = [];
   const seen = new Set<string>();
 
-  for (const lib of SUPPORTED_LIBRARIES) {
+  // First, detect common libraries (fast path)
+  for (const lib of COMMON_LIBRARIES) {
     // Find matching dependency
     const matchedDepName = depNames.find((dep) => matchesLibrary(dep, lib.patterns));
 
@@ -306,5 +331,5 @@ export function getSuggestions(detected: DetectedLibrary[]): {
  * @returns Array of canonical library names
  */
 export function getSupportedLibraries(): string[] {
-  return SUPPORTED_LIBRARIES.map((lib) => lib.name);
+  return COMMON_LIBRARIES.map((lib) => lib.name);
 }

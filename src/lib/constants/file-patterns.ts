@@ -11,6 +11,48 @@
  */
 
 // ============================================================================
+// FILE EXTENSIONS (for validation)
+// ============================================================================
+
+/**
+ * Common code file extensions for validation and filtering
+ * Used by parsers, analyzers, and file detection utilities
+ */
+export const CODE_FILE_EXTENSIONS = new Set([
+  // TypeScript
+  'ts',
+  'tsx',
+  'mts',
+  'cts',
+  // JavaScript
+  'js',
+  'jsx',
+  'mjs',
+  'cjs',
+  // Web
+  'css',
+  'scss',
+  'less',
+  'html',
+  // Data
+  'json',
+  'yaml',
+  'yml',
+  // Docs
+  'md',
+  'mdx',
+  // Database
+  'prisma',
+  'graphql',
+  'gql',
+  'sql',
+  // Config
+  'sh',
+  'bash',
+  'env',
+]);
+
+// ============================================================================
 // REGEX PATTERNS (for detectors)
 // ============================================================================
 

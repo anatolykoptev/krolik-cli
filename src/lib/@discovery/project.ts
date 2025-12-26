@@ -6,10 +6,61 @@
  * - Finding project root (package.json, git root)
  * - Detecting monorepo structure
  * - Finding workspace packages
+ *
+ * Features:
+ * - Cached package.json parsing (5-second TTL)
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+
+// ============================================================================
+// PACKAGE.JSON CACHE
+// ============================================================================
+
+const CACHE_TTL_MS = 5000; // 5 seconds
+
+interface PackageJsonCache {
+  data: Record<string, unknown>;
+  timestamp: number;
+  mtime: number;
+}
+
+const packageJsonCache = new Map<string, PackageJsonCache>();
+
+/**
+ * Read and parse package.json with caching
+ *
+ * Uses file mtime + TTL for cache invalidation.
+ * Returns undefined if file doesn't exist or parse fails.
+ */
+function readPackageJson(pkgPath: string): Record<string, unknown> | undefined {
+  try {
+    const stats = fs.statSync(pkgPath);
+    const mtime = stats.mtimeMs;
+    const now = Date.now();
+
+    const cached = packageJsonCache.get(pkgPath);
+    if (cached && cached.mtime === mtime && now - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+
+    const content = fs.readFileSync(pkgPath, 'utf-8');
+    const data = JSON.parse(content) as Record<string, unknown>;
+
+    packageJsonCache.set(pkgPath, { data, timestamp: now, mtime });
+    return data;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Clear package.json cache
+ */
+export function clearPackageJsonCache(): void {
+  packageJsonCache.clear();
+}
 
 // ============================================================================
 // TYPES
@@ -160,11 +211,10 @@ function parsePnpmWorkspaceYaml(content: string): string[] {
  */
 export function detectMonorepo(projectRoot: string): MonorepoInfo | null {
   const pkgPath = path.join(projectRoot, 'package.json');
-  if (!fs.existsSync(pkgPath)) return null;
+  const pkg = readPackageJson(pkgPath);
+  if (!pkg) return null;
 
   try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-
     // Check for workspace patterns
     let patterns: string[] = [];
     let type: MonorepoInfo['type'] = 'unknown';
@@ -179,8 +229,9 @@ export function detectMonorepo(projectRoot: string): MonorepoInfo | null {
     }
 
     // npm/yarn workspaces (package.json)
-    if (pkg.workspaces) {
-      patterns = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces.packages || [];
+    const workspaces = pkg.workspaces as string[] | { packages?: string[] } | undefined;
+    if (workspaces) {
+      patterns = Array.isArray(workspaces) ? workspaces : workspaces.packages || [];
       type = fs.existsSync(path.join(projectRoot, 'yarn.lock')) ? 'yarn' : 'npm';
     }
 
@@ -257,13 +308,9 @@ export function getProjectInfo(startDir: string = process.cwd()): ProjectInfo {
 
   let name: string | undefined;
   const pkgPath = path.join(root, 'package.json');
-  if (fs.existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      name = pkg.name;
-    } catch {
-      // Ignore parse errors
-    }
+  const pkg = readPackageJson(pkgPath);
+  if (pkg && typeof pkg.name === 'string') {
+    name = pkg.name;
   }
 
   return {

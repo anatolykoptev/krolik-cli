@@ -11,4 +11,4 @@
 export const KROLIK_VERSION = '0.1.5';
 
 /** Version of the CLAUDE.md template format */
-export const TEMPLATE_VERSION = '4.0.0';
+export const TEMPLATE_VERSION = '6.0.0';

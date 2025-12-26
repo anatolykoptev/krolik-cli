@@ -22,17 +22,28 @@ export function registerDocsCommand(program: Command): void {
   docs
     .command('fetch <library>')
     .description('Fetch documentation for a library')
-    .option('--topic <topic>', 'Specific topic to fetch')
+    .option('--topic <topic>', 'Specific topic to fetch (single topic)')
+    .option('--topics <topics>', 'Comma-separated topics to fetch')
+    .option('--with-topics', 'Use predefined topics for the library (recommended)')
     .option('--mode <mode>', 'Context7 mode: code or info', 'code')
     .option('--force', 'Force refresh even if not expired')
-    .option('--max-pages <n>', 'Maximum pages to fetch', '3')
+    .option('--max-pages <n>', 'Maximum pages to fetch (general mode)', '10')
+    .option('--pages-per-topic <n>', 'Pages per topic (multi-topic mode)', '3')
     .option('--json', 'Output as JSON')
     .action(async (library: string, options: CommandOptions) => {
       const { runDocsFetch } = await import('../../commands/docs');
+      const topics = options.topics
+        ? String(options.topics)
+            .split(',')
+            .map((t: string) => t.trim())
+        : undefined;
       const ctx = await createContext(program, {
         ...options,
         library,
-        maxPages: options.maxPages ? parseInt(String(options.maxPages), 10) : 3,
+        topics,
+        withTopics: options.withTopics,
+        maxPages: options.maxPages ? parseInt(String(options.maxPages), 10) : 10,
+        pagesPerTopic: options.pagesPerTopic ? parseInt(String(options.pagesPerTopic), 10) : 3,
         format: options.json ? 'json' : 'ai',
       });
       await runDocsFetch(ctx as Parameters<typeof runDocsFetch>[0]);
