@@ -86,23 +86,24 @@ function createCacheKey(filePath: string, contentHash: string): string {
  * Parses source code using SWC and caches the result for performance.
  * Cache is invalidated when content changes.
  *
+ * IMPORTANT: SWC accumulates span offsets globally across parseSync calls.
+ * The returned `baseOffset` must be subtracted from all span.start/end values
+ * to get correct 1-based byte offsets relative to the parsed content.
+ *
  * @param filePath - Path to file (used for cache key and file extension detection)
  * @param content - Source code content
  * @param options - Parse options
- * @returns Parsed module and line offsets
+ * @returns Parsed module, line offsets, and baseOffset for span normalization
  *
  * @example
- * const { ast, lineOffsets } = parseFile('src/example.ts', sourceCode);
- * // Visit the AST
- * visitNode(ast, (node) => {
- *   console.log(getNodeType(node));
- * });
+ * const { ast, lineOffsets, baseOffset } = parseFile('src/example.ts', sourceCode);
+ * // Normalize spans: realOffset = span.start - baseOffset
  */
 export function parseFile(
   filePath: string,
   content: string,
   options: ParseOptions = {},
-): { ast: Module; lineOffsets: number[] } {
+): { ast: Module; lineOffsets: number[]; baseOffset: number } {
   const contentHash = hashContent(content);
   const cacheKey = createCacheKey(filePath, contentHash);
 
@@ -112,6 +113,7 @@ export function parseFile(
     return {
       ast: cached.ast as Module,
       lineOffsets: cached.lineOffsets,
+      baseOffset: cached.baseOffset,
     };
   }
 
@@ -119,15 +121,22 @@ export function parseFile(
   const ast = parseSyncWithOptions(filePath, content, options);
   const lineOffsets = calculateLineOffsets(content);
 
+  // Calculate base offset for span normalization
+  // SWC accumulates span offsets globally across parseSync calls.
+  // Formula: shift = ast.span.end - content.length
+  // This gives us how much spans are offset from actual content positions.
+  const baseOffset = ast.span.end - content.length;
+
   // Cache the result
   astCache.set(cacheKey, {
     ast,
     lineOffsets,
     contentHash,
     lastAccess: Date.now(),
+    baseOffset,
   });
 
-  return { ast, lineOffsets };
+  return { ast, lineOffsets, baseOffset };
 }
 
 /**

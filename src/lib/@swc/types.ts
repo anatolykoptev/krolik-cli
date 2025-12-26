@@ -166,6 +166,12 @@ export interface CacheEntry {
   contentHash: string;
   /** Timestamp of last access */
   lastAccess: number;
+  /**
+   * Base offset for span normalization.
+   * SWC accumulates spans globally, so we need to subtract this
+   * from all span.start/end values to get correct 1-based offsets.
+   */
+  baseOffset: number;
 }
 
 /**

@@ -171,7 +171,10 @@ function scanModule(modulePath: string, projectRoot: string): ModuleInfo | null 
     const stat = fs.statSync(filePath);
     if (!stat.isFile()) continue;
 
-    const result = analyzeSourceFile(filePath);
+    // Read content explicitly to ensure proper type extraction
+    // (avoids AST cache issues with span offsets)
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const result = analyzeSourceFile(filePath, content);
     if (!result.success) continue;
 
     for (const exp of result.exports) {

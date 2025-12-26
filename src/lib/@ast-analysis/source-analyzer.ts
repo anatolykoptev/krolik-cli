@@ -61,8 +61,8 @@ import type { ExportedMember, MethodInfo, ParamInfo, SourceAnalysisResult } from
 export function analyzeSourceFile(filePath: string, content?: string): SourceAnalysisResult {
   try {
     const sourceContent = content ?? fs.readFileSync(filePath, 'utf-8');
-    const { ast } = swcParseFile(filePath, sourceContent);
-    const exports = extractExports(ast, sourceContent);
+    const { ast, baseOffset } = swcParseFile(filePath, sourceContent);
+    const exports = extractExports(ast, sourceContent, baseOffset);
 
     return { success: true, exports };
   } catch (error) {
@@ -79,8 +79,8 @@ export function analyzeSourceFile(filePath: string, content?: string): SourceAna
  *
  * @deprecated Use `extractTypeString` from `@/lib/@swc` directly
  */
-export function extractTypeString(typeNode: TsType, content: string): string {
-  return swcExtractTypeString(typeNode, content, 50);
+export function extractTypeString(typeNode: TsType, content: string, baseOffset = 0): string {
+  return swcExtractTypeString(typeNode, content, baseOffset, 50);
 }
 
 // ============================================================================
@@ -122,24 +122,28 @@ function buildClassMember(name: string, methods: MethodInfo[], isDefault: boolea
 // EXTRACTION
 // ============================================================================
 
-function extractExports(ast: Module, content: string): ExportedMember[] {
+function extractExports(ast: Module, content: string, baseOffset: number): ExportedMember[] {
   const exports: ExportedMember[] = [];
 
   for (const item of ast.body) {
-    const extracted = extractFromModuleItem(item, content);
+    const extracted = extractFromModuleItem(item, content, baseOffset);
     if (extracted) exports.push(...extracted);
   }
 
   return exports;
 }
 
-function extractFromModuleItem(item: ModuleItem, content: string): ExportedMember[] | null {
+function extractFromModuleItem(
+  item: ModuleItem,
+  content: string,
+  baseOffset: number,
+): ExportedMember[] | null {
   if (isExportDeclaration(item)) {
-    return extractFromDeclaration(item.declaration as Node, content, false);
+    return extractFromDeclaration(item.declaration as Node, content, baseOffset, false);
   }
 
   if (isExportDefaultDeclaration(item)) {
-    return extractFromDeclaration(item.decl as Node, content, true);
+    return extractFromDeclaration(item.decl as Node, content, baseOffset, true);
   }
 
   return null;
@@ -148,35 +152,36 @@ function extractFromModuleItem(item: ModuleItem, content: string): ExportedMembe
 function extractFromDeclaration(
   node: Node,
   content: string,
+  baseOffset: number,
   isDefault: boolean,
 ): ExportedMember[] | null {
   // Function: export function foo() {} or export default function() {}
   if (isFunctionDeclaration(node)) {
-    return [extractFunction(node, content, isDefault)];
+    return [extractFunction(node, content, baseOffset, isDefault)];
   }
 
   if (isFunctionExpression(node)) {
-    return [extractFunction(node, content, isDefault)];
+    return [extractFunction(node, content, baseOffset, isDefault)];
   }
 
   // Class: export class Foo {}
   if (isClassDeclaration(node)) {
-    return [extractClass(node, content, isDefault)];
+    return [extractClass(node, content, baseOffset, isDefault)];
   }
 
   // Variable: export const foo = () => {}
   if (isVariableDeclaration(node)) {
-    return extractFromVariableDeclaration(node, content, isDefault);
+    return extractFromVariableDeclaration(node, content, baseOffset, isDefault);
   }
 
   // Type alias: export type Foo = { ... }
   if (isTsTypeAlias(node)) {
-    return [extractTypeAlias(node, content)];
+    return [extractTypeAlias(node, content, baseOffset)];
   }
 
   // Interface: export interface Bar { ... }
   if (isTsInterface(node)) {
-    return [extractInterface(node, content)];
+    return [extractInterface(node, content, baseOffset)];
   }
 
   // Enum: export enum Baz { ... }
@@ -194,12 +199,13 @@ function extractFromDeclaration(
 function extractFunction(
   func: FunctionDeclaration | FunctionExpression,
   content: string,
+  baseOffset: number,
   isDefault: boolean,
 ): ExportedMember {
-  const returnType = extractReturnType(func.returnType, content);
+  const returnType = extractReturnType(func.returnType, content, baseOffset);
   return buildFunctionMember({
     name: func.identifier?.value ?? 'default',
-    params: extractParams(func.params ?? [], content),
+    params: extractParams(func.params ?? [], content, baseOffset),
     isAsync: func.async ?? false,
     isDefault,
     ...(returnType ? { returnType } : {}),
@@ -209,6 +215,7 @@ function extractFunction(
 function extractFromVariableDeclaration(
   varDecl: { declarations: VariableDeclarator[] },
   content: string,
+  baseOffset: number,
   isDefault: boolean,
 ): ExportedMember[] {
   const members: ExportedMember[] = [];
@@ -221,11 +228,11 @@ function extractFromVariableDeclaration(
 
     // Arrow function
     if (isArrowFunction(init)) {
-      const returnType = extractReturnType(init.returnType, content);
+      const returnType = extractReturnType(init.returnType, content, baseOffset);
       members.push(
         buildFunctionMember({
           name,
-          params: extractArrowParams(init.params ?? [], content),
+          params: extractArrowParams(init.params ?? [], content, baseOffset),
           isAsync: init.async ?? false,
           isDefault,
           ...(returnType ? { returnType } : {}),
@@ -236,11 +243,11 @@ function extractFromVariableDeclaration(
 
     // Function expression
     if (isFunctionExpression(init)) {
-      const returnType = extractReturnType(init.returnType, content);
+      const returnType = extractReturnType(init.returnType, content, baseOffset);
       members.push(
         buildFunctionMember({
           name: name !== 'anonymous' ? name : (init.identifier?.value ?? 'anonymous'),
-          params: extractParams(init.params ?? [], content),
+          params: extractParams(init.params ?? [], content, baseOffset),
           isAsync: init.async ?? false,
           isDefault,
           ...(returnType ? { returnType } : {}),
@@ -256,15 +263,24 @@ function extractFromVariableDeclaration(
 // CLASS EXTRACTION
 // ============================================================================
 
-function extractClass(cls: ClassDeclaration, content: string, isDefault: boolean): ExportedMember {
+function extractClass(
+  cls: ClassDeclaration,
+  content: string,
+  baseOffset: number,
+  isDefault: boolean,
+): ExportedMember {
   return buildClassMember(
     cls.identifier?.value ?? 'default',
-    extractClassMethods(cls.body ?? [], content),
+    extractClassMethods(cls.body ?? [], content, baseOffset),
     isDefault,
   );
 }
 
-function extractClassMethods(body: ClassMember[], content: string): MethodInfo[] {
+function extractClassMethods(
+  body: ClassMember[],
+  content: string,
+  baseOffset: number,
+): MethodInfo[] {
   const methods: MethodInfo[] = [];
 
   for (const member of body) {
@@ -278,12 +294,12 @@ function extractClassMethods(body: ClassMember[], content: string): MethodInfo[]
 
     const info: MethodInfo = {
       name,
-      params: extractParams(method.function?.params ?? [], content),
+      params: extractParams(method.function?.params ?? [], content, baseOffset),
       isAsync: method.function?.async ?? false,
       isStatic: method.isStatic ?? false,
     };
 
-    const returnType = extractReturnType(method.function?.returnType, content);
+    const returnType = extractReturnType(method.function?.returnType, content, baseOffset);
     if (returnType) info.returnType = returnType;
 
     methods.push(info);
@@ -296,20 +312,22 @@ function extractClassMethods(body: ClassMember[], content: string): MethodInfo[]
 // PARAMETER EXTRACTION
 // ============================================================================
 
-function extractParams(params: Param[], content: string): ParamInfo[] {
-  return params.map((p) => extractPatternParam(p.pat, content));
+function extractParams(params: Param[], content: string, baseOffset: number): ParamInfo[] {
+  return params.map((p) => extractPatternParam(p.pat, content, baseOffset));
 }
 
-function extractArrowParams(params: Pattern[], content: string): ParamInfo[] {
-  return params.map((p) => extractPatternParam(p, content));
+function extractArrowParams(params: Pattern[], content: string, baseOffset: number): ParamInfo[] {
+  return params.map((p) => extractPatternParam(p, content, baseOffset));
 }
 
-function extractPatternParam(pat: Pattern, content: string): ParamInfo {
+function extractPatternParam(pat: Pattern, content: string, baseOffset: number): ParamInfo {
   // Simple identifier: (name: string)
   if (isIdentifier(pat)) {
     const typeAnnotation = (pat as unknown as { typeAnnotation?: { typeAnnotation?: TsType } })
       .typeAnnotation?.typeAnnotation;
-    const typeStr = typeAnnotation ? extractTypeString(typeAnnotation, content) : undefined;
+    const typeStr = typeAnnotation
+      ? extractTypeString(typeAnnotation, content, baseOffset)
+      : undefined;
 
     return {
       name: pat.value,
@@ -350,13 +368,13 @@ function extractPatternParam(pat: Pattern, content: string): ParamInfo {
 // TYPE/INTERFACE/ENUM EXTRACTION
 // ============================================================================
 
-function extractTypeAlias(node: Node, content: string): ExportedMember {
+function extractTypeAlias(node: Node, content: string, baseOffset: number): ExportedMember {
   const typeAlias = node as unknown as {
     id: Identifier;
     typeAnnotation: { span?: { start: number; end: number } };
   };
 
-  const typeDef = extractSpanText(typeAlias.typeAnnotation, content);
+  const typeDef = extractSpanText(typeAlias.typeAnnotation, content, baseOffset);
   const member: ExportedMember = {
     name: typeAlias.id.value,
     kind: 'type',
@@ -368,13 +386,13 @@ function extractTypeAlias(node: Node, content: string): ExportedMember {
   return member;
 }
 
-function extractInterface(node: Node, content: string): ExportedMember {
+function extractInterface(node: Node, content: string, baseOffset: number): ExportedMember {
   const iface = node as unknown as {
     id: Identifier;
     body: { span?: { start: number; end: number } };
   };
 
-  const typeDef = extractSpanText(iface.body, content);
+  const typeDef = extractSpanText(iface.body, content, baseOffset);
   const member: ExportedMember = {
     name: iface.id.value,
     kind: 'interface',
@@ -409,9 +427,14 @@ function extractEnum(node: Node): ExportedMember {
 function extractSpanText(
   node: { span?: { start: number; end: number } } | undefined,
   content: string,
+  baseOffset: number,
 ): string | undefined {
   if (!node?.span) return undefined;
-  const text = content.slice(node.span.start - 1, node.span.end - 1).trim();
+  // Normalize span with baseOffset
+  const start = node.span.start - baseOffset - 1;
+  const end = node.span.end - baseOffset - 1;
+  if (start < 0 || end > content.length || start >= end) return undefined;
+  const text = content.slice(start, end).trim();
   return text.length > 100 ? `${text.slice(0, 97)}...` : text || undefined;
 }
 
@@ -422,8 +445,9 @@ function extractSpanText(
 function extractReturnType(
   returnType: { typeAnnotation?: TsType } | undefined,
   content: string,
+  baseOffset: number,
 ): string | undefined {
   return returnType?.typeAnnotation
-    ? extractTypeString(returnType.typeAnnotation, content)
+    ? extractTypeString(returnType.typeAnnotation, content, baseOffset)
     : undefined;
 }

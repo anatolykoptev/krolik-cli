@@ -324,6 +324,9 @@ function extractJSXAttributeValue(value: JSXAttrValue): string | null {
  * Uses the source code span to extract the exact type text.
  * Truncates long types for readability.
  *
+ * IMPORTANT: SWC accumulates span offsets globally across parseSync calls.
+ * You MUST pass the baseOffset from parseFile() to get correct results.
+ *
  * Useful for:
  * - Type aliases: `type User = { ... }` → extract '{ ... }'
  * - Interface properties: `name: string` → extract 'string'
@@ -331,21 +334,35 @@ function extractJSXAttributeValue(value: JSXAttrValue): string | null {
  *
  * @param typeNode - TypeScript type annotation node
  * @param content - Source file content
+ * @param baseOffset - Base offset from parseFile() for span normalization (default: 0)
  * @param maxLength - Maximum length before truncation (default: 50)
- * @returns Type as string or '...' if too long
+ * @returns Type as string or 'unknown' if cannot be extracted
  *
  * @example
- * extractTypeString(typeNode, sourceCode) // 'string | number'
- * extractTypeString(complexTypeNode, sourceCode) // '{ id: string; name: st...'
+ * const { ast, baseOffset } = parseFile('example.ts', sourceCode);
+ * extractTypeString(typeNode, sourceCode, baseOffset) // 'string | number'
  */
-export function extractTypeString(typeNode: TsType, content: string, maxLength = 50): string {
+export function extractTypeString(
+  typeNode: TsType,
+  content: string,
+  baseOffset = 0,
+  maxLength = 50,
+): string {
   if (!typeNode.span) {
     return 'unknown';
   }
 
-  // SWC uses 1-based byte offsets, convert to 0-based for string slicing
+  // SWC uses 1-based byte offsets, normalize with baseOffset and convert to 0-based
   const { start, end } = typeNode.span;
-  let typeText = content.slice(start - 1, end - 1).trim();
+  const normalizedStart = start - baseOffset - 1;
+  const normalizedEnd = end - baseOffset - 1;
+
+  // Validate bounds
+  if (normalizedStart < 0 || normalizedEnd > content.length || normalizedStart >= normalizedEnd) {
+    return 'unknown';
+  }
+
+  let typeText = content.slice(normalizedStart, normalizedEnd).trim();
 
   if (typeText.length > maxLength) {
     typeText = `${typeText.slice(0, maxLength - 3)}...`;
