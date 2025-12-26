@@ -11,7 +11,10 @@ import type { DocHints } from './services/types';
 export type GeneratorTarget =
   | 'trpc-route'
   | 'zod-schema'
+  | 'ts-zod'
+  | 'prisma-zod'
   | 'test'
+  | 'bundle'
   | 'hooks'
   | 'schemas'
   | 'tests'
@@ -30,6 +33,10 @@ export interface GeneratorOptions {
   projectRoot: string;
   /** Source file for test generator */
   file?: string;
+  /** Prisma model name to generate from (for prisma-zod generator) */
+  fromModel?: string;
+  /** TypeScript type name to generate from (for ts-zod generator) */
+  fromType?: string;
   /** Dry run mode - preview without writing */
   dryRun?: boolean;
   /** Force overwrite existing files */
@@ -117,8 +124,12 @@ export interface CodegenOptions {
   path?: string;
   /** Output file */
   output?: string;
-  /** Source file (for test generator) */
+  /** Source file (for test/ts-zod generator) */
   file?: string;
+  /** Prisma model name to generate from (for prisma-zod generator) */
+  fromModel?: string;
+  /** TypeScript type name to generate from (for ts-zod generator) */
+  fromType?: string;
   /** Dry run mode */
   dryRun?: boolean;
   /** Force overwrite */

@@ -1,12 +1,19 @@
 /**
  * @module commands/codegen/generators/test
- * @description Test file generator with docs enhancement
+ * @description Test file generator with docs enhancement and source analysis
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { analyzeSourceFile } from '../services/source-analyzer';
 import type { DocHints } from '../services/types';
-import { testTemplate, toPascalCase } from '../templates';
+import {
+  type ClassTestInfo,
+  type FunctionTestInfo,
+  functionBasedTestTemplate,
+  testTemplate,
+  toPascalCase,
+} from '../templates';
 import { testEnhanced } from '../templates/enhanced';
 import type { GeneratedFile, GeneratorMetadata, GeneratorOptions } from '../types';
 import { BaseGenerator } from './base';
@@ -46,13 +53,76 @@ function getTestPath(filePath: string): string {
 }
 
 /**
+ * Convert a param with optional type to test info format
+ */
+function convertParam(p: {
+  name: string;
+  type?: string;
+  isOptional: boolean;
+  hasDefault: boolean;
+}): { name: string; type?: string; isOptional: boolean; hasDefault: boolean } {
+  const result: { name: string; type?: string; isOptional: boolean; hasDefault: boolean } = {
+    name: p.name,
+    isOptional: p.isOptional,
+    hasDefault: p.hasDefault,
+  };
+  if (p.type !== undefined) {
+    result.type = p.type;
+  }
+  return result;
+}
+
+/**
+ * Convert source analyzer exports to test template format
+ */
+function convertToTestInfo(analysisExports: ReturnType<typeof analyzeSourceFile>['exports']): {
+  functions: FunctionTestInfo[];
+  classes: ClassTestInfo[];
+} {
+  const functions: FunctionTestInfo[] = [];
+  const classes: ClassTestInfo[] = [];
+
+  for (const exp of analysisExports) {
+    if (exp.kind === 'function') {
+      const funcInfo: FunctionTestInfo = {
+        name: exp.name,
+        params: exp.params.map(convertParam),
+        isAsync: exp.isAsync,
+      };
+      if (exp.returnType !== undefined) {
+        funcInfo.returnType = exp.returnType;
+      }
+      functions.push(funcInfo);
+    } else if (exp.kind === 'class') {
+      classes.push({
+        name: exp.name,
+        methods: (exp.methods ?? []).map((m) => {
+          const methodInfo: ClassTestInfo['methods'][0] = {
+            name: m.name,
+            params: m.params.map(convertParam),
+            isAsync: m.isAsync,
+            isStatic: m.isStatic,
+          };
+          if (m.returnType !== undefined) {
+            methodInfo.returnType = m.returnType;
+          }
+          return methodInfo;
+        }),
+      });
+    }
+  }
+
+  return { functions, classes };
+}
+
+/**
  * Test file generator
  */
 class TestGeneratorClass extends BaseGenerator {
   readonly metadata: GeneratorMetadata = {
     id: 'test',
     name: 'Test File',
-    description: 'Generate test file for a component or module',
+    description: 'Generate test file for a component or module with function-specific tests',
     example: 'krolik codegen test --file apps/web/src/components/Button.tsx',
   };
 
@@ -75,6 +145,34 @@ class TestGeneratorClass extends BaseGenerator {
       relativePath = `./${relativePath}`;
     }
 
+    // Try to analyze the source file for function-specific tests
+    const fullPath = path.isAbsolute(file) ? file : path.join(projectRoot, file);
+    const analysis = analyzeSourceFile(fullPath);
+
+    // Use function-based tests if analysis succeeded and found exports
+    if (analysis.success && analysis.exports.length > 0 && !isReact) {
+      const { functions, classes } = convertToTestInfo(analysis.exports);
+
+      // Only use function-based template if we have functions or classes
+      if (functions.length > 0 || classes.length > 0) {
+        const content = functionBasedTestTemplate(componentName, relativePath, functions, classes);
+
+        return [
+          {
+            path: testPath,
+            content,
+            action: 'create',
+            docsEnhanced: {
+              library: 'vitest',
+              topics: ['function-analysis', 'auto-generated'],
+              snippetsCount: functions.length + classes.length,
+            },
+          },
+        ];
+      }
+    }
+
+    // Fallback to original template-based generation
     const content = hints.enhanced
       ? testEnhanced(componentName, relativePath, isReact, hints)
       : testTemplate(componentName, relativePath, isReact);

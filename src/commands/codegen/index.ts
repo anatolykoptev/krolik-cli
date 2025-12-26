@@ -6,6 +6,7 @@
  *   krolik codegen trpc-route --name booking --path apps/web/src/server/routers
  *   krolik codegen zod-schema --name Booking --output packages/shared/src/schemas
  *   krolik codegen test --file apps/web/src/components/Button.tsx
+ *   krolik codegen bundle --bundle react-component --name Button --path src/components
  *   krolik codegen --list  # List available generators
  */
 
@@ -13,7 +14,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import chalk from 'chalk';
 import type { BaseCommandOptions, CommandContext } from '../../types';
-import { getAllGenerators, getGenerator, getValidTargets, isValidTarget } from './generators';
+import {
+  BUNDLE_TYPES,
+  getAllGenerators,
+  getGenerator,
+  getValidTargets,
+  isValidTarget,
+} from './generators';
 import { clearEnhancerCache } from './services/docs-enhancer';
 import type { CodegenOptions, GeneratedFile, GeneratorTarget } from './types';
 
@@ -23,6 +30,9 @@ import type { CodegenOptions, GeneratedFile, GeneratorTarget } from './types';
 interface CodegenCommandOptions extends BaseCommandOptions, CodegenOptions {
   target?: string;
   noDocs?: boolean;
+  bundle?: string;
+  fromType?: string;
+  fromModel?: string;
 }
 
 /**
@@ -38,6 +48,15 @@ function listGenerators(): void {
     console.log(`  ${chalk.cyan(id.padEnd(15))} ${name}`);
     console.log(`  ${''.padEnd(15)} ${chalk.dim(description)}`);
     console.log(`  ${''.padEnd(15)} ${chalk.dim.italic(example)}`);
+    console.log('');
+  }
+
+  // Show bundle types for the bundle generator
+  console.log(chalk.bold('Bundle Types (for bundle generator):\n'));
+  for (const [type, info] of Object.entries(BUNDLE_TYPES)) {
+    console.log(`  ${chalk.cyan(type.padEnd(20))} ${info.name}`);
+    console.log(`  ${''.padEnd(20)} ${chalk.dim(info.description)}`);
+    console.log(`  ${''.padEnd(20)} ${chalk.dim.italic(`Files: ${info.files.join(', ')}`)}`);
     console.log('');
   }
 
@@ -163,16 +182,22 @@ export async function runCodegen(
   logger.section(`Codegen: ${generator.metadata.name}`);
 
   // Prepare generator options
-  const generatorOptions: import('./types').GeneratorOptions = {
+  const generatorOptions: import('./types').GeneratorOptions & {
+    bundleType?: string;
+    fromType?: string;
+  } = {
     name: options.name ?? '',
     projectRoot,
     ...(options.path !== undefined || options.output !== undefined
       ? { path: options.path ?? options.output }
       : {}),
     ...(options.file !== undefined ? { file: options.file } : {}),
+    ...(options.fromType !== undefined ? { fromType: options.fromType } : {}),
+    ...(options.fromModel !== undefined ? { fromModel: options.fromModel } : {}),
     ...(options.dryRun !== undefined ? { dryRun: options.dryRun } : {}),
     ...(options.force !== undefined ? { force: options.force } : {}),
     ...(options.noDocs !== undefined ? { noDocs: options.noDocs } : {}),
+    ...(options.bundle !== undefined ? { bundleType: options.bundle } : {}),
   };
 
   // Generate files
