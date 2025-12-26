@@ -38,3 +38,9 @@ temp/
 
 # Krolik CLI cache
 .krolik/
+
+# npm pack output
+*.tgz
+
+# Local npm config with tokens
+.npmrc.local
