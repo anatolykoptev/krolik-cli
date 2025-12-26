@@ -343,8 +343,9 @@ export function extractTypeString(typeNode: TsType, content: string, maxLength =
     return 'unknown';
   }
 
+  // SWC uses 1-based byte offsets, convert to 0-based for string slicing
   const { start, end } = typeNode.span;
-  let typeText = content.slice(start, end).trim();
+  let typeText = content.slice(start - 1, end - 1).trim();
 
   if (typeText.length > maxLength) {
     typeText = `${typeText.slice(0, maxLength - 3)}...`;

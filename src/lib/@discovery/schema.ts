@@ -190,6 +190,21 @@ export interface SubDocInfo {
   path: string;
 }
 
+// ============================================================================
+// PACKAGE TYPE DETECTION
+// ============================================================================
+
+/** Detected package type */
+export type PackageType = 'ui' | 'api' | 'db' | 'shared' | 'mobile' | 'web' | 'generic';
+
+/** Package.json structure for type detection */
+export interface PackageJson {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+}
+
 /** Type labels for package types */
 const TYPE_LABELS: Record<string, string> = {
   ui: 'UI Components',
@@ -201,83 +216,80 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 /** Dependencies that indicate package type */
-const DEP_INDICATORS: Record<string, string[]> = {
+const DEP_INDICATORS: Record<PackageType, string[]> = {
   ui: ['@radix-ui', 'shadcn', '@headlessui', 'react-aria', 'chakra-ui'],
   api: ['@trpc/server', 'express', 'fastify', 'hono', 'koa', 'graphql'],
-  db: ['prisma', '@prisma/client', 'drizzle-orm', 'typeorm', 'sequelize', 'mongoose'],
+  db: ['prisma', '@prisma/client', 'drizzle-orm', 'typeorm', 'sequelize', 'mongoose', 'knex'],
   shared: ['zod', 'yup', 'superstruct'],
   mobile: ['react-native', 'expo', '@expo', 'nativewind'],
   web: ['next', 'nuxt', 'remix', 'gatsby', 'astro'],
+  generic: [],
 };
 
 /** Name patterns for package types */
-const NAME_PATTERNS: Record<string, RegExp[]> = {
-  ui: [/\/ui$/, /[-_]ui$/, /^ui$/],
-  api: [/\/api$/, /[-_]api$/, /^api$/, /\/server$/],
-  db: [/\/db$/, /[-_]db$/, /^db$/, /\/database$/],
-  shared: [/\/shared$/, /[-_]shared$/, /^shared$/, /\/common$/],
-  mobile: [/\/mobile$/, /[-_]mobile$/, /^mobile$/],
-  web: [/\/web$/, /[-_]web$/, /^web$/, /\/frontend$/],
+const NAME_PATTERNS: Record<PackageType, RegExp[]> = {
+  ui: [/\/ui$/, /[-_]ui$/, /^ui$/, /\/components$/],
+  api: [/\/api$/, /[-_]api$/, /^api$/, /\/server$/, /\/backend$/],
+  db: [/\/db$/, /[-_]db$/, /^db$/, /\/database$/, /\/prisma$/],
+  shared: [/\/shared$/, /[-_]shared$/, /^shared$/, /\/common$/, /\/core$/],
+  mobile: [/\/mobile$/, /[-_]mobile$/, /^mobile$/, /\/app$/, /\/native$/],
+  web: [/\/web$/, /[-_]web$/, /^web$/, /\/frontend$/, /\/client$/],
+  generic: [],
 };
 
 /**
- * Detect package type from name and dependencies
+ * Detect package type from name, path, and dependencies
  * Priority: name patterns for apps/* > dependencies > name patterns
+ *
+ * @param name - Package name from package.json
+ * @param dirPath - Relative or absolute path to package directory
+ * @param pkg - Parsed package.json object
+ * @returns Detected package type
  */
-function detectPackageType(name: string, pkgPath: string): string {
+export function detectPackageType(name: string, dirPath: string, pkg: PackageJson): PackageType {
+  const allDeps = {
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+    ...pkg.peerDependencies,
+  };
+  const depNames = Object.keys(allDeps);
+  const dirName = path.basename(dirPath).toLowerCase();
   const nameLower = name.toLowerCase();
-  const dirName = path.basename(pkgPath).toLowerCase();
-  const isAppsDir = pkgPath.includes('/apps/') || pkgPath.startsWith('apps/');
+  const isAppsDir =
+    dirPath.includes('/apps/') || dirPath.startsWith('apps/') || dirPath.startsWith('apps');
 
   // For apps/* directories, check name patterns first (web/mobile priority)
   if (isAppsDir) {
     for (const type of ['web', 'mobile'] as const) {
-      const patterns = NAME_PATTERNS[type];
-      if (!patterns) continue;
-      for (const pattern of patterns) {
+      for (const pattern of NAME_PATTERNS[type]) {
         if (pattern.test(nameLower) || pattern.test(dirName)) {
+          return type;
+        }
+      }
+    }
+    // Also prioritize web/mobile deps for apps
+    for (const type of ['web', 'mobile'] as const) {
+      for (const indicator of DEP_INDICATORS[type]) {
+        if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
           return type;
         }
       }
     }
   }
 
-  // Try to read package.json for dependencies
-  const pkgJsonPath = path.join(pkgPath, 'package.json');
-  if (fs.existsSync(pkgJsonPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-      const allDeps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies };
-      const depNames = Object.keys(allDeps);
-
-      // For apps, prioritize web/mobile deps
-      if (isAppsDir) {
-        for (const type of ['web', 'mobile'] as const) {
-          const indicators = DEP_INDICATORS[type];
-          if (!indicators) continue;
-          for (const indicator of indicators) {
-            if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
-              return type;
-            }
-          }
-        }
+  // Check dependencies
+  for (const [type, indicators] of Object.entries(DEP_INDICATORS) as [PackageType, string[]][]) {
+    if (type === 'generic') continue;
+    for (const indicator of indicators) {
+      if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
+        return type;
       }
-
-      // Check all dependencies
-      for (const [type, indicators] of Object.entries(DEP_INDICATORS)) {
-        for (const indicator of indicators) {
-          if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
-            return type;
-          }
-        }
-      }
-    } catch {
-      // Ignore
     }
   }
 
   // Check name patterns
-  for (const [type, patterns] of Object.entries(NAME_PATTERNS)) {
+  for (const [type, patterns] of Object.entries(NAME_PATTERNS) as [PackageType, RegExp[]][]) {
+    if (type === 'generic') continue;
     for (const pattern of patterns) {
       if (pattern.test(nameLower) || pattern.test(dirName)) {
         return type;
@@ -286,6 +298,32 @@ function detectPackageType(name: string, pkgPath: string): string {
   }
 
   return 'generic';
+}
+
+/**
+ * Generate human-readable label for package type
+ */
+export function getPackageTypeLabel(type: PackageType, name: string): string {
+  return TYPE_LABELS[type] || name;
+}
+
+/**
+ * Internal helper to detect package type from path (reads package.json)
+ * Used by findSubDocs for backward compatibility
+ */
+function detectPackageTypeFromPath(name: string, pkgPath: string): PackageType {
+  const pkgJsonPath = path.join(pkgPath, 'package.json');
+  let pkg: PackageJson = {};
+
+  if (fs.existsSync(pkgJsonPath)) {
+    try {
+      pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    } catch {
+      // Use empty pkg
+    }
+  }
+
+  return detectPackageType(name, pkgPath, pkg);
 }
 
 /**
@@ -312,7 +350,7 @@ export function findSubDocs(projectRoot: string): SubDocInfo[] {
     if (fs.existsSync(claudeMdPath)) {
       const relPath = path.relative(projectRoot, claudeMdPath);
       const pkgName = path.basename(pkgDir);
-      const type = detectPackageType(pkgName, pkgDir);
+      const type = detectPackageTypeFromPath(pkgName, pkgDir);
       const label = TYPE_LABELS[type] || pkgName;
 
       found.push({ label, path: relPath });

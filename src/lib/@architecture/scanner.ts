@@ -8,7 +8,15 @@
 
 import { relative } from 'node:path';
 import { detectMonorepo } from '../@discovery';
-import { exists, getSubdirectories, isDirectory, isFile, listFiles, readFile } from '../@fs';
+import {
+  exists,
+  getSubdirectories,
+  isDirectory,
+  isFile,
+  listFiles,
+  readFile,
+  walkDirectories,
+} from '../@fs';
 
 import { DEFAULT_DETECTORS } from './detectors';
 import {
@@ -65,7 +73,22 @@ export function collectArchitecturePatterns(
   const detectedPatterns: DetectedPattern[] = [];
 
   for (const scanRoot of scanRoots) {
-    scanDirectory(scanRoot, projectRoot, detectedPatterns, detectors, skipDirs, maxDepth, 0);
+    // Use walkDirectories from @fs to scan directories
+    walkDirectories(
+      scanRoot,
+      (fullPath, dirName) => {
+        // Check each detector against this directory
+        for (const detector of detectors) {
+          if (matchesDirectoryPattern(dirName, detector.directoryPatterns)) {
+            const detected = analyzeDirectory(fullPath, detector, projectRoot);
+            if (detected) {
+              detectedPatterns.push(detected);
+            }
+          }
+        }
+      },
+      { maxDepth, skipDirs, skipHidden: true },
+    );
   }
 
   // Merge duplicate patterns from different locations
@@ -163,47 +186,8 @@ function addWorkspaceRoots(workspaceDir: string, roots: string[]): void {
 }
 
 // ============================================================================
-// DIRECTORY SCANNING
+// PATTERN MATCHING
 // ============================================================================
-
-/**
- * Recursively scan a directory for patterns
- */
-function scanDirectory(
-  currentDir: string,
-  projectRoot: string,
-  patterns: DetectedPattern[],
-  detectors: PatternDetector[],
-  skipDirs: string[],
-  maxDepth: number,
-  currentDepth: number,
-): void {
-  if (currentDepth > maxDepth) return;
-
-  const subdirs = getSubdirectories(currentDir);
-
-  for (const subdir of subdirs) {
-    // Skip hidden directories and excluded directories
-    if (subdir.startsWith('.') || skipDirs.includes(subdir)) {
-      continue;
-    }
-
-    const fullPath = `${currentDir}/${subdir}`;
-
-    // Check each detector against this directory
-    for (const detector of detectors) {
-      if (matchesDirectoryPattern(subdir, detector.directoryPatterns)) {
-        const detected = analyzeDirectory(fullPath, detector, projectRoot);
-        if (detected) {
-          patterns.push(detected);
-        }
-      }
-    }
-
-    // Recurse into subdirectories
-    scanDirectory(fullPath, projectRoot, patterns, detectors, skipDirs, maxDepth, currentDepth + 1);
-  }
-}
 
 /**
  * Check if directory name matches any of the patterns

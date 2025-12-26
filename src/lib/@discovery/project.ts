@@ -33,8 +33,11 @@ const packageJsonCache = new Map<string, PackageJsonCache>();
  *
  * Uses file mtime + TTL for cache invalidation.
  * Returns undefined if file doesn't exist or parse fails.
+ *
+ * @param pkgPath - Absolute path to package.json
+ * @returns Parsed package.json or undefined if not found/invalid
  */
-function readPackageJson(pkgPath: string): Record<string, unknown> | undefined {
+export function readPackageJson<T = Record<string, unknown>>(pkgPath: string): T | undefined {
   try {
     const stats = fs.statSync(pkgPath);
     const mtime = stats.mtimeMs;
@@ -42,14 +45,14 @@ function readPackageJson(pkgPath: string): Record<string, unknown> | undefined {
 
     const cached = packageJsonCache.get(pkgPath);
     if (cached && cached.mtime === mtime && now - cached.timestamp < CACHE_TTL_MS) {
-      return cached.data;
+      return cached.data as T;
     }
 
     const content = fs.readFileSync(pkgPath, 'utf-8');
     const data = JSON.parse(content) as Record<string, unknown>;
 
     packageJsonCache.set(pkgPath, { data, timestamp: now, mtime });
-    return data;
+    return data as T;
   } catch {
     return undefined;
   }

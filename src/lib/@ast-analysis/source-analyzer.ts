@@ -21,7 +21,7 @@ import type {
   TsType,
   VariableDeclarator,
 } from '@swc/core';
-import { parseFile as swcParseFile } from '@/lib/@swc';
+import { extractTypeString as swcExtractTypeString, parseFile as swcParseFile } from '@/lib/@swc';
 import {
   isArrowFunction,
   isAssignmentPattern,
@@ -76,14 +76,11 @@ export function analyzeSourceFile(filePath: string, content?: string): SourceAna
 
 /**
  * Extract type as string from source content using span positions
+ *
+ * @deprecated Use `extractTypeString` from `@/lib/@swc` directly
  */
 export function extractTypeString(typeNode: TsType, content: string): string {
-  const span = (typeNode as { span?: { start: number; end: number } }).span;
-  if (!span) return 'unknown';
-
-  // SWC uses 1-based offsets
-  const typeText = content.slice(span.start - 1, span.end - 1).trim();
-  return typeText.length > 50 ? `${typeText.slice(0, 47)}...` : typeText || 'unknown';
+  return swcExtractTypeString(typeNode, content, 50);
 }
 
 // ============================================================================

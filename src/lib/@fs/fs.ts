@@ -5,11 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-
-/**
- * Default directories to skip when walking
- */
-const DEFAULT_SKIP_DIRS = ['node_modules', '.next', 'dist', '.git', '.turbo', 'coverage', '.cache'];
+import { scanDirectorySync } from './scanner';
 
 /**
  * Options for file finding
@@ -127,42 +123,22 @@ export function relativePath(filePath: string, basePath: string): string {
 
 /**
  * Find files recursively matching criteria
+ *
+ * Uses scanDirectorySync from scanner.ts for the actual traversal,
+ * avoiding code duplication.
  */
 export function findFiles(dir: string, options: FindFilesOptions = {}): string[] {
-  const { extensions = [], skipDirs = DEFAULT_SKIP_DIRS, maxDepth = Infinity } = options;
+  const { extensions = [], skipDirs = undefined, maxDepth = Infinity } = options;
 
-  const files: string[] = [];
+  // Only pass skipDirs if explicitly provided, otherwise let scanner use defaults
+  const scanOptions = {
+    extensions,
+    maxDepth,
+    includeTests: true, // findFiles includes all files matching extensions
+    ...(skipDirs !== undefined && { skipDirs }),
+  };
 
-  function walk(currentDir: string, depth: number): void {
-    if (depth > maxDepth || !exists(currentDir)) {
-      return;
-    }
-
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-
-      if (entry.isDirectory()) {
-        if (!skipDirs.includes(entry.name)) {
-          walk(fullPath, depth + 1);
-        }
-      } else if (entry.isFile()) {
-        const ext = path.extname(entry.name);
-        if (extensions.length === 0 || extensions.includes(ext)) {
-          files.push(fullPath);
-        }
-      }
-    }
-  }
-
-  walk(dir, 0);
-  return files;
+  return scanDirectorySync(dir, scanOptions);
 }
 
 /**

@@ -18,6 +18,7 @@ export {
   findPackageJson,
   findProjectRoot,
   getProjectInfo,
+  readPackageJson,
 } from './project';
 export type { ApiRoutesInfo, ApiType } from './routes';
 // Route discovery (tRPC, Next.js, Express)
@@ -30,9 +31,11 @@ export {
   findRoutersDir,
   findTrpcRouters,
 } from './routes';
-export type { SchemaInfo, SubDocInfo } from './schema';
+export type { PackageJson, PackageType, SchemaInfo, SubDocInfo } from './schema';
 // Schema discovery (Prisma, Zod, Sub-docs)
+// Package type detection
 export {
+  detectPackageType,
   discoverSchemas,
   findPrismaSchema,
   findPrismaSchemaFiles,
@@ -40,4 +43,5 @@ export {
   findSubDocs,
   findZodSchemas,
   findZodSchemasDir,
+  getPackageTypeLabel,
 } from './schema';

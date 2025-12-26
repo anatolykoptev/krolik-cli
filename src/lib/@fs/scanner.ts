@@ -322,3 +322,98 @@ export function walkSync(dir: string, options: WalkOptions = {}): string[] {
   walk(dir, (fullPath) => results.push(fullPath), options);
   return results;
 }
+
+// ============================================================================
+// DIRECTORY WALKER
+// ============================================================================
+
+/**
+ * Options for directory walking
+ */
+export interface WalkDirsOptions {
+  /**
+   * Maximum directory depth to walk (0 = current dir only)
+   * @default Infinity
+   */
+  maxDepth?: number;
+
+  /**
+   * Directories to skip (defaults to DEFAULT_SKIP_DIRS)
+   */
+  skipDirs?: string[];
+
+  /**
+   * Skip hidden directories (starting with .)
+   * @default true
+   */
+  skipHidden?: boolean;
+}
+
+/**
+ * Callback invoked for each directory
+ */
+export type DirCallback = (fullPath: string, name: string, depth: number) => void;
+
+/**
+ * Walk directories recursively and invoke callback for each directory
+ *
+ * Unlike scanDirectory which focuses on files, this walks directories only.
+ * Useful for architecture scanning, module detection, etc.
+ *
+ * @param dir - Root directory to walk
+ * @param callback - Function invoked for each directory (fullPath, dirName, depth)
+ * @param options - Walk configuration
+ *
+ * @example
+ * // Find all directories
+ * walkDirectories('src', (fullPath, name, depth) => {
+ *   console.log(`${' '.repeat(depth * 2)}${name}`);
+ * });
+ *
+ * @example
+ * // Find directories up to depth 2
+ * const dirs: string[] = [];
+ * walkDirectories('src', (fullPath) => dirs.push(fullPath), { maxDepth: 2 });
+ */
+export function walkDirectories(
+  dir: string,
+  callback: DirCallback,
+  options: WalkDirsOptions = {},
+): void {
+  const { maxDepth = Infinity, skipDirs = [...DEFAULT_SKIP_DIRS], skipHidden = true } = options;
+
+  function walk(currentDir: string, depth: number): void {
+    if (depth > maxDepth) return;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return; // Directory not readable
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+
+      // Skip hidden directories
+      if (skipHidden && entry.name.startsWith('.')) {
+        continue;
+      }
+
+      // Skip excluded directories
+      if (skipDirs.includes(entry.name)) {
+        continue;
+      }
+
+      const fullPath = path.join(currentDir, entry.name);
+
+      // Invoke callback for this directory
+      callback(fullPath, entry.name, depth);
+
+      // Recurse into subdirectory
+      walk(fullPath, depth + 1);
+    }
+  }
+
+  walk(dir, 0);
+}

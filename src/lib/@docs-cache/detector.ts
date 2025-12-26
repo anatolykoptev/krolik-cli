@@ -20,7 +20,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { detectMonorepo } from '../@discovery';
+import { detectMonorepo, readPackageJson } from '../@discovery';
 import { initializeRegistry, resolveLibraryIdSync } from './registry';
 import { getLibraryByName } from './storage';
 import type { DetectedLibrary } from './types';
@@ -82,25 +82,6 @@ interface DependencyInfo {
 // ============================================================================
 // PACKAGE.JSON PARSING
 // ============================================================================
-
-/**
- * Safely read and parse a package.json file.
- *
- * @param pkgPath - Absolute path to package.json
- * @returns Parsed package.json or null if not found/invalid
- */
-function readPackageJson(pkgPath: string): PackageJson | null {
-  if (!fs.existsSync(pkgPath)) {
-    return null;
-  }
-
-  try {
-    const content = fs.readFileSync(pkgPath, 'utf-8');
-    return JSON.parse(content) as PackageJson;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Extract dependencies from a package.json.
@@ -174,7 +155,7 @@ function collectAllDependencies(projectRoot: string): Map<string, DependencyInfo
   const pkgPaths = collectPackageJsonPaths(projectRoot);
 
   for (const pkgPath of pkgPaths) {
-    const pkg = readPackageJson(pkgPath);
+    const pkg = readPackageJson<PackageJson>(pkgPath);
     if (!pkg) continue;
 
     const pkgDeps = extractDependencies(pkg, pkgPath);

@@ -251,5 +251,6 @@ export function getNodeText(node: Node, content: string): string | null {
   if (!span) {
     return null;
   }
-  return content.slice(span.start, span.end);
+  // SWC uses 1-based byte offsets, convert to 0-based for string slicing
+  return content.slice(span.start - 1, span.end - 1);
 }

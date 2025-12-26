@@ -5,19 +5,25 @@
  * Dynamically discovers packages in the project and creates CLAUDE.md files.
  * Package type is detected from package name, directory, and dependencies.
  *
- * Uses @discovery module for workspace detection.
+ * Uses @discovery module for workspace detection and package type detection.
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
-import { detectMonorepo } from '@/lib/@discovery';
+import {
+  detectMonorepo,
+  detectPackageType,
+  getPackageTypeLabel,
+  type PackageJson,
+  type PackageType,
+} from '@/lib/@discovery';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-/** Detected package type */
-export type SubDocType = 'ui' | 'api' | 'db' | 'shared' | 'mobile' | 'web' | 'generic';
+/** @deprecated Use PackageType from @discovery instead */
+export type SubDocType = PackageType;
 
 /** Discovered package info */
 export interface DiscoveredPackage {
@@ -26,7 +32,7 @@ export interface DiscoveredPackage {
   /** Relative path to package directory */
   path: string;
   /** Detected type */
-  type: SubDocType;
+  type: PackageType;
   /** Human-readable label */
   label: string;
   /** Whether CLAUDE.md exists */
@@ -34,7 +40,7 @@ export interface DiscoveredPackage {
 }
 
 export interface CreateSubDocResult {
-  type: SubDocType;
+  type: PackageType;
   path: string;
   packageName: string;
   action: 'created' | 'skipped' | 'error';
@@ -42,111 +48,8 @@ export interface CreateSubDocResult {
 }
 
 // ============================================================================
-// TYPE DETECTION
+// HELPERS
 // ============================================================================
-
-interface PackageJson {
-  name?: string;
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-}
-
-/** Keywords in package name or dir that indicate type */
-const NAME_PATTERNS: Record<SubDocType, RegExp[]> = {
-  ui: [/\/ui$/, /[-_]ui$/, /^ui$/, /\/components$/],
-  api: [/\/api$/, /[-_]api$/, /^api$/, /\/server$/, /\/backend$/],
-  db: [/\/db$/, /[-_]db$/, /^db$/, /\/database$/, /\/prisma$/],
-  shared: [/\/shared$/, /[-_]shared$/, /^shared$/, /\/common$/, /\/core$/],
-  mobile: [/\/mobile$/, /[-_]mobile$/, /^mobile$/, /\/app$/, /\/native$/],
-  web: [/\/web$/, /[-_]web$/, /^web$/, /\/frontend$/, /\/client$/],
-  generic: [],
-};
-
-/** Dependencies that indicate package type */
-const DEP_INDICATORS: Record<SubDocType, string[]> = {
-  ui: ['@radix-ui', 'shadcn', '@headlessui', 'react-aria', 'chakra-ui'],
-  api: ['@trpc/server', 'express', 'fastify', 'hono', 'koa', 'graphql'],
-  db: ['prisma', '@prisma/client', 'drizzle-orm', 'typeorm', 'sequelize', 'mongoose', 'knex'],
-  shared: ['zod', 'yup', 'superstruct'],
-  mobile: ['react-native', 'expo', '@expo', 'nativewind'],
-  web: ['next', 'nuxt', 'remix', 'gatsby', 'astro'],
-  generic: [],
-};
-
-/**
- * Detect package type from name, path, and dependencies
- * Priority: name patterns for apps/* > dependencies > name patterns
- */
-function detectPackageType(name: string, dirPath: string, pkg: PackageJson): SubDocType {
-  const allDeps = {
-    ...pkg.dependencies,
-    ...pkg.devDependencies,
-    ...pkg.peerDependencies,
-  };
-  const depNames = Object.keys(allDeps);
-  const dirName = basename(dirPath).toLowerCase();
-  const nameLower = name.toLowerCase();
-  const isAppsDir =
-    dirPath.includes('/apps/') || dirPath.startsWith('apps/') || dirPath.startsWith('apps');
-
-  // For apps/* directories, check name patterns first (web/mobile priority)
-  if (isAppsDir) {
-    for (const type of ['web', 'mobile'] as const) {
-      for (const pattern of NAME_PATTERNS[type]) {
-        if (pattern.test(nameLower) || pattern.test(dirName)) {
-          return type;
-        }
-      }
-    }
-    // Also prioritize web/mobile deps for apps
-    for (const type of ['web', 'mobile'] as const) {
-      for (const indicator of DEP_INDICATORS[type]) {
-        if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
-          return type;
-        }
-      }
-    }
-  }
-
-  // Check dependencies
-  for (const [type, indicators] of Object.entries(DEP_INDICATORS) as [SubDocType, string[]][]) {
-    if (type === 'generic') continue;
-    for (const indicator of indicators) {
-      if (depNames.some((dep) => dep.startsWith(indicator) || dep === indicator)) {
-        return type;
-      }
-    }
-  }
-
-  // Check name patterns
-  for (const [type, patterns] of Object.entries(NAME_PATTERNS) as [SubDocType, RegExp[]][]) {
-    if (type === 'generic') continue;
-    for (const pattern of patterns) {
-      if (pattern.test(nameLower) || pattern.test(dirName)) {
-        return type;
-      }
-    }
-  }
-
-  return 'generic';
-}
-
-/**
- * Generate human-readable label for package type
- */
-function getTypeLabel(type: SubDocType, name: string): string {
-  const labels: Record<SubDocType, string> = {
-    ui: 'UI Components',
-    api: 'API/Backend',
-    db: 'Database',
-    shared: 'Shared Utilities',
-    mobile: 'Mobile App',
-    web: 'Web App',
-    generic: basename(name),
-  };
-  return labels[type];
-}
 
 function parsePackageJson(pkgPath: string): PackageJson | null {
   try {
@@ -182,7 +85,7 @@ export function discoverPackages(projectRoot: string): DiscoveredPackage[] {
         name,
         path: relPath,
         type,
-        label: getTypeLabel(type, name),
+        label: getPackageTypeLabel(type, name),
         hasDoc: existsSync(join(pkgDir, 'CLAUDE.md')),
       });
     }
@@ -197,7 +100,7 @@ export function discoverPackages(projectRoot: string): DiscoveredPackage[] {
         name,
         path: '.',
         type,
-        label: getTypeLabel(type, name),
+        label: getPackageTypeLabel(type, name),
         hasDoc: existsSync(join(projectRoot, 'CLAUDE.md')),
       });
     }
