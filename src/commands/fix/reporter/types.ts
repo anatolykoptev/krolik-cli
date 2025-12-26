@@ -3,6 +3,7 @@
  * @description Types for AI Report Generator
  */
 
+import type { Priority } from '@/types/severity';
 import type { FixDifficulty, QualityCategory, QualityIssue } from '../types';
 
 // ============================================================================
@@ -43,9 +44,9 @@ export const EFFORT_THRESHOLDS: Record<EffortLevel, number> = {
 // ============================================================================
 
 /**
- * Priority level for issue groups
+ * Priority level for issue groups (alias for shared Priority type)
  */
-export type PriorityLevel = 'critical' | 'high' | 'medium' | 'low';
+export type PriorityLevel = Priority;
 
 /**
  * An issue enriched with effort and priority

@@ -3,15 +3,17 @@
  * @description Memory system type definitions
  */
 
+import type { Priority } from '@/types/severity';
+
 /**
  * Memory types
  */
 export type MemoryType = 'observation' | 'decision' | 'pattern' | 'bugfix' | 'feature';
 
 /**
- * Importance levels
+ * Importance levels (alias for shared Priority type)
  */
-export type MemoryImportance = 'low' | 'medium' | 'high' | 'critical';
+export type MemoryImportance = Priority;
 
 /**
  * Memory record

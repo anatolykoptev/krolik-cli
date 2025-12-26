@@ -4,6 +4,10 @@
  */
 
 import { CODE_FILE_EXTENSIONS } from '@/lib/constants/file-patterns';
+import type { Priority } from '@/types/severity';
+
+// Re-export Priority for backwards compatibility
+export type { Priority };
 
 /**
  * Checklist item from issue body
@@ -20,11 +24,6 @@ export interface CodeBlock {
   language: string;
   code: string;
 }
-
-/**
- * Priority level for issues
- */
-export type Priority = 'critical' | 'high' | 'medium' | 'low';
 
 /**
  * Parsed issue data

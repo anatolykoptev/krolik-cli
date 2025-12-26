@@ -1,13 +1,16 @@
 /**
  * @module types/severity
- * @description Shared severity type used across commands
+ * @description Shared severity and priority types used across commands
  *
- * This type is extracted to break circular dependencies between:
- * - types/commands/review.ts
- * - commands/fix/types.ts
+ * These types are extracted to break circular dependencies and ensure consistency.
  */
 
 /**
- * Shared severity type used across commands
+ * Shared severity type (3-level) for issues, warnings, info
  */
 export type Severity = 'error' | 'warning' | 'info';
+
+/**
+ * Shared priority type (4-level) for task prioritization
+ */
+export type Priority = 'critical' | 'high' | 'medium' | 'low';

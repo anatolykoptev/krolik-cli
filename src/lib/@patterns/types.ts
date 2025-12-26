@@ -3,6 +3,11 @@
  * @description Shared types for pattern matching
  */
 
+import { Severity } from '@/types/severity';
+
+// Re-export Severity for backwards compatibility
+export { Severity };
+
 /**
  * Pattern match result
  */
@@ -30,11 +35,6 @@ export interface HardcodedValue {
   column: number;
   context?: string;
 }
-
-/**
- * Issue severity levels
- */
-export type Severity = 'error' | 'warning' | 'info';
 
 /**
  * Quality categories

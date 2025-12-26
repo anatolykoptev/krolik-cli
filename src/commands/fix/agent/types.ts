@@ -1,7 +1,9 @@
+import type { Priority } from '@/types/severity';
+
 /**
- * Priority levels for plan steps
+ * Priority levels for plan steps (alias for shared Priority type)
  */
-export type StepPriority = 'critical' | 'high' | 'medium' | 'low';
+export type StepPriority = Priority;
 
 /**
  * Step status in execution

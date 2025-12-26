@@ -3,97 +3,10 @@
  * @description Docs-enhanced Prisma to Zod schema template
  */
 
-import type { PrismaEnum, PrismaField, PrismaModel } from '../../generators/prisma-zod';
+import { toCamelCase } from '@/lib/@formatters';
+import { fieldToZod } from '@/lib/@prisma';
+import type { PrismaEnum, PrismaModel } from '../../generators/prisma-zod';
 import type { DocHints } from '../../services/types';
-
-// ============================================================================
-// TYPE MAPPINGS
-// ============================================================================
-
-/** Map Prisma scalar types to Zod methods */
-const PRISMA_TO_ZOD: Record<string, string> = {
-  String: 'z.string()',
-  Int: 'z.number().int()',
-  Float: 'z.number()',
-  Boolean: 'z.boolean()',
-  DateTime: 'z.date()',
-  Json: 'z.unknown()',
-  BigInt: 'z.bigint()',
-  Decimal: 'z.number()',
-  Bytes: 'z.instanceof(Buffer)',
-};
-
-/** Common ID field patterns and their Zod representations */
-const ID_PATTERNS: Record<string, string> = {
-  cuid: 'z.string().cuid()',
-  uuid: 'z.string().uuid()',
-  autoincrement: 'z.number().int().positive()',
-  default: 'z.string()',
-};
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Convert PascalCase to camelCase
- */
-function toCamelCase(str: string): string {
-  return str.charAt(0).toLowerCase() + str.slice(1);
-}
-
-/**
- * Detect ID type from default value
- */
-function detectIdType(defaultValue?: string): string {
-  if (!defaultValue) return ID_PATTERNS.default as string;
-
-  const lower = defaultValue.toLowerCase();
-  if (lower.includes('cuid')) return ID_PATTERNS.cuid as string;
-  if (lower.includes('uuid')) return ID_PATTERNS.uuid as string;
-  if (lower.includes('autoincrement')) return ID_PATTERNS.autoincrement as string;
-
-  return ID_PATTERNS.default as string;
-}
-
-/**
- * Convert a Prisma field to Zod type string
- */
-function fieldToZod(field: PrismaField, enums: Map<string, PrismaEnum>): string {
-  let zodType: string;
-
-  // Check if it's an enum
-  if (enums.has(field.type)) {
-    const enumDef = enums.get(field.type)!;
-    const values = enumDef.values.map((v) => `'${v}'`).join(', ');
-    zodType = `z.enum([${values}])`;
-  }
-  // Check if it's a known scalar type
-  else if (PRISMA_TO_ZOD[field.type]) {
-    zodType = PRISMA_TO_ZOD[field.type] as string;
-
-    // Special handling for ID fields
-    if (field.isId) {
-      zodType = detectIdType(field.default);
-    }
-  }
-  // Unknown type (likely a relation) - skip
-  else {
-    return '';
-  }
-
-  // Handle array
-  if (field.isArray) {
-    zodType = `z.array(${zodType})`;
-  }
-
-  // Handle optional
-  if (!field.isRequired) {
-    zodType = `${zodType}.optional()`;
-  }
-
-  return zodType;
-}
 
 /**
  * Extract validation patterns from hints for specific field types
