@@ -22,6 +22,7 @@ export {
   formatTodosSection,
 } from './details';
 export { formatFilesSection, formatIoSchemasSection } from './files';
+export { formatLibModulesSection } from './lib-modules';
 export { formatRoutesSection, formatSchemaSection } from './schema-routes';
 export {
   formatGitHubIssuesSection,

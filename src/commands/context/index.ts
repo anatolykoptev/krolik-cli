@@ -34,6 +34,7 @@ import { detectDomains, findRelatedFiles, generateChecklist, getApproaches } fro
 import { formatAiPrompt, formatJson, formatMarkdown, printContext } from './formatters';
 import {
   collectArchitecturePatterns,
+  collectLibModules,
   DOMAIN_FILE_PATTERNS,
   discoverFiles,
   findRoutersDir,
@@ -232,6 +233,12 @@ async function buildAiContextData(
 
     // Extract TODO comments from codebase (included in all modes)
     aiData.todos = extractTodos(projectRoot);
+  }
+
+  // Lib modules from src/lib/@* (included in all modes)
+  const libModules = collectLibModules(projectRoot);
+  if (libModules) {
+    aiData.libModules = libModules;
   }
 
   // Load GitHub issues (--with-issues) - available in all modes

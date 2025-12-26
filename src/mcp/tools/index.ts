@@ -23,6 +23,7 @@ import './docs';
 import './fix';
 import './issue';
 import './memory';
+import './modules';
 import './refactor';
 import './review';
 import './routes';

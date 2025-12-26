@@ -46,6 +46,8 @@ export const SectionPriority = {
   CONTEXT_CACHE: 200,
   /** Sub-documentation links */
   SUB_DOCS: 300,
+  /** Lib modules documentation */
+  LIB_MODULES: 350,
   /** Tools reference table */
   TOOLS: 400,
   /** Alias for TOOLS for backwards compatibility */

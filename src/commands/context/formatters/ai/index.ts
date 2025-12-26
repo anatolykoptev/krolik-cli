@@ -19,6 +19,7 @@ import {
   formatImportGraphSection,
   formatImportsSection,
   formatIoSchemasSection,
+  formatLibModulesSection,
   formatLibraryDocsSection,
   formatMemorySection,
   formatPreCommitSection,
@@ -56,6 +57,9 @@ export function formatAiPrompt(data: AiContextData): string {
 
   // Architecture patterns (from --architecture)
   formatArchitectureSection(lines, data);
+
+  // Lib modules from src/lib/@* (included in all modes)
+  formatLibModulesSection(lines, data);
 
   // Data sections (filtered by keywords)
   formatSchemaSection(lines, data, domainKeywords);

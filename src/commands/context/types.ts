@@ -140,6 +140,43 @@ export interface GitHubIssuesData {
 }
 
 /**
+ * Lib module function info for context
+ */
+export interface LibModuleFunction {
+  /** Function name */
+  name: string;
+  /** Function signature (e.g., "(path: string): boolean") */
+  signature: string;
+}
+
+/**
+ * Lib module info for context
+ */
+export interface LibModuleInfo {
+  /** Module name without @ prefix (e.g., 'fs', 'discovery') */
+  name: string;
+  /** Import path (e.g., '@/lib/@fs') */
+  importPath: string;
+  /** Number of exports */
+  exportCount: number;
+  /** Top functions (for key modules) */
+  functions?: LibModuleFunction[];
+}
+
+/**
+ * Lib modules data for context
+ * Contains scanned lib/@* modules with exports
+ */
+export interface LibModulesData {
+  /** Total number of modules */
+  moduleCount: number;
+  /** Total number of exports */
+  totalExports: number;
+  /** List of modules */
+  modules: LibModuleInfo[];
+}
+
+/**
  * Extended context data for AI output
  */
 export interface AiContextData {
@@ -185,4 +222,6 @@ export interface AiContextData {
   todos?: TodoItem[];
   // GitHub issues (from --with-issues)
   githubIssues?: GitHubIssuesData;
+  // Lib modules from src/lib/@* (included in all modes)
+  libModules?: LibModulesData;
 }
