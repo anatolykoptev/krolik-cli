@@ -16,6 +16,29 @@ export {
   fileCache,
   formatCacheStats,
 } from '@/lib';
+// Conflict Detection
+export {
+  type Conflict,
+  ConflictDetector,
+  type ConflictOptions,
+  type ConflictResolutionResult,
+  type ConflictStats,
+  type ConflictType,
+  computePriority,
+  detectAndResolve,
+  detectConflictType,
+  type IndexedOperation,
+  type LineRange,
+  normalizeRange,
+  type OperationWithIssue,
+  type Resolution,
+  type ResolutionStrategy,
+  rangeContains,
+  rangesAdjacent,
+  rangesIdentical,
+  rangesOverlap,
+  type SkippedOperation,
+} from './conflict-detector';
 // Difficulty
 export {
   filterByDifficulty,
@@ -24,7 +47,6 @@ export {
   isTrivialFix,
   sortByDifficulty,
 } from './difficulty';
-
 // Options
 export {
   DEFAULT_THRESHOLDS,

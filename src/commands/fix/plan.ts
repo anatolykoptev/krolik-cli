@@ -168,15 +168,31 @@ async function generatePlansFromIssues(
       continue;
     }
 
-    // Add to plan - ONE fix per file to avoid conflicts
+    // Add to plan - all fixes are collected
+    // Conflicts are handled by conflict-detector.ts
+    // Execution order is handled by parallel-executor.ts (bottom-to-top per file)
     addToPlan(plans, issue, operation, difficulty);
+  }
+
+  // Sort fixes within each plan by line number (descending)
+  // This ensures fixes are applied bottom-to-top to preserve line numbers
+  for (const plan of plans.values()) {
+    plan.fixes.sort((a, b) => {
+      const lineA = a.operation.line ?? 0;
+      const lineB = b.operation.line ?? 0;
+      return lineB - lineA;
+    });
   }
 
   return { plans: [...plans.values()], skipStats };
 }
 
 /**
- * Add fix to plan (one per file to avoid conflicts)
+ * Add fix to plan
+ *
+ * Multiple fixes per file are now supported. Fixes are sorted bottom-to-top
+ * before application to preserve line number validity. Conflicts are handled
+ * by the conflict-detector module.
  */
 function addToPlan(
   plans: Map<string, FixPlan>,
@@ -189,9 +205,10 @@ function addToPlan(
   if (!plan) {
     plan = { file: issue.file, fixes: [] };
     plans.set(issue.file, plan);
-    plan.fixes.push({ issue, operation, difficulty });
   }
-  // Skip additional fixes for this file - user needs to run fix again
+
+  // Add all fixes - conflict detection is handled by conflict-detector.ts
+  plan.fixes.push({ issue, operation, difficulty });
 }
 
 /**

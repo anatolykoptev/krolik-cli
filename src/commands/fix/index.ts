@@ -23,9 +23,9 @@
 import chalk from 'chalk';
 import { fileCache, formatCacheStats } from '@/lib';
 import type { CommandContext } from '../../types';
-import { applyFix } from './applier';
 import { formatPlan, formatPlanForAI, formatResults } from './formatters';
 import { createBackupBranch, isGitRepo } from './git-backup';
+import { applyFixesParallel } from './parallel-executor';
 import { type FixPlan, generateFixPlan, generateFixPlanFromIssues, type SkipStats } from './plan';
 import {
   type BiomeResult,
@@ -240,6 +240,10 @@ function formatTsResults(result: TsCheckResult, format: 'json' | 'xml' | 'text' 
 
 /**
  * Apply fixes to files
+ *
+ * Uses parallel execution across independent files for better performance.
+ * Fixes within a single file are still applied sequentially (bottom-to-top)
+ * to preserve correct line number ordering.
  */
 async function applyFixes(
   plans: FixPlan[],
@@ -255,22 +259,9 @@ async function applyFixes(
   // Create git backup
   const backup = await createGitBackup(projectRoot, logger);
 
-  // Apply fixes
-  logger.info('Applying fixes...');
-  const results: FixResult[] = [];
-
-  for (const plan of plans) {
-    for (const { issue, operation } of plan.fixes) {
-      const result = applyFix(operation, issue, { backup: options.backup ?? false });
-      results.push(result);
-
-      if (result.success) {
-        logger.debug(`Fixed: ${issue.file}:${issue.line}`);
-      } else {
-        logger.error(`Failed: ${issue.file}:${issue.line} - ${result.error}`);
-      }
-    }
-  }
+  // Apply fixes in parallel across files
+  logger.info('Applying fixes (parallel execution)...');
+  const results = await applyFixesParallel(plans, options, logger);
 
   // Show results
   console.log(formatResults(results));
