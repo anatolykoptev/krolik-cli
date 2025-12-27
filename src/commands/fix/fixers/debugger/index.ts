@@ -9,6 +9,13 @@
 import { createFixerMetadata } from '../../core/registry';
 import { isInsideComment, isInsideString } from '../../core/string-utils';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
+import {
+  createDeleteLine,
+  createReplaceLine,
+  getLineContext,
+  isComment,
+  splitLines,
+} from '../../core/utils';
 
 /**
  * Debugger fixer metadata
@@ -42,14 +49,14 @@ const DEBUGGER_KEYWORD = /(?<![.\w])debugger(?!\s*[:\w])/g;
  */
 function analyzeDebugger(content: string, file: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split('\n');
+  const lines = splitLines(content);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
     const trimmed = line.trim();
 
     // Skip full-line comments
-    if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+    if (isComment(line)) continue;
 
     // Find standalone debugger keyword using word boundary
     DEBUGGER_KEYWORD.lastIndex = 0;
@@ -83,29 +90,17 @@ function analyzeDebugger(content: string, file: string): QualityIssue[] {
 function fixDebuggerIssue(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
-  const lines = content.split('\n');
-  const line = lines[issue.line - 1];
-  if (!line) return null;
+  const ctx = getLineContext(content, issue.line);
+  if (!ctx) return null;
 
   // If line is just "debugger;" or "debugger", delete it
-  if (DEBUGGER_PATTERN.test(line)) {
-    return {
-      action: 'delete-line',
-      file: issue.file,
-      line: issue.line,
-      oldCode: line,
-    };
+  if (DEBUGGER_PATTERN.test(ctx.line)) {
+    return createDeleteLine(issue.file, issue.line, ctx.line);
   }
 
   // If debugger is part of larger line, remove just the debugger
-  const newLine = line.replace(INLINE_DEBUGGER, '');
-  return {
-    action: 'replace-line',
-    file: issue.file,
-    line: issue.line,
-    oldCode: line,
-    newCode: newLine,
-  };
+  const newLine = ctx.line.replace(INLINE_DEBUGGER, '');
+  return createReplaceLine(issue.file, issue.line, ctx.line, newLine);
 }
 
 /**

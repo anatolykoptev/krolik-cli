@@ -166,16 +166,21 @@ function formatSkipStats(skipStats: SkipStats, totalIssues: number): string[] {
 
   lines.push(chalk.dim(`Analyzed ${totalIssues} issues:`));
 
-  if (skipStats.noStrategy > 0) {
+  // noFixer: issues without fixerId (should be 0 after Phase 1 migration)
+  if (skipStats.noFixer > 0) {
     lines.push(
-      chalk.dim(`  • ${skipStats.noStrategy} have no fix strategy (size, hardcoded, etc)`),
+      chalk.yellow(`  • ${skipStats.noFixer} have no fixer assigned (incomplete migration)`),
     );
   }
   if (skipStats.noFix > 0) {
     lines.push(chalk.dim(`  • ${skipStats.noFix} could not generate fix (complex patterns)`));
   }
+  // Legacy fields - kept for backward compatibility
+  if (skipStats.noStrategy > 0) {
+    lines.push(chalk.dim(`  • ${skipStats.noStrategy} have no fix strategy (legacy)`));
+  }
   if (skipStats.contextSkipped > 0) {
-    lines.push(chalk.dim(`  • ${skipStats.contextSkipped} skipped by context (CLI output, tests)`));
+    lines.push(chalk.dim(`  • ${skipStats.contextSkipped} skipped by context (legacy)`));
   }
 
   // Show by category

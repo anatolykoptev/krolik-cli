@@ -8,6 +8,7 @@
 import { createFixerMetadata } from '../../core/registry';
 import { isInsideComment, isInsideString } from '../../core/string-utils';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
+import { splitLines } from '../../core/utils';
 
 export const metadata = createFixerMetadata('any-type', 'Any Type Usage', 'type-safety', {
   description: 'Replace `any` with `unknown`',
@@ -26,7 +27,7 @@ const ANY_PATTERNS = [
 
 function analyzeAnyType(content: string, file: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
-  const lines = content.split('\n');
+  const lines = splitLines(content);
 
   // Skip .d.ts and test files
   if (file.endsWith('.d.ts') || file.includes('.test.') || file.includes('.spec.')) {
@@ -44,7 +45,7 @@ function analyzeAnyType(content: string, file: string): QualityIssue[] {
 
     for (const pattern of ANY_PATTERNS) {
       pattern.lastIndex = 0;
-      let match;
+      let match: RegExpExecArray | null;
       // biome-ignore lint/suspicious/noAssignInExpressions: Standard regex exec loop
       while ((match = pattern.exec(codeOnly)) !== null) {
         // Skip if inside string or comment

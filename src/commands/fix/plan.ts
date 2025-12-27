@@ -5,7 +5,6 @@
 
 import { analyzeQuality } from './analyze';
 import { registry } from './fixers';
-import { findStrategyDetailed } from './strategies';
 import type { FixOperation, FixOptions, QualityIssue } from './types';
 import { getFixDifficulty, isFixerEnabled } from './types';
 
@@ -25,10 +24,14 @@ export interface FixPlan {
 }
 
 export interface SkipStats {
+  /** @deprecated Legacy field - no longer incremented after Phase 3 refactoring */
   noStrategy: number;
   noContent: number;
+  /** @deprecated Legacy field - no longer incremented after Phase 3 refactoring */
   contextSkipped: number;
   noFix: number;
+  /** Count of issues with missing fixerId (should be 0 after Phase 1) */
+  noFixer: number;
   categories: Map<string, number>;
 }
 
@@ -103,10 +106,11 @@ async function generatePlansFromIssues(
 ): Promise<{ plans: FixPlan[]; skipStats: SkipStats }> {
   const plans = new Map<string, FixPlan>();
   const skipStats: SkipStats = {
-    noStrategy: 0,
+    noStrategy: 0, // @deprecated - kept for backward compatibility
     noContent: 0,
-    contextSkipped: 0,
+    contextSkipped: 0, // @deprecated - kept for backward compatibility
     noFix: 0,
+    noFixer: 0,
     categories: new Map(),
   };
 
@@ -136,32 +140,32 @@ async function generatePlansFromIssues(
       continue;
     }
 
-    // Try to use fixer from registry first (new architecture)
+    // Get fixer from registry (Phase 3: fixer-only architecture)
     let operation: FixOperation | null = null;
 
-    if (issue.fixerId) {
-      const fixer = registry.get(issue.fixerId);
-      if (fixer) {
-        operation = await fixer.fix(issue, content);
+    if (!issue.fixerId) {
+      // After Phase 1, all issues should have fixerId
+      // Log warning if missing - indicates incomplete migration
+      skipStats.noFixer++;
+      if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
+        console.warn(
+          `[krolik] Issue missing fixerId: ${issue.category}/${issue.message} at ${issue.file}:${issue.line}`,
+        );
       }
+      continue;
     }
 
-    // Fall back to legacy strategies if fixer not available
-    if (!operation) {
-      const strategyResult = findStrategyDetailed(issue, content);
-
-      if (strategyResult.status === 'no-strategy') {
-        skipStats.noStrategy++;
-        continue;
+    const fixer = registry.get(issue.fixerId);
+    if (!fixer) {
+      // Fixer not found in registry - should not happen
+      skipStats.noFix++;
+      if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
+        console.warn(`[krolik] Fixer not found: ${issue.fixerId}`);
       }
-
-      if (strategyResult.status === 'context-skipped') {
-        skipStats.contextSkipped++;
-        continue;
-      }
-
-      operation = await strategyResult.strategy.generateFix(issue, content);
+      continue;
     }
+
+    operation = await fixer.fix(issue, content);
 
     if (!operation) {
       skipStats.noFix++;

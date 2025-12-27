@@ -5,6 +5,11 @@
  * Provides:
  * - analyzeQuality() - main analysis function
  * - QualityReportWithContents - extended report with file contents
+ *
+ * Architecture:
+ * - Uses unified-swc.ts for single-pass AST analysis (lint, type-safety, security, etc.)
+ * - Issues from unified analyzer have fixerId set, enabling direct fixer lookup
+ * - No longer runs separate fixer analysis (eliminated double analysis)
  */
 
 import * as fs from 'node:fs';
@@ -15,8 +20,6 @@ import { getIgnorePatterns } from '@/lib/constants';
 import { analyzeFile } from './analyzers';
 import { validatePathWithinProject } from './core/path-utils';
 
-// New fixer architecture
-import { type FixerRunnerOptions, runFixerAnalysis } from './core/runner';
 import { checkRecommendations, type RecommendationResult } from './recommendations';
 import type {
   FileAnalysis,
@@ -94,33 +97,20 @@ export async function analyzeQuality(
   const allIssues: QualityIssue[] = [];
   const fileContents = new Map<string, string>();
 
-  // Prepare fixer runner options from quality options
-  const fixerOptions: FixerRunnerOptions = {
-    cliOptions: options as Record<string, unknown>,
-    includeRisky: options.includeRisky ?? false,
-  };
+  // Note: Fixer analysis is no longer needed here.
+  // The unified-swc analyzer now sets fixerId on all issues it detects,
+  // eliminating the need for a separate fixer analysis pass.
+  // This provides ~2x speedup by avoiding duplicate AST traversals.
 
   for (const file of files) {
     try {
       // Read content once (using cache to avoid repeated reads)
       const content = fileCache.get(file);
 
-      // Run legacy analyzers
+      // Run unified analyzer (includes lint, type-safety, security, modernization, hardcoded)
+      // All issues from unified-swc now have fixerId set for direct fixer lookup
       const analysis = analyzeFile(file, projectRoot, options);
       analyses.push(analysis);
-
-      // Run new fixer-based analysis
-      const fixerResult = runFixerAnalysis(content, file, fixerOptions);
-
-      // Merge issues (deduplicate by same file:line:message)
-      const existingKeys = new Set(analysis.issues.map((i) => `${i.file}:${i.line}:${i.message}`));
-
-      for (const issue of fixerResult.issues) {
-        const key = `${issue.file}:${issue.line}:${issue.message}`;
-        if (!existingKeys.has(key)) {
-          analysis.issues.push(issue);
-        }
-      }
 
       allIssues.push(...analysis.issues);
 

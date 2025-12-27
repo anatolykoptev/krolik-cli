@@ -4,30 +4,13 @@
  */
 
 import type { FixOperation, QualityIssue } from '../../core/types';
-
-/**
- * Get line at specific line number (1-indexed)
- */
-function getLine(content: string, lineNum: number): string | null {
-  const lines = content.split('\n');
-  return lines[lineNum - 1] ?? null;
-}
-
-/**
- * Check if line starts with any of the prefixes
- */
-function startsWithAny(line: string, prefixes: string[]): boolean {
-  const trimmed = line.trim();
-  return prefixes.some((p) => trimmed.startsWith(p));
-}
-
-/**
- * Check if line ends with any of the suffixes
- */
-function endsWithAny(line: string, suffixes: string[]): boolean {
-  const trimmed = line.trim();
-  return suffixes.some((s) => trimmed.endsWith(s));
-}
+import {
+  createDeleteLine,
+  createReplaceLine,
+  getLineContext,
+  lineEndsWith,
+  lineStartsWith,
+} from '../../core/utils';
 
 /**
  * Fix console issue
@@ -35,44 +18,26 @@ function endsWithAny(line: string, suffixes: string[]): boolean {
 export function fixConsoleIssue(issue: QualityIssue, content: string): FixOperation | null {
   if (!issue.line || !issue.file) return null;
 
-  const line = getLine(content, issue.line);
-  if (!line) return null;
-
-  const trimmed = line.trim();
+  const ctx = getLineContext(content, issue.line);
+  if (!ctx) return null;
 
   // If line is standalone console statement, delete it
-  if (startsWithAny(line, ['console.'])) {
-    if (endsWithAny(line, [';', ')'])) {
-      return {
-        action: 'delete-line',
-        file: issue.file,
-        line: issue.line,
-        oldCode: line,
-      };
+  if (lineStartsWith(ctx.line, ['console.'])) {
+    if (lineEndsWith(ctx.line, [';', ')'])) {
+      return createDeleteLine(issue.file, issue.line, ctx.line);
     }
   }
 
   // If console is part of larger expression, comment it out
   const consolePattern = /console\.\w+\([^)]*\);?/g;
-  if (consolePattern.test(line)) {
-    const newLine = line.replace(consolePattern, '/* console removed */');
-    return {
-      action: 'replace-line',
-      file: issue.file,
-      line: issue.line,
-      oldCode: line,
-      newCode: newLine,
-    };
+  if (consolePattern.test(ctx.line)) {
+    const newLine = ctx.line.replace(consolePattern, '/* console removed */');
+    return createReplaceLine(issue.file, issue.line, ctx.line, newLine);
   }
 
   // Multi-line console - just delete the starting line for now
-  if (trimmed.startsWith('console.') && !trimmed.includes(')')) {
-    return {
-      action: 'delete-line',
-      file: issue.file,
-      line: issue.line,
-      oldCode: line,
-    };
+  if (ctx.trimmed.startsWith('console.') && !ctx.trimmed.includes(')')) {
+    return createDeleteLine(issue.file, issue.line, ctx.line);
   }
 
   return null;

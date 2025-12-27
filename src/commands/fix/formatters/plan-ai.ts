@@ -58,10 +58,14 @@ function formatSummary(plans: FixPlan[], skipStats: SkipStats, totalIssues: numb
   lines.push(`    <total_issues>${totalIssues}</total_issues>`);
   lines.push(`    <fixable_files>${plans.length}</fixable_files>`);
   lines.push('    <skipped>');
-  lines.push(`      <no_strategy>${skipStats.noStrategy}</no_strategy>`);
+  lines.push(`      <no_fixer>${skipStats.noFixer}</no_fixer>`);
   lines.push(`      <no_content>${skipStats.noContent}</no_content>`);
-  lines.push(`      <context_skipped>${skipStats.contextSkipped}</context_skipped>`);
   lines.push(`      <no_fix_generated>${skipStats.noFix}</no_fix_generated>`);
+  // Legacy fields - kept for backward compatibility, should be 0
+  lines.push(`      <no_strategy deprecated="true">${skipStats.noStrategy}</no_strategy>`);
+  lines.push(
+    `      <context_skipped deprecated="true">${skipStats.contextSkipped}</context_skipped>`,
+  );
   lines.push('    </skipped>');
 
   if (skipStats.categories.size > 0) {

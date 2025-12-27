@@ -418,8 +418,52 @@ function visitNodeUnified(
 // Note: isInConstDeclaration, isArrayIndex, and detectHardcodedValue are now imported from lib/@swc/detectors
 
 // ============================================================================
+// FIXER ID MAPPING
+// ============================================================================
+
+/**
+ * Lookup table mapping detection types to registered fixer IDs.
+ * Uses O(1) Map lookup instead of repeated string matching.
+ *
+ * Keys correspond to detection.type values from detectors.
+ * Values are the metadata.id from registered fixers.
+ */
+const LINT_FIXER_IDS: ReadonlyMap<string, string> = new Map([
+  ['console', 'console'],
+  ['debugger', 'debugger'],
+  ['alert', 'alert'],
+  ['eval', 'eval'],
+  ['empty-catch', 'empty-catch'],
+]);
+
+const TYPE_SAFETY_FIXER_IDS: ReadonlyMap<string, string> = new Map([
+  ['any-annotation', 'any-type'],
+  ['any-assertion', 'any-type'],
+  ['any-param', 'any-type'],
+  ['any-array', 'any-type'],
+  ['non-null', 'non-null-assertion'],
+  ['double-assertion', 'double-assertion'],
+]);
+
+const SECURITY_FIXER_IDS: ReadonlyMap<string, string> = new Map([
+  ['command-injection', 'command-injection'],
+  ['path-traversal', 'path-traversal'],
+]);
+
+const MODERNIZATION_FIXER_IDS: ReadonlyMap<string, string> = new Map([['require', 'require']]);
+
+// ============================================================================
 // ISSUE CREATION
 // ============================================================================
+
+/**
+ * Get fixer ID from lookup table with type-safe fallback.
+ * Since we control both the detection types and lookup tables,
+ * missing entries indicate a code maintenance issue.
+ */
+function getFixerId(map: ReadonlyMap<string, string>, key: string): string | undefined {
+  return map.get(key);
+}
 
 /**
  * Create quality issue from lint detection
@@ -435,6 +479,7 @@ function createLintIssue(
   const adjustedOffset = detection.offset - baseOffset;
   const lineNumber = offsetToLine(adjustedOffset, lineOffsets);
   const snippet = getSnippet(content, adjustedOffset, lineOffsets);
+  const fixerId = getFixerId(LINT_FIXER_IDS, detection.type);
 
   switch (detection.type) {
     case 'console':
@@ -446,7 +491,7 @@ function createLintIssue(
         message: `Unexpected console statement: console.${detection.method ?? 'log'}`,
         suggestion: 'Remove console statement or use a proper logging library',
         snippet,
-        fixerId: 'no-console',
+        ...(fixerId && { fixerId }),
       };
 
     case 'debugger':
@@ -458,7 +503,7 @@ function createLintIssue(
         message: 'Unexpected debugger statement',
         suggestion: 'Remove debugger statement before committing',
         snippet,
-        fixerId: 'no-debugger',
+        ...(fixerId && { fixerId }),
       };
 
     case 'alert':
@@ -470,7 +515,7 @@ function createLintIssue(
         message: `Unexpected native dialog: ${detection.method ?? 'alert'}()`,
         suggestion: 'Use a modal component instead of native browser dialogs',
         snippet,
-        fixerId: 'no-alert',
+        ...(fixerId && { fixerId }),
       };
 
     case 'eval':
@@ -483,7 +528,7 @@ function createLintIssue(
         suggestion:
           'Avoid eval() - use safer alternatives like JSON.parse() or Function constructor',
         snippet,
-        fixerId: 'no-eval',
+        ...(fixerId && { fixerId }),
       };
 
     case 'empty-catch':
@@ -495,7 +540,7 @@ function createLintIssue(
         message: 'Empty catch block',
         suggestion: 'Add error handling logic or at minimum log the error',
         snippet,
-        fixerId: 'no-empty-catch',
+        ...(fixerId && { fixerId }),
       };
 
     default:
@@ -516,6 +561,7 @@ function createTypeSafetyIssue(
   const adjustedOffset = detection.offset - baseOffset;
   const lineNumber = offsetToLine(adjustedOffset, lineOffsets);
   const snippet = getSnippet(content, adjustedOffset, lineOffsets);
+  const fixerId = TYPE_SAFETY_FIXER_IDS.get(detection.type);
 
   switch (detection.type) {
     case 'any-annotation':
@@ -527,7 +573,7 @@ function createTypeSafetyIssue(
         message: 'Using `any` type',
         suggestion: 'Use proper TypeScript types, `unknown`, or generics',
         snippet,
-        fixerId: 'no-any',
+        ...(fixerId && { fixerId }),
       };
 
     case 'any-assertion':
@@ -539,7 +585,7 @@ function createTypeSafetyIssue(
         message: 'Type assertion to `any`',
         suggestion: 'Use proper type assertion or fix the underlying type issue',
         snippet,
-        fixerId: 'no-any',
+        ...(fixerId && { fixerId }),
       };
 
     case 'non-null':
@@ -551,7 +597,7 @@ function createTypeSafetyIssue(
         message: 'Non-null assertion operator (!)',
         suggestion: 'Use optional chaining (?.) or proper null checks',
         snippet,
-        fixerId: 'no-non-null-assertion',
+        ...(fixerId && { fixerId }),
       };
 
     case 'any-param':
@@ -563,7 +609,7 @@ function createTypeSafetyIssue(
         message: 'Using `any` in parameter type',
         suggestion: 'Use proper TypeScript parameter type or `unknown`',
         snippet,
-        fixerId: 'no-any',
+        ...(fixerId && { fixerId }),
       };
 
     case 'any-array':
@@ -575,7 +621,7 @@ function createTypeSafetyIssue(
         message: 'Using `any[]` array type',
         suggestion: 'Use proper array element type',
         snippet,
-        fixerId: 'no-any',
+        ...(fixerId && { fixerId }),
       };
 
     case 'double-assertion':
@@ -587,7 +633,7 @@ function createTypeSafetyIssue(
         message: 'Double type assertion (as unknown as)',
         suggestion: 'Consider using proper type guards or fixing the underlying type issue',
         snippet,
-        fixerId: 'no-double-assertion',
+        ...(fixerId && { fixerId }),
       };
 
     default:
@@ -608,6 +654,7 @@ function createSecurityIssue(
   const adjustedOffset = detection.offset - baseOffset;
   const lineNumber = offsetToLine(adjustedOffset, lineOffsets);
   const snippet = getSnippet(content, adjustedOffset, lineOffsets);
+  const fixerId = SECURITY_FIXER_IDS.get(detection.type);
 
   switch (detection.type) {
     case 'command-injection':
@@ -619,7 +666,7 @@ function createSecurityIssue(
         message: `Command injection risk: ${detection.method ?? 'execSync'}() with template literal`,
         suggestion: 'Validate and sanitize user input, or use execFile with array arguments',
         snippet,
-        fixerId: 'no-command-injection',
+        ...(fixerId && { fixerId }),
       };
 
     case 'path-traversal':
@@ -632,7 +679,7 @@ function createSecurityIssue(
         suggestion:
           'Validate path components before joining, or use path.normalize() and check boundaries',
         snippet,
-        fixerId: 'no-path-traversal',
+        ...(fixerId && { fixerId }),
       };
 
     default:
@@ -653,6 +700,7 @@ function createModernizationIssue(
   const adjustedOffset = detection.offset - baseOffset;
   const lineNumber = offsetToLine(adjustedOffset, lineOffsets);
   const snippet = getSnippet(content, adjustedOffset, lineOffsets);
+  const fixerId = MODERNIZATION_FIXER_IDS.get(detection.type);
 
   switch (detection.type) {
     case 'require':
@@ -664,7 +712,7 @@ function createModernizationIssue(
         message: `Legacy ${detection.method ?? 'require'}() call`,
         suggestion: 'Use ES6 import instead: import x from "module"',
         snippet,
-        fixerId: 'no-require',
+        ...(fixerId && { fixerId }),
       };
 
     default:
@@ -692,6 +740,9 @@ function createHardcodedValue(
     context,
   };
 }
+
+/** Fixer ID for TS directive issues - matches ts-ignore fixer metadata.id */
+const TS_IGNORE_FIXER_ID = 'ts-ignore';
 
 /**
  * Check for @ts-expect-error and @ts-nocheck in comments
@@ -726,7 +777,7 @@ function checkTsDirectives(content: string, filepath: string): QualityIssue[] {
           message: '@ts-ignore suppresses TypeScript errors',
           suggestion: 'Fix the type error instead of ignoring it',
           snippet: trimmed.slice(0, 80),
-          fixerId: 'no-ts-ignore',
+          fixerId: TS_IGNORE_FIXER_ID,
         });
       }
     }
@@ -741,7 +792,7 @@ function checkTsDirectives(content: string, filepath: string): QualityIssue[] {
         message: '@ts-nocheck disables TypeScript checking for entire file',
         suggestion: 'Remove @ts-nocheck and fix type errors',
         snippet: trimmed.slice(0, 80),
-        fixerId: 'no-ts-ignore',
+        fixerId: TS_IGNORE_FIXER_ID,
       });
     }
 
@@ -755,7 +806,7 @@ function checkTsDirectives(content: string, filepath: string): QualityIssue[] {
         message: '@ts-expect-error without explanation',
         suggestion: 'Add a comment explaining why this is expected',
         snippet: trimmed.slice(0, 80),
-        fixerId: 'no-ts-ignore',
+        fixerId: TS_IGNORE_FIXER_ID,
       });
     }
   }

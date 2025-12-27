@@ -2,6 +2,17 @@
  * @module commands/fix/strategies
  * @description All fix strategies
  *
+ * @deprecated Use fixers from './fixers' instead. Will be removed in v1.0
+ *
+ * This module is part of the legacy fix architecture. After the Phase 3 refactoring
+ * (see docs/implementation/FIX-REFACTORING-PLAN.md), all fixing logic has been
+ * consolidated into the fixer-based architecture in './fixers'.
+ *
+ * Migration guide:
+ * - Instead of `findStrategy(issue, content)`, use `registry.get(issue.fixerId)`
+ * - Instead of `strategy.generateFix()`, use `fixer.fix()`
+ * - Strategies are no longer called from plan.ts
+ *
  * Each strategy is organized in its own module:
  * - lint/        - console, debugger, alert fixes
  * - type-safety/ - @ts-expect-error, @ts-nocheck, explicit any
@@ -19,6 +30,7 @@ import { typeSafetyStrategy } from './type-safety';
 
 /**
  * All available fix strategies
+ * @deprecated Use fixers from './fixers' instead. Will be removed in v1.0
  */
 export const ALL_STRATEGIES: FixStrategy[] = [
   lintStrategy,
@@ -38,6 +50,7 @@ export type FindStrategyResult =
 
 /**
  * Find strategy that can handle an issue
+ * @deprecated Use `registry.get(issue.fixerId)` from './fixers' instead. Will be removed in v1.0
  */
 export function findStrategy(issue: QualityIssue, content: string): FixStrategy | null {
   for (const strategy of ALL_STRATEGIES) {
@@ -50,6 +63,7 @@ export function findStrategy(issue: QualityIssue, content: string): FixStrategy 
 
 /**
  * Find strategy with detailed result
+ * @deprecated Use `registry.get(issue.fixerId)` from './fixers' instead. Will be removed in v1.0
  */
 export function findStrategyDetailed(issue: QualityIssue, content: string): FindStrategyResult {
   // First check if any strategy handles this category
