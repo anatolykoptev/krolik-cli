@@ -7,6 +7,9 @@
  * - Registry: FixerRegistry, registry instance
  * - Options: FixOptions, QualityOptions
  * - Difficulty: getFixDifficulty, isTrivialFix
+ * - Line utilities: splitLines, getLineContext, etc.
+ * - Operations: createDeleteLine, createReplaceLine, etc.
+ * - Pattern utilities: extractNumber, matchesAny, etc.
  */
 
 // File cache (re-exported from unified lib/@cache)
@@ -47,6 +50,30 @@ export {
   isTrivialFix,
   sortByDifficulty,
 } from './difficulty';
+// Line utilities
+export {
+  countLines,
+  getLineContext,
+  getLines,
+  isComment,
+  isEmptyLine,
+  joinLines,
+  type LineContext,
+  lineContains,
+  lineEndsWith,
+  lineStartsWith,
+  splitLines,
+} from './line-utils';
+// Fix operations
+export {
+  createDeleteLine,
+  createFullFileReplace,
+  createReplaceLine,
+  createReplaceRange,
+  createSplitFile,
+  isNoOp,
+  withMetadata,
+} from './operations';
 // Options
 export {
   DEFAULT_THRESHOLDS,
@@ -62,6 +89,19 @@ export {
   type PathValidationResult,
   validatePathWithinProject,
 } from './path-utils';
+// Pattern utilities
+export {
+  containsKeyword,
+  extractNumber,
+  extractString,
+  findMatchingPattern,
+  inRange,
+  matchesAll,
+  matchesAny,
+  matchNumberInRange,
+  type NumberRange,
+  type PatternMatch,
+} from './pattern-utils';
 // Registry
 export {
   type CLIOption,

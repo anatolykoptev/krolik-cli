@@ -1,11 +1,6 @@
 /**
- * @module commands/fix/strategies/shared/line-utils
+ * @module commands/fix/core/line-utils
  * @description Line manipulation utilities for fix strategies
- *
- * @deprecated This module has been moved to core/line-utils.ts
- * Please import from '../core/line-utils' or '../core/utils' instead.
- *
- * This file is kept for backward compatibility but will be removed in a future version.
  */
 
 // ============================================================================

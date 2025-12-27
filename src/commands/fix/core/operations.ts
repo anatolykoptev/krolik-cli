@@ -1,15 +1,10 @@
 /**
- * @module commands/fix/strategies/shared/operations
+ * @module commands/fix/core/operations
  * @description Factory functions for creating fix operations
- *
- * @deprecated This module has been moved to core/operations.ts
- * Please import from '../core/operations' or '../core/utils' instead.
- *
- * This file is kept for backward compatibility but will be removed in a future version.
  */
 
-import type { FixOperation } from '../../types';
 import { countLines } from './line-utils';
+import type { FixOperation } from './types';
 
 // ============================================================================
 // LINE OPERATIONS

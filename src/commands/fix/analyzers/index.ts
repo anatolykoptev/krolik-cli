@@ -7,15 +7,23 @@ import * as path from 'node:path';
 import { fileCache } from '@/lib';
 import type { FileAnalysis, QualityOptions } from '../types';
 
-const ERROR_CODE = 30;
+// Internal imports (only what's used in this file)
+import { extractFunctionsSwc } from './complexity-swc';
+import { checkMixedConcerns } from './concerns';
+import { detectFileType } from './detectors';
+import { checkDocumentation } from './documentation';
+import { checkReturnTypesSwc } from './return-types-swc';
+import { checkSRP } from './srp';
+import { buildThresholds, getThresholdsForPath } from './thresholds';
+import { analyzeFileUnified } from './unified-swc';
 
+// Re-export all analyzer functions
 export {
   analyzeSplitPointsSwc as analyzeSplitPoints,
   calculateComplexitySwc as calculateComplexity,
   extractFunctionsSwc as extractFunctions,
 } from './complexity-swc';
 export { checkMixedConcerns } from './concerns';
-// Re-export all analyzer functions
 export { detectFileType } from './detectors';
 export { checkDocumentation } from './documentation';
 export { detectHardcodedValues } from './hardcoded';
@@ -31,29 +39,7 @@ export {
   detectHardcodedSwc,
 } from './unified-swc';
 
-import { extractFunctionsSwc as extractFunctions } from './complexity-swc';
-import { checkMixedConcerns } from './concerns';
-// Import for internal use
-import { detectFileType } from './detectors';
-import { checkDocumentation } from './documentation';
-import { detectHardcodedValues } from './hardcoded';
-import { checkLintRules_all } from './lint-rules';
-import { checkReturnTypesSwc } from './return-types-swc';
-import { checkSRP } from './srp';
-import { buildThresholds, getThresholdsForPath } from './thresholds';
-import { checkTypeSafety } from './type-safety';
-import {
-  analyzeFileUnified,
-  checkLintRulesSwc,
-  checkTypeSafetySwc,
-  detectHardcodedSwc,
-} from './unified-swc';
-
-/** Use SWC AST-based analyzers (more accurate, no false positives) */
-const USE_SWC_ANALYZERS = true;
-
-/** Use unified SWC analyzer (5x faster - single parse/visit pass) */
-const USE_UNIFIED_ANALYZER = true;
+const ERROR_CODE = 30;
 
 /**
  * Analyze a single file for quality issues
@@ -84,7 +70,7 @@ export function analyzeFile(
   const fileType = detectFileType(filepath, content);
 
   // Extract functions
-  const functions = extractFunctions(content);
+  const functions = extractFunctionsSwc(content);
 
   // Initialize analysis
   const analysis: FileAnalysis = {
@@ -114,81 +100,30 @@ export function analyzeFile(
 
   // ⭐ UNIFIED SWC ANALYZER - Single parse/visit pass for lint, type-safety, security, modernization, and hardcoded detection
   // 5x faster than running separate analyzers (single parseSync + visitNode pass)
-  if (USE_SWC_ANALYZERS && USE_UNIFIED_ANALYZER) {
-    const { lintIssues, typeSafetyIssues, securityIssues, modernizationIssues, hardcodedValues } =
-      analyzeFileUnified(content, relativePath);
+  const { lintIssues, typeSafetyIssues, securityIssues, modernizationIssues, hardcodedValues } =
+    analyzeFileUnified(content, relativePath);
 
-    // Add all issues directly
-    analysis.issues.push(...lintIssues);
-    analysis.issues.push(...typeSafetyIssues);
-    analysis.issues.push(...securityIssues);
-    analysis.issues.push(...modernizationIssues);
+  // Add all issues directly
+  analysis.issues.push(...lintIssues);
+  analysis.issues.push(...typeSafetyIssues);
+  analysis.issues.push(...securityIssues);
+  analysis.issues.push(...modernizationIssues);
 
-    // Convert hardcoded values to quality issues
-    for (const hv of hardcodedValues) {
-      analysis.issues.push({
-        file: relativePath,
-        line: hv.line,
-        severity: hv.type === 'string' ? 'warning' : 'info',
-        category: 'hardcoded',
-        message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
-        suggestion: getSuggestionForHardcoded(hv.type),
-        snippet: hv.context,
-      });
-    }
-
-    // Return types analyzer (separate from unified for modularity)
-    analysis.issues.push(...checkReturnTypesSwc(content, relativePath));
+  // Convert hardcoded values to quality issues
+  for (const hv of hardcodedValues) {
+    analysis.issues.push({
+      file: relativePath,
+      line: hv.line,
+      severity: hv.type === 'string' ? 'warning' : 'info',
+      category: 'hardcoded',
+      message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
+      suggestion: getSuggestionForHardcoded(hv.type),
+      snippet: hv.context,
+    });
   }
-  // Legacy: Run analyzers separately (kept for backward compatibility)
-  else {
-    // Type safety: use SWC AST-based analyzer for better accuracy
-    if (USE_SWC_ANALYZERS) {
-      analysis.issues.push(...checkTypeSafetySwc(content, relativePath));
-    } else {
-      analysis.issues.push(...checkTypeSafety(content, relativePath));
-    }
 
-    // Lint rules: use SWC AST-based analyzer (no false positives in strings/comments)
-    if (USE_SWC_ANALYZERS) {
-      analysis.issues.push(...checkLintRulesSwc(content, relativePath));
-    } else {
-      analysis.issues.push(
-        ...checkLintRules_all(content, relativePath, {
-          ignoreCliConsole: options.ignoreCliConsole ?? false,
-        }),
-      );
-    }
-
-    // Hardcoded values: use SWC AST-based analyzer for context-aware detection
-    if (USE_SWC_ANALYZERS) {
-      const hardcoded = detectHardcodedSwc(content, filepath);
-      for (const hv of hardcoded) {
-        analysis.issues.push({
-          file: relativePath,
-          line: hv.line,
-          severity: hv.type === 'string' ? 'warning' : 'info',
-          category: 'hardcoded',
-          message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
-          suggestion: getSuggestionForHardcoded(hv.type),
-          snippet: hv.context,
-        });
-      }
-    } else {
-      const hardcoded = detectHardcodedValues(content, filepath);
-      for (const hv of hardcoded) {
-        analysis.issues.push({
-          file: relativePath,
-          line: hv.line,
-          severity: hv.type === 'string' ? 'warning' : 'info',
-          category: 'hardcoded',
-          message: `Hardcoded ${hv.type}: ${String(hv.value).slice(0, ERROR_CODE)}`,
-          suggestion: getSuggestionForHardcoded(hv.type),
-          snippet: hv.context,
-        });
-      }
-    }
-  }
+  // Return types analyzer (separate from unified for modularity)
+  analysis.issues.push(...checkReturnTypesSwc(content, relativePath));
 
   return analysis;
 }

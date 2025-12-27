@@ -1,17 +1,7 @@
-/**
- * @module commands/fix/strategies/shared/pattern-utils
- * @description Pattern matching utilities for fix strategies
- *
- * @deprecated This module has been moved to core/pattern-utils.ts
- * Please import from '../core/pattern-utils' or '../core/utils' instead.
- *
- * This file is kept for backward compatibility but will be removed in a future version.
- */
-
-import type { NumberRange } from '../../../../lib/@patterns/complexity';
+import type { NumberRange } from '../../../lib/@patterns/complexity';
 
 // Re-export for backwards compatibility
-export type { NumberRange } from '../../../../lib/@patterns/complexity';
+export type { NumberRange } from '../../../lib/@patterns/complexity';
 
 export interface PatternMatch<T = string> {
   matched: boolean;

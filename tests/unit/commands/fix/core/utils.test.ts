@@ -14,8 +14,6 @@ import {
   createReplaceLine,
   createReplaceRange,
   createSplitFile,
-  endsWithAny,
-  getLine,
   getLineContext,
   getLines,
   isComment,
@@ -26,7 +24,6 @@ import {
   lineEndsWith,
   lineStartsWith,
   splitLines,
-  startsWithAny,
   withMetadata,
 } from '../../../../../src/commands/fix/core/utils';
 
@@ -320,35 +317,6 @@ describe('core/utils', () => {
       it('returns false for delete-line operations', () => {
         const op = createDeleteLine('/test/file.ts', 5, 'code');
         expect(isNoOp(op)).toBe(false);
-      });
-    });
-  });
-
-  describe('deprecated helper functions', () => {
-    describe('getLine (deprecated)', () => {
-      it('gets line at specific number', () => {
-        const content = 'line1\nline2\nline3';
-        expect(getLine(content, 1)).toBe('line1');
-        expect(getLine(content, 2)).toBe('line2');
-        expect(getLine(content, 3)).toBe('line3');
-      });
-
-      it('returns null for non-existent line', () => {
-        expect(getLine('line1', 5)).toBeNull();
-      });
-    });
-
-    describe('startsWithAny (deprecated)', () => {
-      it('checks if trimmed line starts with any prefix', () => {
-        expect(startsWithAny('  console.log()', ['console.', 'debugger'])).toBe(true);
-        expect(startsWithAny('alert()', ['console.', 'debugger'])).toBe(false);
-      });
-    });
-
-    describe('endsWithAny (deprecated)', () => {
-      it('checks if trimmed line ends with any suffix', () => {
-        expect(endsWithAny('console.log();', [';', ')'])).toBe(true);
-        expect(endsWithAny('const x = {', [';', ')'])).toBe(false);
       });
     });
   });
