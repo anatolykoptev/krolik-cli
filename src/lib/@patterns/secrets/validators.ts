@@ -5,10 +5,13 @@
  * Provides:
  * - Shannon entropy calculation
  * - Placeholder detection
- * - Test file detection
+ * - Test file detection (re-exported from file-context/detectors)
  * - Environment variable reference detection
  * - Secret redaction
  */
+
+// Re-export isTestFile from canonical location
+export { isTestFile } from '../file-context/detectors';
 
 /**
  * Calculate Shannon entropy of a string
@@ -78,32 +81,7 @@ export function isPlaceholder(value: string): boolean {
   return PLACEHOLDER_PATTERNS.some((p) => lower.includes(p));
 }
 
-/** Test file path patterns */
-const TEST_FILE_PATTERNS = [
-  '.test.',
-  '.spec.',
-  '__tests__',
-  '__mocks__',
-  '/test/',
-  '/tests/',
-  '/fixtures/',
-] as const;
-
-const TEST_FILE_SUFFIXES = ['.test.ts', '.spec.ts', '.test.js', '.spec.js'] as const;
-
-/**
- * Check if file is a test file
- *
- * @param filepath - Path to check
- * @returns True if it's likely a test file
- */
-export function isTestFile(filepath: string): boolean {
-  const lower = filepath.toLowerCase();
-  return (
-    TEST_FILE_PATTERNS.some((p) => lower.includes(p)) ||
-    TEST_FILE_SUFFIXES.some((s) => lower.endsWith(s))
-  );
-}
+// Note: isTestFile is re-exported from '../file-context/detectors' at the top of this file
 
 /** Environment variable reference patterns */
 const ENV_REFERENCE_PATTERNS = ['process.env.', '${', '$ENV', 'import.meta.env'] as const;

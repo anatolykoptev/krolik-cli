@@ -13,8 +13,8 @@
  */
 
 import type { Node, Span } from '@swc/core';
+import type { LintDetection } from '@/lib/@swc/detectors/types';
 import { isConsoleMember, isDialogFunction, isEvalFunction } from '../browser-apis';
-import type { LintDetection } from '../detector-types';
 
 // ============================================================================
 // MAIN DETECTOR

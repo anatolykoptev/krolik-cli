@@ -3,6 +3,8 @@
  * @description Detection patterns and rules for hardcoded values
  */
 
+import { shouldSkipForHardcoded } from '../skip-patterns';
+
 /**
  * Detection patterns for hardcoded values
  */
@@ -34,6 +36,7 @@ export const CONST_DECL_PATTERN = /^\s*(?:export\s+)?const\s+[A-Z][A-Z0-9_]*\s*=
 
 /**
  * File patterns to skip for hardcoded detection
+ * @deprecated Use shouldSkipForHardcoded from '../skip-patterns' which combines all patterns
  */
 export const SKIP_FILE_PATTERNS = [
   '.config.',
@@ -48,9 +51,10 @@ export const SKIP_FILE_PATTERNS = [
 
 /**
  * Check if file should be skipped for hardcoded detection
+ * Delegates to centralized skip-patterns for comprehensive skip logic
  */
 export function shouldSkipFile(filepath: string): boolean {
-  return SKIP_FILE_PATTERNS.some((pattern) => filepath.includes(pattern));
+  return shouldSkipForHardcoded(filepath);
 }
 
 /**

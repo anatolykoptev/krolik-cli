@@ -3,16 +3,16 @@
  * @description Type definitions for environment configuration detection
  */
 
-// Re-export from detector-types for convenience
+// Re-export from @swc/detectors/types for convenience
 export type {
   DetectorContext,
   EnvConfigDetection,
   EnvConfigIssueType,
   EnvConfigSeverity,
-} from '../detector-types';
+} from '@/lib/@swc/detectors/types';
 
 // Import for local use in interfaces
-import type { EnvConfigIssueType, EnvConfigSeverity } from '../detector-types';
+import type { EnvConfigIssueType, EnvConfigSeverity } from '@/lib/@swc/detectors/types';
 
 /**
  * Pattern definition for environment configuration detection

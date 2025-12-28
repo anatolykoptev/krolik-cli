@@ -3,7 +3,7 @@
  * @description Type definitions for secret detection
  */
 
-import type { SecretDetectorContext, SecretSeverity, SecretType } from '../detector-types';
+import type { SecretDetectorContext, SecretSeverity, SecretType } from '@/lib/@swc/detectors/types';
 
 // Re-export for convenience
 export type {
@@ -11,7 +11,7 @@ export type {
   SecretDetectorContext,
   SecretSeverity,
   SecretType,
-} from '../detector-types';
+} from '@/lib/@swc/detectors/types';
 
 /**
  * Pattern definition for secret detection

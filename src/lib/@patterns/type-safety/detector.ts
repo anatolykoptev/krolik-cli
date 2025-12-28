@@ -14,7 +14,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import type { TypeSafetyDetection } from '../detector-types';
+import type { TypeSafetyDetection } from '@/lib/@swc/detectors/types';
 
 // ============================================================================
 // HELPER FUNCTIONS

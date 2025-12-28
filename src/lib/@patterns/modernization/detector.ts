@@ -8,7 +8,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import type { ModernizationDetection } from '../detector-types';
+import type { ModernizationDetection } from '@/lib/@swc/detectors/types';
 
 // ============================================================================
 // MAIN DETECTOR

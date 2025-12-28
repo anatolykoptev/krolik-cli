@@ -14,7 +14,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import type { SecurityDetection } from '../detector-types';
+import type { SecurityDetection } from '@/lib/@swc/detectors/types';
 
 // ============================================================================
 // CONSTANTS

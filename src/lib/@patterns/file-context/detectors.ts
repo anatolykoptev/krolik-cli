@@ -41,6 +41,8 @@ export const TEST_FILE_PATTERNS = [
   /\.test\.(ts|tsx|js|jsx)$/,
   /\.spec\.(ts|tsx|js|jsx)$/,
   /[/\\]__tests__[/\\]/,
+  /[/\\]__mocks__[/\\]/,
+  /[/\\]fixtures[/\\]/,
   /[/\\]test[/\\]/,
   /[/\\]tests[/\\]/,
 ] as const;
