@@ -84,6 +84,10 @@ function shouldSkipForRule(filepath: string, rule: LintRule): boolean {
 /**
  * Check if pattern is inside a comment
  * Note: Also checks that // or /* is not inside a string
+ *
+ * NOTE: This is intentionally NOT using @lib/@swc/string-context because
+ * this version also handles regex literals (e.g., `/debugger/`), which the
+ * unified @swc version does not. This is specific to pattern-based lint checks.
  */
 function isInsideComment(line: string, matchIndex: number): boolean {
   const beforeMatch = line.slice(0, matchIndex);
@@ -104,6 +108,10 @@ function isInsideComment(line: string, matchIndex: number): boolean {
 
 /**
  * Check if pattern is inside a string or regex literal
+ *
+ * NOTE: This version includes regex literal detection (e.g., `/pattern/`),
+ * which @lib/@swc/string-context does not support. Keep this local for
+ * pattern-based lint checks that may match keywords inside regex literals.
  */
 function isInsideString(line: string, matchIndex: number): boolean {
   let inString = false;
@@ -184,7 +192,7 @@ function checkLintRules(
       // Reset regex lastIndex
       rule.pattern.lastIndex = 0;
 
-      let match;
+      let match: RegExpExecArray | null;
       while ((match = rule.pattern.exec(line)) !== null) {
         // Skip if inside comment or string
         if (isInsideComment(line, match.index)) continue;

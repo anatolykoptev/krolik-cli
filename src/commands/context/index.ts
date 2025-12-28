@@ -189,6 +189,14 @@ async function buildAiContextData(
   };
 
   // =====================================================
+  // CORE SECTIONS (included in ALL modes)
+  // =====================================================
+  // Git information - essential for knowing what's changed
+  if (isGitRepo(projectRoot)) {
+    aiData.git = buildGitInfo(projectRoot);
+  }
+
+  // =====================================================
   // QUICK SECTIONS (included in quick and full, NOT in deep)
   // =====================================================
   if (!isDeepMode) {
@@ -218,11 +226,6 @@ async function buildAiContextData(
       }
     }
 
-    // Git information
-    if (isGitRepo(projectRoot)) {
-      aiData.git = buildGitInfo(projectRoot);
-    }
-
     // Project tree
     aiData.tree = generateProjectTree(projectRoot);
 
@@ -248,6 +251,16 @@ async function buildAiContextData(
       aiData.githubIssues = issues;
     }
   }
+
+  // =====================================================
+  // MEMORY & DOCS (included in ALL modes - critical for AI)
+  // =====================================================
+  // Memory contains decisions, patterns, bugfixes from previous sessions
+  // Without it, AI loses accumulated knowledge about the project
+  aiData.memories = loadRelevantMemory(projectRoot, result.domains);
+
+  // Library documentation from Context7 (auto-fetch if needed)
+  aiData.libraryDocs = await loadLibraryDocs(projectRoot, result.domains);
 
   // Quick mode: stop here with minimal context
   if (isQuickMode) {
@@ -299,12 +312,6 @@ async function buildAiContextData(
   if (options.withAudit) {
     await addQualityIssues(projectRoot, result.relatedFiles, aiData);
   }
-
-  // Load relevant memories from previous sessions
-  aiData.memories = loadRelevantMemory(projectRoot, result.domains);
-
-  // Load library documentation from Context7 (auto-fetch if needed)
-  aiData.libraryDocs = await loadLibraryDocs(projectRoot, result.domains);
 
   return aiData;
 }

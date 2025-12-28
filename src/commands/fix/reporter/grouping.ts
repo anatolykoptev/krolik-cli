@@ -109,7 +109,17 @@ function determinePriority(issue: QualityIssue): PriorityLevel {
 
   // Adjust based on message content
   const msg = issue.message.toLowerCase();
-  if (msg.includes('security') || msg.includes('injection')) return 'critical';
+
+  // Command injection is critical (remote code execution risk)
+  if (msg.includes('injection')) return 'critical';
+
+  // Path traversal is high, not critical (local CLI, user controls input)
+  // False positives common with hardcoded patterns from arrays/objects
+  if (msg.includes('path traversal')) return 'high';
+
+  // Other security issues are critical
+  if (msg.includes('security')) return 'critical';
+
   if (msg.includes('performance') || msg.includes('memory')) return 'high';
 
   return categoryPriority;

@@ -11,16 +11,18 @@ import type {
   EnhancedMigrationAction,
   EnhancedMigrationPlan,
   EnhancedRefactorAnalysis,
+  FileSizeAnalysis,
   MigrationPlan,
   RefactorAnalysis,
   ReusableModulesInfo,
 } from '../core';
-import { analyzeArchHealth } from './architecture';
-import { detectProjectContext } from './context';
-import { classifyDomains } from './domains';
-import { generateAiNavigation } from './navigation';
-import { generateRecommendations } from './recommendations';
-import { analyzeReusableModules } from './reusable';
+import { analyzeArchHealth } from './architecture/architecture';
+import { classifyDomains } from './architecture/domains';
+import { detectProjectContext } from './context/context';
+import { generateAiNavigation } from './context/navigation';
+import { analyzeFileSizes } from './metrics/file-size';
+import { generateRecommendations } from './metrics/recommendations';
+import { analyzeReusableModules } from './metrics/reusable';
 
 // ============================================================================
 // ENHANCED MIGRATION PLAN
@@ -125,6 +127,8 @@ export function createEnhancedMigrationPlan(
 export interface EnhancedAnalysisOptions {
   /** Include reusable modules analysis (default: true) */
   includeReusable?: boolean;
+  /** Include file size analysis (default: true) */
+  includeFileSize?: boolean;
 }
 
 /**
@@ -136,7 +140,7 @@ export async function createEnhancedAnalysis(
   targetPath: string,
   options: EnhancedAnalysisOptions = {},
 ): Promise<EnhancedRefactorAnalysis> {
-  const { includeReusable = true } = options;
+  const { includeReusable = true, includeFileSize = true } = options;
 
   // Detect project context
   const projectContext = detectProjectContext(projectRoot);
@@ -166,6 +170,16 @@ export async function createEnhancedAnalysis(
     }
   }
 
+  // Analyze file sizes
+  let fileSizeAnalysis: FileSizeAnalysis | undefined;
+  if (includeFileSize) {
+    try {
+      fileSizeAnalysis = analyzeFileSizes(targetPath, projectRoot);
+    } catch {
+      // Silently skip if file size analysis fails
+    }
+  }
+
   const result: EnhancedRefactorAnalysis = {
     ...baseAnalysis,
     projectContext,
@@ -178,6 +192,10 @@ export async function createEnhancedAnalysis(
 
   if (reusableModules) {
     result.reusableModules = reusableModules;
+  }
+
+  if (fileSizeAnalysis && fileSizeAnalysis.issues.length > 0) {
+    result.fileSizeAnalysis = fileSizeAnalysis;
   }
 
   return result;

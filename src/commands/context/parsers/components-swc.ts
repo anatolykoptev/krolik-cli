@@ -15,13 +15,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CallExpression, Identifier, JSXAttrValue, Module, Node } from '@swc/core';
 import { scanDirectory } from '@/lib/@fs';
+import { isCustomHook, isReactHook } from '@/lib/@patterns';
 import { getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
 import type { ComponentInfo } from './types';
 
 const MAX_IMPORTS = 10;
 const MAX_HOOKS = 5;
 const MAX_FIELDS = 10;
-const BUILT_IN_HOOKS = ['useCallback', 'useEffect', 'useMemo', 'useState', 'useRef'];
 
 /**
  * Parse React component files to extract metadata using SWC AST
@@ -171,7 +171,8 @@ function extractImportsFromAst(ast: Module): string[] {
 }
 
 /**
- * Extract custom hooks from AST
+ * Extract custom hooks from AST using pattern-based detection.
+ * Uses centralized patterns from @patterns/react-patterns.
  */
 function extractHooksFromAst(ast: Module): string[] {
   const hooks = new Set<string>();
@@ -181,12 +182,13 @@ function extractHooksFromAst(ast: Module): string[] {
       const call = node as CallExpression;
       const callee = call.callee;
 
-      // Check if callee is an Identifier starting with 'use'
+      // Check if callee is an Identifier following hook naming convention
       if (getNodeType(callee) === 'Identifier') {
         const id = callee as Identifier;
         const name = id.value;
 
-        if (name.startsWith('use') && !BUILT_IN_HOOKS.includes(name)) {
+        // Use pattern-based detection: must follow hook naming AND be custom
+        if (isReactHook(name) && isCustomHook(name)) {
           hooks.add(name);
         }
       }

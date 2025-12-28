@@ -8,11 +8,9 @@ import { fileCache } from '@/lib';
 import type { FileAnalysis, QualityOptions } from '../types';
 
 // Internal imports (only what's used in this file)
-import { extractFunctionsSwc } from './complexity-swc';
 import { checkMixedConcerns } from './concerns';
 import { detectFileType } from './detectors';
 import { checkDocumentation } from './documentation';
-import { checkReturnTypesSwc } from './return-types-swc';
 import { checkSRP } from './srp';
 import { buildThresholds, getThresholdsForPath } from './thresholds';
 import { analyzeFileUnified } from './unified-swc';
@@ -28,6 +26,7 @@ export { detectFileType } from './detectors';
 export { checkDocumentation } from './documentation';
 export { detectHardcodedValues } from './hardcoded';
 export { checkLintRules_all as checkLintRules, isCliFile, type LintOptions } from './lint-rules';
+/** @deprecated Use checkReturnTypesSwcUnified from unified-swc.ts instead */
 export { checkReturnTypesSwc } from './return-types-swc';
 export { checkSRP } from './srp';
 export { buildThresholds, getThresholdsForPath } from './thresholds';
@@ -35,8 +34,10 @@ export { checkTypeSafety } from './type-safety';
 export {
   analyzeFileUnified,
   checkLintRulesSwc,
+  checkReturnTypesSwcUnified,
   checkTypeSafetySwc,
   detectHardcodedSwc,
+  extractFunctionsUnified,
 } from './unified-swc';
 
 const ERROR_CODE = 30;
@@ -69,8 +70,19 @@ export function analyzeFile(
   // Detect file type
   const fileType = detectFileType(filepath, content);
 
-  // Extract functions
-  const functions = extractFunctionsSwc(content);
+  // ⭐ UNIFIED SWC ANALYZER - Single parse/visit pass for all detections
+  // Includes lint, type-safety, security, modernization, hardcoded, return types, AND complexity/function extraction
+  // This eliminates separate parseSync calls for complexity analysis (~30% speedup)
+  const {
+    lintIssues,
+    typeSafetyIssues,
+    securityIssues,
+    modernizationIssues,
+    hardcodedValues,
+    returnTypeIssues,
+    complexityIssues,
+    functions,
+  } = analyzeFileUnified(content, relativePath);
 
   // Initialize analysis
   const analysis: FileAnalysis = {
@@ -98,16 +110,13 @@ export function analyzeFile(
   analysis.issues.push(...checkMixedConcerns(content, relativePath, fileType));
   analysis.issues.push(...checkDocumentation(functions, relativePath, thresholds.requireJSDoc));
 
-  // ⭐ UNIFIED SWC ANALYZER - Single parse/visit pass for lint, type-safety, security, modernization, and hardcoded detection
-  // 5x faster than running separate analyzers (single parseSync + visitNode pass)
-  const { lintIssues, typeSafetyIssues, securityIssues, modernizationIssues, hardcodedValues } =
-    analyzeFileUnified(content, relativePath);
-
-  // Add all issues directly
+  // Add all issues from unified analyzer (already collected above)
   analysis.issues.push(...lintIssues);
   analysis.issues.push(...typeSafetyIssues);
   analysis.issues.push(...securityIssues);
   analysis.issues.push(...modernizationIssues);
+  analysis.issues.push(...returnTypeIssues);
+  analysis.issues.push(...complexityIssues);
 
   // Convert hardcoded values to quality issues
   for (const hv of hardcodedValues) {
@@ -121,9 +130,6 @@ export function analyzeFile(
       snippet: hv.context,
     });
   }
-
-  // Return types analyzer (separate from unified for modularity)
-  analysis.issues.push(...checkReturnTypesSwc(content, relativePath));
 
   return analysis;
 }

@@ -1,6 +1,8 @@
 # Contributing to Krolik CLI
 
-Thank you for your interest in contributing to Krolik CLI. This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Krolik CLI — an AI-assisted development toolkit with CLI and MCP server for Claude Code integration.
+
+This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
@@ -10,7 +12,9 @@ Thank you for your interest in contributing to Krolik CLI. This document provide
 - [Custom CLAUDE.md Sections](#custom-claudemd-sections)
 - [Testing](#testing)
 - [Pull Request Process](#pull-request-process)
+- [Releasing](#releasing)
 - [Code of Conduct](#code-of-conduct)
+- [License](#license)
 
 ## Getting Started
 
@@ -271,11 +275,10 @@ pnpm test:coverage
 
 ### Coverage Requirements
 
-- **Minimum coverage:** 70% (enforced in CI)
-- **New features:** Must include tests
+- **New features:** Should include tests
 - **Bug fixes:** Should include regression tests
 
-Coverage reports are automatically uploaded to Codecov on push to `main` or `dev`.
+Run `pnpm test:coverage` locally to generate HTML report in `coverage/`.
 
 ## Pull Request Process
 
@@ -344,12 +347,11 @@ The project uses GitHub Actions for continuous integration:
 - Lint check (Biome)
 - Type check (TypeScript strict mode)
 - Build verification
-- Test suite execution
-- Coverage report (Codecov)
+- Test suite with coverage
 
-**On main branch push:**
-- Release check (npm pack dry-run)
-- Optional publish (with changesets)
+**On release:**
+- Automated version bump (Changesets)
+- Publish to npm via OIDC Trusted Publishers
 
 ## Releasing
 
@@ -433,6 +435,16 @@ By participating, you are expected to uphold this code. Please report unacceptab
 - **Be collaborative** - Work together towards shared goals
 - **Be inclusive** - Welcome diverse perspectives and backgrounds
 
+## License
+
+This project is licensed under **FSL-1.1-Apache-2.0** (Functional Source License).
+
+- **Free for:** Internal use, non-commercial education and research, professional services
+- **Not permitted:** Creating competing commercial AI dev toolkits or MCP servers
+- **Converts to Apache 2.0:** December 26, 2027
+
+See [LICENSE](./LICENSE) for full terms. For commercial licensing inquiries, open an issue.
+
 ---
 
 ## Additional Resources
@@ -440,14 +452,9 @@ By participating, you are expected to uphold this code. Please report unacceptab
 - [README.md](./README.md) - Project overview and usage
 - [CLAUDE.md](./CLAUDE.md) - Development rules and architecture
 - [GitHub Issues](https://github.com/anatolykoptev/krolik-cli/issues) - Bug reports and feature requests
-- [GitHub Discussions](https://github.com/anatolykoptev/krolik-cli/discussions) - Questions and community
 
 ## Questions?
 
-If you have questions or need help:
-
-1. Check existing [Issues](https://github.com/anatolykoptev/krolik-cli/issues)
-2. Start a [Discussion](https://github.com/anatolykoptev/krolik-cli/discussions)
-3. Reach out to maintainers
+If you have questions or need help, check existing [Issues](https://github.com/anatolykoptev/krolik-cli/issues) or open a new one.
 
 Thank you for contributing to Krolik CLI!

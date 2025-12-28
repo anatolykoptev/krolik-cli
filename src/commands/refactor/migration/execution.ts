@@ -51,7 +51,8 @@ export async function executeMigrationAction(
   libPath: string,
   options: MigrationExecutionOptions = {},
 ): Promise<ExecutionResult> {
-  const { dryRun = false, backup = true } = options;
+  const { dryRun = false } = options;
+  const backup = true; // Always backup when applying changes
 
   try {
     switch (action.type) {
@@ -390,7 +391,8 @@ export async function executeMigrationPlan(
   libPath: string,
   options: MigrationExecutionOptions = {},
 ): Promise<MigrationExecutionResult> {
-  const { dryRun = false, verbose = false, backup = true } = options;
+  const { dryRun = false, verbose = false } = options;
+  // Note: backup is now always-on inside individual action handlers
   const results: string[] = [];
   let allSuccess = true;
   const movedFiles: Array<{ from: string; to: string }> = [];
@@ -401,7 +403,7 @@ export async function executeMigrationPlan(
   }
 
   for (const action of plan.actions) {
-    const result = await executeMigrationAction(action, projectRoot, libPath, { dryRun, backup });
+    const result = await executeMigrationAction(action, projectRoot, libPath, { dryRun });
     results.push(result.message);
 
     if (!result.success) {

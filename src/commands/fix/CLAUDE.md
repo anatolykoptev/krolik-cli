@@ -16,7 +16,7 @@ fix/
 ```typescript
 import { fileCache } from '../core/file-cache';
 import { withSourceFile } from '@/lib/@ast';  // ✅ Unified AST pool from lib
-import { isInsideString } from '../core/string-utils';
+import { isInsideStringLine, isInsideLineComment, isInsideStringOrComment } from '@/lib/@swc';
 import { validatePathWithinProject } from '../core/path-utils';
 
 // File I/O: use cache
@@ -26,8 +26,12 @@ fileCache.set(filepath, newContent);
 // AST: use pool (auto-cleanup)
 const count = withSourceFile(content, 'temp.ts', sf => sf.getFunctions().length);
 
-// Context: check strings/comments
-if (isInsideString(line, index)) return;
+// Context: check strings/comments (line-level)
+if (isInsideStringLine(line, index)) return;
+if (isInsideLineComment(line, index)) return;
+
+// Context: check strings/comments (full content)
+if (isInsideStringOrComment(content, offset)) return;
 
 // Security: validate user paths
 const { valid, resolved } = validatePathWithinProject(root, userPath);
@@ -105,10 +109,11 @@ pnpm build && ./dist/bin/cli.js fix --list-fixers
 ## Best Practices
 
 ```typescript
-fileCache.get(path);                    // ✅ Cached (not fs.readFileSync)
-withSourceFile(content, name, fn);      // ✅ Pooled (not new Project)
-!isInsideString(line, idx) && check();  // ✅ Context-aware
-validatePathWithinProject(root, path);  // ✅ Secure paths
+fileCache.get(path);                         // ✅ Cached (not fs.readFileSync)
+withSourceFile(content, name, fn);           // ✅ Pooled (not new Project)
+!isInsideStringLine(line, idx) && check();   // ✅ Context-aware (line-level)
+!isInsideStringOrComment(content, offset);   // ✅ Context-aware (full content)
+validatePathWithinProject(root, path);       // ✅ Secure paths
 ```
 
 ## Checklist
@@ -118,7 +123,7 @@ validatePathWithinProject(root, path);  // ✅ Secure paths
 - [ ] `fix()` returns `FixOperation | null`
 - [ ] Uses `fileCache.get()` not `fs.readFileSync()`
 - [ ] Uses `withSourceFile()` not `new Project()`
-- [ ] Checks `isInsideString/Comment()` before fixing
+- [ ] Checks `isInsideStringLine/LineComment()` (line) or `isInsideStringOrComment()` (content)
 - [ ] Validates user paths with `validatePathWithinProject()`
 
 **Registration:**

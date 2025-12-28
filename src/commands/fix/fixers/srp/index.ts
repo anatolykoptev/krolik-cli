@@ -13,6 +13,7 @@ import {
   type FunctionInfo,
   parseCode,
 } from '../../../../lib/@ast';
+import { extractVerbPrefix } from '../../../../lib/@patterns';
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
@@ -173,16 +174,15 @@ function analyzeSrp(content: string, file: string): QualityIssue[] {
 
 /**
  * Group functions by common prefix/pattern for splitting suggestions
+ *
+ * Uses linguistic verb detection instead of hardcoded word lists.
  */
 function groupFunctionsByPrefix(names: string[]): Map<string, string[]> {
   const groups = new Map<string, string[]>();
 
   for (const name of names) {
-    // Extract prefix (get, set, create, update, delete, handle, on, use, etc.)
-    const prefixMatch = name.match(
-      /^(get|set|create|update|delete|handle|on|use|is|has|can|should|validate|parse|format|render|load|save|fetch|find|build|make|init|reset|clear|add|remove)/i,
-    );
-    const prefix = prefixMatch?.[1]?.toLowerCase() ?? 'misc';
+    // Extract verb prefix using linguistic heuristics
+    const prefix = extractVerbPrefix(name) ?? 'misc';
 
     const existing = groups.get(prefix) ?? [];
     existing.push(name);

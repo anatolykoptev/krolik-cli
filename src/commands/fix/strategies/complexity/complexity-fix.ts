@@ -4,9 +4,9 @@
  */
 
 import { reduceNesting } from '../../ast-utils/index';
+import { createFullFileReplace, createReplaceRange, splitLines } from '../../core';
 import { detectIfChain, findRefactorings, generateLookupMap } from '../../refactorings';
 import type { FixOperation } from '../../types';
-import { createFullFileReplace, createReplaceRange, splitLines } from '../shared';
 import { findFunctionEnd } from './helpers';
 import { MIN_IF_CHAIN_LENGTH } from './patterns';
 

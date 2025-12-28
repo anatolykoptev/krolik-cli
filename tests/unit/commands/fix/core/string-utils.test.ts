@@ -1,51 +1,71 @@
 /**
- * @module commands/fix/core/__tests__/string-utils.test
+ * @module lib/@swc/__tests__/string-context.test
  * @description Tests for string/comment detection utilities
+ *
+ * NOTE: This file tests the unified string-context module from @lib/@swc.
+ * The original core/string-utils.ts was consolidated into @lib/@swc/string-context.ts
  */
 
 import { describe, expect, it } from 'vitest';
+import { escapeRegex } from '../../../../../src/lib/@sanitize/regex';
 import {
-  escapeRegex,
   getLineContent,
   getLineNumber,
   isInsideComment,
   isInsideLineComment,
   isInsideString,
+  isInsideStringLine,
   isInsideStringOrComment,
-} from '../../../../../src/commands/fix/core/string-utils';
+} from '../../../../../src/lib/@swc';
 
-describe('string-utils', () => {
-  describe('isInsideString', () => {
+describe('string-context (from @lib/@swc)', () => {
+  describe('isInsideStringLine (line-level)', () => {
     it('detects position inside double quotes', () => {
       const line = 'const x = "hello world";';
-      expect(isInsideString(line, 15)).toBe(true); // Inside "hello world"
-      expect(isInsideString(line, 10)).toBe(false); // Before the string
-      expect(isInsideString(line, 23)).toBe(false); // After the string
+      expect(isInsideStringLine(line, 15)).toBe(true); // Inside "hello world"
+      expect(isInsideStringLine(line, 10)).toBe(false); // Before the string
+      expect(isInsideStringLine(line, 23)).toBe(false); // After the string
     });
 
     it('detects position inside single quotes', () => {
       const line = "const x = 'hello world';";
-      expect(isInsideString(line, 15)).toBe(true);
-      expect(isInsideString(line, 10)).toBe(false);
+      expect(isInsideStringLine(line, 15)).toBe(true);
+      expect(isInsideStringLine(line, 10)).toBe(false);
     });
 
     it('detects position inside template literals', () => {
       const line = 'const x = `hello world`;';
-      expect(isInsideString(line, 15)).toBe(true);
-      expect(isInsideString(line, 10)).toBe(false);
+      expect(isInsideStringLine(line, 15)).toBe(true);
+      expect(isInsideStringLine(line, 10)).toBe(false);
     });
 
     it('handles escaped quotes', () => {
       const line = 'const x = "hello \\"world\\"";';
-      expect(isInsideString(line, 15)).toBe(true); // Still inside string
-      expect(isInsideString(line, 20)).toBe(true); // After escaped quote
+      expect(isInsideStringLine(line, 15)).toBe(true); // Still inside string
+      expect(isInsideStringLine(line, 20)).toBe(true); // After escaped quote
     });
 
     it('handles multiple strings on same line', () => {
       const line = 'const x = "hello"; const y = "world";';
-      expect(isInsideString(line, 13)).toBe(true); // Inside "hello"
-      expect(isInsideString(line, 18)).toBe(false); // Between strings
-      expect(isInsideString(line, 31)).toBe(true); // Inside "world"
+      expect(isInsideStringLine(line, 13)).toBe(true); // Inside "hello"
+      expect(isInsideStringLine(line, 18)).toBe(false); // Between strings
+      expect(isInsideStringLine(line, 31)).toBe(true); // Inside "world"
+    });
+  });
+
+  describe('isInsideString (full-content)', () => {
+    it('detects position inside string in full content', () => {
+      const content = 'const x = "hello world";';
+      expect(isInsideString(content, 15)).toBe(true);
+      expect(isInsideString(content, 10)).toBe(false);
+    });
+
+    it('handles template expressions correctly', () => {
+      const content = 'const x = `hello ${name} world`;';
+      expect(isInsideString(content, 13)).toBe(true); // Inside "hello "
+      // Inside ${} expression - NOT in string context
+      expect(isInsideString(content, 20)).toBe(false); // Inside ${name}
+      expect(isInsideString(content, 25)).toBe(true); // Inside " world"
     });
   });
 
@@ -62,25 +82,25 @@ describe('string-utils', () => {
     });
   });
 
-  describe('isInsideComment', () => {
+  describe('isInsideComment (full-content)', () => {
     it('detects position inside line comment', () => {
-      const line = 'const x = 5; // comment';
-      expect(isInsideComment(line, 18)).toBe(true);
-      expect(isInsideComment(line, 10)).toBe(false);
+      const content = 'const x = 5; // comment';
+      expect(isInsideComment(content, 18)).toBe(true);
+      expect(isInsideComment(content, 10)).toBe(false);
     });
 
-    it('detects position inside block comment start', () => {
-      const line = 'const x = 5; /* comment';
-      expect(isInsideComment(line, 18)).toBe(true);
-      expect(isInsideComment(line, 10)).toBe(false);
+    it('detects position inside block comment', () => {
+      const content = 'const x = 5; /* comment */';
+      expect(isInsideComment(content, 18)).toBe(true);
+      expect(isInsideComment(content, 10)).toBe(false);
     });
 
     it('ignores comment markers inside strings', () => {
-      const line = 'const url = "http://example.com";';
-      expect(isInsideComment(line, 20)).toBe(false);
+      const content = 'const url = "http://example.com";';
+      expect(isInsideComment(content, 20)).toBe(false);
 
-      const line2 = 'const code = "/* not a comment */";';
-      expect(isInsideComment(line2, 20)).toBe(false);
+      const content2 = 'const code = "/* not a comment */";';
+      expect(isInsideComment(content2, 20)).toBe(false);
     });
   });
 
@@ -137,7 +157,7 @@ const y = 10;`;
     });
   });
 
-  describe('escapeRegex', () => {
+  describe('escapeRegex (from @lib/@sanitize)', () => {
     it('escapes regex special characters', () => {
       expect(escapeRegex('hello.world')).toBe('hello\\.world');
       expect(escapeRegex('a+b*c?')).toBe('a\\+b\\*c\\?');

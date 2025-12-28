@@ -5,8 +5,8 @@
  * Detects and removes alert() calls.
  */
 
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@swc';
 import { createFixerMetadata } from '../../core/registry';
-import { isInsideComment, isInsideString } from '../../core/string-utils';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 import { createDeleteLine, getLineContext, isComment, splitLines } from '../../core/utils';
 
@@ -36,8 +36,8 @@ function analyzeAlert(content: string, file: string): QualityIssue[] {
     let match: RegExpExecArray | null;
     while ((match = ALERT_PATTERN.exec(line)) !== null) {
       // Skip if inside comment or string
-      if (isInsideComment(line, match.index)) continue;
-      if (isInsideString(line, match.index)) continue;
+      if (isInsideLineComment(line, match.index)) continue;
+      if (isInsideStringLine(line, match.index)) continue;
 
       issues.push({
         file,

@@ -6,6 +6,8 @@
  * - Finding tRPC router directory
  * - Finding Next.js API routes
  * - Finding Express/Fastify routes
+ *
+ * Uses dynamic detection based on package.json dependencies
  */
 
 import * as fs from 'node:fs';
@@ -13,34 +15,113 @@ import * as path from 'node:path';
 import { walk } from '../@fs';
 
 // ============================================================================
-// CONSTANTS
+// DYNAMIC CANDIDATE GENERATION
 // ============================================================================
 
-/** Common tRPC router locations */
-const TRPC_CANDIDATES = [
-  'packages/api/src/routers',
-  'packages/api/src/router',
-  'src/server/routers',
-  'src/server/router',
-  'src/routers',
-  'src/router',
-  'server/routers',
-  'server/router',
-  'api/routers',
-  'api/router',
-];
+/**
+ * Framework-to-candidates mapping
+ * Key: dependency name pattern, Value: candidate paths
+ */
+const FRAMEWORK_CANDIDATES: Record<string, { deps: string[]; paths: string[] }> = {
+  trpc: {
+    deps: ['@trpc/server', '@trpc/client'],
+    paths: [
+      'packages/api/src/routers',
+      'packages/api/src/router',
+      'src/server/routers',
+      'src/server/router',
+      'src/routers',
+      'src/router',
+      'server/routers',
+      'server/router',
+      'api/routers',
+      'api/router',
+    ],
+  },
+  nextjs: {
+    deps: ['next'],
+    paths: ['src/app/api', 'app/api', 'src/pages/api', 'pages/api'],
+  },
+  express: {
+    deps: ['express', 'fastify', 'hono', 'koa'],
+    paths: ['src/routes', 'src/api/routes', 'routes', 'api/routes', 'server/routes'],
+  },
+};
 
-/** Common Next.js API route locations */
-const NEXTJS_API_CANDIDATES = ['src/app/api', 'app/api', 'src/pages/api', 'pages/api'];
+/**
+ * Cache for detected frameworks per project
+ */
+const frameworkCache = new Map<string, Set<string>>();
 
-/** Common Express/Fastify route locations */
-const EXPRESS_CANDIDATES = [
-  'src/routes',
-  'src/api/routes',
-  'routes',
-  'api/routes',
-  'server/routes',
-];
+/**
+ * Detect installed frameworks from package.json
+ */
+function detectFrameworks(projectRoot: string): Set<string> {
+  const cached = frameworkCache.get(projectRoot);
+  if (cached) return cached;
+
+  const pkgPath = path.join(projectRoot, 'package.json');
+  if (!fs.existsSync(pkgPath)) {
+    return new Set();
+  }
+
+  try {
+    const content = fs.readFileSync(pkgPath, 'utf-8');
+    const pkg = JSON.parse(content) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+
+    const allDeps = new Set([
+      ...Object.keys(pkg.dependencies || {}),
+      ...Object.keys(pkg.devDependencies || {}),
+    ]);
+
+    const detected = new Set<string>();
+
+    for (const [framework, config] of Object.entries(FRAMEWORK_CANDIDATES)) {
+      if (config.deps.some((dep) => allDeps.has(dep))) {
+        detected.add(framework);
+      }
+    }
+
+    frameworkCache.set(projectRoot, detected);
+    return detected;
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Get route candidates for a specific framework
+ */
+function getCandidates(
+  projectRoot: string,
+  framework: keyof typeof FRAMEWORK_CANDIDATES,
+): string[] {
+  const frameworks = detectFrameworks(projectRoot);
+  const config = FRAMEWORK_CANDIDATES[framework];
+
+  // If framework is detected, return its paths
+  if (frameworks.has(framework)) {
+    return config?.paths ?? [];
+  }
+
+  // If no package.json or detection failed, return all paths as fallback
+  if (frameworks.size === 0) {
+    return config?.paths ?? [];
+  }
+
+  // Framework not installed - return empty
+  return [];
+}
+
+/**
+ * Clear framework cache (for testing or project changes)
+ */
+export function clearRouteDiscoveryCache(): void {
+  frameworkCache.clear();
+}
 
 // ============================================================================
 // TRPC DISCOVERY
@@ -63,8 +144,9 @@ export function findRoutersDir(projectRoot: string, customPath?: string): string
     }
   }
 
-  // Search candidates
-  for (const candidate of TRPC_CANDIDATES) {
+  // Search candidates based on detected frameworks
+  const candidates = getCandidates(projectRoot, 'trpc');
+  for (const candidate of candidates) {
     const fullPath = path.join(projectRoot, candidate);
     if (fs.existsSync(fullPath)) {
       return fullPath;
@@ -115,7 +197,8 @@ export function findTrpcRouters(dir: string): string[] {
  * Find Next.js API routes directory
  */
 export function findNextjsApiDir(projectRoot: string): string | null {
-  for (const candidate of NEXTJS_API_CANDIDATES) {
+  const candidates = getCandidates(projectRoot, 'nextjs');
+  for (const candidate of candidates) {
     const fullPath = path.join(projectRoot, candidate);
     if (fs.existsSync(fullPath)) {
       return fullPath;
@@ -164,7 +247,8 @@ export function findNextjsApiRoutes(dir: string): string[] {
  * Find Express/Fastify routes directory
  */
 export function findExpressRoutesDir(projectRoot: string): string | null {
-  for (const candidate of EXPRESS_CANDIDATES) {
+  const candidates = getCandidates(projectRoot, 'express');
+  for (const candidate of candidates) {
     const fullPath = path.join(projectRoot, candidate);
     if (fs.existsSync(fullPath)) {
       return fullPath;

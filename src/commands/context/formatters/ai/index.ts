@@ -22,6 +22,7 @@ import {
   formatLibModulesSection,
   formatLibraryDocsSection,
   formatMemorySection,
+  formatNextActionsSection,
   formatPreCommitSection,
   formatQualitySection,
   formatRoutesSection,
@@ -90,6 +91,9 @@ export function formatAiPrompt(data: AiContextData): string {
   formatTodosSection(lines, data);
 
   formatPreCommitSection(lines);
+
+  // Next actions guidance for AI
+  formatNextActionsSection(lines, data);
 
   lines.push('</context>');
   lines.push('');

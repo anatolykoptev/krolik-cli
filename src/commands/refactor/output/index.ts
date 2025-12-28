@@ -16,7 +16,7 @@ import type { OutputFormat, RefactorAnalysis } from '../core';
 // ============================================================================
 
 // AI-native formatters
-export { formatAiNativeXml } from './ai-native';
+export { type AiNativeXmlOptions, type AnalysisMode, formatAiNativeXml } from './ai-native';
 
 // JSON formatters
 export {

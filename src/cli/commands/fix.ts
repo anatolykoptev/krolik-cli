@@ -1,65 +1,63 @@
 /**
  * @module cli/commands/fix
  * @description Fix command registration
+ *
+ * Simplified CLI with mode system:
+ * - (default): Safe fixes (biome + typecheck + safe fixers)
+ * - --quick: Trivial only (console, debugger, alert)
+ * - --all: Include risky fixers + auto-backup
  */
 
 import type { Command } from 'commander';
 import type { CommandOptions } from '../types';
 import { createContext } from './helpers';
 
-/** Preset options derived from --quick, --deep, --full flags */
-interface PresetOptions {
-  trivialOnly?: boolean;
-  safe?: boolean;
-  all?: boolean;
-  biome?: boolean;
-  typecheck?: boolean;
-  backup?: boolean;
-}
-
 /**
- * Parse preset flags (--quick, --deep, --full) into preset options
+ * Resolve mode from CLI flags
  */
-function parsePresetOptions(options: CommandOptions): PresetOptions {
-  const preset: PresetOptions = {};
-
-  if (options.quick) {
-    preset.trivialOnly = true;
-    preset.biome = true;
-    preset.typecheck = true;
-  }
-  if (options.deep) {
-    preset.safe = true;
-    preset.biome = true;
-    preset.typecheck = true;
-  }
-  if (options.full) {
-    preset.all = true;
-    preset.biome = true;
-    preset.typecheck = true;
-    preset.backup = true;
-  }
-
-  return preset;
+function resolveMode(options: CommandOptions): 'quick' | 'default' | 'all' {
+  if (options.quick) return 'quick';
+  if (options.all) return 'all';
+  return 'default';
 }
 
 /**
- * Build fixer flags from CLI options (--fix-* and --no-* flags)
+ * Get mode-specific flags
+ */
+function getModeFlags(mode: 'quick' | 'default' | 'all'): Record<string, boolean> {
+  switch (mode) {
+    case 'quick':
+      return {
+        trivialOnly: true,
+        biome: true,
+        typecheck: true,
+      };
+    case 'all':
+      return {
+        all: true,
+        biome: true,
+        typecheck: true,
+        backup: true, // Always backup on risky fixes
+      };
+    default:
+      return {
+        safe: true,
+        biome: true,
+        typecheck: true,
+      };
+  }
+}
+
+/**
+ * Build fixer flags from CLI options (--fix-* flags)
  */
 function buildFixerFlags(options: CommandOptions): Record<string, boolean | undefined> {
-  // Helper to get boolean value with fallback for --no-* flags
-  const getBoolWithNegation = (fixKey: string, negationKey: string): boolean | undefined => {
-    const fixValue = options[fixKey] as boolean | undefined;
-    const negationValue = options[negationKey] as boolean | undefined;
-    return fixValue ?? (negationValue !== false ? undefined : false);
-  };
-
   return {
-    fixConsole: getBoolWithNegation('fixConsole', 'console'),
-    fixDebugger: getBoolWithNegation('fixDebugger', 'debugger'),
+    fixConsole: options.fixConsole as boolean | undefined,
+    fixDebugger: options.fixDebugger as boolean | undefined,
     fixAlert: options.fixAlert as boolean | undefined,
     fixTsIgnore: options.fixTsIgnore as boolean | undefined,
-    fixAny: getBoolWithNegation('fixAny', 'any'),
+    fixAny: options.fixAny as boolean | undefined,
     fixComplexity: options.fixComplexity as boolean | undefined,
     fixLongFunctions: options.fixLongFunctions as boolean | undefined,
     fixMagicNumbers: options.fixMagicNumbers as boolean | undefined,
@@ -69,33 +67,21 @@ function buildFixerFlags(options: CommandOptions): Record<string, boolean | unde
 }
 
 /**
- * Build context options by merging CLI options with presets
+ * Build context options from CLI options
  */
-function buildContextOptions(
-  options: CommandOptions,
-  preset: PresetOptions,
-): Record<string, unknown> {
+function buildContextOptions(options: CommandOptions): Record<string, unknown> {
+  const mode = resolveMode(options);
+  const modeFlags = getModeFlags(mode);
   const fixerFlags = buildFixerFlags(options);
 
   return {
     ...options,
-    ...preset,
-    dryRun: options.dryRun,
-    format: options.format,
-    showDiff: options.diff,
-    trivialOnly: preset.trivialOnly ?? options.trivial,
-    safe: preset.safe ?? options.safe,
-    all: preset.all ?? options.all,
-    fromAudit: options.fromAudit,
-    quickWinsOnly: options.quickWins,
-    biome: preset.biome ?? options.biome,
-    biomeOnly: options.biomeOnly,
-    noBiome: options.biome === false,
-    typecheck: preset.typecheck ?? options.typecheck,
-    typecheckOnly: options.typecheckOnly,
-    noTypecheck: options.typecheck === false,
-    backup: preset.backup ?? options.backup,
+    ...modeFlags,
     ...fixerFlags,
+    dryRun: options.dryRun,
+    showDiff: options.dryRun, // Always show diff in dry-run
+    fromAudit: options.fromAudit,
+    format: 'ai', // Always AI format
   };
 }
 
@@ -105,32 +91,30 @@ function buildContextOptions(
 export function registerFixCommand(program: Command): void {
   program
     .command('fix')
-    .description('Auto-fix code quality issues')
-    .option('--path <path>', 'Path to analyze/fix (default: project root)')
-    .option('--category <cat>', 'Only fix specific category: lint, type-safety, complexity')
-    .option('--dry-run', 'Show what would be fixed without applying')
-    .option('--format <fmt>', 'Output format: ai (default), text')
-    .option('--diff', 'Show unified diff output (use with --dry-run)')
-    .option('--trivial', 'Only fix trivial issues (console, debugger)')
-    .option('--safe', 'Fix trivial + safe issues (excludes risky refactoring)')
-    .option('--all', 'Include risky fixers (requires explicit confirmation)')
-    .option('--from-audit', 'Use cached audit data (from krolik audit)')
-    .option('--quick-wins', 'Only fix quick wins from audit (use with --from-audit)')
-    // Preset flags for common combinations
-    .option('--quick', 'Quick mode: --trivial --biome --typecheck')
-    .option('--deep', 'Deep mode: --safe --biome --typecheck')
-    .option('--full', 'Full mode: --all --biome --typecheck --backup')
-    .option('--list-fixers', 'List all available fixers and exit')
-    .option('--yes', 'Auto-confirm all fixes')
-    .option('--backup', 'Create backup before fixing')
+    .description(
+      `Auto-fix code quality issues
+
+Modes:
+  (default)    Safe fixes with biome + typecheck
+  --quick      Trivial only: console, debugger, alert (~2s)
+  --all        Include risky fixers + auto-backup
+
+Examples:
+  krolik fix --dry-run           # Preview all safe fixes
+  krolik fix --quick             # Fast trivial cleanup
+  krolik fix --all --yes         # Full fix with auto-confirm
+  krolik fix --fix-console       # Only console.log fixes`,
+    )
+    // Base options (8)
+    .option('--path <path>', 'Target path (default: project root)')
+    .option('--category <cat>', 'Filter: lint, type-safety, complexity, hardcoded, srp')
+    .option('--dry-run', 'Preview changes without applying')
+    .option('--quick', 'Trivial fixes only (console, debugger, alert)')
+    .option('--all', 'Include risky fixers + auto-backup')
+    .option('--from-audit', 'Use cached audit data')
     .option('--limit <n>', 'Max fixes to apply', parseInt)
-    .option('--biome', 'Run Biome auto-fix (default if available)')
-    .option('--biome-only', 'Only run Biome, skip custom fixes')
-    .option('--no-biome', 'Skip Biome even if available')
-    .option('--typecheck', 'Run TypeScript check (default)')
-    .option('--typecheck-only', 'Only run TypeScript check')
-    .option('--no-typecheck', 'Skip TypeScript check')
-    // Fixer flags - enable specific fixers
+    .option('--yes', 'Auto-confirm all fixes')
+    // Fixer modules (10) - for granular control
     .option('--fix-console', 'Fix console.log statements')
     .option('--fix-debugger', 'Fix debugger statements')
     .option('--fix-alert', 'Fix alert() calls')
@@ -141,20 +125,9 @@ export function registerFixCommand(program: Command): void {
     .option('--fix-magic-numbers', 'Fix magic numbers')
     .option('--fix-urls', 'Fix hardcoded URLs')
     .option('--fix-srp', 'Fix SRP violations')
-    // Disable specific fixers
-    .option('--no-console', 'Skip console.log fixes')
-    .option('--no-debugger', 'Skip debugger fixes')
-    .option('--no-any', 'Skip any type fixes')
     .action(async (options: CommandOptions) => {
-      if (options.listFixers) {
-        const { listFixers } = await import('../../commands/fix');
-        await listFixers();
-        return;
-      }
-
       const { runFix } = await import('../../commands/fix');
-      const preset = parsePresetOptions(options);
-      const contextOptions = buildContextOptions(options, preset);
+      const contextOptions = buildContextOptions(options);
       const ctx = await createContext(program, contextOptions);
       await runFix(ctx);
     });

@@ -65,6 +65,16 @@
  *     const methods = collectMethodChain(call); // ['string', 'min', 'max']
  *   },
  * });
+ *
+ * @example
+ * // Check string/comment context (no AST needed)
+ * import { isInsideString, isInsideComment, isInsideStringOrComment } from '@/lib/@swc';
+ *
+ * const code = 'const x = "hello"; // greeting';
+ *
+ * isInsideString(code, 12);          // true - inside "hello"
+ * isInsideComment(code, 25);         // true - inside comment
+ * isInsideStringOrComment(code, 12); // true - combined check
  */
 
 // Re-export SWC types that are commonly needed
@@ -144,8 +154,11 @@ export {
 // ============================================================================
 
 // Export detector types
+// Export complexity types
 export type {
+  ComplexityDetection,
   DetectorContext,
+  FunctionTrackingInfo,
   HardcodedDetection,
   HardcodedType,
   LintDetection,
@@ -157,9 +170,10 @@ export type {
   TypeSafetyDetection,
   TypeSafetyIssueType,
 } from './detectors';
-
 // Export all detectors
 export {
+  // Complexity detectors
+  ComplexityTracker,
   // Lint detectors
   detectAlert,
   // Type-safety detectors
@@ -185,8 +199,25 @@ export {
   detectRequire,
   detectSecurityIssue,
   detectTypeSafetyIssue,
+  getComplexityWeight,
   isAnyType,
   isArrayIndex,
+  isComplexityNode,
   isInConstDeclaration,
   isUnknownType,
 } from './detectors';
+
+// ============================================================================
+// STRING CONTEXT DETECTION
+// ============================================================================
+
+// Export string/comment context detection utilities
+export {
+  getLineContent,
+  getLineNumber,
+  isInsideComment,
+  isInsideLineComment,
+  isInsideString,
+  isInsideStringLine,
+  isInsideStringOrComment,
+} from './string-context';

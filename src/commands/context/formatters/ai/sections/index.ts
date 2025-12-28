@@ -16,6 +16,7 @@ export {
   formatHintsSection,
   formatLibraryDocsSection,
   formatMemorySection,
+  formatNextActionsSection,
   formatPreCommitSection,
   formatQualitySection,
   formatTestsSection,

@@ -11,8 +11,8 @@
  */
 
 import { splitFile } from '../../ast-utils/index';
+import { createSplitFile, matchNumberInRange } from '../../core';
 import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
-import { createSplitFile, matchNumberInRange } from '../shared';
 import { EXPORTS_RANGE, FUNCTIONS_RANGE, SIZE_RANGE, SRP_PATTERNS } from './constants';
 
 // ============================================================================

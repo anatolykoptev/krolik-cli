@@ -18,15 +18,99 @@ export interface LineContext {
   lineNumber: number;
 }
 
+export interface LineCacheStats {
+  /** Number of cached entries */
+  size: number;
+  /** Number of cache hits */
+  hits: number;
+  /** Number of cache misses */
+  misses: number;
+}
+
+// ============================================================================
+// LINE CACHE
+// ============================================================================
+
+/** Maximum number of cached entries before eviction */
+const MAX_CACHE_SIZE = 100;
+
+/** Cache for split lines to avoid repeated string splitting */
+const lineCache = new Map<string, string[]>();
+
+/** Cache statistics for monitoring */
+let cacheHits = 0;
+let cacheMisses = 0;
+
+/**
+ * Generate a quick hash for content identification
+ * Uses length + first/last chars for fast comparison
+ */
+function getContentHash(content: string): string {
+  const len = content.length;
+  // Use first and last 50 chars (or less if content is shorter)
+  const prefix = content.slice(0, 50);
+  const suffix = len > 50 ? content.slice(-50) : '';
+  return `${len}:${prefix}:${suffix}`;
+}
+
+/**
+ * Get cached lines or split and cache if not present
+ */
+export function getCachedLines(content: string): string[] {
+  const hash = getContentHash(content);
+
+  const cached = lineCache.get(hash);
+  if (cached) {
+    cacheHits++;
+    return cached;
+  }
+
+  cacheMisses++;
+  const lines = content.split('\n');
+
+  // Evict oldest entry if cache is full
+  if (lineCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = lineCache.keys().next().value;
+    if (firstKey) {
+      lineCache.delete(firstKey);
+    }
+  }
+
+  lineCache.set(hash, lines);
+  return lines;
+}
+
+/**
+ * Clear the line cache
+ * Call this when starting a new fix session or when memory pressure is high
+ */
+export function clearLineCache(): void {
+  lineCache.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
+}
+
+/**
+ * Get cache statistics for monitoring
+ */
+export function getLineCacheStats(): LineCacheStats {
+  return {
+    size: lineCache.size,
+    hits: cacheHits,
+    misses: cacheMisses,
+  };
+}
+
 // ============================================================================
 // LINE EXTRACTION
 // ============================================================================
 
 /**
  * Split content into lines array
+ * Uses internal cache to avoid repeated splitting of the same content
  */
 export function splitLines(content: string): string[] {
-  return content.split('\n');
+  return getCachedLines(content);
 }
 
 /**

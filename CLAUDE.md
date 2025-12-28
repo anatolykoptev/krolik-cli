@@ -143,9 +143,51 @@ const project = createProject();  // Creates new instance every time
 - `getProject()` + `releaseProject()` for multi-file operations
 - Old `createProject()` is deprecated but kept for backward compatibility
 
+## Refactor Command
+
+Analyze and refactor module structure with 3 modes:
+
+```bash
+krolik refactor [options]
+
+Options:
+  --path <path>      Path to analyze (default: auto-detect)
+  --package <name>   Monorepo package to analyze
+  --all-packages     Analyze all packages in monorepo
+  --quick            Quick mode: structure only, no AST (~2-3s)
+  --deep             Deep mode: + type duplicates (~5-10s)
+  --dry-run          Show plan without applying
+  --apply            Apply migrations (always creates backup)
+  --fix-types        Auto-fix 100% identical type duplicates
+
+Examples:
+  krolik refactor                    # Default analysis
+  krolik refactor --quick            # Fast structure check
+  krolik refactor --deep             # Full analysis with types
+  krolik refactor --apply            # Apply suggested migrations
+  krolik refactor --package api      # Analyze specific package
+```
+
+### Modes
+
+| Mode | Duration | Analyzes |
+|------|----------|----------|
+| `--quick` | ~2-3s | Structure, domains, file sizes |
+| default | ~5-6s | + Function duplicates (SWC) |
+| `--deep` | ~5-10s | + Type duplicates (ts-morph) |
+
+### Apply Flow
+
+When using `--apply`:
+1. Git backup branch is **always created** automatically
+2. Migrations are applied with file-level backups
+3. Typecheck runs after completion
+4. Clear rollback instructions on failure
+
 ## Docs
 
 | Topic | Path |
 |-------|------|
 | Fix Command | [src/commands/fix/CLAUDE.md](src/commands/fix/CLAUDE.md) |
 | File Cache | [src/commands/fix/core/FILE-CACHE.md](src/commands/fix/core/FILE-CACHE.md) |
+| Refactor Roadmap | [docs/REFACTOR-CLI-ROADMAP.md](docs/REFACTOR-CLI-ROADMAP.md) |

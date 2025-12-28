@@ -2,6 +2,20 @@
  * @module commands/fix/analyzers/return-types-swc
  * @description SWC AST-based analyzer for missing return types on exported functions
  *
+ * @deprecated This module is deprecated. Use the unified analyzer instead:
+ * ```typescript
+ * import { analyzeFileUnified, checkReturnTypesSwcUnified } from './unified-swc';
+ *
+ * // Option 1: Get return type issues from unified analyzer
+ * const { returnTypeIssues } = analyzeFileUnified(content, filepath);
+ *
+ * // Option 2: Use backward-compatible wrapper
+ * const issues = checkReturnTypesSwcUnified(content, filepath);
+ * ```
+ *
+ * The unified analyzer performs a single parseSync + visitNode pass for all detections,
+ * providing 10-15% additional speedup by eliminating redundant AST parsing.
+ *
  * Detects missing return type annotations on:
  * - export function foo() { }
  * - export async function bar() { }
@@ -53,6 +67,10 @@ function isAsyncFunction(node: Node): boolean {
 
 /**
  * Check for missing return types on exported functions
+ *
+ * @deprecated Use checkReturnTypesSwcUnified from unified-swc.ts instead.
+ * This function performs a separate parseSync call. The unified analyzer
+ * combines all detection into a single AST pass for better performance.
  */
 export function checkReturnTypesSwc(content: string, filepath: string): QualityIssue[] {
   const issues: QualityIssue[] = [];

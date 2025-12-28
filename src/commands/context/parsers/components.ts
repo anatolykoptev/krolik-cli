@@ -6,12 +6,12 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { scanDirectory } from '@/lib/@fs';
+import { extractCustomHooks } from '@/lib/@patterns';
 import type { ComponentInfo } from './types';
 
 const MAX_IMPORTS = 10;
 const MAX_HOOKS = 5;
 const MAX_FIELDS = 10;
-const BUILT_IN_HOOKS = ['useCallback', 'useEffect', 'useMemo', 'useState', 'useRef'];
 
 /**
  * Extract relevant imports from content
@@ -37,12 +37,13 @@ function extractImports(content: string): string[] {
 }
 
 /**
- * Extract custom hooks from content
+ * Extract custom hooks from content using pattern-based detection.
+ * Uses the centralized pattern from @patterns/react-patterns.
  */
 function extractHooks(content: string): string[] {
-  const hookMatches = content.match(/use\w+/g) || [];
-  const customHooks = hookMatches.filter((h) => !BUILT_IN_HOOKS.includes(h));
-  return [...new Set(customHooks)].slice(0, MAX_HOOKS);
+  // Use centralized pattern-based detection
+  const customHooks = extractCustomHooks(content);
+  return customHooks.slice(0, MAX_HOOKS);
 }
 
 /**

@@ -1,0 +1,241 @@
+/**
+ * @module commands/refactor/analyzers/architecture/architecture
+ * @description Architecture health analysis
+ *
+ * Analyzes layer violations, circular dependencies, and dependency graphs.
+ */
+
+import * as path from 'node:path';
+import { exists, findFiles, readFile } from '../../../../lib';
+import type { ArchHealth, ArchViolation, NamespaceCategory } from '../../core';
+import { ALLOWED_DEPS, detectCategory, NAMESPACE_INFO } from '../../core';
+import { getSubdirectories } from '../shared';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface DirectoryWithCategory {
+  name: string;
+  path: string;
+  category: NamespaceCategory;
+}
+
+// ============================================================================
+// DIRECTORY CATEGORIZATION
+// ============================================================================
+
+/**
+ * Get all directories with their detected categories
+ */
+export function getDirectoriesWithCategories(targetPath: string): DirectoryWithCategory[] {
+  const result: DirectoryWithCategory[] = [];
+
+  if (!exists(targetPath)) return result;
+
+  const subdirs = getSubdirectories(targetPath);
+  for (const name of subdirs) {
+    const fullPath = path.join(targetPath, name);
+    const category = detectCategory(name);
+    result.push({ name, path: fullPath, category });
+  }
+
+  return result;
+}
+
+// ============================================================================
+// DEPENDENCY ANALYSIS
+// ============================================================================
+
+/**
+ * Analyze dependencies of a directory
+ */
+export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCategory[]): string[] {
+  const deps = new Set<string>();
+
+  const files = findFiles(dirPath, {
+    extensions: ['.ts', '.tsx'],
+    skipDirs: ['node_modules'],
+  });
+
+  for (const file of files) {
+    const content = readFile(file);
+    if (!content) continue;
+
+    const importMatches = content.matchAll(/from\s+['"]([^'"]+)['"]/g);
+    for (const match of importMatches) {
+      const importPath = match[1];
+      if (!importPath) continue;
+
+      // Check for lib imports
+      if (importPath.includes('@/lib/') || importPath.includes('/lib/')) {
+        const libMatch = importPath.match(/lib\/(@?[\w-]+)/);
+        if (libMatch) {
+          const depName = libMatch[1];
+          const depDir = allDirs.find(
+            (d) => d.name === depName || d.name === `@${depName}` || `@${d.name}` === depName,
+          );
+          if (depDir && depDir.path !== dirPath) {
+            deps.add(depDir.name);
+          }
+        }
+      }
+    }
+  }
+
+  return Array.from(deps);
+}
+
+// ============================================================================
+// CIRCULAR DEPENDENCY DETECTION
+// ============================================================================
+
+/**
+ * Find circular dependencies in a dependency graph
+ */
+export function findCircularDeps(graph: Record<string, string[]>): string[][] {
+  const cycles: string[][] = [];
+  const visited = new Set<string>();
+  const recursionStack = new Set<string>();
+
+  function dfs(node: string, pathArr: string[]): void {
+    visited.add(node);
+    recursionStack.add(node);
+
+    for (const dep of graph[node] || []) {
+      if (!visited.has(dep)) {
+        dfs(dep, [...pathArr, dep]);
+      } else if (recursionStack.has(dep)) {
+        const cycleStart = pathArr.indexOf(dep);
+        if (cycleStart !== -1) {
+          cycles.push([...pathArr.slice(cycleStart), dep]);
+        } else {
+          cycles.push([...pathArr, dep]);
+        }
+      }
+    }
+
+    recursionStack.delete(node);
+  }
+
+  for (const node of Object.keys(graph)) {
+    if (!visited.has(node)) {
+      dfs(node, [node]);
+    }
+  }
+
+  return cycles;
+}
+
+// ============================================================================
+// LAYER VIOLATION DETECTION
+// ============================================================================
+
+/**
+ * Check for layer violations between directories
+ */
+function checkLayerViolations(
+  dir: DirectoryWithCategory,
+  deps: string[],
+  dirs: DirectoryWithCategory[],
+): ArchViolation[] {
+  const violations: ArchViolation[] = [];
+  const dirLayer = NAMESPACE_INFO[dir.category].layer;
+
+  for (const dep of deps) {
+    const depDir = dirs.find((d) => d.name === dep);
+    if (!depDir) continue;
+
+    const depLayer = NAMESPACE_INFO[depDir.category].layer;
+
+    // Check if lower layer imports from higher layer
+    if (depLayer > dirLayer && dir.category !== 'unknown') {
+      violations.push({
+        type: 'layer-violation',
+        severity: 'error',
+        from: dir.name,
+        to: depDir.name,
+        message: `${dir.name} (${dir.category}) imports from ${depDir.name} (${depDir.category})`,
+        fix: 'Move shared code to a lower layer or use dependency injection',
+      });
+    }
+
+    // Check if dependency is not in allowed list
+    if (
+      !ALLOWED_DEPS[dir.category].includes(depDir.category) &&
+      dir.category !== depDir.category &&
+      dir.category !== 'unknown'
+    ) {
+      violations.push({
+        type: 'layer-violation',
+        severity: 'warning',
+        from: dir.name,
+        to: depDir.name,
+        message: `${dir.category} should not directly import from ${depDir.category}`,
+        fix: 'Use abstraction or move code to appropriate layer',
+      });
+    }
+  }
+
+  return violations;
+}
+
+// ============================================================================
+// MAIN FUNCTION
+// ============================================================================
+
+/**
+ * Analyze architecture health of a target directory
+ */
+export function analyzeArchHealth(targetPath: string, _projectRoot: string): ArchHealth {
+  const violations: ArchViolation[] = [];
+  const dependencyGraph: Record<string, string[]> = {};
+  const layerCompliance: ArchHealth['layerCompliance'] = {};
+
+  // Get all directories with their categories
+  const dirs = getDirectoriesWithCategories(targetPath);
+
+  // Build dependency graph and check violations
+  for (const dir of dirs) {
+    const deps = analyzeDependencies(dir.path, dirs);
+    dependencyGraph[dir.name] = deps;
+
+    layerCompliance[dir.name] = {
+      expected: dir.category,
+      actual: dir.category,
+      compliant: true,
+    };
+
+    // Check for layer violations
+    const dirViolations = checkLayerViolations(dir, deps, dirs);
+    violations.push(...dirViolations);
+
+    // Mark non-compliant
+    if (dirViolations.some((v) => v.severity === 'error')) {
+      const compliance = layerCompliance[dir.name];
+      if (compliance) compliance.compliant = false;
+    }
+  }
+
+  // Check for circular dependencies
+  const cycles = findCircularDeps(dependencyGraph);
+  for (const cycle of cycles) {
+    if (cycle.length === 0) continue;
+    violations.push({
+      type: 'circular',
+      severity: 'error',
+      from: cycle[0]!,
+      to: cycle[cycle.length - 1]!,
+      message: `Circular dependency: ${cycle.join(' → ')}`,
+      fix: 'Break the cycle by extracting shared code or using interfaces',
+    });
+  }
+
+  // Calculate score
+  const score = Math.max(
+    0,
+    100 - violations.reduce((sum, v) => sum + (v.severity === 'error' ? 15 : 5), 0),
+  );
+
+  return { score, violations, dependencyGraph, layerCompliance };
+}

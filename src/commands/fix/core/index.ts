@@ -19,6 +19,11 @@ export {
   fileCache,
   formatCacheStats,
 } from '@/lib';
+// Path utilities
+export {
+  type PathValidationResult,
+  validatePathWithinProject,
+} from '@/lib/@sanitize/path';
 // Conflict Detection
 export {
   type Conflict,
@@ -52,12 +57,16 @@ export {
 } from './difficulty';
 // Line utilities
 export {
+  clearLineCache,
   countLines,
+  getCachedLines,
+  getLineCacheStats,
   getLineContext,
   getLines,
   isComment,
   isEmptyLine,
   joinLines,
+  type LineCacheStats,
   type LineContext,
   lineContains,
   lineEndsWith,
@@ -84,11 +93,6 @@ export {
   type ThresholdOverride,
   type Thresholds,
 } from './options';
-// Path utilities
-export {
-  type PathValidationResult,
-  validatePathWithinProject,
-} from './path-utils';
 // Pattern utilities
 export {
   containsKeyword,

@@ -4,8 +4,8 @@
  */
 
 import { reduceNesting } from '../../ast-utils/index';
+import { createFullFileReplace } from '../../core';
 import type { FixOperation } from '../../types';
-import { createFullFileReplace } from '../shared';
 
 // ============================================================================
 // NESTING FIX

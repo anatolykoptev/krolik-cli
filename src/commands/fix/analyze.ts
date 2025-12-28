@@ -15,10 +15,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { glob } from 'glob';
-import { fileCache } from '@/lib';
+import { fileCache, validatePathWithinProject } from '@/lib';
 import { getIgnorePatterns } from '@/lib/constants';
 import { analyzeFile } from './analyzers';
-import { validatePathWithinProject } from './core/path-utils';
 
 import { checkRecommendations, type RecommendationResult } from './recommendations';
 import type {

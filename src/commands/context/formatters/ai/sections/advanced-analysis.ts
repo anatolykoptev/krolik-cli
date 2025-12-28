@@ -3,6 +3,7 @@
  * @description Formatters for advanced analysis sections: Import Graph, DB Relations, API Contracts, Env Vars
  */
 
+import { detectEnvVarSeverity } from '@/lib/@patterns';
 import type { AiContextData } from '../../../types';
 import { escapeXml, MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM, MAX_SIZE } from '../helpers';
 
@@ -323,19 +324,11 @@ type EnvVarPriority = 'critical' | 'high' | 'medium' | 'low';
 const PRIORITY_ORDER: Record<EnvVarPriority, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 /**
- * Categorize env var by importance based on name patterns
+ * Categorize env var by importance using semantic analysis
+ * Delegates to the unified pattern library for consistent detection
  */
 function getEnvVarPriority(name: string): 'critical' | 'high' | 'medium' | 'low' {
-  const criticalPatterns = ['DATABASE_URL', 'AUTH_SECRET', 'NEXTAUTH_', 'JWT_', 'ENCRYPTION_'];
-  const highPatterns = ['API_KEY', 'SECRET', 'PASSWORD', 'TOKEN', 'REDIS_', 'STRIPE_'];
-  const mediumPatterns = ['NEXT_PUBLIC_', 'APP_', 'BASE_URL', 'SITE_URL'];
-
-  const upperName = name.toUpperCase();
-
-  if (criticalPatterns.some((p) => upperName.includes(p))) return 'critical';
-  if (highPatterns.some((p) => upperName.includes(p))) return 'high';
-  if (mediumPatterns.some((p) => upperName.includes(p))) return 'medium';
-  return 'low';
+  return detectEnvVarSeverity(name);
 }
 
 /**

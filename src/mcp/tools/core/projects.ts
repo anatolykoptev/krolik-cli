@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { generateSkipPatterns } from '@/lib/@patterns/dynamic-skip';
 
 /**
  * Project info
@@ -29,18 +30,25 @@ export interface DetectionResult {
 }
 
 /**
- * Folders to skip when scanning for projects
+ * Additional folders to skip that are specific to project detection
+ * (not typically in .gitignore but should be skipped for workspace scanning)
  */
-const SKIP_FOLDERS = new Set([
-  'node_modules',
-  '.git',
-  '.next',
-  '.turbo',
-  'dist',
-  'build',
-  '.krolik',
-  '.claude',
-]);
+const PROJECT_DETECTION_SKIP_FOLDERS = ['.krolik', '.claude'] as const;
+
+/**
+ * Get folders to skip when scanning for projects
+ * Uses dynamic patterns from .gitignore and package.json detection
+ */
+function getSkipFolders(workspaceRoot: string): Set<string> {
+  const patterns = generateSkipPatterns(workspaceRoot);
+
+  // Add project-detection-specific folders
+  for (const folder of PROJECT_DETECTION_SKIP_FOLDERS) {
+    patterns.add(folder);
+  }
+
+  return patterns;
+}
 
 /**
  * Check if a directory is a project (has package.json or .git)
@@ -79,12 +87,13 @@ function isProject(dir: string): ProjectInfo | null {
  */
 function scanForProjects(workspaceRoot: string): ProjectInfo[] {
   const projects: ProjectInfo[] = [];
+  const skipFolders = getSkipFolders(workspaceRoot);
 
   try {
     const entries = fs.readdirSync(workspaceRoot, { withFileTypes: true });
 
     for (const entry of entries) {
-      if (!entry.isDirectory() || SKIP_FOLDERS.has(entry.name) || entry.name.startsWith('.')) {
+      if (!entry.isDirectory() || skipFolders.has(entry.name) || entry.name.startsWith('.')) {
         continue;
       }
 

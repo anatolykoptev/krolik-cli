@@ -10,17 +10,10 @@
 
 import type { FixContext } from '../../context';
 import { shouldSkipConsoleFix } from '../../context';
+import { createDeleteLine, createReplaceLine } from '../../core';
+import { getLineContext, lineEndsWith, lineStartsWith } from '../../core/line-utils';
 import type { FixOperation, QualityIssue } from '../../types';
-import {
-  createDeleteLine,
-  createReplaceLine,
-  getLineContext,
-  hasAlertCallAtLine,
-  hasConsoleCallAtLine,
-  hasDebuggerStatementAtLine,
-  lineEndsWith,
-  lineStartsWith,
-} from '../shared';
+import { hasAlertCallAtLine, hasConsoleCallAtLine, hasDebuggerStatementAtLine } from '../shared';
 import { DEBUGGER_LINE_PATTERNS } from './constants';
 
 // ============================================================================

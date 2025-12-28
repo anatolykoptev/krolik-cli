@@ -12,6 +12,22 @@
  * - Easy to extend and maintain
  */
 
+// Browser API patterns
+export {
+  type BrowserApiCategory,
+  type BrowserApiDetection,
+  CONSOLE_OBJECT_NAMES,
+  CONSOLE_PARENT_OBJECTS,
+  DIALOG_FUNCTION_NAMES,
+  DIALOG_PARENT_OBJECTS,
+  detectBrowserApi,
+  EVAL_FUNCTION_NAMES,
+  EVAL_LIKE_PATTERNS,
+  isConsoleMember,
+  isDialogFunction,
+  isEvalFunction,
+  KNOWN_CONSOLE_METHODS,
+} from './browser-apis';
 // Complexity patterns
 export {
   COMPLEXITY_OPERATORS,
@@ -34,7 +50,27 @@ export {
   MIN_STATEMENTS_FOR_EARLY_RETURN,
   type NumberRange,
 } from './complexity';
-
+// Dynamic skip patterns (directory traversal)
+export {
+  BASE_SKIP_DIRS,
+  COMMON_SKIP_DIRS,
+  clearSkipPatternsCache,
+  generateSkipPatterns,
+  getSkipPatterns,
+  invalidateSkipPatterns,
+  shouldSkipDir,
+  TOOL_DIR_MAP,
+} from './dynamic-skip';
+// Env var severity patterns (semantic analysis)
+export {
+  analyzeEnvVar,
+  detectEnvVarSeverity,
+  type EnvVarAnalysis,
+  type EnvVarSeverity,
+  groupEnvVarsBySeverity,
+  isSensitiveEnvVar,
+  sortEnvVarsBySeverity,
+} from './env-severity';
 // Hardcoded patterns
 export {
   ACCEPTABLE_NUMBERS,
@@ -67,17 +103,32 @@ export {
   LINT_RULES,
   type LintRule,
 } from './lint';
-
+// React patterns
+export {
+  ALL_BUILT_IN_HOOKS,
+  extractCustomHooks,
+  extractHookNames,
+  HOOK_CALL_PATTERN,
+  isBuiltInHook,
+  isCustomHook,
+  isReactHook,
+  REACT_BUILT_IN_HOOKS,
+  REACT_DOM_BUILT_IN_HOOKS,
+  REACT_HOOK_PATTERN,
+  REACT_PACKAGE_IDENTIFIERS,
+} from './react-patterns';
 // Skip patterns (centralized for all analyzers)
 export {
   ANALYZER_SKIP_PATTERNS,
+  clearSkipPatternCache,
+  getAnalyzerSkipPatterns,
   HARDCODED_SKIP_PATTERNS,
   LINT_SKIP_PATTERNS,
   shouldSkipForAnalysis,
+  shouldSkipForEnvConfig,
   shouldSkipForHardcoded,
   shouldSkipForLint,
 } from './skip-patterns';
-
 // Shared types
 export type {
   HardcodedType,
@@ -86,3 +137,12 @@ export type {
   QualityCategory,
   Severity,
 } from './types';
+// Verb detection (linguistic-based)
+export {
+  detectVerbPrefix,
+  extractVerbPrefix,
+  groupByVerbPrefix,
+  isActionVerbName,
+  isEventHandlerName,
+  isVerbLike,
+} from './verb-detection';

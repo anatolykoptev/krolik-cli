@@ -3,7 +3,7 @@
  * @description Helper functions for complexity analysis
  */
 
-import { lineStartsWith } from '../shared';
+import { lineStartsWith } from '../../core';
 import {
   DEFAULT_FUNCTION_NAME,
   FUNCTION_NAME_MAP,

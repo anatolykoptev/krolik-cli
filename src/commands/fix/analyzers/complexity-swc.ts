@@ -2,9 +2,10 @@
  * @module commands/fix/analyzers/complexity-swc
  * @description SWC-based cyclomatic complexity calculation and function extraction
  *
- * Replaces ts-morph version with @swc/core parseSync for:
+ * Uses cached parseFile from @/lib/@swc for:
  * - Faster parsing (no type checking overhead)
  * - Lower memory usage (no persistent AST)
+ * - Caching to avoid redundant parsing (4x → 1x)
  * - Accurate complexity counting via AST visitor pattern
  *
  * Features:
@@ -16,8 +17,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import { parseSync } from '@swc/core';
-import { calculateLineOffsets, offsetToLine, visitNode } from '../../../lib/@swc';
+import { offsetToLine, parseFile, visitNode } from '../../../lib/@swc';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 
 // ============================================================================
@@ -220,11 +220,7 @@ const COMPLEXITY_OPERATORS = new Set(['&&', '||', '??']);
  */
 export function calculateComplexitySwc(code: string): number {
   try {
-    const ast = parseSync(code, {
-      syntax: 'typescript',
-      tsx: true,
-      comments: false,
-    });
+    const { ast } = parseFile('complexity.tsx', code);
 
     return calculateComplexityFromAST(ast);
   } catch {
@@ -315,14 +311,7 @@ export function analyzeSplitPointsSwc(
   try {
     // Parse as a function wrapper to get proper body analysis
     const code = `function __wrapper__() ${bodyText}`;
-    const ast = parseSync(code, {
-      syntax: 'typescript',
-      tsx: true,
-      comments: false,
-    });
-
-    // Calculate line offsets for position mapping
-    const lineOffsets = calculateLineOffsets(code);
+    const { ast, lineOffsets } = parseFile('split-analysis.tsx', code);
 
     // Find the wrapper function
     let wrapperBody: BlockStatement | undefined;
@@ -493,14 +482,9 @@ function generateName(parentName: string, action: string, context: string): stri
  */
 export function extractFunctionsSwc(content: string): FunctionInfo[] {
   try {
-    const ast = parseSync(content, {
-      syntax: 'typescript',
-      tsx: true,
-      comments: true, // Enable comments for JSDoc detection
-    });
+    const { ast, lineOffsets } = parseFile('functions.tsx', content);
 
     const functions: FunctionInfo[] = [];
-    const lineOffsets = calculateLineOffsets(content);
 
     // Collect all comments for JSDoc detection
     const comments: Comment[] = (ast as { type: string; comments?: Comment[] }).comments || [];

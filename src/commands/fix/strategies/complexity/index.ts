@@ -8,8 +8,9 @@
  * - Long functions (block extraction)
  */
 
+import { matchNumberInRange } from '../../core';
 import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
-import { matchNumberInRange, validateAndFormat } from '../shared';
+import { validateAndFormat } from '../shared';
 import { generateComplexityFix } from './complexity-fix';
 import { generateLongFunctionFix } from './long-function-fix';
 import { generateNestingFix } from './nesting-fix';

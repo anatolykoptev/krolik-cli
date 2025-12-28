@@ -6,8 +6,8 @@
  * Always safe to remove - these are debugging artifacts.
  */
 
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@swc';
 import { createFixerMetadata } from '../../core/registry';
-import { isInsideComment, isInsideString } from '../../core/string-utils';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 import {
   createDeleteLine,
@@ -66,8 +66,8 @@ function analyzeDebugger(content: string, file: string): QualityIssue[] {
     const idx = match.index;
 
     // Skip if inside comment or string
-    if (isInsideComment(line, idx)) continue;
-    if (isInsideString(line, idx)) continue;
+    if (isInsideLineComment(line, idx)) continue;
+    if (isInsideStringLine(line, idx)) continue;
 
     issues.push({
       file,

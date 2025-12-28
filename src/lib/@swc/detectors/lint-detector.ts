@@ -3,25 +3,18 @@
  * @description SWC AST detector for lint issues
  *
  * Detects:
- * - console.log/warn/error/debug/info/trace
+ * - console.* method calls (object-based detection)
  * - debugger statements
- * - alert/confirm/prompt calls
+ * - alert/confirm/prompt calls (global window APIs)
  * - eval() calls
  * - empty catch blocks
+ *
+ * Uses centralized patterns from @/lib/@patterns/browser-apis
  */
 
 import type { Node, Span } from '@swc/core';
+import { isConsoleMember, isDialogFunction, isEvalFunction } from '@/lib/@patterns/browser-apis';
 import type { LintDetection } from './types';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/** Console methods to detect */
-const CONSOLE_METHODS = ['log', 'info', 'warn', 'error', 'debug', 'trace'] as const;
-
-/** Browser dialog functions to detect */
-const DIALOG_FUNCTIONS = ['alert', 'confirm', 'prompt'] as const;
 
 // ============================================================================
 // MAIN DETECTOR
@@ -99,7 +92,7 @@ export function detectLintIssue(node: Node): LintDetection | null {
 
     const calleeType = (callee as { type?: string }).type;
 
-    // 3a. MemberExpression - console.log, console.error, etc.
+    // 3a. MemberExpression - console.* method calls (object-based detection)
     if (calleeType === 'MemberExpression') {
       const memberExpr = callee as {
         object?: Node;
@@ -113,26 +106,21 @@ export function detectLintIssue(node: Node): LintDetection | null {
         return null;
       }
 
-      // Check if object is "console"
+      // Get object and property values for pattern-based detection
       const objectType = (object as { type?: string }).type;
-      if (objectType === 'Identifier') {
+      const propertyType = (property as { type?: string }).type;
+
+      if (objectType === 'Identifier' && propertyType === 'Identifier') {
         const objectValue = (object as { value?: string }).value;
-        if (objectValue === 'console') {
-          // Check if property is a console method
-          const propertyType = (property as { type?: string }).type;
-          if (propertyType === 'Identifier') {
-            const propertyValue = (property as { value?: string }).value;
-            if (
-              propertyValue &&
-              CONSOLE_METHODS.includes(propertyValue as (typeof CONSOLE_METHODS)[number])
-            ) {
-              return {
-                type: 'console',
-                offset: span.start,
-                method: propertyValue,
-              };
-            }
-          }
+        const propertyValue = (property as { value?: string }).value;
+
+        // Use pattern-based console detection (any console.* method)
+        if (objectValue && propertyValue && isConsoleMember(propertyValue, objectValue)) {
+          return {
+            type: 'console',
+            offset: span.start,
+            method: propertyValue,
+          };
         }
       }
     }
@@ -146,8 +134,8 @@ export function detectLintIssue(node: Node): LintDetection | null {
         return null;
       }
 
-      // Check for alert/confirm/prompt
-      if (DIALOG_FUNCTIONS.includes(identifierValue as (typeof DIALOG_FUNCTIONS)[number])) {
+      // Use pattern-based dialog function detection (global window APIs)
+      if (isDialogFunction(identifierValue)) {
         return {
           type: 'alert',
           offset: span.start,
@@ -155,12 +143,12 @@ export function detectLintIssue(node: Node): LintDetection | null {
         };
       }
 
-      // Check for eval
-      if (identifierValue === 'eval') {
+      // Use pattern-based eval detection
+      if (isEvalFunction(identifierValue)) {
         return {
           type: 'eval',
           offset: span.start,
-          method: 'eval',
+          method: identifierValue,
         };
       }
     }

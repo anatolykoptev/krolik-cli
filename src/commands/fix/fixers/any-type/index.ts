@@ -5,8 +5,8 @@
  * Detects `any` type usage and replaces with `unknown`.
  */
 
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@swc';
 import { createFixerMetadata } from '../../core/registry';
-import { isInsideComment, isInsideString } from '../../core/string-utils';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 import { splitLines } from '../../core/utils';
 
@@ -49,8 +49,8 @@ function analyzeAnyType(content: string, file: string): QualityIssue[] {
       // biome-ignore lint/suspicious/noAssignInExpressions: Standard regex exec loop
       while ((match = pattern.exec(codeOnly)) !== null) {
         // Skip if inside string or comment
-        if (isInsideComment(line, match.index)) continue;
-        if (isInsideString(line, match.index)) continue;
+        if (isInsideLineComment(line, match.index)) continue;
+        if (isInsideStringLine(line, match.index)) continue;
 
         issues.push({
           file,

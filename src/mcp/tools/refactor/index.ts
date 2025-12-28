@@ -19,10 +19,8 @@ const refactorSchema: FlagSchema = {
   path: COMMON_FLAGS.path,
   package: { flag: '--package', sanitize: 'feature' },
   allPackages: { flag: '--all-packages' },
-  duplicatesOnly: { flag: '--duplicates-only' },
-  typesOnly: { flag: '--types-only' },
-  includeTypes: { flag: '--include-types' },
-  structureOnly: { flag: '--structure-only' },
+  quick: { flag: '--quick' },
+  deep: { flag: '--deep' },
   dryRun: COMMON_FLAGS.dryRun,
   apply: COMMON_FLAGS.apply,
   fixTypes: { flag: '--fix-types' },
@@ -30,15 +28,19 @@ const refactorSchema: FlagSchema = {
 
 export const refactorTool: MCPToolDefinition = {
   name: 'krolik_refactor',
-  description:
-    'Analyze and refactor module structure. Finds duplicate functions/types, analyzes structure, suggests migrations.',
+  description: `Analyze and refactor module structure. Finds duplicate functions/types, analyzes structure, suggests migrations.
+
+Modes:
+  (default)  Function duplicates + structure (~3s)
+  quick      Structure only, no AST parsing (~1.5s)
+  deep       Full analysis with types (~30s)`,
   inputSchema: {
     type: 'object',
     properties: {
       ...PROJECT_PROPERTY,
       path: {
         type: 'string',
-        description: 'Path to analyze (default: auto-detect for monorepo)',
+        description: 'Path to analyze (default: auto-detect)',
       },
       package: {
         type: 'string',
@@ -48,21 +50,13 @@ export const refactorTool: MCPToolDefinition = {
         type: 'boolean',
         description: 'Analyze all packages in monorepo',
       },
-      duplicatesOnly: {
+      quick: {
         type: 'boolean',
-        description: 'Only analyze duplicate functions',
+        description: 'Quick mode: structure only, no AST (~1.5s)',
       },
-      typesOnly: {
+      deep: {
         type: 'boolean',
-        description: 'Only analyze duplicate types/interfaces',
-      },
-      includeTypes: {
-        type: 'boolean',
-        description: 'Include type/interface duplicate detection',
-      },
-      structureOnly: {
-        type: 'boolean',
-        description: 'Only analyze module structure',
+        description: 'Deep mode: + types, + git history (~30s)',
       },
       dryRun: {
         type: 'boolean',
@@ -70,15 +64,15 @@ export const refactorTool: MCPToolDefinition = {
       },
       apply: {
         type: 'boolean',
-        description: 'Apply migrations (move files, update imports)',
+        description: 'Apply migrations (creates backup, commits first)',
       },
       fixTypes: {
         type: 'boolean',
-        description: 'Auto-fix type duplicates (merge identical types)',
+        description: 'Auto-fix 100% identical type duplicates',
       },
     },
   },
-  template: { when: 'Find duplicates/structure', params: '`dryRun: true`' },
+  template: { when: 'Find duplicates/structure', params: '' },
   workflow: { trigger: 'on_refactor', order: 1 },
   category: 'code',
   handler: (args, workspaceRoot) => {
@@ -91,8 +85,8 @@ export const refactorTool: MCPToolDefinition = {
       return result.error;
     }
 
-    // Always use AI-native output for MCP
-    const flags = result.flags ? `${result.flags} --ai` : '--ai';
+    // XML is default format (AI-native), no need to add --ai flag
+    const flags = result.flags || '';
 
     return withProjectDetection(args, workspaceRoot, (projectPath) => {
       return runKrolik(`refactor ${flags}`, projectPath, TIMEOUT_60S);

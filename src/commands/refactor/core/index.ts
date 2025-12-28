@@ -61,6 +61,10 @@ export type {
   // Domains
   FileMoveInfo,
   FilePatternInfo,
+  // File size analysis
+  FileSizeAnalysis,
+  FileSizeIssue,
+  FileSizeSeverity,
   ImportConventions,
   LayerComplianceInfo,
   NamingConventions,
@@ -88,13 +92,17 @@ export type {
 export type {
   AnalysisOptions,
   MigrationOptions,
+  ModeAnalysisFlags,
   OutputFormat,
+  RefactorMode,
   RefactorOptions,
 } from './options';
 
 export {
   DEFAULT_REFACTOR_OPTIONS,
+  getModeFlags,
   mergeOptions,
+  resolveMode,
 } from './options';
 
 // ============================================================================

@@ -12,22 +12,26 @@
  * - Standards compliance
  * - AI navigation hints
  * - Recommendations generation
+ *
+ * Directory structure:
+ * - core/          - Core analysis (duplicates, type-duplicates, swc-parser)
+ * - architecture/  - Architecture analysis (health, domains, structure, namespace)
+ * - context/       - Project context (detection, standards, navigation)
+ * - metrics/       - Metrics & scoring (file-size, reusable, recommendations)
+ * - shared/        - Shared utilities (helpers)
  */
 
 // ============================================================================
-// CORE ANALYZERS
+// CORE ANALYZERS (from core/)
 // ============================================================================
 
 export {
   extractFunctions,
+  type FindDuplicatesOptions,
   findDuplicates,
   quickScanDuplicates,
-} from './duplicates';
-export {
-  analyzeStructure,
-  visualizeStructure,
-} from './structure';
-export { extractFunctionsSwc, type SwcFunctionInfo } from './swc-parser';
+} from './core/duplicates';
+export { extractFunctionsSwc, type SwcFunctionInfo } from './core/swc-parser';
 export {
   extractTypes,
   type FindTypeDuplicatesOptions,
@@ -35,10 +39,42 @@ export {
   quickScanTypeDuplicates,
   type TypeDuplicateInfo,
   type TypeSignature,
-} from './type-duplicates';
+} from './core/type-duplicates';
 
 // ============================================================================
-// PROJECT CONTEXT (from context.ts)
+// ARCHITECTURE ANALYSIS (from architecture/)
+// ============================================================================
+
+export {
+  analyzeArchHealth,
+  analyzeDependencies,
+  findCircularDeps,
+  getDirectoriesWithCategories,
+} from './architecture/architecture';
+export {
+  classifyDomains,
+  getLowCoherenceDomains,
+  getTotalMisplacedFiles,
+  groupMisplacedByTarget,
+} from './architecture/domains';
+export type {
+  NamespaceAnalysisResult,
+  NamespaceImportUpdate,
+  NamespaceMigrationMove,
+  NamespaceMigrationPlan,
+} from './architecture/namespace';
+export {
+  analyzeNamespaceDirectory,
+  analyzeNamespaceStructure,
+  calculateNamespaceScore,
+  detectNamespaceCategory,
+  findLibDir,
+  generateNamespaceMigrationPlan,
+} from './architecture/namespace';
+export { analyzeStructure, visualizeStructure } from './architecture/structure';
+
+// ============================================================================
+// PROJECT CONTEXT (from context/)
 // ============================================================================
 
 export {
@@ -48,40 +84,19 @@ export {
   detectProjectType,
   detectSrcDir,
   detectTechStack,
-} from './context';
+} from './context/context';
+export { generateAiNavigation } from './context/navigation';
+export { checkStandards } from './context/standards';
 
 // ============================================================================
-// ARCHITECTURE ANALYSIS (from architecture.ts)
-// ============================================================================
-
-export {
-  analyzeArchHealth,
-  analyzeDependencies,
-  findCircularDeps,
-  getDirectoriesWithCategories,
-} from './architecture';
-
-// ============================================================================
-// DOMAIN CLASSIFICATION (from domains.ts)
+// METRICS & SCORING (from metrics/)
 // ============================================================================
 
 export {
-  classifyDomains,
-  getLowCoherenceDomains,
-  getTotalMisplacedFiles,
-  groupMisplacedByTarget,
-} from './domains';
-
-// ============================================================================
-// AI NAVIGATION (from navigation.ts)
-// ============================================================================
-
-export { generateAiNavigation } from './navigation';
-
-// ============================================================================
-// RECOMMENDATIONS (from recommendations.ts)
-// ============================================================================
-
+  analyzeFileSizes,
+  DEFAULT_THRESHOLDS as FILE_SIZE_THRESHOLDS,
+  quickScanFileSizes,
+} from './metrics/file-size';
 export {
   calculateTotalImprovement,
   filterByCategory,
@@ -89,60 +104,33 @@ export {
   getAutoFixable,
   groupByCategory,
   sortByPriority,
-} from './recommendations';
+} from './metrics/recommendations';
+export { analyzeReusableModules, getQuickReusableSummary } from './metrics/reusable';
 
 // ============================================================================
-// ENHANCED ANALYSIS (from enhanced.ts)
+// SHARED UTILITIES (from shared/)
 // ============================================================================
 
+export type { PackageJson } from './shared/helpers';
 export {
-  createEnhancedAnalysis,
-  createEnhancedMigrationPlan,
-} from './enhanced';
-
-// ============================================================================
-// STANDARDS COMPLIANCE (from standards.ts)
-// ============================================================================
-
-export { checkStandards } from './standards';
-
-// ============================================================================
-// NAMESPACE ANALYSIS (from namespace.ts)
-// ============================================================================
-
-export type {
-  NamespaceAnalysisResult,
-  NamespaceImportUpdate,
-  NamespaceMigrationMove,
-  NamespaceMigrationPlan,
-} from './namespace';
-export {
-  analyzeNamespaceDirectory,
-  analyzeNamespaceStructure,
-  calculateNamespaceScore,
-  detectNamespaceCategory,
-  findLibDir,
-  generateNamespaceMigrationPlan,
-} from './namespace';
-
-// ============================================================================
-// HELPERS (from helpers.ts)
-// ============================================================================
-
-export type { PackageJson } from './helpers';
-export {
+  createSharedProject,
   findDir,
   findFile,
+  findTsConfig,
   getAllDependencies,
   getSubdirectories,
   hasDir,
   hasFile,
   listDirectory,
   readPackageJson,
-} from './helpers';
+} from './shared/helpers';
 
 // ============================================================================
-// REUSABLE MODULES (from reusable.ts)
+// ENHANCED ANALYSIS (orchestrator)
 // ============================================================================
 
-export { analyzeReusableModules, getQuickReusableSummary } from './reusable';
+export {
+  createEnhancedAnalysis,
+  createEnhancedMigrationPlan,
+  type EnhancedAnalysisOptions,
+} from './enhanced';

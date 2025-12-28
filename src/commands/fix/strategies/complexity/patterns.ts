@@ -3,7 +3,7 @@
  * @description Patterns and constants for complexity detection
  */
 
-import type { NumberRange } from '../shared';
+import type { NumberRange } from '../../core';
 
 // ============================================================================
 // FIXABLE PATTERNS

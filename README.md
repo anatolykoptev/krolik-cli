@@ -10,7 +10,7 @@
 
 [![CI](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@anatolykoptev/krolik-cli.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@anatolykoptev/krolik-cli)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://opensource.org/licenses/MIT)
+[![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/License-FSL--1.1-blue.svg?style=flat&colorA=18181B&colorB=28CF8D)](./LICENSE)
 
 [Get Started](#installation) · [Commands](#commands) · [MCP Server](#mcp-server)
 
@@ -88,16 +88,19 @@ krolik fix --all            # Include risky fixes
 
 ---
 
-### `krolik refactor` — Find Duplicates
+### `krolik refactor` — Find Duplicates & Improve Structure
 
-Finds duplicate functions and types across the codebase.
+Analyzes module structure, finds duplicate functions/types, suggests migrations.
 
 ```bash
-krolik refactor                  # Find duplicates
-krolik refactor --apply          # Apply suggested migrations
+krolik refactor                  # Default: function duplicates + structure (~3s)
+krolik refactor --quick          # Fast: structure only (~1.5s)
+krolik refactor --deep           # Full: + type duplicates (~10s)
+krolik refactor --apply          # Apply migrations (with backup)
+krolik refactor --fix-types      # Auto-fix identical type duplicates
 ```
 
-**Output**: List of duplicates with locations, suggested consolidation points, migration plan.
+**Output**: XML report with duplicates, structure score, domain analysis, migration plan. Saved to `.krolik/REFACTOR.xml`.
 
 ---
 
@@ -123,7 +126,12 @@ krolik agent --orchestrate --task "review"    # Multi-agent mode
 | `krolik schema` | Database schema as structured docs |
 | `krolik routes` | API routes as structured docs |
 | `krolik review` | Code review for current changes |
-| `krolik docs` | Search library documentation |
+| `krolik docs` | Search and cache library documentation |
+| `krolik codegen` | Generate hooks, schemas, tests, barrels |
+| `krolik sync` | Sync CLAUDE.md with project state |
+| `krolik security` | Audit dependencies for vulnerabilities |
+| `krolik init` | Initialize krolik config in project |
+| `krolik setup` | Install Claude Code plugins (memory) |
 
 ---
 
@@ -165,4 +173,6 @@ export default defineConfig({
 
 ## License
 
-[MIT](LICENSE) © Anatoly Koptev
+[FSL-1.1-Apache-2.0](LICENSE) © Anatoly Koptev
+
+Free for internal use, education, and research. Converts to Apache 2.0 on December 26, 2027.

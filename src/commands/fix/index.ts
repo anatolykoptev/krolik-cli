@@ -21,10 +21,14 @@
  */
 
 import chalk from 'chalk';
-import { fileCache, formatCacheStats } from '@/lib';
+import {
+  createBackupBranch,
+  fileCache,
+  formatCacheStats,
+  isGitRepoForBackup as isGitRepo,
+} from '@/lib';
 import type { CommandContext } from '../../types';
 import { formatPlan, formatPlanForAI, formatResults } from './formatters';
-import { createBackupBranch, isGitRepo } from './git-backup';
 import { applyFixesParallel } from './parallel-executor';
 import { type FixPlan, generateFixPlan, generateFixPlanFromIssues, type SkipStats } from './plan';
 import {

@@ -13,6 +13,19 @@
 export type OutputFormat = 'text' | 'json' | 'xml';
 
 // ============================================================================
+// REFACTOR MODE
+// ============================================================================
+
+/**
+ * Refactor analysis mode
+ *
+ * - quick: Structure only, no AST parsing (~1.5s)
+ * - default: Function duplicates + structure (~3s)
+ * - deep: Full analysis with types + git history (~30s)
+ */
+export type RefactorMode = 'quick' | 'default' | 'deep';
+
+// ============================================================================
 // REFACTOR OPTIONS
 // ============================================================================
 
@@ -26,40 +39,30 @@ export interface RefactorOptions {
   package?: string;
   /** Analyze all packages in monorepo */
   allPackages?: boolean;
-  /** Only analyze duplicates */
-  duplicatesOnly?: boolean;
-  /** Only analyze structure */
-  structureOnly?: boolean;
-  /** Only analyze type/interface duplicates */
-  typesOnly?: boolean;
-  /** Include type/interface duplicate detection */
-  includeTypes?: boolean;
+  /** Analysis mode: quick, default, or deep */
+  mode?: RefactorMode;
   /** Show migration plan without applying */
   dryRun?: boolean;
   /** Apply migrations */
   apply?: boolean;
-  /** Auto-confirm all actions */
-  yes?: boolean;
   /** Output format */
   format?: OutputFormat;
   /** Verbose output */
   verbose?: boolean;
-  /** Use AI-native enhanced output (auto-enabled for XML) */
-  aiNative?: boolean;
-  /** Create git backup before applying migrations (default: true) */
-  backup?: boolean;
-  /** Commit uncommitted changes before applying (default: true) */
-  commitFirst?: boolean;
-  /** Push auto-commit to remote (default: true) */
-  push?: boolean;
-  /** Generate ai-config.ts for AI assistants */
-  generateConfig?: boolean;
   /** Auto-fix type duplicates */
   fixTypes?: boolean;
-  /** Only fix 100% identical types (safe mode, default for --fix-types) */
-  fixTypesIdenticalOnly?: boolean;
-  /** Use fast SWC parser for duplicate detection (default: true) */
-  useFastParser?: boolean;
+
+  // -------------------------------------------------------------------------
+  // Legacy options (deprecated, mapped to mode internally)
+  // -------------------------------------------------------------------------
+  /** @deprecated Use mode='default' instead */
+  duplicatesOnly?: boolean;
+  /** @deprecated Use mode='quick' instead */
+  structureOnly?: boolean;
+  /** @deprecated Use mode='deep' instead */
+  typesOnly?: boolean;
+  /** @deprecated Use mode='deep' instead */
+  includeTypes?: boolean;
 }
 
 // ============================================================================
@@ -68,14 +71,13 @@ export interface RefactorOptions {
 
 /**
  * Options for migration execution
+ * Note: backup/commitFirst/push removed in Epic 3 - now always-on
  */
 export interface MigrationOptions {
   /** Preview changes without applying */
   dryRun?: boolean;
   /** Verbose output */
   verbose?: boolean;
-  /** Create backup before applying */
-  backup?: boolean;
 }
 
 // ============================================================================
@@ -102,13 +104,11 @@ export interface AnalysisOptions {
  * Default refactor options
  */
 export const DEFAULT_REFACTOR_OPTIONS: Required<
-  Pick<RefactorOptions, 'format' | 'backup' | 'verbose' | 'dryRun' | 'useFastParser'>
+  Pick<RefactorOptions, 'format' | 'verbose' | 'dryRun'>
 > = {
   format: 'text',
-  backup: true,
   verbose: false,
   dryRun: false,
-  useFastParser: true, // SWC parser is 10-20x faster than ts-morph
 };
 
 /**
@@ -119,4 +119,92 @@ export function mergeOptions(options: RefactorOptions): RefactorOptions {
     ...DEFAULT_REFACTOR_OPTIONS,
     ...options,
   };
+}
+
+// ============================================================================
+// MODE RESOLUTION
+// ============================================================================
+
+/**
+ * Resolve effective mode from options
+ *
+ * Priority:
+ * 1. Explicit mode option
+ * 2. fixTypes implies 'deep'
+ * 3. Legacy flags (structureOnly, typesOnly, includeTypes, duplicatesOnly)
+ * 4. Default: 'default'
+ */
+export function resolveMode(options: RefactorOptions): RefactorMode {
+  // 1. Explicit mode takes priority
+  if (options.mode) {
+    return options.mode;
+  }
+
+  // 2. fixTypes implies deep mode (need type analysis)
+  if (options.fixTypes) {
+    return 'deep';
+  }
+
+  // 3. Legacy flags
+  if (options.structureOnly) {
+    return 'quick';
+  }
+  if (options.typesOnly || options.includeTypes) {
+    return 'deep';
+  }
+  if (options.duplicatesOnly) {
+    return 'default';
+  }
+
+  // 4. Default mode
+  return 'default';
+}
+
+/**
+ * Get analysis flags based on mode
+ */
+export interface ModeAnalysisFlags {
+  /** Run structure analysis */
+  analyzeStructure: boolean;
+  /** Run function duplicate detection (SWC) */
+  analyzeFunctionDuplicates: boolean;
+  /** Run type duplicate detection (ts-morph) */
+  analyzeTypeDuplicates: boolean;
+  /** Include git history in context */
+  includeGitHistory: boolean;
+}
+
+/**
+ * Convert mode to analysis flags
+ */
+export function getModeFlags(mode: RefactorMode): ModeAnalysisFlags {
+  switch (mode) {
+    case 'quick':
+      // Quick: structure only, no AST parsing
+      return {
+        analyzeStructure: true,
+        analyzeFunctionDuplicates: false,
+        analyzeTypeDuplicates: false,
+        includeGitHistory: false,
+      };
+
+    case 'deep':
+      // Deep: full analysis with types
+      return {
+        analyzeStructure: true,
+        analyzeFunctionDuplicates: true,
+        analyzeTypeDuplicates: true,
+        includeGitHistory: true,
+      };
+
+    case 'default':
+    default:
+      // Default: function duplicates + structure
+      return {
+        analyzeStructure: true,
+        analyzeFunctionDuplicates: true,
+        analyzeTypeDuplicates: false,
+        includeGitHistory: false,
+      };
+  }
 }

@@ -3,8 +3,8 @@
  * @description Fix generators for type-safety issues
  */
 
+import { createDeleteLine, createReplaceLine, getLineContext, lineContains } from '../../core';
 import type { FixOperation, QualityIssue } from '../../types';
-import { createDeleteLine, createReplaceLine, getLineContext, lineContains } from '../shared';
 import { ANY_TYPE_PATTERNS, TS_IGNORE_PATTERNS, TS_NOCHECK_PATTERNS } from './constants';
 
 // ============================================================================

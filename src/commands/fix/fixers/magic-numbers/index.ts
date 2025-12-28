@@ -6,8 +6,8 @@
  * Uses AST for safe transformations.
  */
 
+import { isInsideStringLine } from '../../../../lib/@swc';
 import { createFixerMetadata } from '../../core/registry';
-import { isInsideString } from '../../core/string-utils';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('magic-numbers', 'Magic Numbers', 'hardcoded', {
@@ -49,7 +49,7 @@ function analyzeMagicNumbers(content: string, file: string): QualityIssue[] {
     const codeOnly = line.replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
 
     MAGIC_NUMBER_PATTERN.lastIndex = 0;
-    let match;
+    let match: RegExpExecArray | null;
 
     // biome-ignore lint/suspicious/noAssignInExpressions: Standard regex exec loop
     while ((match = MAGIC_NUMBER_PATTERN.exec(codeOnly)) !== null) {
@@ -59,7 +59,7 @@ function analyzeMagicNumbers(content: string, file: string): QualityIssue[] {
       if (ALLOWED_NUMBERS.has(num)) continue;
 
       // Skip if inside string literal (e.g., "port: 8080")
-      if (isInsideString(line, match.index)) continue;
+      if (isInsideStringLine(line, match.index)) continue;
 
       // Skip array indices
       if (codeOnly.includes(`[${num}]`)) continue;

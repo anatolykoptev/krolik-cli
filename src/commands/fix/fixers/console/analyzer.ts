@@ -3,7 +3,7 @@
  * @description Detects console.* statements in code
  */
 
-import { isInsideComment, isInsideString } from '../../core/string-utils';
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@swc';
 import type { QualityIssue } from '../../core/types';
 
 /**
@@ -33,11 +33,11 @@ export function analyzeConsole(content: string, file: string): QualityIssue[] {
     // Reset regex
     CONSOLE_PATTERN.lastIndex = 0;
 
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = CONSOLE_PATTERN.exec(line)) !== null) {
       // Skip if inside comment or string
-      if (isInsideComment(line, match.index)) continue;
-      if (isInsideString(line, match.index)) continue;
+      if (isInsideLineComment(line, match.index)) continue;
+      if (isInsideStringLine(line, match.index)) continue;
 
       const method = match[1] ?? 'log';
 

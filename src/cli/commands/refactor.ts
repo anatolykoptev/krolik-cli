@@ -4,6 +4,7 @@
  */
 
 import type { Command } from 'commander';
+import type { RefactorMode } from '../../commands/refactor/core/options';
 import type { CommandOptions } from '../types';
 
 /** Global options from program.opts() */
@@ -25,58 +26,12 @@ function getOutputFormat(globalOpts: GlobalOptions): string {
 }
 
 /**
- * Apply boolean flags to refactor options
+ * Determine refactor mode from CLI options
  */
-function applyBooleanFlags(
-  opts: Record<string, unknown>,
-  options: CommandOptions,
-  globalOpts: GlobalOptions,
-): void {
-  const booleanMappings: Array<[keyof CommandOptions, string]> = [
-    ['allPackages', 'allPackages'],
-    ['duplicatesOnly', 'duplicatesOnly'],
-    ['typesOnly', 'typesOnly'],
-    ['includeTypes', 'includeTypes'],
-    ['structureOnly', 'structureOnly'],
-    ['dryRun', 'dryRun'],
-    ['apply', 'apply'],
-    ['yes', 'yes'],
-    ['generateConfig', 'generateConfig'],
-  ];
-
-  for (const [optKey, targetKey] of booleanMappings) {
-    if (options[optKey]) opts[targetKey] = true;
-  }
-
-  if (globalOpts.verbose) opts.verbose = true;
-  if (options.ai) opts.aiNative = true;
-}
-
-/**
- * Apply optional flags (only set if explicitly specified)
- */
-function applyOptionalFlags(opts: Record<string, unknown>, options: CommandOptions): void {
-  if (options.backup !== undefined) opts.backup = options.backup;
-  if (options.commitFirst !== undefined) opts.commitFirst = options.commitFirst;
-  if (options.push !== undefined) opts.push = options.push;
-}
-
-/**
- * Apply type fix options and enable type analysis if needed
- */
-function applyTypeFixOptions(opts: Record<string, unknown>, options: CommandOptions): void {
-  const needsTypeAnalysis = !opts.typesOnly && !opts.includeTypes;
-
-  if (options.fixTypes) {
-    opts.fixTypes = true;
-    if (needsTypeAnalysis) opts.includeTypes = true;
-  }
-
-  if (options.fixTypesAll) {
-    opts.fixTypes = true;
-    opts.fixTypesIdenticalOnly = false;
-    if (needsTypeAnalysis) opts.includeTypes = true;
-  }
+function determineMode(options: CommandOptions): RefactorMode | undefined {
+  if (options.quick) return 'quick';
+  if (options.deep) return 'deep';
+  return undefined; // default mode
 }
 
 /**
@@ -90,19 +45,21 @@ function buildRefactorOptions(
     format: getOutputFormat(globalOpts),
   };
 
-  // Path options (support deprecated --lib-path alias)
-  if (options.path || options.libPath) {
-    opts.path = options.path || options.libPath;
-  }
+  // Path options
+  if (options.path) opts.path = options.path;
   if (options.package) opts.package = options.package;
 
-  applyBooleanFlags(opts, options, globalOpts);
-  applyOptionalFlags(opts, options);
-  applyTypeFixOptions(opts, options);
+  // Boolean flags
+  if (options.allPackages) opts.allPackages = true;
+  if (options.dryRun) opts.dryRun = true;
+  if (options.apply) opts.apply = true;
+  if (options.fixTypes) opts.fixTypes = true;
+  if (globalOpts.verbose) opts.verbose = true;
 
-  // SWC is default (fast), --no-swc switches to ts-morph
-  if (options.swc === false) {
-    opts.useFastParser = false;
+  // Mode handling - resolveMode in analysis.ts will handle the rest
+  const mode = determineMode(options);
+  if (mode) {
+    opts.mode = mode;
   }
 
   return opts;
@@ -115,30 +72,28 @@ export function registerRefactorCommand(program: Command): void {
   program
     .command('refactor')
     .description(
-      'Analyze and refactor module structure (duplicates, imports, @namespace organization)',
+      `Analyze and refactor module structure
+
+Modes:
+  (default)        Function duplicates + structure (~3s)
+  --quick          Structure only, no AST parsing (~1.5s)
+  --deep           Full analysis with types (~30s)
+
+Examples:
+  krolik refactor                    # Default analysis
+  krolik refactor --quick            # Fast structure check
+  krolik refactor --deep             # Full analysis with types
+  krolik refactor --apply            # Apply suggested migrations
+  krolik refactor --package api      # Analyze specific package`,
     )
-    .option('--path <path>', 'Path to analyze (default: auto-detect for monorepo)')
-    .option('--lib-path <path>', 'Alias for --path (deprecated: use --path)')
+    .option('--path <path>', 'Path to analyze (default: auto-detect)')
     .option('--package <name>', 'Monorepo package to analyze (e.g., web, api)')
     .option('--all-packages', 'Analyze all packages in monorepo')
-    .option('--duplicates-only', 'Only analyze duplicate functions')
-    .option('--types-only', 'Only analyze duplicate types/interfaces')
-    .option('--include-types', 'Include type/interface duplicate detection')
-    .option('--structure-only', 'Only analyze module structure')
+    .option('--quick', 'Quick mode: structure only, no AST (~1.5s)')
+    .option('--deep', 'Deep mode: + types, + git history (~30s)')
     .option('--dry-run', 'Show migration plan without applying')
-    .option('--apply', 'Apply migrations (move files, update imports)')
-    .option('--yes', 'Auto-confirm all changes')
-    .option('--ai', 'AI-native enhanced output with dependency graphs and navigation hints')
-    .option('--generate-config', 'Generate ai-config.ts for AI assistants')
-    .option('--backup', 'Create git backup before applying (default: true)')
-    .option('--no-backup', 'Skip git backup before applying')
-    .option('--commit-first', 'Commit uncommitted changes before applying (default: true)')
-    .option('--no-commit-first', 'Skip auto-commit before applying')
-    .option('--push', 'Push auto-commit to remote (default: true)')
-    .option('--no-push', 'Skip push to remote')
-    .option('--fix-types', 'Auto-fix type duplicates (merge 100% identical types)')
-    .option('--fix-types-all', 'Include similar types (90%+) in auto-fix')
-    .option('--no-swc', 'Use ts-morph instead of SWC for parsing (slower but more accurate)')
+    .option('--apply', 'Apply migrations (creates backup, commits first)')
+    .option('--fix-types', 'Auto-fix 100% identical type duplicates')
     .action(async (options: CommandOptions) => {
       const { refactorCommand } = await import('../../commands/refactor');
       const globalOpts = program.opts() as GlobalOptions;

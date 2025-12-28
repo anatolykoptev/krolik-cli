@@ -5,21 +5,11 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { generateSkipPatterns } from '@/lib/@patterns/dynamic-skip';
 import type { ProjectTree } from '../types';
 
 const MAX_DEPTH = 3;
 const MAX_EXTENSIONS = 3;
-
-const EXCLUDE_DIRS = new Set([
-  'node_modules',
-  '.git',
-  '.next',
-  'dist',
-  'build',
-  '.turbo',
-  'coverage',
-  '.pnpm',
-]);
 
 const IMPORTANT_DIRS = new Set(['src', 'apps', 'packages', 'lib', 'components', 'pages', 'api']);
 
@@ -29,13 +19,14 @@ interface TreeState {
   lines: string[];
   totalFiles: number;
   totalDirs: number;
+  excludeDirs: Set<string>;
 }
 
 /**
  * Check if directory should be included
  */
-function shouldIncludeDir(name: string): boolean {
-  return !EXCLUDE_DIRS.has(name) && !name.startsWith('.');
+function shouldIncludeDir(name: string, excludeDirs: Set<string>): boolean {
+  return !excludeDirs.has(name) && !name.startsWith('.');
 }
 
 /**
@@ -110,7 +101,9 @@ function scanDir(state: TreeState, dir: string, prefix: string, depth: number): 
     return;
   }
 
-  const dirs = sortDirs(entries.filter((e) => e.isDirectory() && shouldIncludeDir(e.name)));
+  const dirs = sortDirs(
+    entries.filter((e) => e.isDirectory() && shouldIncludeDir(e.name, state.excludeDirs)),
+  );
   const files = entries.filter((e) => e.isFile() && !e.name.startsWith('.'));
 
   // Process directories
@@ -142,6 +135,7 @@ export function generateProjectTree(projectRoot: string): ProjectTree {
     lines: [`${path.basename(projectRoot)}/`],
     totalFiles: 0,
     totalDirs: 0,
+    excludeDirs: generateSkipPatterns(projectRoot),
   };
 
   scanDir(state, projectRoot, '', 0);

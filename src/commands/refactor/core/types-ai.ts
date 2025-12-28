@@ -348,6 +348,53 @@ export interface ReusableModulesInfo {
 }
 
 // ============================================================================
+// FILE SIZE ANALYSIS
+// ============================================================================
+
+/**
+ * File size severity level
+ */
+export type FileSizeSeverity = 'warning' | 'error' | 'critical';
+
+/**
+ * File size issue
+ */
+export interface FileSizeIssue {
+  /** Relative file path */
+  file: string;
+  /** Lines of code */
+  lines: number;
+  /** Severity based on lines count */
+  severity: FileSizeSeverity;
+  /** Suggested action */
+  suggestion: string;
+  /** Estimated split count */
+  suggestedSplitCount: number;
+}
+
+/**
+ * File size analysis result
+ */
+export interface FileSizeAnalysis {
+  /** Total files analyzed */
+  totalFiles: number;
+  /** Files with issues */
+  issues: FileSizeIssue[];
+  /** Thresholds used */
+  thresholds: {
+    warning: number;
+    error: number;
+    critical: number;
+  };
+  /** Summary by severity */
+  summary: {
+    warning: number;
+    error: number;
+    critical: number;
+  };
+}
+
+// ============================================================================
 // ENHANCED ANALYSIS
 // ============================================================================
 
@@ -369,4 +416,6 @@ export interface EnhancedRefactorAnalysis extends RefactorAnalysis {
   recommendations: Recommendation[];
   /** Reusable modules analysis */
   reusableModules?: ReusableModulesInfo;
+  /** File size analysis */
+  fileSizeAnalysis?: FileSizeAnalysis;
 }
