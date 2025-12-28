@@ -12,7 +12,6 @@ import { shouldSkipForEnvConfig } from '../skip-patterns';
 import {
   API_ENDPOINT_PATTERNS,
   CONFIG_VAR_PATTERNS,
-  isConfigurablePort as checkConfigurablePort,
   DATABASE_HOSTNAME_PATTERNS,
   ENV_URL_PATTERNS,
   FEATURE_FLAG_PATTERNS,
@@ -21,20 +20,20 @@ import {
 } from './patterns';
 import type { DetectorContext, EnvConfigIssueType } from './types';
 
+// Re-export isConfigurablePort from patterns.ts (canonical location)
+export { isConfigurablePort } from './patterns';
+
 // ============================================================================
 // FILE VALIDATION
 // ============================================================================
 
 /**
  * Check if file should be skipped for env config detection
- * (Uses centralized patterns from @patterns/skip-patterns)
+ * Re-exports shouldSkipForEnvConfig from skip-patterns for backward compatibility
  *
- * @param filepath - Path to file
- * @returns True if file should be skipped
+ * @deprecated Import shouldSkipForEnvConfig from '@patterns/skip-patterns' directly
  */
-export function shouldSkipFile(filepath: string): boolean {
-  return shouldSkipForEnvConfig(filepath);
-}
+export { shouldSkipForEnvConfig as shouldSkipFile };
 
 // ============================================================================
 // URL VALIDATION
@@ -72,25 +71,6 @@ export function isApiEndpoint(url: string): boolean {
  */
 export function isDatabaseHostname(value: string): boolean {
   return DATABASE_HOSTNAME_PATTERNS.some((pattern) => pattern.test(value));
-}
-
-// ============================================================================
-// PORT VALIDATION
-// ============================================================================
-
-/**
- * Check if port number is configurable
- *
- * Uses semantic analysis from patterns.ts:
- * - Service ports (database, cache, messaging)
- * - Dev server port ranges (3000-5999)
- * - HTTP alternative port ranges (8000-9999)
- *
- * @param port - Port number to check
- * @returns True if port should be configurable via environment
- */
-export function isConfigurablePort(port: number): boolean {
-  return checkConfigurablePort(port);
 }
 
 // ============================================================================

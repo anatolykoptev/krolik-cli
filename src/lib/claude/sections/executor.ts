@@ -452,15 +452,3 @@ export function validateSectionDependencies(providers?: SectionProvider[]): stri
 
   return errors;
 }
-
-/**
- * Create a new section context with cache
- * @param base - Base context properties
- * @returns Complete section context with cache
- */
-export function createSectionContext(base: Omit<SectionContext, 'cache'>): SectionContext {
-  return {
-    ...base,
-    cache: new Map<string, unknown>(),
-  };
-}

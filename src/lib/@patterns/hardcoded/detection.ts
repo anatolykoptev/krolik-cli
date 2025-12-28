@@ -6,6 +6,14 @@
 import { shouldSkipForHardcoded } from '../skip-patterns';
 
 /**
+ * Check if file should be skipped for hardcoded detection
+ * Re-exports shouldSkipForHardcoded from skip-patterns for backward compatibility
+ *
+ * @deprecated Import shouldSkipForHardcoded from '@patterns/skip-patterns' directly
+ */
+export { shouldSkipForHardcoded as shouldSkipFile };
+
+/**
  * Detection patterns for hardcoded values
  */
 export const DETECTION_PATTERNS = {
@@ -48,14 +56,6 @@ export const SKIP_FILE_PATTERNS = [
   '/@patterns/', // Pattern library
   '/@swc/', // SWC infrastructure
 ] as const;
-
-/**
- * Check if file should be skipped for hardcoded detection
- * Delegates to centralized skip-patterns for comprehensive skip logic
- */
-export function shouldSkipFile(filepath: string): boolean {
-  return shouldSkipForHardcoded(filepath);
-}
 
 /**
  * Check if line should be skipped (comments, imports, type declarations)
