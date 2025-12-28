@@ -6,6 +6,8 @@
  */
 
 import * as path from 'node:path';
+import type { ImportDeclaration, Module } from '@swc/core';
+import { parseSync } from '@swc/core';
 import { exists, findFiles, readFile } from '../../../../lib';
 import type { ArchHealth, ArchViolation, NamespaceCategory } from '../../core';
 import { ALLOWED_DEPS, detectCategory, NAMESPACE_INFO } from '../../core';
@@ -48,7 +50,70 @@ export function getDirectoriesWithCategories(targetPath: string): DirectoryWithC
 // ============================================================================
 
 /**
+ * Extract runtime imports from a file using SWC AST
+ *
+ * Only returns REAL dependencies:
+ * - Skips type-only imports (import type { ... })
+ * - Skips re-exports (export { ... } from, export * from)
+ * - Handles multiline imports correctly
+ */
+function extractRuntimeImports(content: string, filePath: string): string[] {
+  const imports: string[] = [];
+
+  try {
+    const ast = parseSync(content, {
+      syntax: 'typescript',
+      tsx: filePath.endsWith('.tsx'),
+      target: 'es2022',
+    }) as Module;
+
+    for (const item of ast.body) {
+      // Only process ImportDeclaration (not ExportNamedDeclaration, ExportAllDeclaration)
+      if (item.type !== 'ImportDeclaration') continue;
+
+      const imp = item as ImportDeclaration;
+
+      // Skip type-only imports (import type { ... } from '...')
+      if (imp.typeOnly) continue;
+
+      // Check if ALL specifiers are type-only (import { type A, type B } from '...')
+      const specifiers = imp.specifiers || [];
+      const hasRuntimeSpecifier = specifiers.some((spec) => {
+        if (spec.type === 'ImportSpecifier') {
+          return !spec.isTypeOnly;
+        }
+        // Default and namespace imports are runtime
+        return true;
+      });
+
+      // Skip if no runtime specifiers
+      if (specifiers.length > 0 && !hasRuntimeSpecifier) continue;
+
+      imports.push(imp.source.value);
+    }
+  } catch {
+    // Fallback to regex for unparseable files
+    const importRegex = /^import\s+(?!type\s)/gm;
+    const fromRegex = /from\s+['"]([^'"]+)['"]/g;
+
+    if (importRegex.test(content)) {
+      let match: RegExpExecArray | null;
+      while ((match = fromRegex.exec(content)) !== null) {
+        if (match[1]) imports.push(match[1]);
+      }
+    }
+  }
+
+  return imports;
+}
+
+/**
  * Analyze dependencies of a directory
+ *
+ * Uses SWC AST for accurate detection:
+ * - Skips re-exports (export { ... } from, export * from)
+ * - Skips type-only imports (import type, import { type X })
+ * - Handles multiline imports correctly
  */
 export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCategory[]): string[] {
   const deps = new Set<string>();
@@ -62,11 +127,9 @@ export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCateg
     const content = readFile(file);
     if (!content) continue;
 
-    const importMatches = content.matchAll(/from\s+['"]([^'"]+)['"]/g);
-    for (const match of importMatches) {
-      const importPath = match[1];
-      if (!importPath) continue;
+    const importPaths = extractRuntimeImports(content, file);
 
+    for (const importPath of importPaths) {
       // Check for lib imports
       if (importPath.includes('@/lib/') || importPath.includes('/lib/')) {
         const libMatch = importPath.match(/lib\/(@?[\w-]+)/);
