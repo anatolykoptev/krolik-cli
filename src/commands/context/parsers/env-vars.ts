@@ -13,14 +13,14 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { scanDirectory as scanDir } from '@/lib/core/fs';
 import {
   getNodeSpan,
   type Identifier,
   type MemberExpression,
   parseFile,
   visitNodeWithCallbacks,
-} from '@/lib/@swc';
-import { scanDirectory as scanDir } from '@/lib/core/fs';
+} from '@/lib/parsing/swc';
 
 /**
  * Single usage of an environment variable in code

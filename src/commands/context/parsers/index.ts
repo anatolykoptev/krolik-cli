@@ -56,6 +56,14 @@ export {
   formatImportGraphAscii,
   getGraphStats,
 } from './import-graph-swc';
+// Signature extraction for Smart Context / RepoMap
+export type { SignatureOptions } from './signatures';
+export {
+  extractSignatures,
+  extractSignaturesFromFiles,
+  formatSignaturesForFile,
+  formatSignaturesMap,
+} from './signatures';
 export { parseTestFiles as parseTestFilesRegex } from './tests';
 export { parseTestFiles } from './tests-swc';
 // Re-export types

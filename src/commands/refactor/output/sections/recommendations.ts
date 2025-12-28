@@ -3,7 +3,7 @@
  * @description Recommendations section formatter with priority sorting
  */
 
-import { escapeXml } from '../../../../lib/@formatters';
+import { escapeXml } from '../../../../lib/format';
 import type { EnhancedRefactorAnalysis, Recommendation } from '../../core';
 import { deduplicateRecommendations, sortByPriority } from '../helpers';
 

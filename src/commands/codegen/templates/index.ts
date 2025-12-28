@@ -3,7 +3,7 @@
  * @description Template strings for code generation
  */
 
-import { toCamelCase as toCamelCaseLib, toPascalCase as toPascalCaseLib } from '@/lib/@formatters';
+import { toCamelCase as toCamelCaseLib, toPascalCase as toPascalCaseLib } from '@/lib/format';
 
 // Re-export for backwards compatibility with other codegen files
 export const toPascalCase = toPascalCaseLib;

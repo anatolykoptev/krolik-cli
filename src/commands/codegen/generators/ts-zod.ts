@@ -14,7 +14,7 @@
  */
 
 import * as path from 'node:path';
-import { toCamelCase } from '@/lib/@formatters';
+import { toCamelCase } from '@/lib/format';
 import type { ParsedProperty, ParsedTypeDefinition } from '../services/ts-type-parser';
 import { findTypeByName } from '../services/ts-type-parser';
 import type { DocHints } from '../services/types';

@@ -3,7 +3,7 @@
  * @description Basic XML output formatter
  */
 
-import { escapeXml } from '../../../lib/@formatters';
+import { escapeXml } from '../../../lib/format';
 import type { RefactorAnalysis } from '../core';
 
 // ============================================================================

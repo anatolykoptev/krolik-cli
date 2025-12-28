@@ -4,7 +4,7 @@
  */
 
 import { createProgram } from '../cli/program';
-import { createLogger } from '../lib/@log';
+import { createLogger } from '../lib/core/logger';
 
 /**
  * Main entry point

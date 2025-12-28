@@ -3,7 +3,7 @@
  * @description Text format output for CLI
  */
 
-import { formatJson as formatJsonBase } from '@/lib/@formatters';
+import { formatJson as formatJsonBase } from '@/lib/format';
 import type { Logger, StatusResult } from '../../../types';
 import {
   buildStackSummary,

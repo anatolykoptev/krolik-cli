@@ -6,7 +6,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { tryExec } from '../../lib';
-import { walkSync } from '../../lib/@fs';
+import { walkSync } from '../../lib/core/fs';
 
 // ============================================================================
 // TYPES

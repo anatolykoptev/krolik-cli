@@ -16,7 +16,7 @@ import {
   getPackageTypeLabel,
   type PackageJson,
   type PackageType,
-} from '@/lib/@discovery';
+} from '@/lib/discovery';
 
 // ============================================================================
 // TYPES

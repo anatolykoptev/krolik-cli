@@ -6,7 +6,7 @@
  * Handles defaults and validation.
  */
 
-import type { SubDocInfo } from '@/lib/@discovery';
+import type { SubDocInfo } from '@/lib/discovery';
 import type { MCPToolDefinition } from '@/mcp/tools';
 import type { SectionContext } from './types';
 
@@ -50,7 +50,7 @@ export interface CreateSectionContextOptions {
  * @example
  * ```typescript
  * import { getAllTools } from '@/mcp/tools';
- * import { findSubDocs } from '@/lib/@discovery';
+ * import { findSubDocs } from '@/lib/discovery';
  * import { TEMPLATE_VERSION } from '@/version';
  *
  * const context = createSectionContext({

@@ -1,6 +1,6 @@
 # Smart Context Implementation Plan
 
-> Based on Aider's RepoMap architecture analysis
+> Based on Aider's RepoMap architecture analysis + krolik existing infrastructure
 
 ## Executive Summary
 
@@ -11,152 +11,156 @@ Implement graph-based ranking for intelligent context selection, reducing token 
 
 ---
 
-## Architecture Overview
+## Existing Infrastructure (What We Already Have)
 
+### ✅ Import Graph (2 implementations)
+
+| Module | Location | Features |
+|--------|----------|----------|
+| **import-graph-swc** | `src/commands/context/parsers/import-graph-swc.ts` | SWC-based, circular detection, Mermaid output |
+| **modules/signals/imports** | `src/lib/modules/signals/imports.ts` | Regex-based, importedBy map, cross-package detection |
+
+**Key functions:**
+```typescript
+// From import-graph-swc.ts
+buildImportGraphSwc(dir, patterns): ImportGraph
+getGraphStats(graph): { mostImported, avgImportsPerFile, ... }
+filterGraphByPatterns(graph, patterns): ImportGraph
+
+// From modules/signals/imports.ts
+buildImportGraph(projectRoot): Promise<ImportGraph>
+findHighlyConnectedModules(graph, minImports): Array<{path, importCount}>
+analyzeImportSignals(modulePath, graph): ImportSignals
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     krolik context --smart                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  1. Tag Extraction (SWC)                                        │
-│     ├── Parse all .ts/.tsx files                                │
-│     ├── Extract definitions (class, function, const, type)     │
-│     └── Extract references (imports, usages)                   │
-│                                                                  │
-│  2. Graph Building (custom or graphology)                       │
-│     ├── Nodes = files                                           │
-│     ├── Edges = file A references symbol defined in file B     │
-│     └── Weights = reference count × multiplier                 │
-│                                                                  │
-│  3. PageRank Ranking                                            │
-│     ├── Apply personalization (chat files, mentioned files)    │
-│     ├── Run PageRank algorithm                                  │
-│     └── Sort files by rank                                      │
-│                                                                  │
-│  4. Signature Extraction                                        │
-│     ├── For top N files                                         │
-│     ├── Show only function/class signatures                    │
-│     └── Collapse implementation details                        │
-│                                                                  │
-│  5. Token Budget Fitting                                        │
-│     ├── Binary search for optimal N                             │
-│     ├── Count tokens with tiktoken                              │
-│     └── Output within budget                                    │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+
+### ✅ SWC Parsing Infrastructure
+
+| Module | Location | Exports |
+|--------|----------|---------|
+| **parsing/swc** | `src/lib/parsing/swc/` | 46 exports |
+| **@swc** | `src/lib/@swc/` | Re-exports + detectors |
+
+**Key functions:**
+```typescript
+parseFile(filePath, content): { ast, lineOffsets }
+visitNodeWithCallbacks(ast, callbacks): void
+getNodeSpan(node): Span
+offsetToLine(offset, lineOffsets): number
+```
+
+### ✅ Naming Analysis
+
+| Module | Location | Features |
+|--------|----------|----------|
+| **modules/signals/naming** | `src/lib/modules/signals/naming.ts` | Pattern detection |
+
+**Key functions:**
+```typescript
+detectNamingPattern(name): 'camelCase' | 'snake_case' | 'PascalCase' | ...
+isHookName(name): boolean
+isUtilityName(name): boolean
+inferCategoryFromNaming(name): ModuleCategory
+```
+
+### ✅ Scoring System
+
+| Module | Location | Features |
+|--------|----------|----------|
+| **modules/scorer** | `src/lib/modules/scorer.ts` | Reusability scoring |
+
+**Key functions:**
+```typescript
+calculateReusabilityScore(signals): number
+getScoreBreakdown(signals): ScoreBreakdown
 ```
 
 ---
 
-## Phase 1: Tag Extraction with SWC
+## What Needs to Be Built
 
-### Location
-```
-src/lib/@smart-context/
-├── index.ts
-├── tags/
-│   ├── extractor.ts      # Main tag extraction
-│   ├── typescript.ts     # TS-specific patterns
-│   └── types.ts
-```
+### 🔨 Phase 1: Tag Extraction
 
-### Tag Structure
+**Gap:** Current import graph only tracks file-level imports, not symbol-level definitions/references.
+
+**Solution:** Extend `import-graph-swc.ts` with symbol extraction.
+
 ```typescript
 interface Tag {
   relPath: string;      // Relative file path
-  absPath: string;      // Absolute file path
   name: string;         // Symbol name
   kind: 'def' | 'ref';  // Definition or reference
   line: number;         // Line number
-  type?: 'class' | 'function' | 'const' | 'type' | 'interface';
+  type?: 'class' | 'function' | 'const' | 'type' | 'interface' | 'export';
+}
+
+interface SymbolGraph extends ImportGraph {
+  tags: Tag[];
+  definitions: Map<string, string[]>;  // symbol → files that define it
+  references: Map<string, string[]>;   // symbol → files that reference it
 }
 ```
 
-### Extraction Logic (using existing SWC)
+**Implementation:** Add to existing `import-graph-swc.ts`:
 ```typescript
-import { parseSync } from '@swc/core';
-
-function extractTags(filePath: string, code: string): Tag[] {
-  const ast = parseSync(code, { syntax: 'typescript', tsx: true });
-  const tags: Tag[] = [];
-
-  // Walk AST for definitions
-  // - ClassDeclaration → def
-  // - FunctionDeclaration → def
-  // - VariableDeclaration (const) → def
-  // - TypeAlias → def
-  // - InterfaceDeclaration → def
-
-  // Walk AST for references
-  // - ImportDeclaration → ref (imported names)
-  // - Identifier usages → ref
-
-  return tags;
-}
+// New visitor callbacks
+visitNodeWithCallbacks(ast, {
+  onClassDeclaration: (node) => tags.push({ kind: 'def', type: 'class', ... }),
+  onFunctionDeclaration: (node) => tags.push({ kind: 'def', type: 'function', ... }),
+  onTsTypeAliasDeclaration: (node) => tags.push({ kind: 'def', type: 'type', ... }),
+  onTsInterfaceDeclaration: (node) => tags.push({ kind: 'def', type: 'interface', ... }),
+  onIdentifier: (node) => tags.push({ kind: 'ref', ... }),  // Filter for usages
+});
 ```
-
-### Reuse from Existing Code
-- `src/lib/@swc/` already has AST parsing infrastructure
-- `buildImportGraph()` in context/parsers.ts already tracks imports
-- Extend rather than rewrite
 
 ---
 
-## Phase 2: Graph Building
+### 🔨 Phase 2: PageRank Ranking
 
-### Dependencies
+**Gap:** No ranking algorithm exists.
+
+**Location:** `src/lib/smart-context/ranking.ts`
+
+**Option A: Custom Implementation (recommended - no deps)**
+```typescript
+export function pageRank(
+  graph: SymbolGraph,
+  options: {
+    damping?: number;      // 0.85 default
+    iterations?: number;   // 100 default
+    personalization?: Map<string, number>;  // Boost specific files
+  }
+): Map<string, number> {
+  // Reuse existing graph structure from import-graph-swc
+  // Add PageRank iteration logic
+}
+```
+
+**Option B: graphology (if we need more graph algorithms later)**
 ```bash
 pnpm add graphology graphology-pagerank
-# OR use simple custom implementation (no deps)
 ```
 
-### Graph Structure
+**Weight Multipliers (reuse existing naming analysis):**
 ```typescript
-interface FileNode {
-  path: string;
-  definitions: Set<string>;  // Symbols defined here
-  references: Set<string>;   // Symbols referenced here
-}
+import { detectNamingPattern } from '@/lib/modules/signals';
 
-interface Edge {
-  from: string;   // Referencing file
-  to: string;     // Defining file
-  weight: number; // Reference strength
-  symbol: string; // What symbol connects them
-}
-```
-
-### Weight Multipliers (from Aider)
-```typescript
-function calculateWeight(symbol: string, context: Context): number {
+function calculateSymbolWeight(symbol: string, context: WeightContext): number {
   let weight = 1.0;
 
-  // Meaningful names get higher weight
-  const isSnakeCase = symbol.includes('_');
-  const isCamelCase = /[a-z][A-Z]/.test(symbol);
-  if ((isSnakeCase || isCamelCase) && symbol.length >= 8) {
-    weight *= 10;
+  // Reuse existing naming detection
+  const pattern = detectNamingPattern(symbol);
+  if ((pattern === 'camelCase' || pattern === 'snake_case') && symbol.length >= 8) {
+    weight *= 10;  // Meaningful names
   }
 
-  // Private symbols get lower weight
-  if (symbol.startsWith('_')) {
-    weight *= 0.1;
-  }
+  // Private symbols
+  if (symbol.startsWith('_')) weight *= 0.1;
 
-  // Symbols defined in many places get lower weight (generic)
-  if (context.definitionCount > 5) {
-    weight *= 0.1;
-  }
+  // Generic symbols (defined in many places)
+  if (context.definitionCount > 5) weight *= 0.1;
 
-  // Mentioned in chat/feature get higher weight
-  if (context.mentioned) {
-    weight *= 10;
-  }
-
-  // Files in chat get much higher weight
-  if (context.inChat) {
-    weight *= 50;
-  }
+  // Feature/domain boost
+  if (context.matchesFeature) weight *= 10;
 
   return weight;
 }
@@ -164,122 +168,64 @@ function calculateWeight(symbol: string, context: Context): number {
 
 ---
 
-## Phase 3: PageRank Implementation
+### 🔨 Phase 3: Signature Extraction
 
-### Option A: Use graphology (recommended)
+**Gap:** No signature-only extraction exists.
+
+**Location:** `src/lib/smart-context/signatures.ts`
+
+**Reuse:** Existing SWC visitor pattern.
+
 ```typescript
-import Graph from 'graphology';
-import pagerank from 'graphology-pagerank';
+import { parseFile, visitNodeWithCallbacks, getNodeSpan } from '@/lib/parsing/swc';
 
-function rankFiles(nodes: FileNode[], edges: Edge[]): Map<string, number> {
-  const graph = new Graph();
+interface Signature {
+  file: string;
+  line: number;
+  text: string;  // "function parseFile(path: string): ParseResult"
+  type: 'class' | 'function' | 'type' | 'interface';
+}
 
-  // Add nodes
-  for (const node of nodes) {
-    graph.addNode(node.path);
-  }
+export function extractSignatures(filePath: string, content: string): Signature[] {
+  const { ast, lineOffsets } = parseFile(filePath, content);
+  const signatures: Signature[] = [];
 
-  // Add weighted edges
-  for (const edge of edges) {
-    graph.addEdge(edge.from, edge.to, { weight: edge.weight });
-  }
-
-  // Run PageRank with personalization
-  const ranks = pagerank(graph, {
-    alpha: 0.85,
-    weighted: true,
-    // personalization for chat files
+  visitNodeWithCallbacks(ast, {
+    onFunctionDeclaration: (node) => {
+      const span = getNodeSpan(node);
+      const line = offsetToLine(span.start, lineOffsets);
+      // Extract first line only (signature)
+      signatures.push({
+        file: filePath,
+        line,
+        text: extractSignatureLine(content, span),
+        type: 'function',
+      });
+    },
+    // Similar for class, type, interface
   });
 
-  return ranks;
+  return signatures;
 }
 ```
 
-### Option B: Simple custom PageRank (no deps)
+**Output Format (Aider-style):**
 ```typescript
-function pageRank(
-  nodes: string[],
-  edges: Map<string, Map<string, number>>,
-  damping = 0.85,
-  iterations = 100
-): Map<string, number> {
-  const n = nodes.length;
-  let ranks = new Map(nodes.map(node => [node, 1 / n]));
-
-  for (let i = 0; i < iterations; i++) {
-    const newRanks = new Map<string, number>();
-
-    for (const node of nodes) {
-      let rank = (1 - damping) / n;
-
-      // Sum contributions from incoming edges
-      for (const [source, targets] of edges) {
-        const weight = targets.get(node) || 0;
-        if (weight > 0) {
-          const totalWeight = [...targets.values()].reduce((a, b) => a + b, 0);
-          rank += damping * (ranks.get(source)! * weight / totalWeight);
-        }
-      }
-
-      newRanks.set(node, rank);
-    }
-
-    ranks = newRanks;
-  }
-
-  return ranks;
-}
-```
-
----
-
-## Phase 4: Signature Extraction
-
-### Location
-```
-src/lib/@smart-context/
-├── signatures/
-│   ├── extractor.ts      # Extract signatures from AST
-│   ├── formatter.ts      # Format for output
-│   └── types.ts
-```
-
-### Output Format (Aider-style)
-```typescript
-function formatSignatures(file: string, tags: Tag[]): string {
-  let output = `${file}:\n`;
-
-  // Group by class
-  const classes = tags.filter(t => t.type === 'class');
-  const functions = tags.filter(t => t.type === 'function');
-
-  for (const cls of classes) {
-    output += `⋮...\n`;
-    output += `│class ${cls.name}:\n`;
-    // Add method signatures
-  }
-
-  for (const fn of functions) {
-    output += `⋮...\n`;
-    output += `│function ${fn.name}(...):\n`;
-  }
-
-  return output;
-}
-```
-
-### Alternative: Show actual code lines
-```typescript
-function formatWithContext(
-  file: string,
-  code: string,
-  linesOfInterest: number[]
+export function formatRepoMap(
+  rankedFiles: Array<{ path: string; rank: number }>,
+  signatures: Map<string, Signature[]>
 ): string {
-  const lines = code.split('\n');
-  let output = `${file}:\n`;
+  let output = '';
 
-  for (const lineNum of linesOfInterest) {
-    output += `${lineNum}: ${lines[lineNum]}\n`;
+  for (const { path } of rankedFiles) {
+    const sigs = signatures.get(path) || [];
+    if (sigs.length === 0) continue;
+
+    output += `${path}:\n`;
+    for (const sig of sigs) {
+      output += `⋮...\n`;
+      output += `│${sig.text}\n`;
+    }
   }
 
   return output;
@@ -288,49 +234,117 @@ function formatWithContext(
 
 ---
 
-## Phase 5: Token Budget Fitting
+### 🔨 Phase 4: Token Budget Fitting
 
-### Token Counting
+**Gap:** No token counting exists.
+
+**Location:** `src/lib/smart-context/tokens.ts`
+
+**Dependency:** `gpt-tokenizer` (lightweight, no native deps)
+
+```bash
+pnpm add gpt-tokenizer
+```
+
 ```typescript
-import { encode } from 'gpt-tokenizer'; // or tiktoken
+import { encode } from 'gpt-tokenizer';
 
-function countTokens(text: string): number {
+export function countTokens(text: string): number {
   return encode(text).length;
 }
-```
 
-### Binary Search for Optimal Size
-```typescript
-function fitToBudget(
+export function fitToBudget(
   rankedFiles: string[],
   formatFn: (files: string[]) => string,
   maxTokens: number
-): string {
+): { output: string; filesIncluded: number; tokensUsed: number } {
+  // Binary search for optimal file count
   let lower = 0;
   let upper = rankedFiles.length;
-  let bestOutput = '';
-  let bestTokens = 0;
+  let best = { output: '', filesIncluded: 0, tokensUsed: 0 };
 
   while (lower <= upper) {
     const mid = Math.floor((lower + upper) / 2);
     const output = formatFn(rankedFiles.slice(0, mid));
     const tokens = countTokens(output);
 
-    if (tokens <= maxTokens && tokens > bestTokens) {
-      bestOutput = output;
-      bestTokens = tokens;
-    }
-
-    if (tokens < maxTokens) {
+    if (tokens <= maxTokens) {
+      if (tokens > best.tokensUsed) {
+        best = { output, filesIncluded: mid, tokensUsed: tokens };
+      }
       lower = mid + 1;
     } else {
       upper = mid - 1;
     }
   }
 
-  return bestOutput;
+  return best;
 }
 ```
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     krolik context --smart                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Tag Extraction                                              │
+│     ├── REUSE: parseFile() from @/lib/parsing/swc              │
+│     ├── REUSE: visitNodeWithCallbacks() visitor pattern        │
+│     └── NEW: Symbol-level def/ref extraction                   │
+│                                                                  │
+│  2. Graph Building                                               │
+│     ├── REUSE: ImportGraph from import-graph-swc.ts            │
+│     ├── REUSE: detectNamingPattern() for weight multipliers    │
+│     └── NEW: Symbol → File mapping                              │
+│                                                                  │
+│  3. PageRank Ranking                                            │
+│     ├── NEW: Custom PageRank implementation                     │
+│     ├── REUSE: findHighlyConnectedModules() for validation     │
+│     └── NEW: Personalization based on feature/domain           │
+│                                                                  │
+│  4. Signature Extraction                                        │
+│     ├── REUSE: SWC parsing infrastructure                       │
+│     └── NEW: Signature-only output format                       │
+│                                                                  │
+│  5. Token Budget Fitting                                        │
+│     └── NEW: gpt-tokenizer + binary search                      │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Module Structure
+
+RepoMap is part of the `context` command, not a separate lib module:
+
+```
+src/commands/context/
+├── parsers/
+│   ├── import-graph-swc.ts  # ← Existing! Extend for tags
+│   ├── signatures.ts        # ← NEW: extractSignatures()
+│   └── ...
+├── helpers/
+│   ├── ranking.ts           # ← NEW: pageRank()
+│   ├── tokens.ts            # ← NEW: countTokens(), fitToBudget()
+│   └── ...
+├── repomap/                  # ← NEW: Smart Context module
+│   ├── index.ts             # buildRepoMap() - main entry point
+│   ├── types.ts             # Tag, SymbolGraph, Signature types
+│   └── formatter.ts         # formatRepoMap() - Aider-style output
+├── formatters/
+├── index.ts                  # ← Add --smart flag integration
+└── types.ts                  # ← Add SmartContextOptions
+```
+
+**Key principle:** Reuse existing infrastructure, don't duplicate:
+- `parsers/import-graph-swc.ts` → extend for tag extraction
+- `@/lib/parsing/swc` → use for AST parsing
+- `@/lib/modules/signals` → use for naming analysis
 
 ---
 
@@ -344,21 +358,22 @@ krolik context --signatures         # Show only signatures (no full code)
 krolik context --map-only           # Output only the repo map
 ```
 
-### Integration with Existing Modes
+### Integration Point
 ```typescript
 // In src/commands/context/index.ts
 
+import { buildRepoMap } from './repomap';
+
 if (options.smart) {
-  // Use new smart context pipeline
-  aiData.repoMap = await buildSmartRepoMap(projectRoot, {
+  const repoMap = await buildRepoMap(projectRoot, {
     budget: options.budget || 2000,
     feature: options.feature,
     domains: result.domains,
-    signaturesOnly: options.signatures,
+    signaturesOnly: options.signatures || options.mapOnly,
   });
-} else {
-  // Existing full-context behavior
-  aiData.files = discoverFiles(projectRoot, result.domains);
+
+  aiData.repoMap = repoMap.output;
+  aiData.stats = repoMap.stats;  // { filesRanked, tokensUsed, topFiles }
 }
 ```
 
@@ -366,50 +381,46 @@ if (options.smart) {
 
 ## Implementation Roadmap
 
-### Week 1: Foundation
-- [ ] Create `src/lib/@smart-context/` module structure
-- [ ] Implement tag extraction using existing SWC infrastructure
-- [ ] Add unit tests for tag extraction
+### Sprint 1: Tag Extraction (2-3 days)
+- [ ] Create `src/lib/smart-context/` module structure
+- [ ] Implement `extractTags()` using existing SWC infrastructure
+- [ ] Add unit tests for class, function, type, interface extraction
+- [ ] Handle edge cases: re-exports, default exports, namespace imports
 
-### Week 2: Graph & Ranking
-- [ ] Implement graph building from tags
-- [ ] Add PageRank (using graphology or custom)
-- [ ] Add personalization based on feature/domain
+### Sprint 2: PageRank (2 days)
+- [ ] Implement custom PageRank algorithm in `ranking/pagerank.ts`
+- [ ] Add weight multipliers using existing `detectNamingPattern()`
+- [ ] Add personalization for feature/domain
+- [ ] Validate against `findHighlyConnectedModules()` results
 
-### Week 3: Output Formatting
-- [ ] Implement signature extraction
-- [ ] Implement Aider-style output formatting
-- [ ] Add token counting and budget fitting
+### Sprint 3: Signatures & Output (2 days)
+- [ ] Implement `extractSignatures()` for function/class/type/interface
+- [ ] Implement Aider-style `formatRepoMap()` output
+- [ ] Add token counting with `gpt-tokenizer`
+- [ ] Implement `fitToBudget()` binary search
 
-### Week 4: Integration & Testing
+### Sprint 4: Integration (1-2 days)
+- [ ] Add `--smart`, `--budget`, `--signatures`, `--map-only` flags
 - [ ] Integrate with `krolik context` command
-- [ ] Add `--smart`, `--budget`, `--signatures` flags
+- [ ] Add caching for repeated runs
 - [ ] Benchmark on piternow-wt-fix codebase
-- [ ] Documentation
 
 ---
 
 ## Dependencies
 
-### Required
+### New (Required)
 ```json
 {
-  "gpt-tokenizer": "^2.1.0"  // Token counting
-}
-```
-
-### Optional (for graph)
-```json
-{
-  "graphology": "^0.25.0",
-  "graphology-pagerank": "^0.6.0"
+  "gpt-tokenizer": "^2.1.0"
 }
 ```
 
 ### Already Available
-- `@swc/core` - AST parsing
-- `fast-glob` - File discovery
-- Existing import graph code in `context/parsers.ts`
+- `@swc/core` - AST parsing (46 exports)
+- `glob` - File discovery
+- Existing import graph in `import-graph-swc.ts`
+- Existing naming analysis in `modules/signals/naming.ts`
 
 ---
 
@@ -430,3 +441,9 @@ if (options.smart) {
 - [Aider repo map docs](https://aider.chat/docs/repomap.html)
 - [grep_ast TreeContext](https://github.com/paul-gauthier/grep-ast)
 - [NetworkX PageRank](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.link_analysis.pagerank_alg.pagerank.html)
+- **Existing krolik modules to reuse:**
+  - `src/commands/context/parsers/import-graph-swc.ts` → extend for tags
+  - `src/commands/context/helpers/` → add ranking.ts, tokens.ts
+  - `src/lib/parsing/swc/` → AST parsing
+  - `src/lib/modules/signals/naming.ts` → weight multipliers
+  - `src/lib/modules/signals/imports.ts` → validation

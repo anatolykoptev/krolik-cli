@@ -3,7 +3,7 @@
  * @description Detect loose equality (== and !=) usage
  */
 
-import { isInsideStringOrComment } from '../../../../lib/@swc';
+import { isInsideStringOrComment } from '../../../../lib/parsing/swc';
 import type { QualityIssue } from '../../core/types';
 
 /**

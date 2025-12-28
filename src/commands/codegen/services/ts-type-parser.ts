@@ -7,7 +7,7 @@
  */
 
 import * as fs from 'node:fs';
-import { getNodeSpan, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
+import { getNodeSpan, parseFile, visitNodeWithCallbacks } from '@/lib/parsing/swc';
 
 /**
  * Parsed property from TypeScript interface/type

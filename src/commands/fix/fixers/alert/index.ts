@@ -5,7 +5,7 @@
  * Detects and removes alert() calls.
  */
 
-import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@swc';
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/parsing/swc';
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 import { createDeleteLine, getLineContext, isComment, splitLines } from '../../core/utils';

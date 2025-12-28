@@ -3,7 +3,11 @@
  * @description Detect eval() usage - a security risk
  */
 
-import { getLineContent, getLineNumber, isInsideStringOrComment } from '../../../../lib/@swc';
+import {
+  getLineContent,
+  getLineNumber,
+  isInsideStringOrComment,
+} from '../../../../lib/parsing/swc';
 import type { QualityIssue } from '../../core/types';
 
 /**

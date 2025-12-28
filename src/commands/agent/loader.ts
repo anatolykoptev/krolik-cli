@@ -18,7 +18,7 @@ import {
   updateAgentsRepo,
   type VersionInfo,
 } from '../../lib/@agents';
-import { parseFrontmatter as parseMarkdownFrontmatter } from '../../lib/@markdown';
+import { parseFrontmatter as parseMarkdownFrontmatter } from '../../lib/format';
 import { getCategoryForPlugin } from './categories';
 import type { AgentCategory, AgentDefinition } from './types';
 

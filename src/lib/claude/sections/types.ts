@@ -6,7 +6,7 @@
  * dynamic content for CLAUDE.md documentation.
  */
 
-import type { SubDocInfo } from '@/lib/@discovery';
+import type { SubDocInfo } from '@/lib/discovery';
 import type { MCPToolDefinition } from '@/mcp/tools';
 
 // ============================================================================

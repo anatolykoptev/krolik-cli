@@ -21,7 +21,10 @@ import type {
   TsType,
   VariableDeclarator,
 } from '@swc/core';
-import { extractTypeString as swcExtractTypeString, parseFile as swcParseFile } from '@/lib/@swc';
+import {
+  extractTypeString as swcExtractTypeString,
+  parseFile as swcParseFile,
+} from '@/lib/parsing/swc';
 import {
   isArrowFunction,
   isAssignmentPattern,

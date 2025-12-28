@@ -30,10 +30,8 @@
 
 import type { Node, Span } from '@swc/core';
 import { parseSync } from '@swc/core';
-import { shouldSkipForAnalysis } from '../../../lib/@patterns';
-import { isCliFile } from '../../../lib/@patterns/file-context';
+import { isCliFile, shouldSkipForAnalysis } from '../../../lib/@patterns';
 import { shouldSkipFile } from '../../../lib/@patterns/hardcoded/index';
-import { calculateLineOffsets, getContext, getSnippet, offsetToLine } from '../../../lib/@swc';
 import {
   type DetectorContext,
   detectHardcodedValue,
@@ -52,6 +50,12 @@ import {
   type SecurityDetection,
   type TypeSafetyDetection,
 } from '../../../lib/@swc/detectors';
+import {
+  calculateLineOffsets,
+  getContext,
+  getSnippet,
+  offsetToLine,
+} from '../../../lib/parsing/swc';
 import type { FunctionInfo, HardcodedValue, QualityIssue } from '../types';
 
 // Note: All detection types and functions are now imported from lib/@swc/detectors

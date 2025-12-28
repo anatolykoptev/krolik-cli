@@ -3,7 +3,7 @@
  * @description Helper utilities for AI XML formatter
  *
  * NOTE: escapeXml and truncate are re-exported from lib/formatters.
- * New code should import directly from '@/lib/@formatters'.
+ * New code should import directly from '@/lib/format'.
  */
 
 // Re-export from lib/formatters for backwards compatibility

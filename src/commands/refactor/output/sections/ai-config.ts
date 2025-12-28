@@ -8,7 +8,7 @@
  * - Clean Architecture layer dependencies
  */
 
-import { escapeXml } from '../../../../lib/@formatters';
+import { escapeXml } from '../../../../lib/format';
 import type { EnhancedRefactorAnalysis, NamespaceCategory } from '../../core';
 import { NAMESPACE_INFO } from '../../core/constants';
 

@@ -3,7 +3,7 @@
  * @description File size analysis section formatter
  */
 
-import { escapeXml } from '../../../../lib/@formatters';
+import { escapeXml } from '../../../../lib/format';
 import type { EnhancedRefactorAnalysis, FileSizeIssue } from '../../core';
 import { sortBySeverity } from '../helpers';
 

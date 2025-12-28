@@ -18,5 +18,21 @@ export { findRoutersDir, findSchemaDir } from './paths';
 export type { DomainPatterns } from './patterns';
 // Re-export patterns
 export { DOMAIN_FILE_PATTERNS, getDomainPatterns } from './patterns';
+// Re-export PageRank ranking
+export type { PageRankOptions } from './ranking';
+export {
+  calculateSymbolWeight,
+  createPersonalization,
+  getRankedFiles,
+  getTopFiles,
+  pageRank,
+} from './ranking';
+// Re-export token utilities
+export {
+  countTokens,
+  estimateTokens,
+  fitToBudget,
+  formatTokenCount,
+} from './tokens';
 // Re-export tree generation
 export { generateProjectTree } from './tree';

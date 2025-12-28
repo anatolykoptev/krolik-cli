@@ -5,7 +5,7 @@
 
 import type { Command } from 'commander';
 import { loadConfig } from '../../config';
-import { createLogger } from '../../lib/@log';
+import { createLogger } from '../../lib/core/logger';
 import type { CommandOptions } from '../types';
 
 /**

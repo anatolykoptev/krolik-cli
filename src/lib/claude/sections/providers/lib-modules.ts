@@ -6,8 +6,8 @@
  * Returns skip: true if no modules are found.
  */
 
-import type { ModuleScanResult } from '@/lib/@discovery';
-import { formatModulesMarkdown, scanLibModules } from '@/lib/@discovery';
+import type { ModuleScanResult } from '@/lib/discovery';
+import { formatModulesMarkdown, scanLibModules } from '@/lib/discovery';
 import type { SectionContext, SectionProvider, SectionResult } from '../types';
 import { SectionPriority } from '../types';
 

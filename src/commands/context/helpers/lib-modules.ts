@@ -3,7 +3,7 @@
  * @description Collect lib modules for AI context
  */
 
-import { scanLibModules } from '../../../lib/@discovery';
+import { scanLibModules } from '../../../lib/discovery';
 import type { LibModulesData } from '../types';
 
 /** Key modules that should include function details */

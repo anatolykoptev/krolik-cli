@@ -16,7 +16,7 @@
  *
  * @example
  * ```typescript
- * import { isInsideString, isInsideComment, isInsideStringOrComment } from '@/lib/@swc';
+ * import { isInsideString, isInsideComment, isInsideStringOrComment } from '@/lib/parsing/swc';
  *
  * const code = 'const x = "hello"; // greeting';
  *

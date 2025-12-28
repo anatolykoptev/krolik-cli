@@ -6,7 +6,7 @@
  * Sections are registered and executed to produce the final output.
  */
 
-import { findSubDocs } from '@/lib/@discovery';
+import { findSubDocs } from '@/lib/discovery';
 import { getAllTools } from '@/mcp/tools';
 import { TEMPLATE_VERSION } from '@/version';
 

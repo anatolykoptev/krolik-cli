@@ -3,7 +3,7 @@
  * @description Domain classification section formatter
  */
 
-import { escapeXml } from '../../../../lib/@formatters';
+import { escapeXml } from '../../../../lib/format';
 import type { DomainInfo, EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateMisplacedFiles } from '../helpers';
 

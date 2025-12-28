@@ -3,7 +3,7 @@
  * @description Detects console.* statements in code
  */
 
-import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@swc';
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/parsing/swc';
 import type { QualityIssue } from '../../core/types';
 
 /**

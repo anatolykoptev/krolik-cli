@@ -14,7 +14,7 @@ import {
   textElement,
   truncate,
   wrapXml,
-} from '@/lib/@formatters';
+} from '@/lib/format';
 
 import type { Logger } from '../../types';
 import type { ParsedIssue } from './parser';

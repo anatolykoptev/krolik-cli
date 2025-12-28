@@ -3,7 +3,7 @@
  * @description Duplicates section formatter with deduplication
  */
 
-import { escapeXml } from '../../../../lib/@formatters';
+import { escapeXml } from '../../../../lib/format';
 import type { EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateDuplicates, sortBySimilarity } from '../helpers';
 

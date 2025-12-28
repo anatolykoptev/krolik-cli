@@ -3,7 +3,7 @@
  * @description Migration plan section formatter
  */
 
-import { escapeXml } from '../../../../lib/@formatters';
+import { escapeXml } from '../../../../lib/format';
 import type { EnhancedMigrationAction, EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateAffectedFiles, deduplicateMigrationActions, sortByOrder } from '../helpers';
 
