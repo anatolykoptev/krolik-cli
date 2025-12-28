@@ -1,91 +1,37 @@
-name: Publish
+name: Publish to npm
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-concurrency: ${{ github.workflow }}-${{ github.ref }}
-
-permissions:
-  id-token: write
-  contents: write
-  packages: write
+  release:
+    types: [published]
 
 jobs:
   publish:
-    name: Publish
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC trusted publishing
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-
-      # Trusted Publishers requires npm 11.5.1+
-      - name: Update npm
-        run: |
-          npm install -g npm@latest
-          echo "npm version: $(npm --version)"
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Version and Publish
-        id: changesets
-        run: |
-          # Check if there are changesets
-          if [ -d ".changeset" ] && ls .changeset/*.md 2>/dev/null | grep -v README.md > /dev/null; then
-            echo "Found changesets, running version..."
-            pnpm changeset:version
-            git add -A
-            git commit -m "chore: release" --no-verify || true
-            git push --no-verify
+      - name: Build
+        run: pnpm build
 
-            # Get version from package.json
-            VERSION=$(node -p "require('./package.json').version")
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-            echo "Building..."
-            pnpm build
-
-            echo "Publishing to npmjs.org (Trusted Publishers)..."
-            npm publish --access public
-
-            echo "published=true" >> $GITHUB_OUTPUT
-          else
-            echo "No changesets found"
-            echo "published=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Publish to npm
+        run: npm publish --access public --provenance
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish to GitHub Packages
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          npm config set //npm.pkg.github.com/:_authToken $NODE_AUTH_TOKEN
-          npm publish --registry https://npm.pkg.github.com
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release
-        if: steps.changesets.outputs.published == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.changesets.outputs.version }}
-          generate_release_notes: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
