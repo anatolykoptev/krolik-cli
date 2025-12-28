@@ -93,7 +93,7 @@ function offsetToPosition(offset: number, lineOffsets: number[]): { line: number
 interface VisitContext {
   isExported: boolean;
   /** Variable name if inside a VariableDeclarator */
-  variableName?: string;
+  variableName?: string | undefined;
 }
 
 /**
@@ -122,6 +122,13 @@ function visitNode(
     if (decl.id?.type === 'Identifier' && decl.id.value) {
       currentContext.variableName = decl.id.value;
     }
+  }
+
+  // Clear variable name when entering object/array literals
+  // This prevents arrow functions inside objects from inheriting the parent variable name
+  // e.g., `const format = { debug: () => ... }` - the arrow function should NOT be named "format"
+  if (nodeType === 'ObjectExpression' || nodeType === 'ArrayExpression') {
+    currentContext.variableName = undefined;
   }
 
   callback(node, currentContext);
