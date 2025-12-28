@@ -39,7 +39,9 @@ One command replaces 10+ manual searches. AI gets complete project context insta
 ```bash
 krolik context --feature auth      # Everything about auth feature
 krolik context --issue 42          # Context from GitHub issue
-krolik context --quick             # Fast mode for simple tasks
+krolik context --minimal           # Ultra-compact (~1500 tokens)
+krolik context --quick             # Compact with repo-map (~3500 tokens)
+krolik context --deep              # Full analysis (~5s)
 ```
 
 **What it collects**: git state, database schema, API routes, project structure, types, past decisions, library docs.
@@ -118,6 +120,19 @@ krolik agent --orchestrate --task "review"    # Multi-agent mode
 
 ---
 
+### `krolik docs` — Library Documentation Cache
+
+Search and cache library documentation from Context7.
+
+```bash
+krolik docs search "app router"    # Search cached docs
+krolik docs fetch next.js          # Fetch docs for a library
+krolik docs detect                 # Auto-detect from package.json
+krolik docs list                   # List cached libraries
+```
+
+---
+
 ### Other Commands
 
 | Command | What it does |
@@ -126,7 +141,7 @@ krolik agent --orchestrate --task "review"    # Multi-agent mode
 | `krolik schema` | Database schema as structured docs |
 | `krolik routes` | API routes as structured docs |
 | `krolik review` | Code review for current changes |
-| `krolik docs` | Search and cache library documentation |
+| `krolik issue 42` | Parse GitHub issue for context |
 | `krolik codegen` | Generate hooks, schemas, tests, barrels |
 | `krolik sync` | Sync CLAUDE.md with project state |
 | `krolik security` | Audit dependencies for vulnerabilities |
@@ -170,6 +185,12 @@ export default defineConfig({
 
 - Node.js >= 20.0.0
 - TypeScript >= 5.0.0
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and release process.
+
+**Important**: Releases are published **only via GitHub Actions** using npm Trusted Publisher. Manual `npm publish` is not allowed.
 
 ## License
 
