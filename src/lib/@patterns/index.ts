@@ -6,6 +6,15 @@
  * - quality analyzers (detection)
  * - fix strategies (fixing)
  *
+ * Submodules:
+ * - file-context - File type detection, skip logic (migrated from @context)
+ * - browser-apis - Console, dialog, eval detection
+ * - complexity - Cyclomatic complexity patterns
+ * - hardcoded - Magic numbers, URLs detection
+ * - lint - Console, debugger, alert patterns
+ * - react-patterns - React hooks detection
+ * - skip-patterns - Centralized skip logic
+ *
  * Benefits:
  * - No duplication between quality and fix
  * - Consistent pattern definitions
@@ -71,6 +80,37 @@ export {
   isSensitiveEnvVar,
   sortEnvVarsBySeverity,
 } from './env-severity';
+// File context (migrated from @context)
+export {
+  API_FILE_PATTERNS,
+  buildFileContext,
+  buildFileContextFromRelative,
+  CLI_FILE_PATTERNS,
+  COMPONENT_FILE_PATTERNS,
+  CONFIG_FILE_PATTERNS,
+  contextAllowsConsole,
+  contextRequiresStrictLint,
+  detectFileType,
+  type FileContext,
+  type FileContextOptions,
+  type FileType,
+  HOOK_FILE_PATTERNS,
+  isApiFile,
+  isCliFile,
+  isComponentFile,
+  isConfigFile,
+  isHookFile,
+  isOutputFile,
+  isSchemaFile,
+  isTestFile,
+  isUtilFile,
+  OUTPUT_FILE_PATTERNS,
+  SCHEMA_FILE_PATTERNS,
+  shouldSkipConsole,
+  shouldSkipLint,
+  TEST_FILE_PATTERNS,
+  UTIL_FILE_PATTERNS,
+} from './file-context';
 // Hardcoded patterns
 export {
   ACCEPTABLE_NUMBERS,

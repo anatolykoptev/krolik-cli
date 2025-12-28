@@ -30,8 +30,8 @@
 
 import type { Node, Span } from '@swc/core';
 import { parseSync } from '@swc/core';
-import { isCliFile } from '../../../lib/@context';
 import { shouldSkipForAnalysis } from '../../../lib/@patterns';
+import { isCliFile } from '../../../lib/@patterns/file-context';
 import { shouldSkipFile } from '../../../lib/@patterns/hardcoded/index';
 import { calculateLineOffsets, getContext, getSnippet, offsetToLine } from '../../../lib/@swc';
 import {

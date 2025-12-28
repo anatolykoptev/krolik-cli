@@ -6,8 +6,8 @@
  * Uses shared context from @lib/@context
  */
 
-import { isCliFile } from '../../../lib/@context';
 import { DEFAULT_MAX_NESTING } from '../../../lib/@patterns/complexity';
+import { isCliFile } from '../../../lib/@patterns/file-context';
 import { LINT_RULES, type LintRule } from '../../../lib/@patterns/lint';
 import type { QualityIssue } from '../types';
 

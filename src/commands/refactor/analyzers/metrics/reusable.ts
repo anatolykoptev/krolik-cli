@@ -10,7 +10,7 @@ import {
   type DiscoveredModule,
   type DiscoveryResult,
   discoverReusableModules,
-} from '../../../../lib/@reusable';
+} from '@/lib/modules';
 import type {
   ReusableCategory,
   ReusableModuleSummary,

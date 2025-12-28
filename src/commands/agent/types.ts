@@ -9,13 +9,13 @@
  * - Skill: progressive disclosure knowledge (SKILL.md in skills/[name]/ folder)
  */
 
-import type { Memory } from '../../lib/@memory';
+import type { Memory } from '@/lib/storage/memory';
 import type { OutputFormat } from '../../types';
 
+export type { Memory } from '@/lib/storage/memory';
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@git';
-export type { Memory } from '../../lib/@memory';
 
 /**
  * Component type in wshobson/agents

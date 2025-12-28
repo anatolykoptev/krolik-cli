@@ -5,8 +5,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanDirectory } from '@/lib/@fs';
 import { extractCustomHooks } from '@/lib/@patterns';
+import { scanDirectory } from '@/lib/core/fs';
 import type { ComponentInfo } from './types';
 
 const MAX_IMPORTS = 10;

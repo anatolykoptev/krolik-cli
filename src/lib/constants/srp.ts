@@ -3,7 +3,7 @@
  * @description Constants and patterns for SRP (Single Responsibility) fixes
  */
 
-import type { NumberRange } from './complexity';
+import type { NumberRange } from '../@patterns/complexity';
 
 // ============================================================================
 // PATTERNS

@@ -14,9 +14,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CallExpression, Identifier, JSXAttrValue, Module, Node } from '@swc/core';
-import { scanDirectory } from '@/lib/@fs';
 import { isCustomHook, isReactHook } from '@/lib/@patterns';
 import { getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
+import { scanDirectory } from '@/lib/core/fs';
 import type { ComponentInfo } from './types';
 
 const MAX_IMPORTS = 10;

@@ -7,7 +7,6 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { escapeRegex } from '../../../../../src/lib/@sanitize/regex';
 import {
   getLineContent,
   getLineNumber,
@@ -17,6 +16,7 @@ import {
   isInsideStringLine,
   isInsideStringOrComment,
 } from '../../../../../src/lib/@swc';
+import { escapeRegex } from '../../../../../src/lib/security/regex';
 
 describe('string-context (from @lib/@swc)', () => {
   describe('isInsideStringLine (line-level)', () => {

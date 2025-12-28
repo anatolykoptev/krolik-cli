@@ -6,16 +6,18 @@
  */
 
 import {
-  clearExpired,
-  deleteLibrary,
   detectLibraries,
   fetchAndCacheDocs,
-  getLibraryByName,
   getSuggestions,
   hasContext7ApiKey,
+} from '@/lib/integrations/context7';
+import {
+  clearExpired,
+  deleteLibrary,
+  getLibraryByName,
   listLibraries,
   searchDocs,
-} from '../../../lib/@docs-cache';
+} from '@/lib/storage/docs';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { escapeXml, truncate } from '../core/formatting';
 import { resolveProjectPath } from '../core/projects';

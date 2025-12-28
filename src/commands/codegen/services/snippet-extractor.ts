@@ -3,7 +3,7 @@
  * @description Extract and process code snippets from cached docs
  */
 
-import type { DocSearchResult } from '@/lib/@docs-cache';
+import type { DocSearchResult } from '@/lib/storage/docs';
 import type { CodeSnippet, ImportSuggestion, PatternHint } from './types';
 
 /** Extract code snippets from search results */

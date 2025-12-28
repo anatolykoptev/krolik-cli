@@ -2,36 +2,48 @@
  * @module lib
  * @description Core library exports
  *
- * Flat namespace structure optimized for AI navigation:
- * - @agents - Agent marketplace utilities
- * - @ast - AST utilities (centralized ts-morph)
- * - @cache - Caching utilities (file cache)
- * - @context - File type detection, skip logic
- * - @discovery - Project root, schemas, routes
- * - @docs - CLAUDE.md injection and sync
- * - @docs-cache - Context7 API documentation cache
- * - @formatters - XML, JSON, Markdown, Text
- * - @fs - File system operations
- * - @git - Git and GitHub operationsLf
- * - @log - Logging utilities
- * - @markdown - Markdown utilities (frontmatter)
- * - @memory - SQLite-based persistent memory
- * - @patterns - Lint, hardcoded, complexity patterns
- * - @sanitize - Input sanitization and validation
- * - @shell - Shell execution
- * - @time - Timing utilities
+ * Module structure (layered architecture):
+ *
+ * Layer 1 - Core (no deps):
+ * - core/ (logger, time, utils, shell, fs)
+ *
+ * Layer 2 - Format/Security/Cache:
+ * - format/ - XML, JSON, Markdown, Text, Frontmatter
+ * - security/ - Input sanitization
+ * - cache/ - File caching
+ *
+ * Layer 3 - Parsing/Patterns:
+ * - parsing/swc/ - SWC AST parser
+ * - @patterns/ - Lint, hardcoded, complexity patterns
+ * - @git/ - Git and GitHub operations
+ *
+ * Layer 4 - Discovery/Storage:
+ * - discovery/ - Project root, schemas, routes
+ * - storage/ - SQLite database (memory, docs)
+ *
+ * Layer 5 - Integrations/Analysis/Claude:
+ * - integrations/context7/ - Context7 API
+ * - analysis/ - AST source analysis
+ * - claude/ - CLAUDE.md generation and sync
+ * - modules/ - Reusable code detection
+ *
+ * Legacy (still active):
+ * - @ast - ts-morph utilities
+ * - @agents - Agent marketplace
  */
 
 // Agents marketplace utilities
 export * from './@agents';
 // AST utilities (centralized ts-morph)
 export * from './@ast';
+// Git and GitHub (using barrel export from @git)
+export * from './@git';
+// Patterns (lint, hardcoded, complexity) - single source of truth
+export * from './@patterns';
+// Context (file type detection, skip logic) - migrated to @patterns/file-context
+export * from './@patterns/file-context';
 // Cache utilities (file cache)
-export * from './@cache';
-// Context (file type detection, skip logic)
-export * from './@context';
-// Discovery (project root, schemas, routes)
-export * from './@discovery';
+export * from './cache';
 export type {
   CreateSubDocResult,
   DiscoveredPackage,
@@ -39,7 +51,7 @@ export type {
   SubDocType,
   SyncOptions,
   SyncResult,
-} from './@docs';
+} from './claude';
 // Documentation injection
 export {
   createMissingSubDocs,
@@ -53,7 +65,13 @@ export {
   needsSync,
   SUB_DOC_CANDIDATES,
   syncClaudeMd,
-} from './@docs';
+} from './claude';
+// Core utilities (Layer 0) - logger, time, utils, shell, fs
+export * from './core';
+// Discovery (project root, schemas, routes, architecture)
+export * from './discovery';
+// Formatting utilities (XML, JSON, Markdown, Text, Frontmatter)
+export * from './format';
 export type {
   CachedLibrary,
   DetectedLibrary,
@@ -61,36 +79,23 @@ export type {
   FetchDocsResult,
   LibraryMapping,
   ResolutionResult,
-} from './@docs-cache';
+} from './integrations/context7';
 // Context7 documentation cache
 export {
   detectLibraries,
   fetchAndCacheDocs,
   fetchLibraryWithTopics,
-  getLibraryByName,
-  getSectionsByLibrary,
   getSuggestions,
   getTopicsForLibrary,
   hasContext7ApiKey,
-  listLibraries,
   resolveLibraryId,
-  searchDocs,
-} from './@docs-cache';
-// Formatters (XML, JSON, Markdown, Text)
-export * from './@formatters';
-// File system
-export * from './@fs';
-// Git and GitHub (using barrel export from @git)
-export * from './@git';
-// Logger
-export * from './@log';
-// Markdown utilities (frontmatter parsing)
-export * from './@markdown';
-// Patterns (lint, hardcoded, complexity) - single source of truth
-export * from './@patterns';
+} from './integrations/context7';
 // Input sanitization and validation
-export * from './@sanitize';
-// Shell execution
-export * from './@shell';
-// Timing utilities
-export * from './@time';
+export * from './security';
+// Storage - docs
+export {
+  getLibraryByName,
+  getSectionsByLibrary,
+  listLibraries,
+  searchDocs,
+} from './storage/docs';

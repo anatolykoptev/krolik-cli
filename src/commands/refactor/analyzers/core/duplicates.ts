@@ -5,6 +5,7 @@
 
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
+import { detectNamingPattern } from '@/lib/modules';
 import { findFiles, logger, readFile } from '../../../../lib';
 import {
   getProject,
@@ -14,7 +15,6 @@ import {
   SyntaxKind,
 } from '../../../../lib/@ast';
 import { extractVerbPrefix } from '../../../../lib/@patterns';
-import { detectNamingPattern } from '../../../../lib/@reusable';
 import type { DuplicateInfo, FunctionSignature } from '../../core';
 import { findTsConfig } from '../shared';
 import { extractFunctionsSwc } from './swc-parser';

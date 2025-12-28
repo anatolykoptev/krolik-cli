@@ -4,18 +4,20 @@
  */
 
 import {
-  clearExpired,
-  deleteLibrary,
   detectLibraries,
   fetchAndCacheDocs,
   fetchLibraryWithTopics,
-  getLibraryByName,
   getSuggestions,
   hasContext7ApiKey,
-  listLibraries,
   resolveLibraryId,
+} from '@/lib/integrations/context7';
+import {
+  clearExpired,
+  deleteLibrary,
+  getLibraryByName,
+  listLibraries,
   searchDocs,
-} from '../../lib/@docs-cache';
+} from '@/lib/storage/docs';
 import type { CommandContext, OutputFormat } from '../../types';
 
 interface DocsFetchOptions {

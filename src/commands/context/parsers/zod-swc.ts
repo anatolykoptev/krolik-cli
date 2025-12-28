@@ -11,9 +11,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanDirectory } from '@/lib/@fs';
 import type { CallExpression, Identifier, Node } from '@/lib/@swc';
 import { getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
+import { scanDirectory } from '@/lib/core/fs';
 import type { ZodField, ZodSchemaInfo } from './types';
 
 /**

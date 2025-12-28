@@ -6,7 +6,6 @@
  */
 
 import * as path from 'node:path';
-import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@git';
 import {
   type Memory,
   type MemoryContext,
@@ -17,7 +16,8 @@ import {
   recent,
   save,
   search,
-} from '../../../lib/@memory';
+} from '@/lib/storage/memory';
+import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@git';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { formatError, formatMCPError } from '../core/errors';
 import { escapeXml, truncate } from '../core/formatting';

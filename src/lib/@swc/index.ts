@@ -1,81 +1,24 @@
 /**
  * @module lib/@swc
+ * @deprecated Use '@/lib/parsing/swc' for parser and '@/lib/@patterns' for detectors.
+ * This module will be removed in v7.0.
+ *
  * @description Shared SWC AST infrastructure for fast TypeScript/JavaScript parsing
  *
- * This is the centralized module for all SWC-based AST operations in Krolik CLI.
- * Provides:
- * - Fast parsing with caching (10-20x faster than ts-morph)
- * - Generic visitor pattern for AST traversal
- * - Utility functions for position mapping and node inspection
- * - Type-safe interfaces for analysis results
+ * Migration:
+ * ```ts
+ * // Before
+ * import { parseFile, detectConsole } from '@/lib/@swc';
  *
- * RECOMMENDED: Use the cached parser for file analysis:
- *
- * @example
- * // Parse with caching
- * import { parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
- *
- * const { ast, lineOffsets } = parseFile('src/app.ts', sourceCode);
- *
- * // Visit specific node types
- * visitNodeWithCallbacks(ast, {
- *   onDebuggerStatement: (node, context) => {
- *     console.log('Debugger at line', context.path);
- *   },
- *   onCallExpression: (node, context) => {
- *     // Analyze function calls
- *   },
- * });
- *
- * @example
- * // Low-level visitor
- * import { parseFile, visitNode, getNodeType } from '@/lib/@swc';
- *
- * const { ast } = parseFile('src/app.ts', code);
- * visitNode(ast, (node, context) => {
- *   if (context.isExported) {
- *     console.log('Exported:', getNodeType(node));
- *   }
- * });
- *
- * @example
- * // Validate syntax
- * import { validateSyntax } from '@/lib/@swc';
- *
- * const result = validateSyntax('test.ts', 'const x = 1;');
- * if (result.success) {
- *   // Work with result.ast
- * }
- *
- * @example
- * // Extract information from nodes
- * import { getCalleeName, collectMethodChain, extractStringArg } from '@/lib/@swc';
- *
- * visitNodeWithCallbacks(ast, {
- *   onCallExpression: (node) => {
- *     const call = node as unknown as CallExpression;
- *
- *     // Extract function name
- *     const name = getCalleeName(call); // 'register'
- *
- *     // Extract string argument
- *     const fieldName = extractStringArg(call); // 'email'
- *
- *     // Collect method chain for Zod schemas
- *     const methods = collectMethodChain(call); // ['string', 'min', 'max']
- *   },
- * });
- *
- * @example
- * // Check string/comment context (no AST needed)
- * import { isInsideString, isInsideComment, isInsideStringOrComment } from '@/lib/@swc';
- *
- * const code = 'const x = "hello"; // greeting';
- *
- * isInsideString(code, 12);          // true - inside "hello"
- * isInsideComment(code, 25);         // true - inside comment
- * isInsideStringOrComment(code, 12); // true - combined check
+ * // After
+ * import { parseFile } from '@/lib/parsing/swc';
+ * import { detectConsole } from '@/lib/@patterns/lint';
+ * ```
  */
+
+// ============================================================================
+// PARSER CORE - Re-export from parsing/swc
+// ============================================================================
 
 // Re-export SWC types that are commonly needed
 export type {
@@ -96,58 +39,61 @@ export type {
   StringLiteral,
   TsType,
 } from '@swc/core';
-// Export extractor utilities
+
+// Export parser core from new location
 export {
+  // Types
+  type CacheEntry,
+  // Visitor
+  calculateLineOffsets,
+  // Parser
+  clearCache,
+  // Extractors
   collectMethodChain,
+  countNodeTypes,
   extractAllStringArgs,
   extractStringArg,
   extractTypeString,
+  type FunctionInfo,
+  findNodesByType,
+  getCacheStats,
   getCalleeName,
   getCalleeObjectName,
+  getContext,
   getIdentifierName,
   getJSXAttributeValue,
   getJSXElementName,
-  getRootObjectName,
-  isCallingFunction,
-  isCallingMethod,
-} from './extractors';
-
-// Export parser functions
-export {
-  clearCache,
-  getCacheStats,
+  // String context
+  getLineContent,
+  getLineNumber,
   getNodeSpan,
   getNodeText,
-  parseFile,
-  parseFileUncached,
-  validateSyntax,
-} from './parser';
-// Export types
-export type {
-  CacheEntry,
-  FunctionInfo,
-  ParseOptions,
-  Position,
-  PositionRange,
-  Range,
-  VisitorCallback,
-  VisitorCallbacks,
-  VisitorContext,
-  VisitorResult,
-} from './types';
-// Export visitor functions
-export {
-  calculateLineOffsets,
-  countNodeTypes,
-  findNodesByType,
-  getContext,
   getNodeType,
+  getRootObjectName,
   getSnippet,
+  isCallingFunction,
+  isCallingMethod,
+  isInsideComment,
+  isInsideLineComment,
+  isInsideString,
+  isInsideStringLine,
+  isInsideStringOrComment,
   offsetToLine,
   offsetToPosition,
+  type ParseOptions,
+  type Position,
+  type PositionRange,
+  parseFile,
+  parseFileUncached,
+  type Range,
+  type VisitorCallback,
+  type VisitorCallbacks,
+  type VisitorContext,
+  type VisitorResult,
+  validateSyntax,
   visitNode,
   visitNodeWithCallbacks,
-} from './visitor';
+} from '../parsing/swc';
 
 // ============================================================================
 // DETECTORS
@@ -207,17 +153,4 @@ export {
   isUnknownType,
 } from './detectors';
 
-// ============================================================================
-// STRING CONTEXT DETECTION
-// ============================================================================
-
-// Export string/comment context detection utilities
-export {
-  getLineContent,
-  getLineNumber,
-  isInsideComment,
-  isInsideLineComment,
-  isInsideString,
-  isInsideStringLine,
-  isInsideStringOrComment,
-} from './string-context';
+// Note: String context utilities are included in the parsing/swc re-export above

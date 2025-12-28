@@ -257,9 +257,9 @@ export function wordWrap(text: string, width: number = 80): string {
  * Strip ANSI color codes from string
  */
 export function stripAnsi(text: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences require control chars
   return text.replace(/\x1b\[[0-9;]*m/g, '');
 }
 
-// NOTE: escapeRegex moved to @sanitize/regex.ts
-// Import from '@/lib' or '@/lib/@sanitize' instead
+// NOTE: escapeRegex moved to security/regex.ts
+// Import from '@/lib' or '@/lib/security' instead

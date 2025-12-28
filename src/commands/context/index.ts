@@ -6,6 +6,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
+  detectLibraries,
+  fetchAndCacheDocs,
+  getSuggestions,
+  hasContext7ApiKey,
+} from '@/lib/integrations/context7';
+import { getSectionsByLibrary, searchDocs } from '@/lib/storage/docs';
+import { type Memory, search as searchMemory } from '@/lib/storage/memory';
+import {
   getCurrentBranch,
   getDiff,
   getIssue,
@@ -17,15 +25,6 @@ import {
   listIssues,
   saveKrolikFile,
 } from '../../lib';
-import {
-  detectLibraries,
-  fetchAndCacheDocs,
-  getSectionsByLibrary,
-  getSuggestions,
-  hasContext7ApiKey,
-  searchDocs,
-} from '../../lib/@docs-cache';
-import { type Memory, search as searchMemory } from '../../lib/@memory';
 import type { CommandContext, ContextResult, KrolikConfig } from '../../types';
 import { analyzeRoutes } from '../routes';
 import { analyzeSchema } from '../schema';

@@ -1,37 +1,11 @@
 /**
  * @module lib/@sanitize
- * @description Input sanitization and validation utilities (barrel export)
+ * @deprecated Use '@/lib/security' instead. This module will be removed in a future version.
+ * @description Input sanitization and validation utilities (deprecated re-export)
  *
- * Security-focused utilities for validating and sanitizing user input
- * to prevent injection attacks and ensure safe command execution.
+ * This module is kept for backward compatibility.
+ * All exports are re-exported from '@/lib/security'.
  */
 
-// Shell escaping
-export { escapeDoubleQuotes, escapeShellArg, isValidCommandName } from './escape';
-
-// Path validation utilities
-export {
-  isPathSafe,
-  normalizeToRelative,
-  type PathValidationResult,
-  validatePathOrThrow,
-  validatePathWithinProject,
-} from './path';
-// Regex escaping utilities
-export { escapeRegex, escapeReplacement, literalReplacer } from './regex';
-
-// String and number validation
-export {
-  isValidEmail,
-  isValidUrl,
-  parseBoolean,
-  sanitizeEmail,
-  sanitizeFeatureName,
-  sanitizeIdentifier,
-  sanitizeIssueNumber,
-  sanitizePathComponent,
-  sanitizePort,
-  sanitizePositiveInt,
-  sanitizeUrl,
-  type ValidationResult,
-} from './validation';
+// Re-export everything from the new security module
+export * from '../security';

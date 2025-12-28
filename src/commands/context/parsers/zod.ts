@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanDirectory } from '@/lib/@fs';
+import { scanDirectory } from '@/lib/core/fs';
 import type { ZodField, ZodSchemaInfo } from './types';
 
 /**

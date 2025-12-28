@@ -4,8 +4,8 @@
  */
 
 import type { Command } from 'commander';
+import { needsSync, syncClaudeMd } from '@/lib/claude';
 import { loadConfig } from '../config';
-import { needsSync, syncClaudeMd } from '../lib/@docs/inject';
 import { createLogger } from '../lib/@log';
 import type { OutputFormat } from '../types';
 import type { CommandOptions } from './types';

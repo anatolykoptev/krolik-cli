@@ -12,8 +12,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanDirectory } from '@/lib/@fs';
 import { parseFile, visitNodeWithCallbacks } from '@/lib/@swc';
+import { scanDirectory } from '@/lib/core/fs';
 
 /**
  * Import statement parsed from AST

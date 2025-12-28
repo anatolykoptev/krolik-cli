@@ -10,9 +10,9 @@
  */
 
 import * as path from 'node:path';
-import { findSchemaDir } from '@/lib/@discovery/schema';
 import { toCamelCase } from '@/lib/@formatters';
 import { fieldToZod } from '@/lib/@prisma';
+import { findSchemaDir } from '@/lib/discovery/schema';
 import { type PrismaEnum, type PrismaModel, parseSchemaDirectory } from '../../schema/parser';
 import type { DocHints } from '../services/types';
 import { prismaZodEnhanced } from '../templates/enhanced';

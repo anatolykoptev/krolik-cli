@@ -3,8 +3,9 @@
  * @description AI-assisted code review command
  */
 
+import { detectLibraries } from '@/lib/integrations/context7';
+import { searchDocs } from '@/lib/storage/docs';
 import { escapeXml } from '../../lib';
-import { detectLibraries, searchDocs } from '../../lib/@docs-cache';
 import type {
   CommandContext,
   DocReference,

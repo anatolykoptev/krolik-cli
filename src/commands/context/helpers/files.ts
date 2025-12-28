@@ -3,7 +3,7 @@
  * @description File search utilities
  */
 
-import { scanDirectorySync } from '@/lib/@fs';
+import { scanDirectorySync } from '@/lib/core/fs';
 
 /**
  * Find files matching patterns in a directory (recursive)

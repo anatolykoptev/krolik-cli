@@ -23,7 +23,7 @@ export {
 export {
   type PathValidationResult,
   validatePathWithinProject,
-} from '@/lib/@sanitize/path';
+} from '@/lib/security/path';
 // Conflict Detection
 export {
   type Conflict,

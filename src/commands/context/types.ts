@@ -3,7 +3,7 @@
  * @description Type definitions for context module
  */
 
-import type { Memory } from '../../lib/@memory';
+import type { Memory } from '@/lib/storage/memory';
 import type { ContextResult, KrolikConfig, OutputFormat } from '../../types';
 import type { RoutesOutput } from '../routes/output';
 import type { SchemaOutput } from '../schema/output';

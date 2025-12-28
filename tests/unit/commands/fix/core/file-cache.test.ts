@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { FileCache, formatCacheStats } from '../../../../../src/lib/@cache/file-cache';
+import { FileCache, formatCacheStats } from '../../../../../src/lib/cache/file-cache';
 
 describe('FileCache', () => {
   let cache: FileCache;

@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { fileCache } from '../../../../../src/lib/@cache/file-cache';
+import { fileCache } from '../../../../../src/lib/cache/file-cache';
 
 describe('FileCache Integration', () => {
   let tempDir: string;
@@ -108,7 +108,9 @@ export function test${i}() {
     expect(stats1.hits).toBe(0);
 
     // All subsequent reads should be hits
-    testFiles.forEach((f) => fileCache.get(f));
+    for (const f of testFiles) {
+      fileCache.get(f);
+    }
 
     const stats2 = fileCache.getStats();
     expect(stats2.hits).toBe(10);

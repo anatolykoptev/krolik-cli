@@ -3,8 +3,8 @@
  * @description Service that enhances code generation with cached documentation
  */
 
-import type { DocSearchResult } from '@/lib/@docs-cache';
-import { searchDocs } from '@/lib/@docs-cache';
+import type { DocSearchResult } from '@/lib/storage/docs';
+import { searchDocs } from '@/lib/storage/docs';
 import { extractImports, extractPatterns, extractSnippets } from './snippet-extractor';
 import type { DocHints, SearchStrategy } from './types';
 import { emptyHints } from './types';

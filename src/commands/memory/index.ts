@@ -4,7 +4,6 @@
  */
 
 import * as path from 'node:path';
-import { getCurrentBranch, getRecentCommits } from '../../lib/@git';
 import {
   type Memory,
   type MemoryImportance,
@@ -16,7 +15,8 @@ import {
   save,
   search,
   stats,
-} from '../../lib/@memory';
+} from '@/lib/storage/memory';
+import { getCurrentBranch, getRecentCommits } from '../../lib/@git';
 import type { CommandContext, OutputFormat } from '../../types';
 
 /**
