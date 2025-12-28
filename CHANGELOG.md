@@ -1,5 +1,24 @@
 # @anatolykoptev/krolik-cli
 
+## 0.3.0
+
+### Minor Changes
+
+- [`66954fe`](https://github.com/anatolykoptev/krolik-cli/commit/66954fe58e1f75b3f607c6c7d5c2b1508b439160) - ## SWC AST for Accurate Analysis
+  - **Architecture analyzer**: Uses SWC AST instead of regex for import detection
+  - Properly skips type-only imports and re-exports
+  - Architecture score improved from 35 → 70
+
+  ## Duplicate Detection Improvements
+  - Fixed false positives for arrow functions in object literals
+  - Duplicates reduced from 33 → 0
+
+  ## New Features
+  - XML optimization with 4 levels for AI context
+  - Context modes: --minimal, --quick, --deep
+  - Library docs caching via Context7
+  - Updated README with new commands
+
 ## 0.2.1
 
 ### Patch Changes
