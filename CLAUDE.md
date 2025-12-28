@@ -1,49 +1,19 @@
-# KROLIK CLI — Development Rules
+# KROLIK CLI — Development Guide
 
-> Universal CLI toolkit for AI-assisted development.
+> Internal guide for developing krolik-cli. For **usage** docs, see root `CLAUDE.md`.
 
-## Architecture
+**Version:** 0.3.0 | **Node:** >=20 | **Package Manager:** pnpm
+
+## Architecture Principles
 
 | Rule | Enforcement |
 |------|-------------|
 | SRP | One purpose per file |
 | Max lines | 200 |
-| Paths | Config/args, never hardcoded |
+| Paths | Dynamic detection via `detectSrcPaths()`, never hardcoded |
 | Dependencies | Explicit injection |
 | Functions | Pure first |
-
-## Structure
-
-```
-krolik-cli/
-├── src/
-│   ├── cli/            # CLI entry, command registration
-│   ├── commands/       # Command implementations
-│   ├── mcp/            # MCP server + handlers
-│   ├── lib/            # Shared utilities (5-layer architecture)
-│   │   ├── core/       # Foundation: fs, shell, logger, time, validation
-│   │   ├── format/     # Formatters: markdown, xml, json, signatures
-│   │   ├── security/   # Security: sanitize, env-detect
-│   │   ├── parsing/    # Parsing: swc, zod
-│   │   ├── discovery/  # Discovery: patterns, domains, files
-│   │   ├── storage/    # Storage: cache, memory
-│   │   ├── integrations/ # External: context7, claude
-│   │   └── @*/         # Active modules: @ast, @git, @patterns, @swc, @agents, @prisma
-│   ├── config/         # Config loading
-│   └── types/          # TypeScript types
-└── tests/
-    ├── unit/           # Unit tests (mirror src/ structure)
-    ├── integration/    # Integration tests
-    ├── fixtures/       # Test data files
-    ├── helpers/        # Shared test utilities
-    └── scripts/        # Debug/manual scripts
-```
-
-## Tests
-
-- Place tests in `tests/unit/` mirroring `src/` structure
-- Name: `*.test.ts`, fixtures: `tests/fixtures/`
-- Helpers: `tests/helpers/`, debug scripts: `tests/scripts/`
+| CLI flags | Extend existing, never add new |
 
 <!-- krolik:start -->
 <!-- version: 6.0.0 | auto-updated -->
@@ -82,11 +52,12 @@ krolik-cli/
 | **Before feature/issue work** | `krolik_context` | `feature: "..."` or `issue: "123"` |
 | **Need library API docs** | `krolik_docs` | `action: "search", query: "..."` |
 | **Parse GitHub issue details** | `krolik_issue` | `number: "123"` |
+| **Before writing utilities** | `krolik_modules` | `action: "search", query: "..."` |
 | **API routes questions** | `krolik_routes` | — |
 | **DB schema questions** | `krolik_schema` | — |
 | **Code quality audit** | `krolik_audit` | — |
 | **Quality issues found** | `krolik_fix` | `dryRun: true` first |
-| **Find duplicates/structure** | `krolik_refactor` | `dryRun: true` |
+| **Find duplicates/structure** | `krolik_refactor` |  |
 | **After code changes** | `krolik_review` | `staged: true` |
 | **Get recent memories** | `krolik_mem_recent` | `limit: 5` |
 | **Save decision/pattern/bugfix** | `krolik_mem_save` | `type: "decision", title: "..."` |
@@ -97,6 +68,66 @@ krolik-cli/
 
 ---
 
+## Project Structure
+
+```
+krolik-cli/
+├── src/
+│   ├── bin/            # CLI entry point (cli.ts)
+│   ├── cli/            # Command registration
+│   ├── commands/       # Command implementations
+│   │   ├── agent/      # Multi-agent orchestration
+│   │   ├── audit/      # Code quality audit
+│   │   ├── codegen/    # Code generation
+│   │   ├── context/    # AI-context generation
+│   │   ├── docs/       # Library documentation cache
+│   │   ├── fix/        # Auto-fix quality issues
+│   │   ├── init/       # Project initialization
+│   │   ├── issue/      # GitHub issue parsing
+│   │   ├── memory/     # Persistent memory
+│   │   ├── refactor/   # Module refactoring
+│   │   ├── review/     # Code review
+│   │   ├── routes/     # tRPC routes analysis
+│   │   ├── schema/     # Prisma schema analysis
+│   │   ├── security/   # Security audit
+│   │   ├── setup/      # Plugin installation
+│   │   ├── status/     # Project diagnostics
+│   │   └── sync/       # Sync operations
+│   ├── config/         # Config loading (cosmiconfig)
+│   ├── lib/            # Shared utilities
+│   │   ├── @agents/    # Agent definitions & orchestration
+│   │   ├── @ast/       # ts-morph AST pool (CRITICAL!)
+│   │   ├── @git/       # Git operations
+│   │   ├── @patterns/  # Dynamic pattern detection
+│   │   ├── @prisma/    # Prisma schema parsing
+│   │   ├── @ranking/   # PageRank for file importance
+│   │   ├── @swc/       # SWC-based fast parsing
+│   │   ├── @tokens/    # Token counting (gpt-tokenizer)
+│   │   ├── cache/      # SQLite caching layer
+│   │   ├── claude/     # Claude Code integration
+│   │   ├── constants/  # Shared constants
+│   │   ├── core/       # Foundation: fs, shell, logger, time
+│   │   ├── discovery/  # File & pattern discovery
+│   │   ├── format/     # Formatters: markdown, xml, json
+│   │   ├── integrations/ # External: context7
+│   │   ├── modules/    # Module analysis
+│   │   ├── parsing/    # Zod schema parsing
+│   │   ├── security/   # Sanitization, env detection
+│   │   └── storage/    # Memory storage (SQLite)
+│   ├── mcp/            # MCP server
+│   │   ├── tools/      # MCP tool implementations
+│   │   ├── handlers.ts
+│   │   ├── resources.ts
+│   │   └── server.ts
+│   └── types/          # TypeScript types
+├── tests/
+│   ├── unit/           # Unit tests (mirror src/)
+│   ├── integration/    # Integration tests
+│   ├── fixtures/       # Test data
+│   └── helpers/        # Test utilities
+└── docs/               # Documentation
+```
+
 ## Coding Standards
 
 ```typescript
@@ -106,7 +137,7 @@ function analyze(files: string[]): AnalysisResult { }
 // Exports: named only
 export { runStatus } from './status';
 
-// Imports: node: → external → @/ → ./
+// Imports order: node: → external → @/ → ./
 import * as fs from 'node:fs';
 import { Command } from 'commander';
 import { getConfig } from '@/config';
@@ -118,19 +149,19 @@ type Result<T, E = Error> =
   | { success: false; error: E };
 ```
 
-## AST System (ts-morph)
+## Critical: AST System
 
 **ALWAYS use the unified pool from `lib/@ast` to prevent memory leaks.**
 
 ```typescript
-// ✅ RECOMMENDED: Auto-cleanup callback pattern
+// RECOMMENDED: Auto-cleanup callback pattern
 import { withSourceFile } from '@/lib/@ast';
 
 const count = withSourceFile(content, 'temp.ts', (sourceFile) => {
   return sourceFile.getFunctions().length;
 });
 
-// ✅ ADVANCED: Manual project management
+// ADVANCED: Manual project management
 import { getProject, releaseProject } from '@/lib/@ast';
 
 const project = getProject({ tsConfigPath: './tsconfig.json' });
@@ -139,63 +170,212 @@ try {
 } finally {
   releaseProject(project);
 }
-
-// ❌ DEPRECATED: Direct project creation (memory leaks!)
-import { createProject } from '@/lib/@ast';  // DON'T USE
-const project = createProject();  // Creates new instance every time
 ```
 
 **Key points:**
 - Pool reuses Project instances to avoid memory leaks
-- `withSourceFile()` is preferred for single-file operations
-- `getProject()` + `releaseProject()` for multi-file operations
-- Old `createProject()` is deprecated but kept for backward compatibility
+- `withSourceFile()` — single-file operations
+- `getProject()` + `releaseProject()` — multi-file operations
+- Never use deprecated `createProject()` directly
 
-## Refactor Command
+## Critical: Pattern Detection
 
-Analyze and refactor module structure with 3 modes:
+**NEVER hardcode patterns.** Use `lib/@patterns` for dynamic detection:
 
-```bash
-krolik refactor [options]
+```typescript
+import { detectPatterns, getProjectPatterns } from '@/lib/@patterns';
 
-Options:
-  --path <path>      Path to analyze (default: auto-detect)
-  --package <name>   Monorepo package to analyze
-  --all-packages     Analyze all packages in monorepo
-  --quick            Quick mode: structure only, no AST (~2-3s)
-  --deep             Deep mode: + type duplicates (~5-10s)
-  --dry-run          Show plan without applying
-  --apply            Apply migrations (always creates backup)
-  --fix-types        Auto-fix 100% identical type duplicates
-
-Examples:
-  krolik refactor                    # Default analysis
-  krolik refactor --quick            # Fast structure check
-  krolik refactor --deep             # Full analysis with types
-  krolik refactor --apply            # Apply suggested migrations
-  krolik refactor --package api      # Analyze specific package
+// Auto-detect project conventions
+const patterns = await getProjectPatterns(projectRoot);
+const apiDir = patterns.apiDirectory;
+const components = patterns.componentPatterns;
 ```
 
-### Modes
+## SWC Fast Parsing
 
-| Mode | Duration | Analyzes |
-|------|----------|----------|
-| `--quick` | ~2-3s | Structure, domains, file sizes |
-| default | ~5-6s | + Function duplicates (SWC) |
-| `--deep` | ~5-10s | + Type duplicates (ts-morph) |
+For performance-critical parsing (10-50x faster than ts-morph):
 
-### Apply Flow
+```typescript
+import { parseFile, extractFunctions } from '@/lib/@swc';
 
-When using `--apply`:
-1. Git backup branch is **always created** automatically
-2. Migrations are applied with file-level backups
-3. Typecheck runs after completion
-4. Clear rollback instructions on failure
+const ast = await parseFile(filePath);
+const functions = extractFunctions(ast);
+```
 
-## Docs
+## Refactor Command Architecture
 
-| Topic | Path |
-|-------|------|
-| Fix Command | [src/commands/fix/CLAUDE.md](src/commands/fix/CLAUDE.md) |
-| File Cache | [src/commands/fix/core/FILE-CACHE.md](src/commands/fix/core/FILE-CACHE.md) |
-| Refactor Roadmap | [docs/REFACTOR-CLI-ROADMAP.md](docs/REFACTOR-CLI-ROADMAP.md) |
+**Path detection is ALWAYS dynamic.** The refactor command analyzes ALL source directories, not just `lib/`.
+
+### Key Principles
+
+| Rule | Implementation |
+|------|----------------|
+| Dynamic paths | Use `detectSrcPaths()` from config |
+| No hardcoded dirs | Pattern-based detection |
+| No new CLI flags | Extend existing infrastructure |
+| Multi-path analysis | Parallel scanning + merge |
+
+### Source Path Detection
+
+```typescript
+// config/detect.ts
+export function detectSrcPaths(projectRoot: string, pkgPath: string): string[]
+// Scans pkgPath for directories containing .ts/.tsx files
+// Returns: ['apps/web/lib', 'apps/web/components', 'apps/web/app', ...]
+```
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    refactor command                          │
+├─────────────────────────────────────────────────────────────┤
+│  1. resolvePaths()                                          │
+│     ├─ Monorepo? → detectMonorepoPackages() → srcPaths     │
+│     └─ Single?   → detectSrcPaths(projectRoot, 'src')       │
+│                                                              │
+│  2. runRefactor()                                            │
+│     ├─ Parallel analysis on each path                        │
+│     └─ mergeDuplicates() + mergeStructures()                │
+│                                                              │
+│  3. Output: path shows all analyzed dirs                     │
+│     p="src/lib, src/commands, src/mcp, src/config"          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### File Locations
+
+| File | Purpose |
+|------|---------|
+| [src/config/detect.ts](src/config/detect.ts) | `detectSrcPaths()`, `MonorepoPackage.srcPaths` |
+| [src/commands/refactor/paths/resolver.ts](src/commands/refactor/paths/resolver.ts) | Path resolution for mono/single |
+| [src/commands/refactor/runner/analysis.ts](src/commands/refactor/runner/analysis.ts) | Parallel analysis + merge utils |
+
+### Examples
+
+**Monorepo (piternow):**
+```
+📦 Monorepo detected. Analyzing: web [__tests__, app, components, lib]
+   Available packages: mobile, web, api, ui
+```
+
+**Single project (krolik-cli):**
+```
+📁 Single project. Analyzing: [bin, cli, commands, config, lib, mcp, types]
+```
+
+## Adding New Command
+
+1. Create folder in `src/commands/<name>/`
+2. Structure:
+   ```
+   commands/<name>/
+   ├── index.ts      # Command registration
+   ├── run.ts        # Main logic
+   ├── types.ts      # Types
+   └── CLAUDE.md     # (optional) Command-specific docs
+   ```
+3. Register in `src/commands/index.ts`
+4. Add MCP tool in `src/mcp/tools/<name>/`
+
+## Adding MCP Tool
+
+1. Create folder in `src/mcp/tools/<name>/`
+2. Structure:
+   ```
+   tools/<name>/
+   ├── index.ts      # Tool definition
+   ├── handler.ts    # Handler logic
+   └── schema.ts     # Zod schema for params
+   ```
+3. Register in `src/mcp/tools/index.ts`
+
+## Testing
+
+```bash
+pnpm test              # Watch mode
+pnpm test:run          # Single run
+pnpm test:coverage     # With coverage
+```
+
+- Tests in `tests/unit/` mirror `src/` structure
+- Fixtures in `tests/fixtures/`
+- Name pattern: `*.test.ts`
+
+## Development
+
+```bash
+pnpm dev              # Watch mode (tsx)
+pnpm build            # Build to dist/
+pnpm typecheck        # Type check
+pnpm lint             # Lint (biome)
+pnpm check:fix        # Fix lint + format
+
+# Test CLI locally
+./dist/bin/cli.js status --fast
+./dist/bin/cli.js context --quick
+```
+
+## Key Locations
+
+| What | Path |
+|------|------|
+| CLI Entry | [src/bin/cli.ts](src/bin/cli.ts) |
+| MCP Server | [src/mcp/server.ts](src/mcp/server.ts) |
+| MCP Tools | [src/mcp/tools/](src/mcp/tools/) |
+| AST Pool | [src/lib/@ast/](src/lib/@ast/) |
+| Pattern Detection | [src/lib/@patterns/](src/lib/@patterns/) |
+| Agent System | [src/lib/@agents/](src/lib/@agents/) |
+| Fix Command Docs | [src/commands/fix/CLAUDE.md](src/commands/fix/CLAUDE.md) |
+
+## Dependencies
+
+**Core:**
+- `commander` — CLI framework
+- `cosmiconfig` — Config loading
+- `ts-morph` — AST analysis (pooled)
+- `better-sqlite3` — Memory/cache storage
+- `gpt-tokenizer` — Token counting
+- `zod` — Schema validation
+
+**Dev:**
+- `@swc/core` — Fast parsing
+- `biome` — Lint + format
+- `vitest` — Testing
+- `tsup` — Build
+
+## Related CLAUDE.md Files
+
+### Krolik CLI (this project)
+
+| File | Purpose |
+|------|---------|
+| [CLAUDE.md](CLAUDE.md) | This file — development guide |
+| [src/commands/fix/CLAUDE.md](src/commands/fix/CLAUDE.md) | Fix command internals |
+
+### Workspace Root
+
+| File | Purpose |
+|------|---------|
+| [../CLAUDE.md](../CLAUDE.md) | Main workspace rules, Krolik usage |
+
+### Piternow Project (target project)
+
+| File | Purpose |
+|------|---------|
+| [../piternow-wt-fix/CLAUDE.md](../piternow-wt-fix/CLAUDE.md) | Main project rules |
+| [../piternow-wt-fix/apps/web/CLAUDE.md](../piternow-wt-fix/apps/web/CLAUDE.md) | Next.js web app |
+| [../piternow-wt-fix/apps/mobile/CLAUDE.md](../piternow-wt-fix/apps/mobile/CLAUDE.md) | Expo mobile app |
+| [../piternow-wt-fix/packages/api/CLAUDE.md](../piternow-wt-fix/packages/api/CLAUDE.md) | tRPC API package |
+| [../piternow-wt-fix/packages/db/CLAUDE.md](../piternow-wt-fix/packages/db/CLAUDE.md) | Prisma database |
+| [../piternow-wt-fix/packages/shared/CLAUDE.md](../piternow-wt-fix/packages/shared/CLAUDE.md) | Shared utilities |
+| [../piternow-wt-fix/packages/ui/CLAUDE.md](../piternow-wt-fix/packages/ui/CLAUDE.md) | UI components |
+| [../piternow-wt-fix/packages/api/src/lib/integrations/CLAUDE.md](../piternow-wt-fix/packages/api/src/lib/integrations/CLAUDE.md) | API integrations |
+| [../piternow-wt-fix/packages/api/src/lib/observability/CLAUDE.md](../piternow-wt-fix/packages/api/src/lib/observability/CLAUDE.md) | Observability |
+
+### Other Tools
+
+| File | Purpose |
+|------|---------|
+| [../claude-mem/CLAUDE.md](../claude-mem/CLAUDE.md) | Claude memory plugin |
+| [../cal.com/CLAUDE.md](../cal.com/CLAUDE.md) | Cal.com reference |

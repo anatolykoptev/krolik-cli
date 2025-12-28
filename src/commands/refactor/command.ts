@@ -65,10 +65,11 @@ export async function refactorCommand(
     }
 
     // Single package or non-monorepo analysis
-    const resolved = resolvePaths(projectRoot, options);
+    // Let runRefactor call resolvePaths to get all source paths
+    const analysis = await runRefactor(projectRoot, options);
 
-    // Run analysis with already resolved paths (avoid duplicate resolvePaths call)
-    const analysis = await runRefactor(projectRoot, { ...options, path: resolved.relativePath });
+    // Get resolved paths for output
+    const resolved = resolvePaths(projectRoot, options);
 
     // Print results
     await printAnalysis(analysis, projectRoot, resolved.targetPath, options);

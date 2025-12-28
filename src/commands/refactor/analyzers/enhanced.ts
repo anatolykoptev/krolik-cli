@@ -23,6 +23,7 @@ import { generateAiNavigation } from './context/navigation';
 import { analyzeFileSizes } from './metrics/file-size';
 import { generateRecommendations } from './metrics/recommendations';
 import { analyzeReusableModules } from './metrics/reusable';
+import { analyzeRanking, type RankingAnalysis } from './ranking/index';
 
 // ============================================================================
 // ENHANCED MIGRATION PLAN
@@ -129,6 +130,8 @@ export interface EnhancedAnalysisOptions {
   includeReusable?: boolean;
   /** Include file size analysis (default: true) */
   includeFileSize?: boolean;
+  /** Include PageRank-based ranking analysis (default: true) */
+  includeRanking?: boolean;
 }
 
 /**
@@ -140,7 +143,7 @@ export async function createEnhancedAnalysis(
   targetPath: string,
   options: EnhancedAnalysisOptions = {},
 ): Promise<EnhancedRefactorAnalysis> {
-  const { includeReusable = true, includeFileSize = true } = options;
+  const { includeReusable = true, includeFileSize = true, includeRanking = true } = options;
 
   // Detect project context
   const projectContext = detectProjectContext(projectRoot);
@@ -180,6 +183,16 @@ export async function createEnhancedAnalysis(
     }
   }
 
+  // Analyze PageRank-based ranking (hotspots, coupling, safe order)
+  let rankingAnalysis: RankingAnalysis | undefined;
+  if (includeRanking && Object.keys(archHealth.dependencyGraph).length > 0) {
+    try {
+      rankingAnalysis = analyzeRanking(archHealth.dependencyGraph);
+    } catch {
+      // Silently skip if ranking analysis fails
+    }
+  }
+
   const result: EnhancedRefactorAnalysis = {
     ...baseAnalysis,
     projectContext,
@@ -196,6 +209,10 @@ export async function createEnhancedAnalysis(
 
   if (fileSizeAnalysis && fileSizeAnalysis.issues.length > 0) {
     result.fileSizeAnalysis = fileSizeAnalysis;
+  }
+
+  if (rankingAnalysis) {
+    result.rankingAnalysis = rankingAnalysis;
   }
 
   return result;

@@ -1,16 +1,29 @@
 /**
  * @module commands/refactor/output/sections/duplicates
- * @description Duplicates section formatter with deduplication
+ * @description Duplicates section formatter with deduplication and output limits
+ *
+ * Supports configurable limits for:
+ * - Number of duplicates per category (functions, types)
+ * - Number of locations shown per duplicate
  */
 
 import { escapeXml } from '../../../../lib/format';
 import type { EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateDuplicates, sortBySimilarity } from '../helpers';
+import { applyLimit, type SectionLimits } from '../limits';
 
 /**
- * Format duplicates section
+ * Format duplicates section with optional output limits
+ *
+ * @param lines - Output lines array to append to
+ * @param analysis - Refactor analysis containing duplicate data
+ * @param limits - Optional section limits for controlling output size
  */
-export function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnalysis): void {
+export function formatDuplicates(
+  lines: string[],
+  analysis: EnhancedRefactorAnalysis,
+  limits?: SectionLimits,
+): void {
   const { duplicates, typeDuplicates } = analysis;
   const totalCount = duplicates.length + (typeDuplicates?.length ?? 0);
 
@@ -27,11 +40,21 @@ export function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnal
     const deduplicated = deduplicateDuplicates(duplicates);
     const sorted = sortBySimilarity(deduplicated);
 
+    // Apply duplicate limit (defaults to 10 for backward compatibility)
+    const duplicateLimit = limits?.duplicates ?? 10;
+    const { items: limitedDuplicates, overflow: duplicateOverflow } = applyLimit(
+      sorted,
+      duplicateLimit,
+    );
+
     lines.push(
       `    <function-duplicates count="${sorted.length}" deduplicated="true" sorted-by="similarity">`,
     );
 
-    for (const dup of sorted.slice(0, 10)) {
+    // Location limit for each duplicate (defaults to showing all)
+    const locationLimit = limits?.duplicateLocations ?? Infinity;
+
+    for (const dup of limitedDuplicates) {
       const similarity = Math.round(dup.similarity * 100);
       lines.push(
         `      <duplicate name="${escapeXml(dup.name)}" similarity="${similarity}%" recommendation="${dup.recommendation}">`,
@@ -44,20 +67,28 @@ export function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnal
         );
       }
 
+      // Filter out canonical from locations and apply limit
+      const otherLocations = dup.locations.filter((loc) => loc !== canonical);
+      const { items: limitedLocations, overflow: locationOverflow } = applyLimit(
+        otherLocations,
+        locationLimit,
+      );
+
       lines.push('        <locations>');
-      for (const loc of dup.locations) {
-        if (loc !== canonical) {
-          lines.push(
-            `          <location file="${loc.file}" line="${loc.line}" exported="${loc.exported}" />`,
-          );
-        }
+      for (const loc of limitedLocations) {
+        lines.push(
+          `          <location file="${loc.file}" line="${loc.line}" exported="${loc.exported}" />`,
+        );
+      }
+      if (locationOverflow > 0) {
+        lines.push(`          <!-- +${locationOverflow} more locations -->`);
       }
       lines.push('        </locations>');
       lines.push('      </duplicate>');
     }
 
-    if (sorted.length > 10) {
-      lines.push(`      <!-- +${sorted.length - 10} more function duplicates -->`);
+    if (duplicateOverflow > 0) {
+      lines.push(`      <!-- +${duplicateOverflow} more function duplicates -->`);
     }
     lines.push('    </function-duplicates>');
   }
@@ -67,11 +98,21 @@ export function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnal
     const deduplicated = deduplicateDuplicates(typeDuplicates);
     const sorted = sortBySimilarity(deduplicated);
 
+    // Apply duplicate limit (defaults to 10 for backward compatibility)
+    const duplicateLimit = limits?.duplicates ?? 10;
+    const { items: limitedDuplicates, overflow: duplicateOverflow } = applyLimit(
+      sorted,
+      duplicateLimit,
+    );
+
     lines.push(
       `    <type-duplicates count="${sorted.length}" deduplicated="true" sorted-by="similarity">`,
     );
 
-    for (const dup of sorted.slice(0, 10)) {
+    // Location limit for each duplicate (defaults to showing all)
+    const locationLimit = limits?.duplicateLocations ?? Infinity;
+
+    for (const dup of limitedDuplicates) {
       const similarity = Math.round(dup.similarity * 100);
       lines.push(
         `      <duplicate name="${escapeXml(dup.name)}" kind="${dup.kind}" similarity="${similarity}%" recommendation="${dup.recommendation}">`,
@@ -84,18 +125,27 @@ export function formatDuplicates(lines: string[], analysis: EnhancedRefactorAnal
         lines.push(`        <difference>${escapeXml(dup.difference)}</difference>`);
       }
 
+      // Apply location limit
+      const { items: limitedLocations, overflow: locationOverflow } = applyLimit(
+        dup.locations,
+        locationLimit,
+      );
+
       lines.push('        <locations>');
-      for (const loc of dup.locations) {
+      for (const loc of limitedLocations) {
         lines.push(
           `          <location file="${loc.file}" line="${loc.line}" name="${escapeXml(loc.name)}" exported="${loc.exported}" />`,
         );
+      }
+      if (locationOverflow > 0) {
+        lines.push(`          <!-- +${locationOverflow} more locations -->`);
       }
       lines.push('        </locations>');
       lines.push('      </duplicate>');
     }
 
-    if (sorted.length > 10) {
-      lines.push(`      <!-- +${sorted.length - 10} more type duplicates -->`);
+    if (duplicateOverflow > 0) {
+      lines.push(`      <!-- +${duplicateOverflow} more type duplicates -->`);
     }
     lines.push('    </type-duplicates>');
   }

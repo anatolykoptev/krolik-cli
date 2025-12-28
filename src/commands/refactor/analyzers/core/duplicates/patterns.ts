@@ -1,0 +1,176 @@
+/**
+ * @module commands/refactor/analyzers/core/duplicates/patterns
+ * @description Pattern detection for placeholder and suffix-only names
+ */
+
+import {
+  estimateSyllables,
+  getVowelRatio,
+  hasNounSuffix,
+  hasVerbPrefix,
+  splitIntoSegments,
+} from './linguistic';
+
+/**
+ * Dynamically detect if a name is a suffix-only (lacks subject/context)
+ * Uses linguistic analysis instead of hardcoded word lists
+ *
+ * Examples:
+ * - "handler" -> true (suffix-only, no subject)
+ * - "clickHandler" -> false (has subject "click")
+ * - "data" -> true (generic noun)
+ * - "userData" -> false (has subject "user")
+ */
+export function isSuffixOnlyName(name: string): boolean {
+  const lowerName = name.toLowerCase();
+
+  // 1. Must be a single word (no compound segments)
+  const segments = splitIntoSegments(name);
+  if (segments.length > 1) {
+    return false; // Compound names are meaningful
+  }
+
+  // 2. Very short words (<=3 chars) are handled elsewhere
+  if (name.length <= 3) {
+    return false;
+  }
+
+  // 3. Very long single words (>12 chars) are likely domain-specific
+  if (name.length > 12) {
+    return false;
+  }
+
+  // 4. Must look like a real word (reasonable vowel ratio)
+  const vowelRatio = getVowelRatio(lowerName);
+  if (vowelRatio < 0.2 || vowelRatio > 0.7) {
+    return false; // Likely abbreviation or not a real word
+  }
+
+  // 5. Check for noun-like suffix patterns
+  if (!hasNounSuffix(lowerName)) {
+    return false; // Doesn't look like a noun suffix
+  }
+
+  // 6. Must NOT start with a verb prefix
+  if (hasVerbPrefix(lowerName)) {
+    return false;
+  }
+
+  // 7. Check syllable count - suffix-only words are typically 1-3 syllables
+  const syllables = estimateSyllables(lowerName);
+  if (syllables > 3) {
+    return false; // Likely a domain-specific term
+  }
+
+  // 8. Common programming suffix patterns (structurally recognizable as generic)
+  const genericNounPatterns = [
+    /^(func|function)$/i,
+    /^(handler|callback|listener)$/i,
+    /^(params|props|args|options|config)$/i,
+    /^(data|info|meta)$/i,
+    /^(item|value|result|entry)$/i,
+    /^(response|request)$/i,
+    /^(context|state|store|cache)$/i,
+    /^(type|node|element)$/i,
+    /^(list|array|object|map|set|queue)$/i,
+  ];
+
+  for (const pattern of genericNounPatterns) {
+    if (pattern.test(lowerName)) {
+      return true;
+    }
+  }
+
+  // 9. Heuristic: single nouns with common suffixes and no qualifier
+  if (/^[a-z]+(er|or|ry|nt|ng)$/i.test(lowerName) && name.length <= 10) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Dynamically detect placeholder/test names
+ * Uses linguistic patterns to identify metasyntactic variables
+ */
+export function isPlaceholderName(name: string): boolean {
+  const lowerName = name.toLowerCase();
+
+  // 1. Well-known metasyntactic variables
+  if (/^(foo|bar|baz|qux|quux|corge|grault|garply|waldo|fred|plugh|xyzzy|thud)$/i.test(lowerName)) {
+    return true;
+  }
+
+  // 2. Very short words with unusual letter combinations (CVC with rare consonants)
+  if (name.length === 3) {
+    if (/^[bcdfghjklmnpqrstvwxz][aeiou][bcdfghjklmnpqrstvwxz]$/i.test(lowerName)) {
+      if (/[qxz]/.test(lowerName)) {
+        return true;
+      }
+    }
+  }
+
+  // 3. Test/temporary naming patterns
+  if (/^(test|demo|example|sample|temp|tmp|mock|stub|fake|dummy)\d*$/i.test(lowerName)) {
+    return true;
+  }
+
+  // 4. Placeholder with numbers (x1, foo2, test123)
+  if (/^[a-z]{1,4}\d+$/i.test(lowerName)) {
+    return true;
+  }
+
+  // 5. All same letter repeated (aaa, xxx)
+  if (/^(.)\1+$/.test(lowerName)) {
+    return true;
+  }
+
+  // 6. Short words with multiple unusual letters
+  if (name.length <= 4) {
+    const unusualCount = (lowerName.match(/[qxzj]/g) || []).length;
+    if (unusualCount >= 1 && name.length <= 3) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Dynamically detect short verb prefixes that need a subject
+ */
+export function isShortVerbPrefix(name: string): boolean {
+  const lowerName = name.toLowerCase();
+
+  // 1. Must be short (2-4 chars for standalone verbs)
+  if (name.length > 4) {
+    return false;
+  }
+
+  // 2. Check for verb-like structure
+  const vowelRatio = getVowelRatio(lowerName);
+  if (vowelRatio < 0.15 || vowelRatio > 0.6) {
+    return false;
+  }
+
+  // 3. Common short verb patterns in programming
+  const shortVerbPatterns = [
+    /^(get|set|put|pop|add|run|do)$/i,
+    /^(is|on|to|go|be)$/i,
+    /^(has|can|use|try|let|new)$/i,
+    /^(push|pull|call|send|read|load|save|emit|init|exec|make|find|show|hide|move|copy|sort|test|trim|join|bind|wrap|lock|tick|ping|fire)$/i,
+  ];
+
+  for (const pattern of shortVerbPatterns) {
+    if (pattern.test(lowerName)) {
+      return true;
+    }
+  }
+
+  // 4. Heuristic: very short words ending in common verb endings
+  if (name.length <= 3 && /^[a-z]+(t|d|k|p|n|s)$/i.test(lowerName)) {
+    return true;
+  }
+
+  return false;
+}

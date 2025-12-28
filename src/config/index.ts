@@ -18,6 +18,7 @@ export {
   detectPaths,
   detectPrisma,
   detectProjectName,
+  detectSrcPaths,
   detectTrpc,
 } from './detect';
 // Domain utilities

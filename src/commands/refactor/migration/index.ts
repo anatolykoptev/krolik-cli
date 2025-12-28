@@ -52,12 +52,12 @@ export type {
   ExecutionResult,
   MigrationExecutionOptions,
   MigrationExecutionResult,
-} from './execution';
+} from './core/orchestrator';
 
 export {
   executeMigrationAction,
   executeMigrationPlan,
-} from './execution';
+} from './core/orchestrator';
 
 // ============================================================================
 // BARREL

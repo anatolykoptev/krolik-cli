@@ -174,10 +174,88 @@ export interface MonorepoPackage {
   path: string;
   /** Path to lib directory relative to project root */
   libPath: string;
+  /** All source paths relative to project root (lib, components, app, etc.) */
+  srcPaths: string[];
   /** Path to tsconfig.json */
   tsconfigPath: string;
   /** Package type */
   type: 'app' | 'package';
+}
+
+/**
+ * Detect all source paths in a package directory dynamically
+ * Scans for actual directories containing source files without hardcoded patterns
+ *
+ * @param projectRoot - Project root directory
+ * @param pkgPath - Relative path to package (e.g., 'apps/web' or 'src')
+ * @returns Array of relative paths to source directories
+ */
+export function detectSrcPaths(projectRoot: string, pkgPath: string): string[] {
+  const srcPaths: string[] = [];
+  const fullPkgPath = path.join(projectRoot, pkgPath);
+
+  if (!isDirectory(fullPkgPath)) return srcPaths;
+
+  // Get all immediate subdirectories (excluding hidden and node_modules)
+  const subdirs = fs.readdirSync(fullPkgPath).filter((name: string) => {
+    const fullPath = path.join(fullPkgPath, name);
+    return (
+      isDirectory(fullPath) &&
+      !name.startsWith('.') &&
+      name !== 'node_modules' &&
+      name !== 'dist' &&
+      name !== 'build' &&
+      name !== '.next'
+    );
+  });
+
+  // Check each subdir for source content
+  for (const subdir of subdirs) {
+    const subdirPath = path.join(pkgPath, subdir);
+    const fullSubdirPath = path.join(projectRoot, subdirPath);
+
+    if (containsSourceFiles(fullSubdirPath)) {
+      srcPaths.push(subdirPath);
+    }
+  }
+
+  return srcPaths;
+}
+
+/**
+ * Check if directory contains TypeScript/JavaScript source files
+ * Recursively checks up to 2 levels deep
+ */
+function containsSourceFiles(dir: string, depth = 0): boolean {
+  if (!isDirectory(dir)) return false;
+  if (depth > 2) return false; // Limit recursion depth
+
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      // Direct source files (including Next.js patterns like page.tsx, layout.tsx)
+      if (
+        entry.isFile() &&
+        (entry.name.endsWith('.ts') ||
+          entry.name.endsWith('.tsx') ||
+          entry.name.endsWith('.js') ||
+          entry.name.endsWith('.jsx'))
+      ) {
+        return true;
+      }
+      // Recurse into subdirectories (for nested structures like app/profile/page.tsx)
+      if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+        if (containsSourceFiles(path.join(dir, entry.name), depth + 1)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -211,10 +289,14 @@ export function detectMonorepoPackages(projectRoot: string): MonorepoPackage[] {
             tsconfigPath = 'tsconfig.base.json';
           }
 
+          // Detect all source paths
+          const srcPaths = detectSrcPaths(projectRoot, appPath);
+
           packages.push({
             name: app,
             path: appPath,
             libPath,
+            srcPaths,
             tsconfigPath,
             type: 'app',
           });
@@ -246,10 +328,14 @@ export function detectMonorepoPackages(projectRoot: string): MonorepoPackage[] {
             tsconfigPath = 'tsconfig.base.json';
           }
 
+          // Detect all source paths
+          const srcPaths = detectSrcPaths(projectRoot, pkgPath);
+
           packages.push({
             name: pkg,
             path: pkgPath,
             libPath,
+            srcPaths,
             tsconfigPath,
             type: 'package',
           });

@@ -105,11 +105,20 @@ function renderRecentMemories(ctx: SectionContext): string {
  * Recent memories section provider
  *
  * Priority 150 - renders after session startup, before context cache
+ * Only renders in 'full' mode (not in minimal sync)
  */
 export const recentMemoriesProvider: SectionProvider = {
   id: 'recent-memories',
   name: 'Recent Memories',
   priority: RECENT_MEMORIES_PRIORITY,
+
+  /**
+   * Only render in 'full' mode
+   * Memories are fetched via krolik_mem_recent tool, not injected into CLAUDE.md
+   */
+  shouldRender(ctx: SectionContext): boolean {
+    return ctx.mode === 'full';
+  },
 
   render(ctx: SectionContext): SectionResult {
     try {

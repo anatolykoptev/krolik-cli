@@ -24,6 +24,14 @@ export { formatFileSizeAnalysis, formatFileSizeIssue } from './file-size';
 export { formatMigration, formatMigrationAction } from './migration';
 export { formatAiNavigation } from './navigation';
 export { formatProjectContext } from './project-context';
+export {
+  formatCouplingMetrics,
+  formatHotspot,
+  formatHotspots,
+  formatPhase,
+  formatRankingAnalysis,
+  formatSafeOrder,
+} from './ranking';
 export { formatRecommendation, formatRecommendations } from './recommendations';
 export {
   formatCategorySummary,

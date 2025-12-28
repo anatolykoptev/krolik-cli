@@ -66,6 +66,14 @@ export type SectionPriorityValue = (typeof SectionPriority)[keyof typeof Section
 // ============================================================================
 
 /**
+ * Generation mode for section rendering
+ *
+ * - `minimal`: Default for sync. Only essential sections (session-startup, context-cache, sub-docs, tools)
+ * - `full`: All sections including lib-modules and recent-memories
+ */
+export type SectionMode = 'minimal' | 'full';
+
+/**
  * Context passed to section providers during rendering
  *
  * Contains all information needed to generate dynamic content.
@@ -83,6 +91,14 @@ export interface SectionContext {
 
   /** Current template version (from version.ts) */
   readonly version: string;
+
+  /**
+   * Generation mode (default: 'minimal')
+   *
+   * - `minimal`: Essential sections only (for CLAUDE.md sync)
+   * - `full`: All sections including lib-modules, recent-memories
+   */
+  readonly mode: SectionMode;
 
   /**
    * Shared cache for inter-section data sharing

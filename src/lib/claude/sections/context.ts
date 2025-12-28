@@ -8,7 +8,7 @@
 
 import type { SubDocInfo } from '@/lib/discovery';
 import type { MCPToolDefinition } from '@/mcp/tools';
-import type { SectionContext } from './types';
+import type { SectionContext, SectionMode } from './types';
 
 // ============================================================================
 // CONTEXT OPTIONS
@@ -29,6 +29,14 @@ export interface CreateSectionContextOptions {
 
   /** Template version string */
   version: string;
+
+  /**
+   * Generation mode (default: 'minimal')
+   *
+   * - `minimal`: Essential sections only (session-startup, context-cache, sub-docs, tools)
+   * - `full`: All sections including lib-modules, recent-memories
+   */
+  mode?: SectionMode;
 
   /**
    * Pre-populated cache values
@@ -62,7 +70,14 @@ export interface CreateSectionContextOptions {
  * ```
  */
 export function createSectionContext(options: CreateSectionContextOptions): SectionContext {
-  const { projectRoot, tools = [], subDocs = [], version, initialCache = {} } = options;
+  const {
+    projectRoot,
+    tools = [],
+    subDocs = [],
+    version,
+    mode = 'minimal',
+    initialCache = {},
+  } = options;
 
   // Validate required fields
   if (!projectRoot) {
@@ -82,6 +97,7 @@ export function createSectionContext(options: CreateSectionContextOptions): Sect
     tools: Object.freeze([...tools]) as readonly MCPToolDefinition[],
     subDocs: Object.freeze([...subDocs]) as readonly SubDocInfo[],
     version,
+    mode,
     cache, // cache is mutable by design (for inter-section communication)
   };
 
@@ -113,6 +129,7 @@ export function createTestContext(
     version: '0.0.0-test',
     tools: [],
     subDocs: [],
+    mode: 'minimal',
     ...overrides,
   });
 }
@@ -140,6 +157,7 @@ export function cloneContext(
       ? (Object.freeze([...overrides.subDocs]) as readonly SubDocInfo[])
       : ctx.subDocs,
     version: overrides.version ?? ctx.version,
+    mode: overrides.mode ?? ctx.mode,
     cache: ctx.cache, // shared cache
   };
 }

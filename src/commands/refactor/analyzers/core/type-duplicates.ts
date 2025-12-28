@@ -8,7 +8,6 @@
  * - Similar interfaces (>80% field overlap)
  */
 
-import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { findFiles, logger, readFile, validatePathWithinProject } from '../../../../lib';
 import {
@@ -19,7 +18,13 @@ import {
   SyntaxKind,
 } from '../../../../lib/@ast';
 import type { TypeDuplicateInfo } from '../../core/types';
-import { findTsConfig } from '../shared';
+import {
+  findTsConfig,
+  hashContent,
+  jaccardSimilarity,
+  LIMITS,
+  SIMILARITY_THRESHOLDS,
+} from '../shared';
 
 // Re-export for public API
 export type { TypeDuplicateInfo } from '../../core/types';
@@ -61,21 +66,7 @@ export interface FindTypeDuplicatesOptions {
   project?: Project;
 }
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const SIMILARITY_THRESHOLDS = {
-  /** >80% similar = merge candidates */
-  MERGE: 0.8,
-  /** >50% similar = consider rename */
-  RENAME: 0.5,
-} as const;
-
-const LIMITS = {
-  MAX_FILES: 5000,
-  MAX_FILE_SIZE: 1024 * 1024,
-} as const;
+// Constants imported from ../shared/constants
 
 // ============================================================================
 // EXTRACTION
@@ -182,9 +173,10 @@ function normalizeType(typeText: string): string {
 
 /**
  * Hash structure for quick comparison
+ * Uses shared hashContent utility
  */
 function hashStructure(structure: string): string {
-  return createHash('md5').update(structure).digest('hex');
+  return hashContent(structure);
 }
 
 // ============================================================================
@@ -193,6 +185,7 @@ function hashStructure(structure: string): string {
 
 /**
  * Calculate structural similarity between two types
+ * Uses shared jaccardSimilarity for set comparison
  */
 function calculateTypeSimilarity(type1: TypeSignature, type2: TypeSignature): number {
   // Exact match
@@ -200,25 +193,16 @@ function calculateTypeSimilarity(type1: TypeSignature, type2: TypeSignature): nu
     return 1;
   }
 
-  // For interfaces, compare field overlap
+  // For interfaces, compare field overlap using Jaccard similarity
   if (type1.kind === 'interface' && type2.kind === 'interface' && type1.fields && type2.fields) {
-    const fields1 = new Set(type1.fields);
-    const fields2 = new Set(type2.fields);
-
-    const intersection = [...fields1].filter((f) => fields2.has(f)).length;
-    const union = new Set([...fields1, ...fields2]).size;
-
-    return union === 0 ? 0 : intersection / union;
+    return jaccardSimilarity(new Set(type1.fields), new Set(type2.fields));
   }
 
-  // For type aliases, compare token similarity
+  // For type aliases, compare token similarity using Jaccard
   const tokens1 = new Set(type1.normalizedStructure.split(/[^a-zA-Z0-9_]/));
   const tokens2 = new Set(type2.normalizedStructure.split(/[^a-zA-Z0-9_]/));
 
-  const intersection = [...tokens1].filter((t) => tokens2.has(t)).length;
-  const union = new Set([...tokens1, ...tokens2]).size;
-
-  return union === 0 ? 0 : intersection / union;
+  return jaccardSimilarity(tokens1, tokens2);
 }
 
 /**
@@ -377,7 +361,7 @@ export async function findTypeDuplicates(
       let recommendation: 'merge' | 'rename' | 'keep-both' = 'keep-both';
       if (minSimilarity > SIMILARITY_THRESHOLDS.MERGE) {
         recommendation = 'merge';
-      } else if (minSimilarity > SIMILARITY_THRESHOLDS.RENAME) {
+      } else if (minSimilarity > SIMILARITY_THRESHOLDS.RENAME_TYPES) {
         recommendation = 'rename';
       }
 

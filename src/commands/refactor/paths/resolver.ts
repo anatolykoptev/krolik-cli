@@ -4,7 +4,12 @@
  */
 
 import * as path from 'node:path';
-import { detectFeatures, detectMonorepoPackages, type MonorepoPackage } from '../../../config';
+import {
+  detectFeatures,
+  detectMonorepoPackages,
+  detectSrcPaths,
+  type MonorepoPackage,
+} from '../../../config';
 import { exists, relativePath as getRelativePath } from '../../../lib';
 import type { RefactorOptions } from '../core';
 import type { ResolvedPathsWithPackage } from './types';
@@ -27,10 +32,13 @@ export function resolvePaths(
   if (options.path) {
     const targetPath = path.resolve(projectRoot, options.path);
     const libPath = resolveLibPath(targetPath, projectRoot, isTypeAnalysis ?? false);
+    const relativePath = getRelativePath(targetPath, projectRoot);
     return {
       targetPath,
+      targetPaths: [targetPath],
       libPath,
-      relativePath: getRelativePath(targetPath, projectRoot),
+      relativePath,
+      relativePaths: [relativePath],
     };
   }
 
@@ -65,7 +73,8 @@ export function resolvePaths(
       if (!pkg) {
         throw new Error('No packages found in monorepo');
       }
-      console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} (${pkg.libPath})`);
+      const srcDirs = pkg.srcPaths.map((p) => p.split('/').pop()).join(', ');
+      console.log(`📦 Monorepo detected. Analyzing: ${pkg.name} [${srcDirs}]`);
       console.log(`   Available packages: ${packages.map((p) => p.name).join(', ')}`);
       console.log(`   Use --package <name> to analyze a specific package\n`);
 
@@ -73,20 +82,51 @@ export function resolvePaths(
     }
   }
 
-  // Not a monorepo or no packages found - use default paths
-  const defaultPath = isTypeAnalysis ? 'src' : path.join('src', 'lib');
-  const targetPath = path.join(projectRoot, defaultPath);
-  const libPath = isTypeAnalysis ? findLibPath(projectRoot) : targetPath;
+  // Not a monorepo or no packages found - detect source paths dynamically
+  const libPath = findLibPath(projectRoot);
+  const targetPath = isTypeAnalysis ? path.dirname(libPath) : libPath;
+
+  // Detect all source directories in src/ (for single-project structure)
+  // This handles projects like: src/lib, src/commands, src/mcp, etc.
+  const srcRoot = exists(path.join(projectRoot, 'src')) ? 'src' : '';
+  const detectedPaths = srcRoot ? detectSrcPaths(projectRoot, srcRoot) : [];
+
+  // Build target paths from detected directories
+  let targetPaths: string[];
+  let relativePaths: string[];
+
+  if (detectedPaths.length > 0) {
+    targetPaths = detectedPaths.map((p) => path.join(projectRoot, p));
+    relativePaths = [...detectedPaths];
+
+    // Ensure lib is always included and first
+    const libRelPath = getRelativePath(libPath, projectRoot);
+    if (!relativePaths.includes(libRelPath)) {
+      targetPaths.unshift(libPath);
+      relativePaths.unshift(libRelPath);
+    }
+
+    // Show detected paths
+    const srcDirs = relativePaths.map((p) => p.split('/').pop()).join(', ');
+    console.log(`📁 Single project. Analyzing: [${srcDirs}]\n`);
+  } else {
+    // Fallback to lib only
+    targetPaths = [libPath];
+    relativePaths = [getRelativePath(libPath, projectRoot)];
+  }
 
   return {
     targetPath,
+    targetPaths,
     libPath,
-    relativePath: defaultPath,
+    relativePath: getRelativePath(targetPath, projectRoot),
+    relativePaths,
   };
 }
 
 /**
  * Resolve paths for a specific monorepo package
+ * Uses srcPaths from package detection for comprehensive analysis
  */
 export function resolvePackagePaths(
   projectRoot: string,
@@ -112,14 +152,26 @@ export function resolvePackagePaths(
       targetPath = exists(srcPath) ? srcPath : pkgRoot;
     }
   } else {
-    // For structure/function analysis, use the lib directory directly
+    // For structure/function analysis, use the lib directory as primary
     targetPath = libPath;
+  }
+
+  // Build all target paths from srcPaths (detected dynamically)
+  const targetPaths = pkg.srcPaths.map((srcPath) => path.join(projectRoot, srcPath));
+  const relativePaths = [...pkg.srcPaths]; // Create a copy to avoid mutating original
+
+  // Ensure libPath is always included and first
+  if (!targetPaths.includes(libPath)) {
+    targetPaths.unshift(libPath);
+    relativePaths.unshift(pkg.libPath);
   }
 
   return {
     targetPath,
+    targetPaths,
     libPath,
     relativePath: getRelativePath(targetPath, projectRoot),
+    relativePaths,
     packageInfo: pkg,
   };
 }

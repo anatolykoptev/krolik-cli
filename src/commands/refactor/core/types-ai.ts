@@ -6,6 +6,7 @@
  * domain classification, and enhanced migration planning.
  */
 
+import type { RankingAnalysis } from '../analyzers/ranking/types';
 import type { MigrationAction, MigrationPlan, NamespaceCategory, RefactorAnalysis } from './types';
 
 // ============================================================================
@@ -418,4 +419,6 @@ export interface EnhancedRefactorAnalysis extends RefactorAnalysis {
   reusableModules?: ReusableModulesInfo;
   /** File size analysis */
   fileSizeAnalysis?: FileSizeAnalysis;
+  /** PageRank-based ranking analysis (hotspots, coupling, safe order) */
+  rankingAnalysis?: RankingAnalysis;
 }

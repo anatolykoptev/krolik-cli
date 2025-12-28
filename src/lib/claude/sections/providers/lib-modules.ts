@@ -40,11 +40,20 @@ function scanModulesWithCache(ctx: SectionContext): ModuleScanResult {
  * Lib modules section provider
  *
  * Priority 350 - renders after sub-docs, before tools
+ * Only renders in 'full' mode (not in minimal sync)
  */
 export const libModulesProvider: SectionProvider = {
   id: 'lib-modules',
   name: 'Lib Modules',
   priority: SectionPriority.LIB_MODULES,
+
+  /**
+   * Only render in 'full' mode
+   * This section is too large for minimal CLAUDE.md sync
+   */
+  shouldRender(ctx: SectionContext): boolean {
+    return ctx.mode === 'full';
+  },
 
   render(ctx: SectionContext): SectionResult {
     const result = scanModulesWithCache(ctx);
