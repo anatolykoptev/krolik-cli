@@ -6,7 +6,9 @@
 
 ## Summary
 
-Unified two independent FileCache implementations into a single, feature-rich cache in `src/lib/@cache/file-cache.ts`.
+Unified two independent FileCache implementations into a single, feature-rich cache in `src/lib/cache/file-cache.ts`.
+
+> **Note (2024-12-27)**: The `@cache` module was later renamed to `cache` (without @ prefix) as part of the lib restructure to 5-layer architecture.
 
 ## Problem
 
@@ -27,7 +29,7 @@ Both implementations had overlapping responsibilities but different feature sets
 
 ## Solution
 
-Created unified `FileCache` in `src/lib/@cache/` combining best features from both:
+Created unified `FileCache` in `src/lib/cache/` combining best features from both:
 
 ### Features
 
@@ -74,13 +76,13 @@ export const fileCache = new FileCache();
 
 ### Created
 
-- `src/lib/@cache/file-cache.ts` (311 LOC) - Unified implementation
-- `src/lib/@cache/index.ts` - Barrel export
-- `src/lib/@cache/README.md` - Documentation
+- `src/lib/cache/file-cache.ts` (311 LOC) - Unified implementation
+- `src/lib/cache/index.ts` - Barrel export
+- `src/lib/cache/README.md` - Documentation
 
 ### Updated
 
-- `src/lib/index.ts` - Added @cache exports
+- `src/lib/index.ts` - Added cache exports
 - `src/commands/fix/core/index.ts` - Re-export from unified cache
 - `src/commands/fix/index.ts` - Import from `@/lib`
 - `src/commands/fix/analyze.ts` - Import from `@/lib`

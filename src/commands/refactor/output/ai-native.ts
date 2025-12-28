@@ -11,6 +11,7 @@
  * - Navigation hints for code placement
  */
 
+import { optimizeXml } from '../../../lib/format';
 import type { EnhancedRefactorAnalysis } from '../core';
 import {
   formatAiConfig,
@@ -100,5 +101,5 @@ export function formatAiNativeXml(
 
   lines.push('</refactor-analysis>');
 
-  return lines.join('\n');
+  return optimizeXml(lines.join('\n'), { level: 'aggressive' }).output;
 }

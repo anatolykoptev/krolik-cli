@@ -139,13 +139,13 @@ This instance is shared across all operations in a single command run, ensuring 
 
 ## Migration Notes
 
-### From `@cache` (deprecated)
+### From `@cache` (removed)
 
-The `@cache` module has been renamed to `cache` (without @ prefix):
+The `@cache` module has been removed. Use `cache` or the main barrel export:
 
 ```typescript
-// Old (deprecated, still works)
-import { fileCache } from '@/lib/@cache';
+// Old (no longer works - module deleted)
+// import { fileCache } from '@/lib/@cache';
 
 // New (recommended)
 import { fileCache } from '@/lib/cache';

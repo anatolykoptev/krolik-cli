@@ -2,80 +2,40 @@
  * @module lib/format
  * @description Centralized formatting utilities
  *
- * This is the SINGLE source of truth for all formatting operations.
- * All commands should import from here instead of duplicating formatters.
- *
- * Consolidates:
- * - XML formatting (escaping, building)
- * - JSON formatting (pretty-print, compact, parsing)
- * - Markdown formatting (headers, tables, lists)
- * - Text formatting (truncation, padding, case conversion)
- * - Frontmatter parsing (YAML-like frontmatter)
+ * Layered architecture:
+ * - Layer 0: core/ - constants, text utilities (no deps)
+ * - Layer 1: xml/, json, markdown (may depend on core)
+ * - Layer 2: frontmatter (may depend on text)
  *
  * @example
  * import { escapeXml, formatJson, heading, truncate, parseFrontmatter } from '@/lib/format';
  */
 
 // ============================================================================
-// XML FORMATTING
+// LAYER 0: CORE (constants, text utilities)
 // ============================================================================
 
-export type { XmlAttributes, XmlElement } from './xml';
+// Constants and abbreviations
 export {
-  buildElement,
-  buildXmlDocument,
-  cdata,
-  escapeXml,
-  selfClosingTag,
-  textElement,
-  unescapeXml,
-  wrapXml,
-  xmlComment,
-} from './xml';
+  // Limits
+  ATTRIBUTE_ABBREVIATIONS,
+  // Utility functions
+  abbreviatePath,
+  abbreviateSeverity,
+  BUDGET_DEEP_TOTAL,
+  BUDGET_FULL_TOTAL,
+  BUDGET_QUICK_TOTAL,
+  formatInlineList,
+  MAX_DIFF_LINES,
+  MAX_INLINE_LIST_ITEMS,
+  MAX_MEMORY_ITEMS,
+  MAX_PATH_LENGTH,
+  MAX_TREE_DEPTH,
+  SEVERITY_ABBREVIATIONS,
+  TYPE_ABBREVIATIONS,
+} from './core/constants';
 
-// ============================================================================
-// JSON FORMATTING
-// ============================================================================
-
-export type { JsonFormatOptions } from './json';
-export {
-  formatJson,
-  formatJsonCompact,
-  formatJsonLines,
-  isValidJson,
-  mergeJson,
-  parseJsonSafe,
-  parseJsonWithDefault,
-} from './json';
-
-// ============================================================================
-// MARKDOWN FORMATTING
-// ============================================================================
-
-export type { MarkdownSection, TableColumn, TableRow } from './markdown';
-export {
-  blockquote,
-  bold,
-  buildDocument,
-  bulletList,
-  codeBlock,
-  heading,
-  horizontalRule,
-  image,
-  inlineCode,
-  italic,
-  keyValueTable,
-  link,
-  numberedList,
-  strikethrough,
-  table,
-  taskList,
-} from './markdown';
-
-// ============================================================================
-// TEXT FORMATTING
-// ============================================================================
-
+// Text formatting
 export {
   alignColumns,
   center,
@@ -95,10 +55,72 @@ export {
   truncateLines,
   truncateMiddle,
   wordWrap,
-} from './text';
+} from './core/text';
 
 // ============================================================================
-// FRONTMATTER PARSING
+// LAYER 1: FORMAT-SPECIFIC (xml, json, markdown)
+// ============================================================================
+
+// JSON formatting
+export type { JsonFormatOptions } from './json';
+export {
+  formatJson,
+  formatJsonCompact,
+  formatJsonLines,
+  isValidJson,
+  mergeJson,
+  parseJsonSafe,
+  parseJsonWithDefault,
+} from './json';
+// Markdown formatting
+export type { MarkdownSection, TableColumn, TableRow } from './markdown';
+export {
+  blockquote,
+  bold,
+  buildDocument,
+  bulletList,
+  codeBlock,
+  heading,
+  horizontalRule,
+  image,
+  inlineCode,
+  italic,
+  keyValueTable,
+  link,
+  numberedList,
+  strikethrough,
+  table,
+  taskList,
+} from './markdown';
+// XML formatting
+export type {
+  AggressiveOptions,
+  CompactOptions,
+  OptimizationContext,
+  OptimizationLevel,
+  OptimizeOptions,
+  OptimizeResult,
+  XmlAttributes,
+  XmlElement,
+} from './xml';
+export {
+  buildElement,
+  buildXmlDocument,
+  cdata,
+  escapeXml,
+  minifyXmlOutput,
+  optimizeXml,
+  optimizeXmlAuto,
+  selfClosingTag,
+  textElement,
+  unescapeXml,
+  wrapXml,
+  XMLOptimizer,
+  xmlComment,
+} from './xml';
+
+// ============================================================================
+// LAYER 2: PARSING (frontmatter)
 // ============================================================================
 
 export type { CommonFrontmatter, FrontmatterResult } from './frontmatter';

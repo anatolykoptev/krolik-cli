@@ -27,9 +27,10 @@
  * - claude/ - CLAUDE.md generation and sync
  * - modules/ - Reusable code detection
  *
- * Legacy (still active):
+ * Active modules (prefixed with @):
  * - @ast - ts-morph utilities
  * - @agents - Agent marketplace
+ * - @ranking - PageRank algorithms for code ranking
  */
 
 // Agents marketplace utilities
@@ -42,6 +43,10 @@ export * from './@git';
 export * from './@patterns';
 // Context (file type detection, skip logic) - migrated to @patterns/file-context
 export * from './@patterns/file-context';
+// PageRank ranking algorithms
+export * from './@ranking';
+// Token counting and budget fitting for LLM context management
+export * from './@tokens';
 // Cache utilities (file cache)
 export * from './cache';
 export type {
@@ -70,7 +75,8 @@ export {
 export * from './core';
 // Discovery (project root, schemas, routes, architecture)
 export * from './discovery';
-// Formatting utilities (XML, JSON, Markdown, Text, Frontmatter)
+// Formatting utilities (XML, JSON, Markdown, Text, Frontmatter, Constants)
+// Includes XML minification and output optimization utilities
 export * from './format';
 export type {
   CachedLibrary,

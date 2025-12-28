@@ -1,52 +1,52 @@
 /**
- * @module lib/format/xml
- * @description XML formatting and escaping utilities
- *
- * Provides utilities for:
- * - XML character escaping
- * - XML element building
- * - XML document generation
+ * @module lib/format/xml/builder
+ * @description XML element and document building utilities
  */
 
-// ============================================================================
-// ESCAPING
-// ============================================================================
-
-/**
- * Escape special XML characters
- *
- * @example
- * escapeXml('<div>Hello & World</div>')
- * // Returns: '&lt;div&gt;Hello &amp; World&lt;/div&gt;'
- */
-export function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-/**
- * Unescape XML entities back to characters
- */
-export function unescapeXml(text: string): string {
-  return text
-    .replace(/&apos;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&gt;/g, '>')
-    .replace(/&lt;/g, '<')
-    .replace(/&amp;/g, '&');
-}
+import { escapeXml } from './escape';
+import { minifyXmlOutput } from './minify';
 
 // ============================================================================
-// ELEMENT BUILDING
+// TYPES
 // ============================================================================
 
 export interface XmlAttributes {
   [key: string]: string | number | boolean | undefined;
 }
+
+export interface XmlElement {
+  tag: string;
+  content?: string | XmlElement[];
+  attrs?: XmlAttributes;
+  cdata?: boolean;
+}
+
+// ============================================================================
+// ATTRIBUTE FORMATTING
+// ============================================================================
+
+/**
+ * Format attributes for XML tag
+ */
+function formatAttributes(attrs?: XmlAttributes): string {
+  if (!attrs) return '';
+
+  const parts: string[] = [];
+
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value === undefined) continue;
+
+    const strValue = typeof value === 'boolean' ? value.toString() : escapeXml(String(value));
+
+    parts.push(`${key}="${strValue}"`);
+  }
+
+  return parts.join(' ');
+}
+
+// ============================================================================
+// ELEMENT BUILDING
+// ============================================================================
 
 /**
  * Wrap content in an XML tag
@@ -78,36 +78,6 @@ export function wrapXml(tag: string, content: string, attrs?: XmlAttributes): st
 export function selfClosingTag(tag: string, attrs?: XmlAttributes): string {
   const attrStr = formatAttributes(attrs);
   return attrStr ? `<${tag} ${attrStr} />` : `<${tag} />`;
-}
-
-/**
- * Format attributes for XML tag
- */
-function formatAttributes(attrs?: XmlAttributes): string {
-  if (!attrs) return '';
-
-  const parts: string[] = [];
-
-  for (const [key, value] of Object.entries(attrs)) {
-    if (value === undefined) continue;
-
-    const strValue = typeof value === 'boolean' ? value.toString() : escapeXml(String(value));
-
-    parts.push(`${key}="${strValue}"`);
-  }
-
-  return parts.join(' ');
-}
-
-// ============================================================================
-// DOCUMENT BUILDING
-// ============================================================================
-
-export interface XmlElement {
-  tag: string;
-  content?: string | XmlElement[];
-  attrs?: XmlAttributes;
-  cdata?: boolean;
 }
 
 /**
@@ -168,16 +138,20 @@ export function buildElement(element: XmlElement, indent: number = 0): string {
  */
 export function buildXmlDocument(
   root: XmlElement,
-  options: { declaration?: boolean } = {},
+  options: { declaration?: boolean; minify?: boolean } = {},
 ): string {
-  const { declaration = true } = options;
+  const { declaration = true, minify = true } = options;
   const xml = buildElement(root);
 
+  let result: string;
   if (declaration) {
-    return `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+    result = `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+  } else {
+    result = xml;
   }
 
-  return xml;
+  // Apply minification by default (no information loss for AI)
+  return minify ? minifyXmlOutput(result) : result;
 }
 
 // ============================================================================

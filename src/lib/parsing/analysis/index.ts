@@ -1,5 +1,5 @@
 /**
- * @module lib/analysis
+ * @module lib/parsing/analysis
  * @description AST analysis utilities for TypeScript source files
  *
  * Provides fast SWC-based analysis of TypeScript/JavaScript files to extract
@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { analyzeSourceFile } from '@/lib/analysis';
+ * import { analyzeSourceFile } from '@/lib/parsing';
  *
  * const result = analyzeSourceFile('/path/to/file.ts');
  * if (result.success) {
@@ -27,7 +27,7 @@ export {
   isTsInterface,
   isTsTypeAlias,
 } from './guards';
-export { analyzeSourceFile, extractTypeString } from './source-analyzer';
+export { analyzeSourceFile } from './source-analyzer';
 export type {
   ExportedMember,
   ExportKind,

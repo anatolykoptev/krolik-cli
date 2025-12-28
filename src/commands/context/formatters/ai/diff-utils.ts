@@ -3,8 +3,7 @@
  * @description Smart diff truncation and filtering for AI context
  */
 
-// Max lines to include in diff output
-const MAX_DIFF_LINES = 500;
+import { MAX_DIFF_LINES } from '@/lib/format';
 
 // File extension priorities (higher = more important)
 const EXTENSION_PRIORITY: Record<string, number> = {

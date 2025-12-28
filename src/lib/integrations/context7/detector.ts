@@ -19,9 +19,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-// Import storage from the storage layer (stays in @docs-cache)
-import { getLibraryByName } from '@/lib/storage/docs';
 import { detectMonorepo, readPackageJson } from '../../discovery';
+// Use adapter to access storage (proper layer separation)
+import { getDefaultRepository } from './adapters';
 import { initializeRegistry, resolveLibraryIdSync } from './registry';
 import type { DetectedLibrary } from './types';
 
@@ -205,7 +205,7 @@ function checkCacheStatus(libraryName: string): {
     return { isCached: false, isExpired: false, context7Id: undefined };
   }
 
-  const cached = getLibraryByName(libraryName);
+  const cached = getDefaultRepository().getLibraryByName(libraryName);
   if (!cached) {
     return { isCached: false, isExpired: false, context7Id };
   }

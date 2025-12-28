@@ -4,6 +4,7 @@
  */
 
 export { formatRepoMap, formatRepoMapXml, formatStats } from './formatter.js';
+export { pageRank, rankFiles } from './ranking.js';
 export type { ExtractorOptions } from './tag-extractor.js';
 export {
   buildSymbolGraph,

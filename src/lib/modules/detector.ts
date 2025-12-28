@@ -21,7 +21,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { glob } from 'glob';
-import { analyzeSourceFile } from '@/lib/analysis';
+import { analyzeSourceFile } from '@/lib/parsing';
 import { classifyModule } from './classifier';
 import { calculateReusabilityScore, determineReusabilityLevel } from './scorer';
 import {

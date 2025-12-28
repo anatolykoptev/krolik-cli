@@ -134,16 +134,122 @@ function formatDiffSection(
 }
 
 /**
- * Format project tree section
+ * Parse tree structure to extract top-level directories with file counts
+ */
+function parseTopLevelDirs(structure: string): Array<{ name: string; fileCount: number }> {
+  const lines = structure.split('\n');
+  const result: Array<{ name: string; fileCount: number }> = [];
+
+  // Skip first line (project root)
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+
+    // Match top-level directories (with ├── or └── prefix, followed by directory name/)
+    const dirMatch = line.match(/^[├└]── (.+)\/$/);
+    if (dirMatch && dirMatch[1]) {
+      const dirName = dirMatch[1];
+      let fileCount = 0;
+
+      // Scan subsequent lines at deeper levels to count files
+      for (let j = i + 1; j < lines.length; j++) {
+        const subLine = lines[j];
+        if (!subLine) continue;
+
+        // Check if we're still inside this directory (has │ or spaces prefix)
+        if (!subLine.startsWith('│') && !subLine.startsWith(' ')) {
+          break;
+        }
+
+        // Match file count patterns like "(50 files: .ts, .tsx)"
+        const fileCountMatch = subLine.match(/\((\d+) files?:/);
+        if (fileCountMatch && fileCountMatch[1]) {
+          fileCount += parseInt(fileCountMatch[1], 10);
+        }
+      }
+
+      result.push({ name: dirName, fileCount });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Extract unique parent directories from changed files
+ */
+function extractChangedDirs(changedFiles: string[]): string[] {
+  const dirs = new Set<string>();
+
+  for (const file of changedFiles) {
+    // Extract parent directory path (2 levels deep for better context)
+    const parts = file.split('/');
+    if (parts.length >= 2) {
+      // Take up to 3 parts for meaningful path (e.g., "src/commands/context/")
+      const dirPath = `${parts.slice(0, Math.min(3, parts.length - 1)).join('/')}/`;
+      dirs.add(dirPath);
+    }
+  }
+
+  return [...dirs].sort();
+}
+
+/**
+ * Format project tree section - smart compact format
+ * Reduces ~1600 tokens to ~400 tokens by showing only:
+ * 1. Top-level directories with file counts
+ * 2. Changed file directories (from git)
+ * 3. Truncated after 20 lines
  */
 export function formatTreeSection(lines: string[], data: AiContextData): void {
-  const { tree } = data;
+  const { tree, git } = data;
   if (!tree) return;
 
-  lines.push(`  <project-tree files="${tree.totalFiles}" dirs="${tree.totalDirs}">`);
-  lines.push('    <![CDATA[');
-  lines.push(tree.structure);
-  lines.push('    ]]>');
+  const MAX_LINES = 20;
+  const topLevelDirs = parseTopLevelDirs(tree.structure);
+  const changedDirs = git?.changedFiles ? extractChangedDirs(git.changedFiles) : [];
+
+  // Check if we need truncation
+  const totalItems = topLevelDirs.length + changedDirs.length;
+  const truncated = totalItems > MAX_LINES;
+  const truncAttr = truncated ? ' truncated="true"' : '';
+
+  lines.push(`  <project-tree files="${tree.totalFiles}" dirs="${tree.totalDirs}"${truncAttr}>`);
+
+  // Top-level directories section
+  if (topLevelDirs.length > 0) {
+    lines.push('    <top-level>');
+    const maxTopLevel = Math.min(topLevelDirs.length, MAX_LINES - 2); // Reserve space for changed
+    for (let i = 0; i < maxTopLevel; i++) {
+      const dir = topLevelDirs[i];
+      if (dir) {
+        const fileStr = dir.fileCount > 0 ? ` (${dir.fileCount} files)` : '';
+        lines.push(`      ${dir.name}/${fileStr}`);
+      }
+    }
+    if (topLevelDirs.length > maxTopLevel) {
+      lines.push(`      ... +${topLevelDirs.length - maxTopLevel} more directories`);
+    }
+    lines.push('    </top-level>');
+  }
+
+  // Changed directories section (only if git data available)
+  if (changedDirs.length > 0) {
+    lines.push('    <changed hint="Directories with recent changes">');
+    const remainingLines = MAX_LINES - (topLevelDirs.length + 4); // Account for XML tags
+    const maxChanged = Math.max(Math.min(changedDirs.length, remainingLines), 3); // At least 3
+    for (let i = 0; i < maxChanged; i++) {
+      const dir = changedDirs[i];
+      if (dir) {
+        lines.push(`      ${dir}`);
+      }
+    }
+    if (changedDirs.length > maxChanged) {
+      lines.push(`      ... +${changedDirs.length - maxChanged} more`);
+    }
+    lines.push('    </changed>');
+  }
+
   lines.push('  </project-tree>');
 }
 

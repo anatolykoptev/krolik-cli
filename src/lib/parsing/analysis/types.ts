@@ -1,5 +1,5 @@
 /**
- * @module lib/analysis/types
+ * @module lib/parsing/analysis/types
  * @description Type definitions for AST analysis utilities
  */
 

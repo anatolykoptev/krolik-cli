@@ -24,6 +24,13 @@
  * ```
  */
 
+// Adapters (for advanced usage)
+export {
+  getDefaultRepository,
+  getRegistryDatabase,
+  resetDefaultRepository,
+  SqliteLibraryRepository,
+} from './adapters';
 // Types from client
 export type {
   CodeDocsResponse,
@@ -43,6 +50,8 @@ export {
   type SearchLibraryResponse,
   type SearchResult,
 } from './client';
+// Core interfaces
+export type { ILibraryRepository } from './core/ports';
 // Detector
 export { detectLibraries, getSuggestions, getSupportedLibraries } from './detector';
 // Fetcher
@@ -96,7 +105,6 @@ export {
   seedDefaultTopics,
   selectBestResult,
 } from './registry';
-
 // Types from types.ts
 export type {
   CachedLibrary,

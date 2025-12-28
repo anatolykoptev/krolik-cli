@@ -395,6 +395,25 @@ function formatEnvUsages(lines: string[], usages: Array<{ name: string }>): void
 /**
  * Format environment variables analysis
  */
+/**
+ * Format repository map from smart context (PageRank-ranked files)
+ */
+export function formatRepoMapSection(lines: string[], data: AiContextData): void {
+  const { repoMap } = data;
+  if (!repoMap || repoMap.trim() === '') return;
+
+  // repoMap is already formatted as XML from formatRepoMapXml()
+  // Just add it as a section
+  lines.push('  <smart-context hint="PageRank-ranked files by importance">');
+  // Indent the pre-formatted XML
+  const indentedMap = repoMap
+    .split('\n')
+    .map((line) => (line.trim() ? `    ${line}` : ''))
+    .join('\n');
+  lines.push(indentedMap);
+  lines.push('  </smart-context>');
+}
+
 export function formatEnvVarsSection(lines: string[], data: AiContextData): void {
   const { envVars } = data;
   if (!envVars) return;

@@ -52,6 +52,7 @@ import {
   parseTypesInDir,
   parseZodSchemas,
 } from './parsers';
+import { buildSmartContext } from './smart-context';
 import type {
   AiContextData,
   ContextMode,
@@ -157,12 +158,14 @@ export async function runContext(ctx: CommandContext & { options: ContextOptions
  * Build AI context data with all enhanced sections
  *
  * Modes:
- * - Quick (--quick): architecture, git, tree, schema, routes only
+ * - Minimal (--minimal): ultra-compact (~1500 tokens) - summary, git, memory only
+ * - Quick (--quick): compact (~3500 tokens) - architecture, git, tree, schema, routes, repo-map
  * - Deep (--deep): imports, types, env, contracts only (complements --quick)
  * - Full (default): all sections
  *
  * Usage:
- *   krolik context --quick   # Fast overview
+ *   krolik context --minimal # Ultra-compact for token-constrained AI
+ *   krolik context --quick   # Fast overview with repo-map
  *   krolik context --deep    # Heavy analysis only
  *   krolik context           # Everything (quick + deep)
  */
@@ -173,11 +176,18 @@ async function buildAiContextData(
 ): Promise<AiContextData> {
   // projectRoot is guaranteed to exist at this point
   const projectRoot = config.projectRoot ?? process.cwd();
+  const isMinimalMode = options.minimal === true;
   const isQuickMode = options.quick === true;
   const isDeepMode = options.deep === true;
 
-  // Determine context mode
-  const mode: ContextMode = isQuickMode ? 'quick' : isDeepMode ? 'deep' : 'full';
+  // Determine context mode (minimal takes precedence)
+  const mode: ContextMode = isMinimalMode
+    ? 'minimal'
+    : isQuickMode
+      ? 'quick'
+      : isDeepMode
+        ? 'deep'
+        : 'full';
 
   const aiData: AiContextData = {
     mode,
@@ -188,11 +198,58 @@ async function buildAiContextData(
   };
 
   // =====================================================
+  // SMART CONTEXT (repo-map) - CRITICAL for AI codebase understanding
+  // Included in: ALL modes (compressed in minimal)
+  // Provides PageRank-ranked file map for AI to understand codebase structure
+  // =====================================================
+  try {
+    const repoMapResult = await buildSmartContext(projectRoot, result.domains, options);
+    aiData.repoMap = repoMapResult;
+  } catch (error) {
+    // Smart context failed, continue without it
+    if (process.env.DEBUG) {
+      console.error('[context] Smart context building failed:', error);
+    }
+  }
+
+  // =====================================================
   // CORE SECTIONS (included in ALL modes)
   // =====================================================
   // Git information - essential for knowing what's changed
   if (isGitRepo(projectRoot)) {
     aiData.git = buildGitInfo(projectRoot);
+  }
+
+  // =====================================================
+  // MINIMAL MODE: Optimized context with compressed critical sections
+  // Includes: git, memory, repo-map, schema, routes (all compressed)
+  // =====================================================
+  if (isMinimalMode) {
+    // Memory is critical
+    aiData.memories = loadRelevantMemory(projectRoot, result.domains);
+    aiData.hints = generateContextHints(result.domains);
+
+    // Schema - critical for understanding data model
+    const schemaDir = findSchemaDir(projectRoot);
+    if (schemaDir) {
+      try {
+        aiData.schema = analyzeSchema(schemaDir);
+      } catch {
+        // Schema analysis failed, continue without
+      }
+    }
+
+    // Routes - critical for understanding API
+    const routerDir = findRoutersDir(projectRoot);
+    if (routerDir) {
+      try {
+        aiData.routes = analyzeRoutes(routerDir);
+      } catch {
+        // Routes analysis failed, continue without
+      }
+    }
+
+    return aiData;
   }
 
   // =====================================================

@@ -1,8 +1,8 @@
 /**
  * @module commands/codegen/services/source-analyzer
- * @description Re-exports AST analysis utilities from lib/analysis
+ * @description Re-exports AST analysis utilities from lib/parsing
  *
- * @deprecated Import directly from '@/lib/analysis' instead
+ * @deprecated Import directly from '@/lib/parsing' instead
  */
 
 // Re-export everything from the lib module for backwards compatibility
@@ -13,4 +13,4 @@ export {
   type MethodInfo,
   type ParamInfo,
   type SourceAnalysisResult,
-} from '@/lib/analysis';
+} from '@/lib/parsing';

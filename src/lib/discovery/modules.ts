@@ -28,7 +28,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { analyzeSourceFile, type ExportedMember } from '@/lib/analysis';
+import { analyzeSourceFile, type ExportedMember } from '@/lib/parsing';
 
 // ============================================================================
 // TYPES

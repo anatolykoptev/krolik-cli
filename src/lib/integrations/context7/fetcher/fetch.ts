@@ -9,8 +9,8 @@
  * - Project-wide library fetching
  */
 
-// Import storage functions from the storage layer (stays in @docs-cache)
-import { getLibrary, saveLibrary, saveSection } from '@/lib/storage/docs';
+// Use adapter to access storage (proper layer separation)
+import { getDefaultRepository } from '../adapters';
 import {
   type CodeSnippet,
   Context7Client,
@@ -71,8 +71,9 @@ export async function fetchAndCacheDocs(
   const libraryId = resolution.context7Id;
 
   // Check if already cached and not expired
+  const repository = getDefaultRepository();
   if (!force) {
-    const cached = getLibrary(libraryId);
+    const cached = repository.getLibrary(libraryId);
     if (cached && !cached.isExpired) {
       return {
         libraryId,
@@ -93,7 +94,7 @@ export async function fetchAndCacheDocs(
   const displayName = getLibraryDisplayName(libraryId);
 
   // Save library entry first
-  saveLibrary(libraryId, displayName);
+  repository.saveLibrary(libraryId, displayName);
 
   let sectionsAdded = 0;
   let totalSnippets = 0;
@@ -119,7 +120,7 @@ export async function fetchAndCacheDocs(
       for (const snippet of response.snippets as CodeSnippet[]) {
         const codeSnippets = snippet.codeList?.map((c) => c.code) || [];
 
-        saveSection(
+        repository.saveSection(
           libraryId,
           topic,
           snippet.codeTitle || snippet.pageTitle,

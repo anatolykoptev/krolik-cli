@@ -6,7 +6,7 @@
  * reusable modules across any TypeScript/JavaScript codebase.
  */
 
-import type { ExportedMember } from '@/lib/analysis';
+import type { ExportedMember } from '@/lib/parsing';
 
 // ============================================================================
 // CORE ENUMS

@@ -68,8 +68,11 @@ export interface ImportGraph {
  * Extract import specifiers from file content using regex
  *
  * Fast approach that doesn't require full AST parsing.
+ * Returns only module specifiers (not full import info).
+ *
+ * @internal Use extractImports from @/lib/@ast for detailed import analysis
  */
-function extractImports(content: string): string[] {
+function extractImportSpecifiers(content: string): string[] {
   const imports: string[] = [];
 
   // Match: import ... from 'specifier'
@@ -240,7 +243,7 @@ export async function buildImportGraph(
   for (const file of files) {
     try {
       const content = fs.readFileSync(file, 'utf-8');
-      const specifiers = extractImports(content);
+      const specifiers = extractImportSpecifiers(content);
 
       const fileImports = new Set<string>();
 

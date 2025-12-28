@@ -1,6 +1,17 @@
 /**
  * @module commands/context/formatters/ai/sections
  * @description Re-exports all section formatters
+ *
+ * Context Modes:
+ * - minimal: Ultra-compact (~1500 tokens) - summary, git, memory only
+ * - quick: Compact (~3500 tokens) - adds repo-map, schema, routes
+ * - deep/full: All sections
+ *
+ * Section priority for AI efficiency:
+ * P0 (Critical): summary, task
+ * P1 (High): changed-files, repo-map, schema, routes
+ * P2 (Medium): memory, lib-modules, architecture
+ * P3 (Low): tree, types, imports, env-vars
  */
 
 export {
@@ -8,7 +19,9 @@ export {
   formatDbRelationsSection,
   formatEnvVarsSection,
   formatImportGraphSection,
+  formatRepoMapSection,
 } from './advanced-analysis';
+// Note: Minimal mode formatters moved to lib/@context-optimizer
 export { formatArchitectureSection } from './architecture';
 export {
   formatApproachSection,
@@ -25,6 +38,8 @@ export {
 export { formatFilesSection, formatIoSchemasSection } from './files';
 export { formatLibModulesSection } from './lib-modules';
 export { formatRoutesSection, formatSchemaSection } from './schema-routes';
+// P0: Executive summary - goes FIRST
+export { formatSummarySection } from './summary';
 export {
   formatGitHubIssuesSection,
   formatGitSection,

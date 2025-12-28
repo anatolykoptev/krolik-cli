@@ -20,7 +20,15 @@ krolik-cli/
 │   ├── cli/            # CLI entry, command registration
 │   ├── commands/       # Command implementations
 │   ├── mcp/            # MCP server + handlers
-│   ├── lib/            # Shared utilities (@fs, @git, @swc, @cache)
+│   ├── lib/            # Shared utilities (5-layer architecture)
+│   │   ├── core/       # Foundation: fs, shell, logger, time, validation
+│   │   ├── format/     # Formatters: markdown, xml, json, signatures
+│   │   ├── security/   # Security: sanitize, env-detect
+│   │   ├── parsing/    # Parsing: swc, zod
+│   │   ├── discovery/  # Discovery: patterns, domains, files
+│   │   ├── storage/    # Storage: cache, memory
+│   │   ├── integrations/ # External: context7, claude
+│   │   └── @*/         # Active modules: @ast, @git, @patterns, @swc, @agents, @prisma
 │   ├── config/         # Config loading
 │   └── types/          # TypeScript types
 └── tests/

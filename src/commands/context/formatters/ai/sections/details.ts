@@ -4,7 +4,13 @@
  */
 
 import type { AiContextData } from '../../../types';
-import { escapeXml, MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM, MAX_ITEMS_SMALL } from '../helpers';
+import {
+  escapeXml,
+  MAX_ITEMS_LARGE,
+  MAX_ITEMS_MEDIUM,
+  MAX_ITEMS_SMALL,
+  MAX_MEMORY_ITEMS,
+} from '../helpers';
 
 /**
  * Format components detail section
@@ -240,30 +246,63 @@ export function formatNextActionsSection(lines: string[], data: AiContextData): 
   lines.push('  </next-actions>');
 }
 
+/** Type abbreviations for compact output */
+const TYPE_ABBREV: Record<string, string> = {
+  decision: 'DEC',
+  pattern: 'PAT',
+  bugfix: 'BUG',
+  observation: 'OBS',
+  feature: 'FEAT',
+};
+
 /**
  * Format memory section (knowledge from previous sessions)
+ * Compact format: ~300 tokens vs ~1000 tokens (70% reduction)
  */
 export function formatMemorySection(lines: string[], data: AiContextData): void {
   const { memories } = data;
   if (!memories || memories.length === 0) return;
 
-  lines.push('  <memory hint="Knowledge from previous sessions">');
+  const displayMemories = memories.slice(0, MAX_MEMORY_ITEMS);
 
-  for (const mem of memories.slice(0, MAX_ITEMS_MEDIUM)) {
-    const importance = mem.importance !== 'medium' ? ` importance="${mem.importance}"` : '';
-    const tags = mem.tags.length > 0 ? ` tags="${mem.tags.join(', ')}"` : '';
+  lines.push(`  <memory n="${displayMemories.length}" hint="krolik_mem_search for details">`);
 
-    lines.push(`    <${mem.type}${importance}${tags}>`);
-    lines.push(`      <title>${escapeXml(mem.title)}</title>`);
-    lines.push(`      <description>${escapeXml(mem.description)}</description>`);
-    lines.push(`    </${mem.type}>`);
+  for (const mem of displayMemories) {
+    const typeAbbrev = TYPE_ABBREV[mem.type] ?? mem.type.toUpperCase().slice(0, 3);
+    const tags = mem.tags?.length ? ` [${mem.tags.slice(0, 2).join(',')}]` : '';
+    lines.push(`    <m t="${typeAbbrev}">${escapeXml(mem.title)}${tags}</m>`);
   }
 
-  if (memories.length > MAX_ITEMS_MEDIUM) {
-    lines.push(`    <!-- +${memories.length - MAX_ITEMS_MEDIUM} more memories -->`);
+  if (memories.length > MAX_MEMORY_ITEMS) {
+    lines.push(`    <!-- +${memories.length - MAX_MEMORY_ITEMS} more -->`);
   }
 
   lines.push('  </memory>');
+}
+
+/**
+ * Check if a library section is relevant to the given domains
+ * Returns true if no domains specified (show all) or if section matches any domain
+ */
+function isRelevantToContext(
+  section: { title: string; content: string },
+  domains: string[],
+): boolean {
+  if (domains.length === 0) return true; // No domains = show all
+
+  const text = `${section.title} ${section.content}`.toLowerCase();
+  return domains.some((d) => text.includes(d.toLowerCase()));
+}
+
+/**
+ * Filter library sections to only include domain-relevant ones
+ */
+function filterRelevantSections(
+  sections: { title: string; content: string; codeSnippets: string[] }[],
+  domains: string[],
+): { title: string; content: string; codeSnippets: string[] }[] {
+  if (domains.length === 0) return sections;
+  return sections.filter((section) => isRelevantToContext(section, domains));
 }
 
 /**
@@ -321,17 +360,53 @@ function formatLibraryEntry(
 
 /**
  * Format library documentation section (from Context7)
+ * Filters sections based on domain relevance to prevent showing irrelevant docs
  */
 export function formatLibraryDocsSection(lines: string[], data: AiContextData): void {
   const { libraryDocs } = data;
   if (!libraryDocs || libraryDocs.length === 0) return;
 
-  const withSections = libraryDocs.filter((lib) => lib.sections.length > 0);
-  if (withSections.length === 0) return;
+  const domains = data.context.domains || [];
+  const availableLibraries: string[] = [];
 
-  lines.push('  <library-docs hint="Auto-fetched from Context7 - relevant documentation">');
+  // Filter libraries and their sections based on domain relevance
+  const relevantLibraries: Array<{
+    libraryName: string;
+    libraryId: string;
+    sections: { title: string; content: string; codeSnippets: string[] }[];
+  }> = [];
 
-  for (const lib of withSections) {
+  for (const lib of libraryDocs) {
+    if (lib.sections.length === 0) continue;
+
+    availableLibraries.push(lib.libraryName);
+
+    // Filter sections to only include domain-relevant ones
+    const relevantSections = filterRelevantSections(lib.sections, domains);
+
+    if (relevantSections.length > 0) {
+      relevantLibraries.push({
+        libraryName: lib.libraryName,
+        libraryId: lib.libraryId,
+        sections: relevantSections,
+      });
+    }
+  }
+
+  // If no relevant docs found, show fallback hint
+  if (relevantLibraries.length === 0) {
+    if (availableLibraries.length > 0 && domains.length > 0) {
+      lines.push('  <library-docs hint="No domain-specific docs found">');
+      lines.push(`    <available>${availableLibraries.join(', ')}</available>`);
+      lines.push('    <tip>Use "krolik docs search {domain}" to find relevant docs</tip>');
+      lines.push('  </library-docs>');
+    }
+    return;
+  }
+
+  lines.push('  <library-docs hint="Auto-fetched from Context7 - domain-relevant documentation">');
+
+  for (const lib of relevantLibraries) {
     formatLibraryEntry(lines, lib);
   }
 

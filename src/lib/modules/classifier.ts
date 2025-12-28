@@ -6,7 +6,7 @@
  * combined signals from all analyzers.
  */
 
-import type { ExportedMember } from '@/lib/analysis';
+import type { ExportedMember } from '@/lib/parsing';
 import { detectContentType } from './signals/content';
 import { getDirectoryCategoryHint } from './signals/directory';
 import { getExportCategoryHint } from './signals/exports';

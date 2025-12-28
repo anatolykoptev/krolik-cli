@@ -44,7 +44,7 @@ export {
   DOMAIN_APPROACHES,
   DOMAIN_FILES,
   DOMAIN_KEYWORDS,
-} from './domains';
+} from '../../config/domains';
 
 // ============================================================================
 // REFACTOR

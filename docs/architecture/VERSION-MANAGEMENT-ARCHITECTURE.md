@@ -98,9 +98,9 @@ Following krolik-cli standards:
 │                                  │                                          │
 │                                  ▼                                          │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Shared Libraries (lib/@*)                           │  │
+│  │                    Shared Libraries (lib/)                             │  │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │  │
-│  │  │  @fs     │  │   @git   │  │  @shell  │  │   @log   │  │  @time  │ │  │
+│  │  │ core/fs  │  │   @git   │  │core/shell│  │core/logger│ │core/time│ │  │
 │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └─────────┘ │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                  │                                          │
@@ -136,7 +136,7 @@ export function registerVersionCommand(program: Command): void;
 **Dependencies**:
 - `commander` - CLI framework
 - `src/commands/version/orchestrator` - Business logic
-- `src/lib/@log` - Logging utilities
+- `src/lib/core/logger` - Logging utilities
 
 ---
 
@@ -812,7 +812,7 @@ function detectIndent(content: string): string {
 **Create Tag**:
 ```typescript
 // src/commands/version/git-tag.ts
-import { tryExec } from '@/lib/@shell/shell';
+import { tryExec } from '@/lib/core/shell';
 
 export async function createTag(options: TagOptions): Promise<Result<GitTag>> {
   const { name, message, annotated = true, cwd } = options;

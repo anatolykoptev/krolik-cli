@@ -3,6 +3,7 @@
  * @description XML/AI-friendly format output
  */
 
+import { optimizeXml } from '../../../lib/format';
 import type { StatusResult } from '../../../types';
 import { determineNextAction } from './shared';
 
@@ -253,7 +254,7 @@ function xmlSuggestions(status: StatusResult): string[] {
  * Format status as AI-friendly XML string
  */
 export function formatAI(status: StatusResult): string {
-  return [
+  const xml = [
     '<project-status>',
     `  <health status="${status.health}" duration_ms="${status.durationMs}" />`,
     '',
@@ -271,6 +272,8 @@ export function formatAI(status: StatusResult): string {
     ...xmlSuggestions(status),
     '</project-status>',
   ].join('\n');
+
+  return optimizeXml(xml, { level: 'aggressive' }).output;
 }
 
 /**
@@ -300,7 +303,7 @@ export function formatReportOutput(status: StatusResult, summary: ReportSummary)
 
   const healthEmoji = status.health === 'good' ? '✅' : status.health === 'warning' ? '⚠️' : '❌';
 
-  return `<ai-task priority="critical">
+  const xml = `<ai-task priority="critical">
   <instruction>
     📋 REQUIRED: Read the generated report before proceeding.
     This report contains detailed code quality analysis with specific issues and suggested fixes.
@@ -358,4 +361,6 @@ ${summary.hotspotFiles
   <rule>Do not use @ts-ignore to bypass TypeScript errors</rule>
   <rule>Do not commit code with lint errors</rule>
 </do-not>`;
+
+  return optimizeXml(xml, { level: 'aggressive' }).output;
 }

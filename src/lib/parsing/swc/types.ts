@@ -5,13 +5,9 @@
 
 import type { Node } from '@swc/core';
 
-/**
- * Position in source code (1-indexed)
- */
-export interface Position {
-  line: number;
-  column: number;
-}
+// Import and re-export Position from position-utils to avoid duplication
+import type { Position } from './position-utils';
+export type { Position };
 
 /**
  * Range in source code with byte offsets

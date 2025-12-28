@@ -22,6 +22,10 @@ const contextSchema: FlagSchema = {
   deep: { flag: '--deep' },
   full: { flag: '--full' },
   withIssues: { flag: '--with-issues' },
+  smart: { flag: '--smart' },
+  budget: { flag: '--budget' },
+  signatures: { flag: '--signatures' },
+  mapOnly: { flag: '--map-only' },
 };
 
 export const contextTool: MCPToolDefinition = {
@@ -56,6 +60,22 @@ export const contextTool: MCPToolDefinition = {
       withIssues: {
         type: 'boolean',
         description: 'Include GitHub issues from gh CLI (requires gh authentication)',
+      },
+      smart: {
+        type: 'boolean',
+        description: 'Smart context using PageRank',
+      },
+      budget: {
+        type: 'number',
+        description: 'Token budget (default: 2000)',
+      },
+      signatures: {
+        type: 'boolean',
+        description: 'Show only signatures',
+      },
+      mapOnly: {
+        type: 'boolean',
+        description: 'Output only repo map',
       },
     },
   },

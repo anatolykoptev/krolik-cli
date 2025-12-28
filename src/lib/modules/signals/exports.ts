@@ -8,8 +8,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ExportedMember } from '@/lib/analysis';
-import { analyzeSourceFile } from '@/lib/analysis';
+import type { ExportedMember } from '@/lib/parsing';
+import { analyzeSourceFile } from '@/lib/parsing';
 import type { ExportSignals } from '../types';
 
 // ============================================================================

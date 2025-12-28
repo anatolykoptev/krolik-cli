@@ -288,8 +288,8 @@ When adding new features to `@swc`:
 ## Related Modules
 
 - `@ast` - ts-morph based AST utilities (type-aware)
-- `@cache` - General-purpose caching utilities
-- `@formatters` - Output formatting
+- `cache` - File caching utilities (formerly @cache)
+- `format` - Output formatting (formerly @formatters)
 - `@patterns` - Code pattern detection
 
 ## Known Limitations

@@ -1,5 +1,5 @@
 /**
- * @module lib/analysis/source-analyzer
+ * @module lib/parsing/analysis/source-analyzer
  * @description Analyzes TypeScript source files to extract exported functions, classes, and their signatures
  *
  * Uses SWC for fast AST parsing (10-20x faster than ts-morph).
@@ -65,7 +65,7 @@ export function analyzeSourceFile(filePath: string, content?: string): SourceAna
   try {
     const sourceContent = content ?? fs.readFileSync(filePath, 'utf-8');
     const { ast, baseOffset } = swcParseFile(filePath, sourceContent);
-    const exports = extractExports(ast, sourceContent, baseOffset);
+    const exports = extractExportedMembers(ast, sourceContent, baseOffset);
 
     return { success: true, exports };
   } catch (error) {
@@ -125,7 +125,16 @@ function buildClassMember(name: string, methods: MethodInfo[], isDefault: boolea
 // EXTRACTION
 // ============================================================================
 
-function extractExports(ast: Module, content: string, baseOffset: number): ExportedMember[] {
+/**
+ * Extract exported members from SWC AST
+ *
+ * @internal Use extractExports from @/lib/@ast for ts-morph based extraction
+ */
+function extractExportedMembers(
+  ast: Module,
+  content: string,
+  baseOffset: number,
+): ExportedMember[] {
   const exports: ExportedMember[] = [];
 
   for (const item of ast.body) {

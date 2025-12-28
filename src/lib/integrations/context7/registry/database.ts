@@ -8,8 +8,13 @@
  * - Registry statistics
  */
 
-import { getDatabase } from '@/lib/storage';
+// Use adapter to access storage (proper layer separation)
+import { getRegistryDatabase } from '../adapters';
 import type { LibraryMapping, LibraryTopic, RegistryStats } from '../types';
+
+// Alias for backward compatibility within this file
+const getDatabase = getRegistryDatabase;
+
 import { DEFAULT_MAPPINGS, DEFAULT_TOPICS } from './defaults';
 
 /**

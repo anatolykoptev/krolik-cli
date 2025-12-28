@@ -28,7 +28,8 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import { offsetToLine } from '@/lib/parsing/swc';
+// Import from position-utils directly to avoid circular dependency with @swc
+import { offsetToLine } from '@/lib/parsing/swc/position-utils';
 
 // ============================================================================
 // TYPES

@@ -1,5 +1,5 @@
 /**
- * @module lib/analysis/guards
+ * @module lib/parsing/analysis/guards
  * @description Type guards for SWC AST node types
  *
  * SWC types are complex and often require type assertions.

@@ -23,11 +23,12 @@ import type {
 
 /**
  * Context generation mode
- * - quick: architecture, git, tree, schema, routes only
+ * - minimal: ultra-compact (~1500 tokens) - summary, git, memory only
+ * - quick: compact (~3500 tokens) - architecture, git, tree, schema, routes, repo-map
  * - deep: imports, types, env, contracts only (complements quick)
  * - full: all sections (quick + deep)
  */
-export type ContextMode = 'quick' | 'deep' | 'full';
+export type ContextMode = 'minimal' | 'quick' | 'deep' | 'full';
 
 /**
  * Context command options
@@ -38,7 +39,9 @@ export interface ContextOptions {
   file?: string;
   format?: OutputFormat;
   verbose?: boolean;
-  /** Quick mode: architecture, git, tree, schema, routes only */
+  /** Minimal mode: ultra-compact (~1500 tokens) - summary, git, memory only */
+  minimal?: boolean;
+  /** Quick mode: compact (~3500 tokens) - architecture, git, tree, schema, routes, repo-map */
   quick?: boolean;
   /** Deep mode: imports, types, env, contracts only (complements --quick) */
   deep?: boolean;
@@ -48,6 +51,8 @@ export interface ContextOptions {
   architecture?: boolean;
   /** Include GitHub issues from gh CLI */
   withIssues?: boolean;
+  /** Token budget for smart context (default: 4000) */
+  budget?: number;
 }
 
 /**
@@ -224,4 +229,6 @@ export interface AiContextData {
   githubIssues?: GitHubIssuesData;
   // Lib modules from src/lib/@* (included in all modes)
   libModules?: LibModulesData;
+  // Repository map from smart context (from --smart or --map-only)
+  repoMap?: string;
 }
