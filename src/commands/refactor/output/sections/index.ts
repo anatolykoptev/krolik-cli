@@ -16,6 +16,8 @@
  * 50  domains           (domain classification)
  * 55  ai-config         (namespace configuration)
  * 60  recommendations   (prioritized recommendations)
+ * 65  i18n              (internationalization issues)
+ * 68  api               (API analysis)
  * 70  migration         (enhanced migration plan)
  * 80  duplicates        (duplicate functions/types)
  * 85  reusable          (reusable modules)
@@ -26,10 +28,12 @@
 
 // Section definitions (registry-based)
 export { aiConfigSection } from './ai-config.section';
+export { apiSection } from './api.section';
 export { architectureSection } from './architecture.section';
 export { domainsSection } from './domains.section';
 export { duplicatesSection } from './duplicates.section';
 export { fileSizeSection } from './file-size.section';
+export { i18nSection } from './i18n.section';
 export { migrationSection } from './migration.section';
 // Auto-registration module (imports this to register all sections)
 export * from './modules';

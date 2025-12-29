@@ -6,10 +6,12 @@
 // Backup utilities
 export {
   applyStash,
+  type BackupWithCommitResult,
   type CommitPushResult,
   cleanupBackup,
   commitAndPushChanges,
   createBackupBranch,
+  createBackupWithCommit,
   deleteBackupBranch,
   dropStash,
   fullRestore,

@@ -12,6 +12,9 @@
 // Agents installer
 export { installAgentsRepo, updateAgentsRepo } from './agents';
 
+// I18n installer
+export { checkI18nStatus, installI18nextCli } from './i18n';
+
 // MCP Plugin installer
 export { installMcpPlugin, updateMcpPlugin } from './mcp-plugin';
 // MCP Server installer

@@ -64,6 +64,8 @@ const ANALYZER_FIELD_MAP: Record<string, keyof EnhancedRefactorAnalysis> = {
   'file-size': 'fileSizeAnalysis',
   ranking: 'rankingAnalysis',
   duplicates: 'duplicates', // Special handling needed
+  i18n: 'i18nAnalysis', // Hardcoded strings
+  api: 'apiAnalysis', // API routes
 };
 
 /**

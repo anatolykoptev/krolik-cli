@@ -1,6 +1,6 @@
 {
   "name": "@anatolykoptev/krolik-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "KROLIK — fast AI-assisted development toolkit for TypeScript projects",
   "keywords": [
     "cli",
@@ -71,6 +71,7 @@
     "cosmiconfig": "^9.0.0",
     "glob": "^13.0.0",
     "gpt-tokenizer": "^3.4.0",
+    "i18next-cli": "^1.33.5",
     "jscodeshift": "^17.3.0",
     "minify-xml": "^4.5.2",
     "ora": "^8.2.0",

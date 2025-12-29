@@ -403,8 +403,21 @@ export type FixDifficulty = 'trivial' | 'safe' | 'risky';
 
 /**
  * Categorize fix difficulty
+ *
+ * Uses fixer metadata if available, falls back to legacy logic
  */
 export function getFixDifficulty(issue: QualityIssue): FixDifficulty {
+  // Use fixer metadata if available
+  if (issue.fixerId) {
+    // Lazy import to avoid circular dependency
+    const { registry } = require('./fixers');
+    const fixer = registry.get(issue.fixerId);
+    if (fixer) {
+      return fixer.metadata.difficulty;
+    }
+  }
+
+  // Legacy fallback for issues without fixerId
   const { category, message } = issue;
 
   // Trivial: can always safely fix

@@ -12,7 +12,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { parseFile, visitNodeWithCallbacks } from '@/lib/@ast/swc';
+import { extractLocalImports } from '@/lib/@ast/swc';
 import { scanDirectory } from '@/lib/@core/fs';
 
 /**
@@ -106,55 +106,24 @@ function collectFileImports(
 
 /**
  * Parse import statements from a file using SWC
+ * Uses shared extractLocalImports from @/lib/@ast/swc
  */
 function parseImportStatements(filePath: string): ImportStatement[] {
-  const imports: ImportStatement[] = [];
-
   let content: string;
   try {
     content = fs.readFileSync(filePath, 'utf-8');
   } catch {
-    return imports;
-  }
-
-  try {
-    const { ast } = parseFile(filePath, content);
-
-    visitNodeWithCallbacks(ast, {
-      onImportDeclaration: (node) => {
-        const importNode = node as unknown as {
-          source: { value: string };
-          specifiers: Array<{
-            type: string;
-            local: { value: string };
-          }>;
-          typeOnly?: boolean;
-        };
-
-        const source = importNode.source.value;
-
-        // Only track local imports (relative and alias)
-        if (!source.startsWith('.') && !source.startsWith('@/') && !source.startsWith('~/')) {
-          return;
-        }
-
-        const names = importNode.specifiers
-          .map((spec) => spec.local?.value)
-          .filter((name): name is string => Boolean(name));
-
-        imports.push({
-          source,
-          names,
-          isTypeOnly: importNode.typeOnly ?? false,
-        });
-      },
-    });
-  } catch {
-    // Parse error - return empty array
     return [];
   }
 
-  return imports;
+  // Use shared SWC import extractor
+  const imports = extractLocalImports(filePath, content);
+
+  return imports.map((imp) => ({
+    source: imp.source,
+    names: imp.names,
+    isTypeOnly: imp.isTypeOnly,
+  }));
 }
 
 /**

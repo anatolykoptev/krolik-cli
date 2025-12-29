@@ -77,19 +77,6 @@ export function getCurrentBranchForBackup(cwd: string): string | null {
 }
 
 /**
- * Generate backup branch name
- */
-function generateBackupBranchName(prefix: string = 'fix'): string {
-  const now = new Date();
-  const timestamp = now
-    .toISOString()
-    .replace(/[-:]/g, '')
-    .replace('T', '-')
-    .slice(0, SLICE_ARG1_VALUE);
-  return `backup/pre-${prefix}-${timestamp}`;
-}
-
-/**
  * Stash uncommitted changes with a descriptive message
  * Includes untracked files to ensure new files are also saved
  */
@@ -393,4 +380,149 @@ export function cleanupBackup(
   }
 
   return success;
+}
+
+// ============================================================================
+// BACKUP WITH COMMIT
+// ============================================================================
+
+export interface BackupWithCommitResult {
+  success: boolean;
+  backupBranch?: string;
+  originalBranch?: string;
+  commitHash?: string;
+  hadUncommittedChanges: boolean;
+  error?: string;
+}
+
+/**
+ * Create backup branch with all uncommitted changes committed
+ *
+ * Strategy:
+ * 1. Get current branch name
+ * 2. If uncommitted changes exist:
+ *    a. Create backup branch
+ *    b. Switch to backup branch
+ *    c. Commit all changes with descriptive message
+ *    d. Switch back to original branch
+ * 3. Return backup info for restore
+ *
+ * This is safer than stashing because:
+ * - Changes are persisted in git history
+ * - Easy to review what was backed up
+ * - Can push to remote for extra safety
+ *
+ * @param cwd - Working directory
+ * @param prefix - Prefix for backup branch name (default: "fix")
+ */
+export function createBackupWithCommit(
+  cwd: string,
+  prefix: string = 'fix',
+): BackupWithCommitResult {
+  // Check if git repo
+  if (!isGitRepoForBackup(cwd)) {
+    return {
+      success: false,
+      hadUncommittedChanges: false,
+      error: 'Not a git repository',
+    };
+  }
+
+  const originalBranch = getCurrentBranchForBackup(cwd);
+  if (!originalBranch) {
+    return {
+      success: false,
+      hadUncommittedChanges: false,
+      error: 'Could not determine current branch',
+    };
+  }
+
+  const hadChanges = hasUncommittedChanges(cwd);
+
+  // If no changes, just create a simple backup branch
+  if (!hadChanges) {
+    const branchName = generateBackupBranchName(prefix);
+    try {
+      execSync(`git branch ${branchName}`, { cwd, stdio: 'pipe' });
+      return {
+        success: true,
+        backupBranch: branchName,
+        originalBranch,
+        hadUncommittedChanges: false,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        originalBranch,
+        hadUncommittedChanges: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  // Has uncommitted changes - create backup branch and commit them there
+  const backupBranch = generateBackupBranchName(prefix);
+
+  try {
+    // Create and switch to backup branch
+    execSync(`git checkout -b ${backupBranch}`, { cwd, stdio: 'pipe' });
+
+    // Stage all changes
+    execSync('git add -A', { cwd, stdio: 'pipe' });
+
+    // Commit with descriptive message
+    const timestamp = new Date().toISOString();
+    const commitMessage = `backup: pre-${prefix} state (${timestamp})
+
+Automatic backup before running krolik ${prefix} command.
+Original branch: ${originalBranch}
+
+🤖 Generated with krolik-cli`;
+
+    execSync(`git commit -m "${commitMessage}"`, { cwd, stdio: 'pipe' });
+
+    // Get commit hash
+    const commitHash = execSync('git rev-parse HEAD', {
+      cwd,
+      encoding: 'utf-8',
+    }).trim();
+
+    // Switch back to original branch
+    execSync(`git checkout ${originalBranch}`, { cwd, stdio: 'pipe' });
+
+    return {
+      success: true,
+      backupBranch,
+      originalBranch,
+      commitHash,
+      hadUncommittedChanges: true,
+    };
+  } catch (error) {
+    // Try to recover - switch back to original branch
+    try {
+      execSync(`git checkout ${originalBranch}`, { cwd, stdio: 'pipe' });
+    } catch {
+      // Ignore recovery error
+    }
+
+    return {
+      success: false,
+      originalBranch,
+      hadUncommittedChanges: hadChanges,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Generate backup branch name (extracted for reuse)
+ */
+function generateBackupBranchName(prefix: string = 'fix'): string {
+  const now = new Date();
+  const timestamp = now
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace('T', '-')
+    .slice(0, SLICE_ARG1_VALUE);
+  return `backup/pre-${prefix}-${timestamp}`;
 }

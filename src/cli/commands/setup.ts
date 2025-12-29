@@ -24,6 +24,7 @@ export function registerSetupCommand(program: Command): void {
     .option('--agents', 'Install only AI agents (wshobson/agents)')
     .option('--mem', 'Install claude-mem (persistent memory)')
     .option('--mcp [server]', 'Install MCP server(s) — specify name or omit for all recommended')
+    .option('--i18n', 'Install i18next-cli for internationalization')
     .option('--check', 'Check installed components and show recommendations')
     .option('--update', 'Update all installed components')
     .option('--list', 'List available plugins and agents')

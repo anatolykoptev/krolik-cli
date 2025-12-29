@@ -14,7 +14,12 @@ import {
 } from './patterns';
 
 // Re-export pattern functions for backward compatibility
-export { isCommonCallbackPattern, isPlaceholderName, isSuffixOnlyName } from './patterns';
+export {
+  isCommonCallbackPattern,
+  isNextJsConventionPattern,
+  isPlaceholderName,
+  isSuffixOnlyName,
+} from './patterns';
 
 /**
  * Check if a function name is likely generic/not meaningful for duplicate detection

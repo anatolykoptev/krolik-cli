@@ -14,7 +14,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CallExpression, Identifier, JSXAttrValue, Module, Node } from '@swc/core';
-import { getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@ast/swc';
+import { extractImports, getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@ast/swc';
 import { scanDirectory } from '@/lib/@core/fs';
 import { isCustomHook, isReactHook } from '@/lib/@detectors';
 import type { ComponentInfo } from './types';
@@ -66,7 +66,7 @@ function analyzeComponentSwc(filePath: string): ComponentInfo | null {
     const isClient = detectClientComponent(ast, content);
     const purpose = extractPurpose(content);
     const features = extractFeatures(content);
-    const imports = extractImportsFromAst(ast);
+    const imports = extractImportNames(filePath, content);
     const hooks = extractHooksFromAst(ast);
     const fields = extractFormFieldsFromAst(ast);
     const state = detectStateManagementFromAst(ast, content);
@@ -128,46 +128,22 @@ function detectClientComponent(ast: Module, content: string): boolean {
 }
 
 /**
- * Process import declaration node and extract import names
+ * Extract import names from file (exclude react/next)
+ * Uses shared extractImports from @/lib/@ast/swc
  */
-function processImportDeclaration(node: Node, imports: string[]): void {
-  const importDecl = node as {
-    source?: { value?: string };
-    specifiers?: Array<{ local?: { value?: string }; type?: string }>;
-  };
+function extractImportNames(filePath: string, content: string): string[] {
+  const imports = extractImports(filePath, content);
 
-  const source = importDecl.source?.value ?? '';
-
-  // Skip react and next imports
-  if (source.includes('react') || source.includes('next')) {
-    return;
-  }
-
-  // Extract named imports
-  if (importDecl.specifiers) {
-    for (const spec of importDecl.specifiers) {
-      // ImportSpecifier has local.value
-      if (spec.type === 'ImportSpecifier' || spec.type === 'ImportDefaultSpecifier') {
-        const name = spec.local?.value;
-        if (name) {
-          imports.push(name);
-        }
-      }
+  // Filter out react/next, collect all names
+  const names: string[] = [];
+  for (const imp of imports) {
+    if (imp.source.includes('react') || imp.source.includes('next')) {
+      continue;
     }
+    names.push(...imp.names);
   }
-}
 
-/**
- * Extract imports from AST (exclude react/next)
- */
-function extractImportsFromAst(ast: Module): string[] {
-  const imports: string[] = [];
-
-  visitNodeWithCallbacks(ast, {
-    onImportDeclaration: (node) => processImportDeclaration(node, imports),
-  });
-
-  return [...new Set(imports)];
+  return [...new Set(names)];
 }
 
 /**

@@ -14,12 +14,9 @@
  * - analyzer.ts: Main analysis functions
  */
 
+export type { FindDuplicatesOptions } from './analyzer';
 // Main public API
-export {
-  FindDuplicatesOptions,
-  findDuplicates,
-  quickScanDuplicates,
-} from './analyzer';
+export { findDuplicates, quickScanDuplicates } from './analyzer';
 // Constants
 export { GENERIC_STRUCTURAL_PATTERNS } from './constants';
 // Function extraction (for ts-morph)
@@ -46,6 +43,7 @@ export {
 // Pattern detection utilities
 export {
   isCommonCallbackPattern,
+  isNextJsConventionPattern,
   isPlaceholderName,
   isShortVerbPrefix,
   isSuffixOnlyName,

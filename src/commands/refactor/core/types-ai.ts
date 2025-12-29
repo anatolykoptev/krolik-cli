@@ -6,6 +6,8 @@
  * domain classification, and enhanced migration planning.
  */
 
+import type { RoutesOutput } from '../../routes';
+import type { I18nAnalysisResult } from '../analyzers/modules/i18n.analyzer';
 import type { RankingAnalysis } from '../analyzers/ranking/types';
 import type { MigrationAction, MigrationPlan, NamespaceCategory, RefactorAnalysis } from './types';
 
@@ -421,4 +423,8 @@ export interface EnhancedRefactorAnalysis extends RefactorAnalysis {
   fileSizeAnalysis?: FileSizeAnalysis;
   /** PageRank-based ranking analysis (hotspots, coupling, safe order) */
   rankingAnalysis?: RankingAnalysis;
+  /** I18n hardcoded strings analysis (deep mode only) */
+  i18nAnalysis?: I18nAnalysisResult;
+  /** API routes analysis (deep mode only) */
+  apiAnalysis?: RoutesOutput;
 }

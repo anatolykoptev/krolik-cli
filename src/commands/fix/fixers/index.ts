@@ -76,12 +76,13 @@ export const allFixers: Fixer[] = [
   hardcodedUrlsFixer,
   duplicateFixer, // Refactor integration: merge duplicate functions
 
+  i18nFixer, // I18n: extract hardcoded text to translation keys
+
   // Risky - may require manual review
   complexityFixer,
   longFunctionsFixer,
   srpFixer,
   refineFixer,
-  i18nFixer, // I18n: extract hardcoded text to translation keys
 ];
 
 /**
@@ -111,8 +112,9 @@ export const fixersByDifficulty = {
     magicNumbersFixer,
     hardcodedUrlsFixer,
     duplicateFixer,
+    i18nFixer, // I18n: extract hardcoded text to translation keys
   ],
-  risky: [complexityFixer, longFunctionsFixer, srpFixer, refineFixer, i18nFixer],
+  risky: [complexityFixer, longFunctionsFixer, srpFixer, refineFixer],
 };
 
 // ============================================================================

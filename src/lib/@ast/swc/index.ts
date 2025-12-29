@@ -112,6 +112,15 @@ export {
   isCallingFunction,
   isCallingMethod,
 } from './extractors';
+export type { ImportInfo } from './imports';
+// Export import extraction utilities (fast alternative to regex)
+export {
+  extractImportSources,
+  extractImports,
+  extractLocalImports,
+  getImportedNames,
+  hasImportFrom,
+} from './imports';
 
 // Export parser functions
 export {

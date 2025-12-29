@@ -19,6 +19,7 @@ export interface SetupOptions {
   agents?: boolean;
   mem?: boolean;
   mcp?: boolean | string;
+  i18n?: boolean;
   update?: boolean;
   check?: boolean;
   dryRun?: boolean;

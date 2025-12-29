@@ -55,6 +55,18 @@ export interface FixerMetadata {
 }
 
 /**
+ * Context passed to fixer lifecycle hooks
+ */
+export interface FixerContext {
+  /** Project root directory */
+  projectRoot: string;
+  /** Whether this is a dry run (preview only) */
+  dryRun: boolean;
+  /** Total number of issues being fixed */
+  totalIssues: number;
+}
+
+/**
  * Fixer interface - self-contained unit for detecting and fixing issues
  */
 export interface Fixer {
@@ -84,4 +96,18 @@ export interface Fixer {
    * @returns true to skip, false to process
    */
   shouldSkip?(issue: QualityIssue, content: string): boolean;
+
+  /**
+   * Optional: called before any fixes are applied
+   * Use for loading resources, initializing state, etc.
+   * @param context - Fixer context with project info
+   */
+  onStart?(context: FixerContext): Promise<void> | void;
+
+  /**
+   * Optional: called after all fixes are applied
+   * Use for flushing resources, cleanup, writing files, etc.
+   * @param context - Fixer context with project info
+   */
+  onComplete?(context: FixerContext): Promise<void> | void;
 }

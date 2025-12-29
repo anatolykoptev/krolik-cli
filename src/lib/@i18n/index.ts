@@ -22,6 +22,23 @@
 
 // Export base class
 export { BaseLanguagePlugin } from './base';
+// Export catalog
+export type { FindByValueOptions, LocaleCatalog } from './catalog';
+export { createLocaleCatalog, defaultCatalog } from './catalog';
+// Export key resolver
+export type {
+  BatchResolveResult,
+  KeyResolverOptions,
+  ResolvedKey,
+  SimpleKeyResolverOptions,
+  SimpleLocaleCatalog,
+} from './key-resolver';
+export {
+  resolveKey,
+  resolveKeySync,
+  resolveKeys,
+  resolveKeysSync,
+} from './key-resolver';
 export {
   EnglishLanguagePlugin,
   englishPlugin,
@@ -107,6 +124,24 @@ export function filterStopWords(words: string[]): string[] {
   const stopWords = getAllStopWords();
   return words.filter((word) => !stopWords.has(word.toLowerCase()));
 }
+
+// ============================================================================
+// I18NEXT-CLI INTEGRATION
+// ============================================================================
+
+export {
+  createDefaultConfig,
+  detectHardcodedStrings,
+  extractKeys,
+  generateKeyFromText,
+  generateTypes,
+  type HardcodedStringIssue,
+  type I18nDetectionResult,
+  type I18nExtractionResult,
+  type I18nextToolkitConfig,
+  loadI18nextConfig,
+  syncLocales,
+} from './i18next-integration';
 
 /**
  * Check if text contains user-facing content (Russian or meaningful English)

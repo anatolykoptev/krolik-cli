@@ -137,6 +137,36 @@ export function isPlaceholderName(name: string): boolean {
 }
 
 /**
+ * Detect Next.js API route handlers and page component patterns
+ * These repeat by convention and are NOT real duplicates
+ */
+export function isNextJsConventionPattern(name: string, filePath?: string): boolean {
+  // 1. Next.js API route handlers (must be named POST, GET, etc.)
+  if (/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/.test(name)) {
+    return true;
+  }
+
+  // 2. Next.js page components - *Page in page.tsx files
+  if (filePath && /\/page\.tsx?$/.test(filePath)) {
+    if (/Page$/.test(name)) {
+      return true;
+    }
+  }
+
+  // 3. Next.js layout/loading/error components
+  if (/^(Layout|Loading|Error|NotFound|Template)$/.test(name)) {
+    return true;
+  }
+
+  // 4. generateMetadata, generateStaticParams - Next.js conventions
+  if (/^generate(Metadata|StaticParams|Viewport)$/.test(name)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Detect common callback/handler patterns that are expected to repeat
  * across different components (e.g., handleSubmit, onChange, onLoadingChange)
  *

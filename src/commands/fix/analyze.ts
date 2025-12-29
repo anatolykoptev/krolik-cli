@@ -119,7 +119,8 @@ export async function analyzeQuality(
       if (!options.category || options.category === 'i18n') {
         const { issues: fixerIssues } = runFixerAnalysis(content, relativePath, {
           category: 'i18n',
-          includeRisky: options.includeRisky ?? false,
+          // Include risky fixers when explicitly requesting i18n category
+          includeRisky: options.category === 'i18n' || options.includeRisky === true,
         });
         // Add fixer issues to the file analysis
         for (const issue of fixerIssues) {

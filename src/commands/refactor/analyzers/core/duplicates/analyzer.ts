@@ -7,7 +7,7 @@ import { findFiles, readFile } from '../../../../../lib';
 import type { Project } from '../../../../../lib/@ast';
 import type { DuplicateInfo, DuplicateLocation, FunctionSignature } from '../../../core';
 import { SIMILARITY_THRESHOLDS } from '../../shared';
-import { isMeaningfulFunctionName } from './name-detection';
+import { isMeaningfulFunctionName, isNextJsConventionPattern } from './name-detection';
 import { findSourceFiles, parseFilesWithSwc, parseFilesWithTsMorph } from './parsing';
 import { calculateGroupSimilarity } from './similarity';
 
@@ -80,11 +80,14 @@ export async function findDuplicates(
     ? parseFilesWithSwc(files, projectRoot, verbose)
     : parseFilesWithTsMorph(files, projectRoot, targetPath, verbose, options.project);
 
-  // Group functions by name (skip generic names)
+  // Group functions by name (skip generic names and framework conventions)
   const byName = new Map<string, FunctionSignature[]>();
   for (const func of allFunctions) {
     // Skip generic/callback names
     if (!isMeaningfulFunctionName(func.name)) continue;
+
+    // Skip Next.js convention patterns (POST, GET, *Page in page.tsx, etc.)
+    if (isNextJsConventionPattern(func.name, func.file)) continue;
 
     const existing = byName.get(func.name) ?? [];
     existing.push(func);

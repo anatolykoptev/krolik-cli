@@ -16,6 +16,7 @@ import {
   ensureDirectories,
   installAgentsRepo,
   installAllMcpServers,
+  installI18nextCli,
   installMcpPlugin,
   installMcpServer,
   updateAgentsRepo,
@@ -30,8 +31,9 @@ export { listPlugins, printDiagnostics } from './diagnostics';
  * Run setup command
  */
 export async function runSetup(ctx: CommandContext & { options: SetupOptions }): Promise<void> {
-  const { logger, options } = ctx;
-  const { all, plugins, agents, mem, mcp, update, check, dryRun, force } = options;
+  const { logger, options, config } = ctx;
+  const projectRoot = config.projectRoot ?? process.cwd();
+  const { all, plugins, agents, mem, mcp, i18n, update, check, dryRun, force } = options;
 
   // Handle --check: run diagnostics
   if (check) {
@@ -42,6 +44,20 @@ export async function runSetup(ctx: CommandContext & { options: SetupOptions }):
   // Handle --update
   if (update) {
     await runUpdate({ dryRun: dryRun ?? false, logger });
+    return;
+  }
+
+  // Handle --i18n: install i18next-cli
+  if (i18n) {
+    logger.info('🐰 Krolik Setup\n');
+    if (dryRun) {
+      logger.info('  [DRY RUN] No changes will be made\n');
+    }
+    await installI18nextCli(projectRoot, {
+      dryRun: dryRun ?? false,
+      force: force ?? false,
+      logger,
+    });
     return;
   }
 

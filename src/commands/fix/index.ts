@@ -22,7 +22,7 @@
 
 import chalk from 'chalk';
 import {
-  createBackupBranch,
+  createBackupWithCommit,
   fileCache,
   formatCacheStats,
   isGitRepoForBackup as isGitRepo,
@@ -242,12 +242,41 @@ function formatTsResults(result: TsCheckResult, format: 'json' | 'xml' | 'text' 
 // APPLY FIXES
 // ============================================================================
 
+import type { Fixer, FixerContext } from './core/types';
+
+/**
+ * Get unique fixers used in fix plans
+ */
+function getUsedFixers(plans: FixPlan[]): Fixer[] {
+  const fixerIds = new Set<string>();
+  const fixers: Fixer[] = [];
+
+  for (const plan of plans) {
+    for (const { issue } of plan.fixes) {
+      if (issue.fixerId && !fixerIds.has(issue.fixerId)) {
+        fixerIds.add(issue.fixerId);
+        const fixer = registry.get(issue.fixerId);
+        if (fixer) {
+          fixers.push(fixer);
+        }
+      }
+    }
+  }
+
+  return fixers;
+}
+
 /**
  * Apply fixes to files
  *
  * Uses parallel execution across independent files for better performance.
  * Fixes within a single file are still applied sequentially (bottom-to-top)
  * to preserve correct line number ordering.
+ *
+ * Lifecycle hooks:
+ * 1. onStart: Called on each fixer before applying any fixes
+ * 2. Apply fixes
+ * 3. onComplete: Called on each fixer after all fixes applied
  */
 async function applyFixes(
   plans: FixPlan[],
@@ -263,9 +292,35 @@ async function applyFixes(
   // Create git backup
   const backup = await createGitBackup(projectRoot, logger);
 
+  // Get fixers used in plans
+  const fixers = getUsedFixers(plans);
+  const totalFixes = plans.reduce((sum, p) => sum + p.fixes.length, 0);
+
+  // Create fixer context
+  const context: FixerContext = {
+    projectRoot,
+    dryRun: options.dryRun ?? false,
+    totalIssues: totalFixes,
+  };
+
+  // Call onStart lifecycle hooks
+  for (const fixer of fixers) {
+    if (fixer.onStart) {
+      logger.debug(`Initializing ${fixer.metadata.name}...`);
+      await fixer.onStart(context);
+    }
+  }
+
   // Apply fixes in parallel across files
   logger.info('Applying fixes (parallel execution)...');
   const results = await applyFixesParallel(plans, options, logger);
+
+  // Call onComplete lifecycle hooks
+  for (const fixer of fixers) {
+    if (fixer.onComplete) {
+      await fixer.onComplete(context);
+    }
+  }
 
   // Show results
   console.log(formatResults(results));
@@ -276,12 +331,19 @@ async function applyFixes(
 
 interface BackupInfo {
   branchName?: string | undefined;
-  hasStash: boolean;
-  stashMessage?: string | undefined;
+  hadUncommittedChanges: boolean;
+  commitHash?: string | undefined;
 }
 
 /**
- * Create git backup branch
+ * Create git backup with commit
+ *
+ * If there are uncommitted changes:
+ * 1. Creates a backup branch
+ * 2. Commits all changes to that branch
+ * 3. Switches back to original branch
+ *
+ * This ensures all changes are safely saved in git history.
  */
 async function createGitBackup(
   projectRoot: string,
@@ -289,27 +351,28 @@ async function createGitBackup(
 ): Promise<BackupInfo> {
   if (!isGitRepo(projectRoot)) {
     console.log(chalk.dim('Not a git repo - skipping backup'));
-    return { hasStash: false };
+    return { hadUncommittedChanges: false };
   }
 
-  logger.info('Creating git backup branch...');
-  const backupResult = createBackupBranch(projectRoot);
+  logger.info('Creating git backup...');
+  const backupResult = createBackupWithCommit(projectRoot, 'fix');
 
   if (backupResult.success) {
-    console.log(chalk.green(`✅ Backup branch created: ${backupResult.branchName}`));
+    console.log(chalk.green(`✅ Backup branch: ${backupResult.backupBranch}`));
     if (backupResult.hadUncommittedChanges) {
-      console.log(chalk.dim('   (uncommitted changes stashed: git stash list)'));
+      console.log(chalk.dim(`   Changes committed: ${backupResult.commitHash?.slice(0, 7)}`));
+      console.log(chalk.dim(`   To restore: git checkout ${backupResult.backupBranch}`));
     }
     return {
-      branchName: backupResult.branchName,
-      hasStash: backupResult.hadUncommittedChanges,
-      stashMessage: backupResult.stashMessage,
+      branchName: backupResult.backupBranch,
+      hadUncommittedChanges: backupResult.hadUncommittedChanges,
+      commitHash: backupResult.commitHash,
     };
   }
 
   console.log(chalk.yellow(`⚠️  Could not create backup: ${backupResult.error}`));
   console.log(chalk.dim('   Proceeding without git backup...'));
-  return { hasStash: false };
+  return { hadUncommittedChanges: false };
 }
 
 /**
@@ -323,16 +386,17 @@ function showBackupInfo(backup: BackupInfo, results: FixResult[]): void {
 
   if (failed.length > 0) {
     console.log(chalk.yellow(`💾 Backup available:`));
-    console.log(chalk.dim(`   Restore committed:   git checkout ${backup.branchName} -- .`));
-    if (backup.hasStash) {
-      console.log(chalk.dim(`   Restore uncommitted: git stash apply`));
+    console.log(chalk.dim(`   Restore: git checkout ${backup.branchName}`));
+    if (backup.hadUncommittedChanges) {
+      console.log(
+        chalk.dim(
+          `   Your uncommitted changes are saved in commit ${backup.commitHash?.slice(0, 7)}`,
+        ),
+      );
     }
   } else {
     console.log(chalk.dim(`💾 Backup branch: ${backup.branchName}`));
     console.log(chalk.dim(`   To delete: git branch -D ${backup.branchName}`));
-    if (backup.hasStash) {
-      console.log(chalk.dim(`   To clean stash: git stash drop`));
-    }
   }
 }
 
@@ -498,12 +562,46 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
         : formatPlanForAI(plans, skipStats, totalIssues),
     );
 
-    // Stop if dry run
-    if (options.dryRun) return;
-
     // Count fixes
     const totalFixes = plans.reduce((sum, p) => sum + p.fixes.length, 0);
     if (totalFixes === 0) return;
+
+    // Handle dry run - still call lifecycle hooks to show stats
+    if (options.dryRun) {
+      const fixers = getUsedFixers(plans);
+      const context: FixerContext = {
+        projectRoot: config.projectRoot,
+        dryRun: true,
+        totalIssues: totalFixes,
+      };
+
+      // Call onStart to initialize (e.g., load catalogs)
+      for (const fixer of fixers) {
+        if (fixer.onStart) {
+          await fixer.onStart(context);
+        }
+      }
+
+      // Run fix generation to populate stats (without applying)
+      for (const plan of plans) {
+        for (const { issue } of plan.fixes) {
+          const fixer = issue.fixerId ? registry.get(issue.fixerId) : null;
+          if (fixer) {
+            const content = fileCache.get(plan.file);
+            fixer.fix(issue, content);
+          }
+        }
+      }
+
+      // Call onComplete to show stats
+      for (const fixer of fixers) {
+        if (fixer.onComplete) {
+          await fixer.onComplete(context);
+        }
+      }
+
+      return;
+    }
 
     // Confirm unless --yes
     if (!options.yes) {

@@ -67,10 +67,8 @@ export interface ImportGraph {
 /**
  * Extract import specifiers from file content using regex
  *
- * Fast approach that doesn't require full AST parsing.
- * Returns only module specifiers (not full import info).
- *
- * @internal Use extractImports from @/lib/@ast for detailed import analysis
+ * Fast regex-based approach for extracting module sources.
+ * For accurate AST-based extraction, use extractImports from @/lib/@ast/swc.
  */
 function extractImportSpecifiers(content: string): string[] {
   const imports: string[] = [];
@@ -90,34 +88,11 @@ function extractImportSpecifiers(content: string): string[] {
   const sideEffectRegex = /import\s+['"]([^'"]+)['"]/g;
   match = sideEffectRegex.exec(content);
   while (match !== null) {
-    // Avoid duplicates from first regex
     const specifier = match[1];
     if (specifier && !imports.includes(specifier)) {
       imports.push(specifier);
     }
     match = sideEffectRegex.exec(content);
-  }
-
-  // Match: require('specifier')
-  const requireRegex = /require\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  match = requireRegex.exec(content);
-  while (match !== null) {
-    const specifier = match[1];
-    if (specifier && !imports.includes(specifier)) {
-      imports.push(specifier);
-    }
-    match = requireRegex.exec(content);
-  }
-
-  // Match: dynamic import('specifier')
-  const dynamicRegex = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-  match = dynamicRegex.exec(content);
-  while (match !== null) {
-    const specifier = match[1];
-    if (specifier && !imports.includes(specifier)) {
-      imports.push(specifier);
-    }
-    match = dynamicRegex.exec(content);
   }
 
   return imports;
