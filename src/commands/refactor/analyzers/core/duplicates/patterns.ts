@@ -182,6 +182,13 @@ export function isCommonCallbackPattern(name: string): boolean {
     return true;
   }
 
+  // 8. Common UI action patterns (open/close/toggle dialogs, modals, etc.)
+  if (
+    /^(open|close|toggle|show|hide)(Dialog|Modal|Drawer|Sheet|Popover|Menu|Dropdown)$/.test(name)
+  ) {
+    return true;
+  }
+
   return false;
 }
 

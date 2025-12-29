@@ -16,8 +16,12 @@ export const SIMILARITY_THRESHOLDS = {
   RENAME_FUNCTIONS: 0.3,
   /** Max 50% length difference for body comparison */
   LENGTH_DIFF: 0.5,
-  /** Minimum body size to avoid false positives on tiny functions */
-  MIN_BODY_LENGTH: 20,
+  /**
+   * Minimum normalized body size in characters.
+   * Filters out trivial one-liners like `return x`, `() => value`, etc.
+   * ~40 chars filters single-line returns but keeps multi-line functions.
+   */
+  MIN_BODY_LENGTH: 40,
 } as const;
 
 /**

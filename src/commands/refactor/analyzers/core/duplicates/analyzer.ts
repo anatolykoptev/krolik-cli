@@ -16,6 +16,14 @@ import { calculateGroupSimilarity } from './similarity';
 // ============================================================================
 
 /**
+ * Check if function body is large enough to be a duplicate candidate.
+ * Uses normalized body length (~100 chars ≈ 2-3 lines of meaningful code).
+ */
+function isLargeEnoughForDuplication(func: FunctionSignature): boolean {
+  return func.normalizedBody.length >= SIMILARITY_THRESHOLDS.MIN_BODY_LENGTH;
+}
+
+/**
  * Deduplicate locations by file:line key
  * Returns unique locations and whether there are multiple unique files
  */
@@ -72,9 +80,10 @@ export async function findDuplicates(
     ? parseFilesWithSwc(files, projectRoot, verbose)
     : parseFilesWithTsMorph(files, projectRoot, targetPath, verbose, options.project);
 
-  // Group functions by name (skip generic names using dynamic heuristics)
+  // Group functions by name (skip generic names)
   const byName = new Map<string, FunctionSignature[]>();
   for (const func of allFunctions) {
+    // Skip generic/callback names
     if (!isMeaningfulFunctionName(func.name)) continue;
 
     const existing = byName.get(func.name) ?? [];
@@ -115,7 +124,8 @@ export async function findDuplicates(
   // Also find functions with identical bodies but different names
   const byHash = new Map<string, FunctionSignature[]>();
   for (const func of allFunctions) {
-    if (func.normalizedBody.length < SIMILARITY_THRESHOLDS.MIN_BODY_LENGTH) continue;
+    // Skip tiny functions
+    if (!isLargeEnoughForDuplication(func)) continue;
 
     const existing = byHash.get(func.bodyHash) ?? [];
     existing.push(func);
