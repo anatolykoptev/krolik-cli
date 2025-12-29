@@ -19,9 +19,11 @@ export type OutputFormat = 'text' | 'json' | 'xml';
 /**
  * Refactor analysis mode
  *
- * - quick: Structure only, no AST parsing (~1.5s)
- * - default: Function duplicates + structure (~3s)
- * - deep: Full analysis with types + git history (~30s)
+ * - quick: Structure + function duplicates, no enhanced analysis (~5s)
+ * - default: Structure + function duplicates + enhanced analysis (~6s)
+ * - deep: Full analysis with types + git history + enhanced (~7.5s)
+ *
+ * All modes use SWC for fast AST parsing (10-20x faster than ts-morph)
  */
 export type RefactorMode = 'quick' | 'default' | 'deep';
 
@@ -180,7 +182,8 @@ export interface ModeAnalysisFlags {
 export function getModeFlags(mode: RefactorMode): ModeAnalysisFlags {
   switch (mode) {
     case 'quick':
-      // Quick: structure + function duplicates (SWC is fast enough)
+      // Quick: structure + function duplicates
+      // Skips: affected imports search, enhanced analysis, XML generation
       return {
         analyzeStructure: true,
         analyzeFunctionDuplicates: true,

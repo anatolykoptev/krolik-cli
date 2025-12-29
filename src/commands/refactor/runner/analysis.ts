@@ -230,18 +230,21 @@ export async function runRefactor(
   let migration = createMigrationPlan(duplicates, structure, libPath);
 
   // Find affected imports for each action (parallel)
-  const importResults = await Promise.all(
-    migration.actions.map((action) => findAffectedImports(action.source, projectRoot)),
-  );
-  migration.actions.forEach((action, i) => {
-    action.affectedImports = importResults[i] ?? [];
-  });
+  // Skip in quick mode for faster execution (~3s savings)
+  if (mode !== 'quick') {
+    const importResults = await Promise.all(
+      migration.actions.map((action) => findAffectedImports(action.source, projectRoot)),
+    );
+    migration.actions.forEach((action, i) => {
+      action.affectedImports = importResults[i] ?? [];
+    });
 
-  // Recalculate imports count
-  migration = {
-    ...migration,
-    importsToUpdate: migration.actions.reduce((sum, a) => sum + a.affectedImports.length, 0),
-  };
+    // Recalculate imports count
+    migration = {
+      ...migration,
+      importsToUpdate: migration.actions.reduce((sum, a) => sum + a.affectedImports.length, 0),
+    };
+  }
 
   // Display path as comma-separated list if multiple paths analyzed
   const displayPath =
@@ -275,20 +278,23 @@ export async function printAnalysis(
   const format = options.format ?? 'text';
   const mode = resolveMode(options);
 
-  // Generate enhanced XML for saving (always)
-  const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath);
-  const xmlOutput = formatAiNativeXml(enhanced, { mode });
+  // Skip enhanced analysis in quick mode for faster execution (~2s savings)
+  if (mode !== 'quick') {
+    // Generate enhanced XML for saving
+    const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath);
+    const xmlOutput = formatAiNativeXml(enhanced, { mode });
 
-  // Always save to .krolik/REFACTOR.xml for AI access
-  saveKrolikFile(projectRoot, 'REFACTOR.xml', xmlOutput);
+    // Save to .krolik/REFACTOR.xml for AI access
+    saveKrolikFile(projectRoot, 'REFACTOR.xml', xmlOutput);
 
-  // For XML format, output XML
-  if (format === 'xml') {
-    console.log(xmlOutput);
-    return;
+    // For XML format, output XML
+    if (format === 'xml') {
+      console.log(xmlOutput);
+      return;
+    }
   }
 
-  // Otherwise output in requested format
+  // Output in requested format
   const output = formatRefactor(analysis, format);
   console.log(output);
 
