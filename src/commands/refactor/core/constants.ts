@@ -260,6 +260,48 @@ export const ALLOWED_DEPS: Record<NamespaceCategory, NamespaceCategory[]> = {
 };
 
 // ============================================================================
+// ARCHITECTURAL BOUNDARY FILES
+// ============================================================================
+
+/**
+ * Patterns for files that act as architectural boundaries.
+ * These files are allowed to cross layer boundaries as they handle
+ * dependency injection and infrastructure wiring.
+ *
+ * Common patterns:
+ * - factory.ts - Factory pattern for creating instances with injected deps
+ * - bootstrap.ts - Application bootstrap/initialization
+ * - container.ts - DI container configuration
+ * - wire.ts / wiring.ts - Dependency wiring
+ * - di.ts - Dependency injection setup
+ * - providers.ts - Provider configuration
+ */
+export const BOUNDARY_FILE_PATTERNS: RegExp[] = [
+  /\/factory\.ts$/,
+  /\/factory\/index\.ts$/,
+  /\/bootstrap\.ts$/,
+  /\/container\.ts$/,
+  /\/wire\.ts$/,
+  /\/wiring\.ts$/,
+  /\/di\.ts$/,
+  /\/providers\.ts$/,
+  /\/composition-root\.ts$/,
+  /\/ioc\.ts$/,
+];
+
+/**
+ * Check if a file is an architectural boundary file.
+ * Boundary files are allowed to import from any layer as they
+ * handle dependency injection wiring.
+ *
+ * @param filePath - Path to the file
+ * @returns true if the file is a boundary file
+ */
+export function isBoundaryFile(filePath: string): boolean {
+  return BOUNDARY_FILE_PATTERNS.some((pattern) => pattern.test(filePath));
+}
+
+// ============================================================================
 // HELPERS
 // ============================================================================
 

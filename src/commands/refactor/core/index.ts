@@ -111,8 +111,10 @@ export {
 
 export {
   ALLOWED_DEPS,
+  BOUNDARY_FILE_PATTERNS,
   detectCategory,
   getLayerNumber,
+  isBoundaryFile,
   isDependencyAllowed,
   NAMESPACE_INFO,
   NAMESPACE_KEYWORDS,

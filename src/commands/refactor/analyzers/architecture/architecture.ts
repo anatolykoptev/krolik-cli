@@ -10,7 +10,7 @@ import type { ImportDeclaration, Module } from '@swc/core';
 import { parseSync } from '@swc/core';
 import { exists, findFiles, readFile } from '../../../../lib';
 import type { ArchHealth, ArchViolation, NamespaceCategory } from '../../core';
-import { ALLOWED_DEPS, detectCategory, NAMESPACE_INFO } from '../../core';
+import { ALLOWED_DEPS, detectCategory, isBoundaryFile, NAMESPACE_INFO } from '../../core';
 import { getSubdirectories } from '../shared';
 
 // ============================================================================
@@ -113,6 +113,7 @@ function extractRuntimeImports(content: string, filePath: string): string[] {
  * Uses SWC AST for accurate detection:
  * - Skips re-exports (export { ... } from, export * from)
  * - Skips type-only imports (import type, import { type X })
+ * - Skips boundary files (factory.ts, bootstrap.ts, etc.) - they are allowed to cross layers
  * - Handles multiline imports correctly
  */
 export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCategory[]): string[] {
@@ -124,6 +125,12 @@ export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCateg
   });
 
   for (const file of files) {
+    // Skip boundary files - they are allowed to import from any layer
+    // as they handle DI wiring and infrastructure setup
+    if (isBoundaryFile(file)) {
+      continue;
+    }
+
     const content = readFile(file);
     if (!content) continue;
 
