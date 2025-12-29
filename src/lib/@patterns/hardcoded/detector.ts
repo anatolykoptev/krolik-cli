@@ -9,9 +9,9 @@
  */
 
 import type { Node, Span } from '@swc/core';
+// Import from @ast (utils layer) to maintain proper layer dependencies
+import { getContext } from '@/lib/@ast';
 import type { DetectorContext, HardcodedDetection } from '@/lib/@swc/detectors/types';
-// Import from core utilities to avoid circular dependency with @swc
-import { getContext } from '@/lib/core/utils/position-utils';
 import { ACCEPTABLE_NUMBERS, shouldSkipUrl } from './index';
 
 // ============================================================================

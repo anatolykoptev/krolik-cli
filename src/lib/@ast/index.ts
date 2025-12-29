@@ -85,6 +85,15 @@ export {
 export type { PoolOptions } from './pool';
 // Pool API (RECOMMENDED)
 export { astPool, disposePool, getProject, releaseProject, withSourceFile } from './pool';
+export type { Position } from './position';
+// Position utilities (utils layer - no dependencies)
+export {
+  calculateLineOffsets,
+  getContext,
+  getSnippet,
+  offsetToLine,
+  offsetToPosition,
+} from './position';
 export type { CreateProjectOptions, ParseFileOptions } from './project';
 // Project and SourceFile utilities (LEGACY - use pool instead)
 export {

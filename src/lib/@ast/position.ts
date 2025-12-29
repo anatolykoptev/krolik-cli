@@ -1,15 +1,12 @@
 /**
- * @module lib/core/utils/position-utils
+ * @module lib/@ast/position
  * @description Low-level position utilities for source code navigation
  *
  * This module contains pure utility functions for working with source code
  * positions and offsets. It has NO dependencies on other modules to avoid
  * circular dependencies.
  *
- * These utilities are used by:
- * - lib/parsing/swc/visitor.ts (re-exports for convenience)
- * - lib/@patterns/complexity/detector.ts
- * - lib/@patterns/hardcoded/detector.ts
+ * Belongs to utils layer (layer 0) - can be used by any module.
  */
 
 // ============================================================================

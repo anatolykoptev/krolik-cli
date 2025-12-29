@@ -4,4 +4,4 @@
  */
 
 export * from './object';
-export * from './position-utils';
+// Position utilities moved to @/lib/@ast/position (utils layer)

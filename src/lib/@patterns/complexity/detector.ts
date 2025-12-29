@@ -28,8 +28,8 @@
  */
 
 import type { Node, Span } from '@swc/core';
-// Import from core utilities to avoid circular dependency with @swc
-import { offsetToLine } from '@/lib/core/utils/position-utils';
+// Import from @ast (utils layer) to maintain proper layer dependencies
+import { offsetToLine } from '@/lib/@ast';
 
 // ============================================================================
 // TYPES
