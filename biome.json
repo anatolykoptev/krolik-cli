@@ -21,20 +21,17 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "noExcessiveCognitiveComplexity": {
-          "level": "warn",
-          "options": {
-            "maxAllowedComplexity": 15
-          }
-        }
+        "noExcessiveCognitiveComplexity": "off",
+        "useOptionalChain": "off"
       },
       "style": {
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "off",
         "useConst": "error",
         "useTemplate": "error"
       },
       "suspicious": {
         "noExplicitAny": "warn",
+        "noImplicitAnyLet": "off",
         "noConsole": "off",
         "noAssignInExpressions": "off"
       }

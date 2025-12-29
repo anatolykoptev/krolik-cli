@@ -1,5 +1,4 @@
-import * as fs from 'node:fs';
-import { getNodeSpan, getNodeText, parseFile, visitNodeWithCallbacks } from './src/lib/@swc';
+import { parseFile, visitNodeWithCallbacks } from './src/lib/@swc';
 
 const content = `export interface User {
   id: string;

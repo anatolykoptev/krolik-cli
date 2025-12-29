@@ -68,7 +68,7 @@ function parsePrismaFileRelations(filePath: string): DbRelations {
 
   // Extract all models
   const modelRegex = /model\s+(\w+)\s*\{([^}]+)\}/g;
-  let modelMatch;
+  let modelMatch: RegExpExecArray | null;
 
   while ((modelMatch = modelRegex.exec(content)) !== null) {
     const [, modelName, modelBody] = modelMatch;

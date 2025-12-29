@@ -47,7 +47,8 @@ export interface FunctionInfo {
  * Generic visitor callback for AST nodes
  * Returns false to stop traversing this branch, void/undefined to continue
  */
-export type VisitorCallback = (node: Node, context?: VisitorContext) => void | undefined | boolean;
+// biome-ignore lint/suspicious/noConfusingVoidType: void is intentional for callbacks that don't return
+export type VisitorCallback = (node: Node, context?: VisitorContext) => void | boolean;
 
 /**
  * Context passed to visitor callbacks

@@ -3,7 +3,7 @@
  * @description Tests for parallel fix execution
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock file system and applier before imports
 vi.mock('node:fs', () => ({
@@ -33,9 +33,7 @@ import {
   createConcurrencyLimiter,
   estimateExecutionTime,
   executeParallel,
-  type FileFixResult,
   groupByDirectory,
-  type ParallelExecutionOptions,
 } from '../../../../src/commands/fix/parallel-executor';
 import type { FixPlan } from '../../../../src/commands/fix/plan';
 import type { FixOperation, QualityIssue } from '../../../../src/commands/fix/types';

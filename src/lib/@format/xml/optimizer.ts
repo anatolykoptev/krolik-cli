@@ -388,7 +388,7 @@ function shortenAttributeNames(xml: string): string {
  */
 function compressNumbers(xml: string): string {
   return xml.replace(/="(\d+)"/g, (match, num) => {
-    const n = parseInt(num);
+    const n = parseInt(num, 10);
 
     if (n >= 1_000_000) {
       return `="${(n / 1_000_000).toFixed(1)}M"`;
@@ -514,7 +514,6 @@ export function optimizeXml(xml: string, options: OptimizeOptions = {}): Optimiz
     case 'semantic':
       output = optimizeSemantic(xml, options);
       break;
-    case 'minify':
     default:
       output = optimizeMinify(xml);
       break;

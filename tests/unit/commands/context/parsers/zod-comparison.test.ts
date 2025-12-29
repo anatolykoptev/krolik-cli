@@ -90,7 +90,7 @@ describe('Zod Parser Comparison: Regex vs SWC', () => {
     const { dir, cleanup } = createTestFile(content);
 
     try {
-      const regexResult = parseRegex(dir, []);
+      const _regexResult = parseRegex(dir, []);
       const swcResult = parseSwc(dir, []);
 
       // Both should extract min/max validations

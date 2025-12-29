@@ -5,12 +5,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  ConflictDetector,
   computePriority,
   detectAndResolve,
   detectConflictType,
   type IndexedOperation,
-  type LineRange,
   normalizeRange,
   type OperationWithIssue,
   rangeContains,

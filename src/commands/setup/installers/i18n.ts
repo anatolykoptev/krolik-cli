@@ -149,7 +149,7 @@ export async function installI18nextCli(
       try {
         execSync(installCmd, { cwd: projectRoot, stdio: 'inherit' });
         logger.info('  ✓ i18next-cli installed\n');
-      } catch (error) {
+      } catch (_error) {
         logger.error(`  ✗ Failed to install i18next-cli\n`);
         return false;
       }

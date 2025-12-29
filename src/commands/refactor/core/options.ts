@@ -199,8 +199,6 @@ export function getModeFlags(mode: RefactorMode): ModeAnalysisFlags {
         analyzeTypeDuplicates: true,
         includeGitHistory: true,
       };
-
-    case 'default':
     default:
       // Default: function duplicates + structure
       return {
