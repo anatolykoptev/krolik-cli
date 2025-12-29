@@ -26,9 +26,15 @@
 
 // Adapters (for advanced usage)
 export {
+  configureRegistryDatabase,
+  createLibraryRepository,
+  type DatabaseGetter,
   getDefaultRepository,
   getRegistryDatabase,
-  resetDefaultRepository,
+  initializeContext7,
+  type LibraryStorageFunctions,
+  resetContext7,
+  resetRegistryDatabase,
   SqliteLibraryRepository,
 } from './adapters';
 // Types from client

@@ -3,8 +3,8 @@
  * @description SQLite-based registry storage adapter
  *
  * This adapter provides database access for the Context7 registry module.
- * It wraps the shared database from storage layer, providing a clean
- * interface for registry-specific operations.
+ * It uses an injected database getter function instead of importing directly
+ * from the storage layer, maintaining proper layer separation.
  *
  * The registry stores:
  * - Library ID mappings (npm name -> Context7 ID)
@@ -12,16 +12,40 @@
  */
 
 import type { Database } from 'better-sqlite3';
-import { getDatabase as storageGetDatabase } from '@/lib/storage';
+
+/**
+ * Database getter function type for dependency injection.
+ */
+export type DatabaseGetter = () => Database;
+
+// Injected database getter - set via configureRegistryDatabase()
+let databaseGetter: DatabaseGetter | null = null;
+
+/**
+ * Configure the database getter for the registry.
+ * Must be called before using getRegistryDatabase().
+ *
+ * @param getter - Function that returns the database instance
+ *
+ * @example
+ * ```ts
+ * import { getDatabase } from '@/lib/storage';
+ * configureRegistryDatabase(getDatabase);
+ * ```
+ */
+export function configureRegistryDatabase(getter: DatabaseGetter): void {
+  databaseGetter = getter;
+}
 
 /**
  * Get the shared SQLite database instance.
  *
  * This function provides access to the application's shared database
- * for registry operations. It delegates to the storage layer's
- * database management.
+ * for registry operations. The database getter must be configured
+ * via configureRegistryDatabase() before use.
  *
  * @returns SQLite database instance
+ * @throws Error if database getter is not configured
  *
  * @example
  * ```ts
@@ -30,5 +54,18 @@ import { getDatabase as storageGetDatabase } from '@/lib/storage';
  * ```
  */
 export function getRegistryDatabase(): Database {
-  return storageGetDatabase();
+  if (!databaseGetter) {
+    throw new Error(
+      'Registry database not configured. Call configureRegistryDatabase() first, ' +
+        'or use the factory from context7/factory.ts',
+    );
+  }
+  return databaseGetter();
+}
+
+/**
+ * Reset the database configuration (useful for testing).
+ */
+export function resetRegistryDatabase(): void {
+  databaseGetter = null;
 }

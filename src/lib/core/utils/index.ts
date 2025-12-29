@@ -4,3 +4,4 @@
  */
 
 export * from './object';
+export * from './position-utils';

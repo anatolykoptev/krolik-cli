@@ -5,8 +5,8 @@
 
 import type { Node } from '@swc/core';
 
-// Import and re-export Position from position-utils to avoid duplication
-import type { Position } from './position-utils';
+// Import and re-export Position from core utils to avoid duplication
+import type { Position } from '@/lib/core/utils/position-utils';
 export type { Position };
 
 /**

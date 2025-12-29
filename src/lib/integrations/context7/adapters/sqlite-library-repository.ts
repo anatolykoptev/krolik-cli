@@ -2,53 +2,75 @@
  * @module lib/integrations/context7/adapters/sqlite-library-repository
  * @description SQLite-based implementation of ILibraryRepository
  *
- * This adapter implements the ILibraryRepository interface using the
- * storage/docs module for persistence. It serves as the bridge between
- * the domain layer (context7/core) and the infrastructure layer (storage).
+ * This adapter implements the ILibraryRepository interface using injected
+ * storage functions. It serves as the bridge between the domain layer
+ * (context7/core) and the infrastructure layer (storage).
  *
  * Following the Ports & Adapters (Hexagonal) architecture pattern.
+ * Storage functions are injected via constructor to avoid direct imports
+ * from infrastructure layer - the factory.ts handles the wiring.
  */
 
-// Import storage functions - this adapter is the ONLY place that should
-// import directly from storage, breaking the layer boundary intentionally
-// to provide an abstraction for the rest of context7 module
-import {
-  clearExpired as storageClearExpired,
-  deleteLibrary as storageDeleteLibrary,
-  getLibrary as storageGetLibrary,
-  getLibraryByName as storageGetLibraryByName,
-  listLibraries as storageListLibraries,
-  saveLibrary as storageSaveLibrary,
-  saveSection as storageSaveSection,
-  searchDocs as storageSearchDocs,
-} from '@/lib/storage/docs';
 import type { ILibraryRepository } from '../core/ports/library-repository.interface';
 import type { CachedLibrary, DocSearchResult, DocSection, DocsSearchOptions } from '../types';
 
 /**
+ * Storage functions interface for dependency injection.
+ * This defines the contract that the storage layer must fulfill.
+ */
+export interface LibraryStorageFunctions {
+  getLibrary: (libraryId: string) => CachedLibrary | null;
+  getLibraryByName: (name: string) => CachedLibrary | null;
+  saveLibrary: (libraryId: string, name: string, version?: string) => CachedLibrary;
+  saveSection: (
+    libraryId: string,
+    topic: string | undefined,
+    title: string,
+    content: string,
+    codeSnippets: string[],
+    pageNumber: number,
+  ) => DocSection;
+  searchDocs: (options: DocsSearchOptions) => DocSearchResult[];
+  listLibraries: () => CachedLibrary[];
+  deleteLibrary: (libraryId: string) => boolean;
+  clearExpired: () => { librariesDeleted: number };
+}
+
+/**
  * SQLite-based implementation of ILibraryRepository.
  *
- * Uses the storage/docs module for all database operations.
+ * Uses injected storage functions for all database operations.
  * This class follows the Repository pattern and provides a clean
  * interface for the domain layer.
  *
  * @example
  * ```ts
- * const repository = new SqliteLibraryRepository();
+ * // Via factory (recommended)
+ * import { createLibraryRepository } from './factory';
+ * const repository = createLibraryRepository();
+ *
+ * // Direct instantiation (for testing)
+ * const repository = new SqliteLibraryRepository(mockStorageFunctions);
  * const library = repository.getLibrary('/vercel/next.js');
  * ```
  */
 export class SqliteLibraryRepository implements ILibraryRepository {
+  private readonly storage: LibraryStorageFunctions;
+
+  constructor(storage: LibraryStorageFunctions) {
+    this.storage = storage;
+  }
+
   getLibrary(libraryId: string): CachedLibrary | null {
-    return storageGetLibrary(libraryId);
+    return this.storage.getLibrary(libraryId);
   }
 
   getLibraryByName(name: string): CachedLibrary | null {
-    return storageGetLibraryByName(name);
+    return this.storage.getLibraryByName(name);
   }
 
   saveLibrary(libraryId: string, name: string, version?: string): CachedLibrary {
-    return storageSaveLibrary(libraryId, name, version);
+    return this.storage.saveLibrary(libraryId, name, version);
   }
 
   saveSection(
@@ -59,53 +81,23 @@ export class SqliteLibraryRepository implements ILibraryRepository {
     codeSnippets: string[],
     pageNumber: number,
   ): DocSection {
-    return storageSaveSection(libraryId, topic, title, content, codeSnippets, pageNumber);
+    return this.storage.saveSection(libraryId, topic, title, content, codeSnippets, pageNumber);
   }
 
   searchDocs(options: DocsSearchOptions): DocSearchResult[] {
-    return storageSearchDocs(options);
+    return this.storage.searchDocs(options);
   }
 
   listLibraries(): CachedLibrary[] {
-    return storageListLibraries();
+    return this.storage.listLibraries();
   }
 
   deleteLibrary(libraryId: string): boolean {
-    return storageDeleteLibrary(libraryId);
+    return this.storage.deleteLibrary(libraryId);
   }
 
   clearExpired(): number {
-    const result = storageClearExpired();
+    const result = this.storage.clearExpired();
     return result.librariesDeleted;
   }
-}
-
-// Singleton instance for convenience
-let defaultRepository: SqliteLibraryRepository | null = null;
-
-/**
- * Get the default SQLite library repository instance.
- *
- * Uses singleton pattern for efficiency.
- *
- * @returns SQLite library repository instance
- *
- * @example
- * ```ts
- * const repo = getDefaultRepository();
- * const lib = repo.getLibrary('/vercel/next.js');
- * ```
- */
-export function getDefaultRepository(): SqliteLibraryRepository {
-  if (!defaultRepository) {
-    defaultRepository = new SqliteLibraryRepository();
-  }
-  return defaultRepository;
-}
-
-/**
- * Reset the default repository (useful for testing).
- */
-export function resetDefaultRepository(): void {
-  defaultRepository = null;
 }

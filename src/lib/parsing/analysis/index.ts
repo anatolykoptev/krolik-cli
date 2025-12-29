@@ -27,11 +27,17 @@ export {
   isTsInterface,
   isTsTypeAlias,
 } from './guards';
-export { analyzeSourceFile } from './source-analyzer';
+/**
+ * @deprecated Moved to @/lib/discovery/source-analyzer
+ */
 export type {
   ExportedMember,
   ExportKind,
   MethodInfo,
   ParamInfo,
   SourceAnalysisResult,
-} from './types';
+} from './source-analyzer';
+/**
+ * @deprecated Moved to @/lib/discovery/source-analyzer
+ */
+export { analyzeSourceFile } from './source-analyzer';

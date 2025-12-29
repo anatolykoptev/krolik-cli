@@ -33,7 +33,7 @@ import type {
   VariableDeclaration,
   VariableDeclarator,
 } from '@swc/core';
-
+import { offsetToLine } from '@/lib/core/utils/position-utils';
 import {
   isArrowFunction,
   isClassDeclaration,
@@ -47,7 +47,6 @@ import {
   isTsTypeAlias,
   isVariableDeclaration,
 } from '@/lib/parsing/analysis/guards';
-import { offsetToLine } from '@/lib/parsing/swc/position-utils';
 
 import { INTERNAL_PREFIX, PRIVATE_PREFIX } from './constants';
 import {

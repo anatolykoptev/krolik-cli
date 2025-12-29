@@ -59,3 +59,12 @@ export {
   findZodSchemasDir,
   getPackageTypeLabel,
 } from './schema';
+// Source file analysis
+export {
+  analyzeSourceFile,
+  type ExportedMember,
+  type ExportKind,
+  type MethodInfo,
+  type ParamInfo,
+  type SourceAnalysisResult,
+} from './source-analyzer';

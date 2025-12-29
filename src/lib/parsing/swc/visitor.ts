@@ -9,7 +9,7 @@
 import type { Node } from '@swc/core';
 import type { VisitorCallback, VisitorCallbacks, VisitorContext } from './types';
 
-// Re-export position utilities from the base module (no circular dependencies)
+// Re-export position utilities from the core module (no circular dependencies)
 export {
   calculateLineOffsets,
   getContext,
@@ -17,7 +17,7 @@ export {
   offsetToLine,
   offsetToPosition,
   type Position,
-} from './position-utils';
+} from '@/lib/core/utils/position-utils';
 
 /**
  * Get the type name of a node

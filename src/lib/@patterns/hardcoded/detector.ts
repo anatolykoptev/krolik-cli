@@ -10,8 +10,8 @@
 
 import type { Node, Span } from '@swc/core';
 import type { DetectorContext, HardcodedDetection } from '@/lib/@swc/detectors/types';
-// Import from position-utils directly to avoid circular dependency with @swc
-import { getContext } from '@/lib/parsing/swc/position-utils';
+// Import from core utilities to avoid circular dependency with @swc
+import { getContext } from '@/lib/core/utils/position-utils';
 import { ACCEPTABLE_NUMBERS, shouldSkipUrl } from './index';
 
 // ============================================================================
