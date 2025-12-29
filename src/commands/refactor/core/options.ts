@@ -180,10 +180,10 @@ export interface ModeAnalysisFlags {
 export function getModeFlags(mode: RefactorMode): ModeAnalysisFlags {
   switch (mode) {
     case 'quick':
-      // Quick: structure only, no AST parsing
+      // Quick: structure + function duplicates (SWC is fast enough)
       return {
         analyzeStructure: true,
-        analyzeFunctionDuplicates: false,
+        analyzeFunctionDuplicates: true,
         analyzeTypeDuplicates: false,
         includeGitHistory: false,
       };

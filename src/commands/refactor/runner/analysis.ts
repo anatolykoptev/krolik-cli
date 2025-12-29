@@ -187,21 +187,8 @@ export async function runRefactor(
     throw new Error(`No valid target paths found. Checked: ${relativePaths.join(', ')}`);
   }
 
-  // Create shared ts-morph Project only if we need type analysis (deep mode)
-  // This avoids creating separate projects in each analyzer (significant performance gain)
-  // Note: SWC is always used for function duplicates (fast parser)
-  // ts-morph is only needed for type analysis
-  let sharedProject:
-    | ReturnType<typeof import('../analyzers/shared/helpers').createSharedProject>
-    | undefined;
-
-  if (modeFlags.analyzeTypeDuplicates) {
-    const { createSharedProject } = await import('../analyzers/shared/helpers');
-    // Use first path for project creation (it will find tsconfig from there)
-    sharedProject = createSharedProject(existingPaths[0]!, projectRoot);
-  }
-
   // Run analysis on all paths in parallel
+  // SWC is used for both function and type analysis (10-20x faster than ts-morph)
   const analysisPromises = existingPaths.map(async (targetPath) => {
     const [duplicates, typeDuplicates, structure] = await Promise.all([
       // Function duplicates (default, deep modes - not quick)
@@ -209,14 +196,12 @@ export async function runRefactor(
       modeFlags.analyzeFunctionDuplicates
         ? findDuplicates(targetPath, projectRoot, {
             useFastParser: true, // Always use SWC (fast parser)
-            ...(sharedProject ? { project: sharedProject } : {}),
           })
         : Promise.resolve([]),
       // Type/interface duplicates (deep mode only)
+      // Uses SWC parser for fast parsing
       modeFlags.analyzeTypeDuplicates
-        ? findTypeDuplicates(targetPath, projectRoot, {
-            ...(sharedProject ? { project: sharedProject } : {}),
-          })
+        ? findTypeDuplicates(targetPath, projectRoot, {})
         : Promise.resolve(undefined),
       // Structure analysis (all modes)
       modeFlags.analyzeStructure

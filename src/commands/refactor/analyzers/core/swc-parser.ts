@@ -30,6 +30,20 @@ export interface SwcFunctionInfo {
   bodyEnd: number;
 }
 
+export interface SwcTypeInfo {
+  name: string;
+  filePath: string;
+  line: number;
+  kind: 'interface' | 'type';
+  isExported: boolean;
+  /** Normalized structure for comparison */
+  normalizedStructure: string;
+  /** Field names (for interfaces) */
+  fields: string[];
+  /** Original definition text */
+  definition: string;
+}
+
 /**
  * Extract functions from a TypeScript/JavaScript file using SWC
  */
@@ -57,6 +71,188 @@ export function extractFunctionsSwc(filePath: string, content: string): SwcFunct
   }
 
   return functions;
+}
+
+/**
+ * Extract interfaces and type aliases from a TypeScript file using SWC
+ */
+export function extractTypesSwc(filePath: string, content: string): SwcTypeInfo[] {
+  const types: SwcTypeInfo[] = [];
+
+  try {
+    const ast = parseSync(content, {
+      syntax: 'typescript',
+      tsx: filePath.endsWith('.tsx'),
+    });
+
+    const lineOffsets = calculateLineOffsets(content);
+
+    visitNode(ast, (node, context) => {
+      const typeInfo = extractTypeInfo(node, filePath, content, lineOffsets, context);
+      if (typeInfo) {
+        types.push(typeInfo);
+      }
+    });
+  } catch {
+    // Parse error - skip this file
+  }
+
+  return types;
+}
+
+/**
+ * Extract type info from a node (interface or type alias)
+ */
+function extractTypeInfo(
+  node: Node,
+  filePath: string,
+  content: string,
+  lineOffsets: number[],
+  context: VisitContext,
+): SwcTypeInfo | null {
+  const nodeType = (node as { type?: string }).type;
+
+  if (nodeType === 'TsInterfaceDeclaration') {
+    return extractInterfaceInfo(node, filePath, content, lineOffsets, context.isExported);
+  }
+
+  if (nodeType === 'TsTypeAliasDeclaration') {
+    return extractTypeAliasInfo(node, filePath, content, lineOffsets, context.isExported);
+  }
+
+  return null;
+}
+
+/**
+ * Extract interface info
+ */
+function extractInterfaceInfo(
+  node: Node,
+  filePath: string,
+  content: string,
+  lineOffsets: number[],
+  isExported: boolean,
+): SwcTypeInfo | null {
+  const iface = node as unknown as {
+    id?: { value?: string };
+    body?: { body?: Array<{ type?: string; key?: { value?: string }; typeAnnotation?: unknown }> };
+    span?: Span;
+  };
+
+  const name = iface.id?.value;
+  if (!name) return null;
+
+  const span = iface.span;
+  const start = span?.start ?? 0;
+  const end = span?.end ?? content.length;
+  const position = offsetToPosition(start, lineOffsets);
+
+  // Extract field names
+  const fields: string[] = [];
+  const fieldDefs: string[] = [];
+
+  for (const member of iface.body?.body ?? []) {
+    if (member.type === 'TsPropertySignature' && member.key) {
+      const propName = (member.key as { value?: string }).value;
+      if (propName) {
+        fields.push(propName);
+        // Get type annotation text if available
+        const typeText = extractTypeText(member.typeAnnotation, content);
+        fieldDefs.push(`${propName}:${normalizeTypeText(typeText)}`);
+      }
+    } else if (member.type === 'TsMethodSignature' && member.key) {
+      const methodName = (member.key as { value?: string }).value;
+      if (methodName) {
+        fields.push(methodName);
+        fieldDefs.push(`${methodName}():unknown`);
+      }
+    }
+  }
+
+  fieldDefs.sort();
+  const normalizedStructure = fieldDefs.join(';');
+  const definition = content.slice(start, Math.min(end, start + 500));
+
+  return {
+    name,
+    filePath,
+    line: position.line,
+    kind: 'interface',
+    isExported,
+    normalizedStructure,
+    fields: fields.sort(),
+    definition,
+  };
+}
+
+/**
+ * Extract type alias info
+ */
+function extractTypeAliasInfo(
+  node: Node,
+  filePath: string,
+  content: string,
+  lineOffsets: number[],
+  isExported: boolean,
+): SwcTypeInfo | null {
+  const typeAlias = node as unknown as {
+    id?: { value?: string };
+    typeAnnotation?: unknown;
+    span?: Span;
+  };
+
+  const name = typeAlias.id?.value;
+  if (!name) return null;
+
+  const span = typeAlias.span;
+  const start = span?.start ?? 0;
+  const end = span?.end ?? content.length;
+  const position = offsetToPosition(start, lineOffsets);
+
+  const typeText = extractTypeText(typeAlias.typeAnnotation, content);
+  const normalizedStructure = normalizeTypeText(typeText);
+  const definition = content.slice(start, Math.min(end, start + 500));
+
+  return {
+    name,
+    filePath,
+    line: position.line,
+    kind: 'type',
+    isExported,
+    normalizedStructure,
+    fields: [],
+    definition,
+  };
+}
+
+/**
+ * Extract type text from type annotation node
+ */
+function extractTypeText(typeAnnotation: unknown, content: string): string {
+  if (!typeAnnotation || typeof typeAnnotation !== 'object') return 'unknown';
+
+  const span = (typeAnnotation as { span?: Span }).span;
+  if (!span) return 'unknown';
+
+  return content.slice(span.start, span.end);
+}
+
+/**
+ * Normalize type text for comparison
+ */
+function normalizeTypeText(typeText: string): string {
+  return (
+    typeText
+      // Remove import paths
+      .replace(/import\([^)]+\)\./g, '')
+      // Remove whitespace
+      .replace(/\s+/g, '')
+      // Sort union/intersection members
+      .split(/[|&]/)
+      .map((t) => t.trim())
+      .sort()
+      .join('|')
+  );
 }
 
 /**

@@ -11,11 +11,15 @@ export {
   quickScanDuplicates,
 } from './duplicates';
 // SWC Parser
-export { extractFunctionsSwc, type SwcFunctionInfo } from './swc-parser';
+export {
+  extractFunctionsSwc,
+  extractTypesSwc,
+  type SwcFunctionInfo,
+  type SwcTypeInfo,
+} from './swc-parser';
 
 // Type duplicates
 export {
-  extractTypes,
   type FindTypeDuplicatesOptions,
   findTypeDuplicates,
   quickScanTypeDuplicates,

@@ -31,9 +31,13 @@ export {
   findDuplicates,
   quickScanDuplicates,
 } from './core/duplicates';
-export { extractFunctionsSwc, type SwcFunctionInfo } from './core/swc-parser';
 export {
-  extractTypes,
+  extractFunctionsSwc,
+  extractTypesSwc,
+  type SwcFunctionInfo,
+  type SwcTypeInfo,
+} from './core/swc-parser';
+export {
   type FindTypeDuplicatesOptions,
   findTypeDuplicates,
   quickScanTypeDuplicates,
