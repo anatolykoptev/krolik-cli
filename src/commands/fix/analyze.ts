@@ -18,6 +18,7 @@ import { glob } from 'glob';
 import { fileCache, validatePathWithinProject } from '@/lib';
 import { getIgnorePatterns } from '@/lib/constants';
 import { analyzeFile } from './analyzers';
+import { runFixerAnalysis } from './core/runner';
 
 import { checkRecommendations, type RecommendationResult } from './recommendations';
 import type {
@@ -96,15 +97,14 @@ export async function analyzeQuality(
   const allIssues: QualityIssue[] = [];
   const fileContents = new Map<string, string>();
 
-  // Note: Fixer analysis is no longer needed here.
-  // The unified-swc analyzer now sets fixerId on all issues it detects,
-  // eliminating the need for a separate fixer analysis pass.
-  // This provides ~2x speedup by avoiding duplicate AST traversals.
+  // Note: The unified-swc analyzer handles most categories (lint, type-safety, security, etc.)
+  // Additional fixer analyzers (like i18n) are run separately for their specific categories.
 
   for (const file of files) {
     try {
       // Read content once (using cache to avoid repeated reads)
       const content = fileCache.get(file);
+      const relativePath = path.relative(projectRoot, file);
 
       // Run unified analyzer (includes lint, type-safety, security, modernization, hardcoded)
       // All issues from unified-swc now have fixerId set for direct fixer lookup
@@ -112,6 +112,23 @@ export async function analyzeQuality(
       analyses.push(analysis);
 
       allIssues.push(...analysis.issues);
+
+      // Run additional fixer analyzers not covered by unified-swc
+      // These include: i18n (hardcoded text detection)
+      // Only run if category filter matches or no filter is set
+      if (!options.category || options.category === 'i18n') {
+        const { issues: fixerIssues } = runFixerAnalysis(content, relativePath, {
+          category: 'i18n',
+          includeRisky: options.includeRisky ?? false,
+        });
+        // Add fixer issues to the file analysis
+        for (const issue of fixerIssues) {
+          // Ensure file path is relative
+          issue.file = relativePath;
+          analysis.issues.push(issue);
+          allIssues.push(issue);
+        }
+      }
 
       // Store content for AI context - key by both absolute and relative paths
       fileContents.set(analysis.path, content);
@@ -150,6 +167,7 @@ export async function analyzeQuality(
       refine: filteredIssues.filter((i) => i.category === 'refine').length,
       security: filteredIssues.filter((i) => i.category === 'security').length,
       modernization: filteredIssues.filter((i) => i.category === 'modernization').length,
+      i18n: filteredIssues.filter((i) => i.category === 'i18n').length,
     },
   };
 

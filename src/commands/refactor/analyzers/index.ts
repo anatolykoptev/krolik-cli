@@ -126,6 +126,38 @@ export {
 } from './shared/helpers';
 
 // ============================================================================
+// I18N ANALYSIS (from i18n/)
+// ============================================================================
+
+export type {
+  CodeFix,
+  ComponentI18nGroup,
+  DetectedLanguage,
+  FileI18nAnalysis,
+  HardcodedStringInfo,
+  I18nAnalysisResult,
+  I18nAnalysisStats,
+  I18nAnalyzerOptions,
+  I18nEffort,
+  I18nPriority,
+  I18nRecommendation,
+  StringContext,
+  SuggestedI18nKey,
+  TextCategory,
+} from './i18n';
+export {
+  analyzeFileI18n,
+  analyzeI18n,
+  detectLanguage,
+  detectNamespace,
+  generateCodeFix,
+  generateI18nKey,
+  generateI18nRecommendations,
+  textToKey,
+  transliterate,
+} from './i18n';
+
+// ============================================================================
 // ENHANCED ANALYSIS (orchestrator)
 // ============================================================================
 

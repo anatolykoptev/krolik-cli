@@ -36,9 +36,13 @@ import { complexityFixer } from './complexity';
 // Lint fixers (trivial - safe to auto-apply)
 import { consoleFixer } from './console';
 import { debuggerFixer } from './debugger';
+// Refactor integration fixers (safe)
+import { duplicateFixer } from './duplicate';
 import { equalityFixer } from './equality';
 import { evalFixer } from './eval';
 import { hardcodedUrlsFixer } from './hardcoded-urls';
+// I18n fixer (risky - requires manual translation file updates)
+import { i18nFixer } from './i18n';
 import { longFunctionsFixer } from './long-functions';
 // Hardcoded value fixers (safe)
 import { magicNumbersFixer } from './magic-numbers';
@@ -70,24 +74,27 @@ export const allFixers: Fixer[] = [
   unusedImportsFixer,
   magicNumbersFixer,
   hardcodedUrlsFixer,
+  duplicateFixer, // Refactor integration: merge duplicate functions
 
   // Risky - may require manual review
   complexityFixer,
   longFunctionsFixer,
   srpFixer,
   refineFixer,
+  i18nFixer, // I18n: extract hardcoded text to translation keys
 ];
 
 /**
  * Fixers grouped by category
  */
 export const fixersByCategory = {
-  lint: [consoleFixer, debuggerFixer, alertFixer, unusedImportsFixer],
+  lint: [consoleFixer, debuggerFixer, alertFixer, unusedImportsFixer, duplicateFixer],
   'type-safety': [tsIgnoreFixer, anyTypeFixer, equalityFixer, evalFixer],
   hardcoded: [magicNumbersFixer, hardcodedUrlsFixer],
   complexity: [complexityFixer, longFunctionsFixer],
   srp: [srpFixer],
   refine: [refineFixer],
+  i18n: [i18nFixer],
 };
 
 /**
@@ -103,8 +110,9 @@ export const fixersByDifficulty = {
     unusedImportsFixer,
     magicNumbersFixer,
     hardcodedUrlsFixer,
+    duplicateFixer,
   ],
-  risky: [complexityFixer, longFunctionsFixer, srpFixer, refineFixer],
+  risky: [complexityFixer, longFunctionsFixer, srpFixer, refineFixer, i18nFixer],
 };
 
 // ============================================================================
@@ -134,9 +142,11 @@ export { complexityFixer } from './complexity';
 // Export individual fixers
 export { consoleFixer } from './console';
 export { debuggerFixer } from './debugger';
+export { duplicateFixer } from './duplicate';
 export { equalityFixer } from './equality';
 export { evalFixer } from './eval';
 export { hardcodedUrlsFixer } from './hardcoded-urls';
+export { i18nFixer } from './i18n';
 export { longFunctionsFixer } from './long-functions';
 export { magicNumbersFixer } from './magic-numbers';
 export { refineFixer } from './refine';

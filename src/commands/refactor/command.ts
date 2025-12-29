@@ -3,8 +3,11 @@
  * @description CLI command handler for refactor
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { detectFeatures, detectMonorepoPackages } from '../../config';
-import type { RefactorOptions } from './core';
+import { createEnhancedAnalysis } from './analyzers/enhanced';
+import type { Recommendation, RefactorOptions } from './core';
 import { getModeFlags, resolveMode } from './core';
 import { resolvePackagePaths, resolvePaths } from './paths';
 import {
@@ -16,6 +19,69 @@ import {
   type TypeFixOptions,
 } from './runner';
 import { printSummaryReport, runTypecheck } from './utils';
+
+// ============================================================================
+// RECOMMENDATION CACHING
+// ============================================================================
+
+const REFACTOR_DATA_FILE = '.krolik/refactor-data.json';
+
+interface RefactorDataCache {
+  timestamp: string;
+  path: string;
+  recommendations: Recommendation[];
+}
+
+/**
+ * Cache recommendations for fix --from-refactor integration
+ *
+ * @param projectRoot - Project root directory
+ * @param targetPath - Analyzed path (relative)
+ * @param recommendations - All recommendations from analysis
+ */
+function cacheRecommendations(
+  projectRoot: string,
+  targetPath: string,
+  recommendations: Recommendation[],
+): void {
+  const krolikDir = path.join(projectRoot, '.krolik');
+  const cachePath = path.join(projectRoot, REFACTOR_DATA_FILE);
+
+  // Ensure .krolik directory exists
+  if (!fs.existsSync(krolikDir)) {
+    fs.mkdirSync(krolikDir, { recursive: true });
+  }
+
+  const cache: RefactorDataCache = {
+    timestamp: new Date().toISOString(),
+    path: targetPath,
+    recommendations,
+  };
+
+  fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2));
+}
+
+/**
+ * Print hint about auto-fixable recommendations
+ */
+function printAutoFixHint(recommendations: Recommendation[]): void {
+  const autoFixable = recommendations.filter((r) => r.autoFixable);
+  if (autoFixable.length === 0) return;
+
+  console.log('\n💡 Auto-fixable recommendations detected:');
+
+  // Group by category
+  const byCategory = new Map<string, number>();
+  for (const rec of autoFixable) {
+    byCategory.set(rec.category, (byCategory.get(rec.category) ?? 0) + 1);
+  }
+
+  for (const [category, count] of byCategory) {
+    console.log(`   • ${category}: ${count} issue${count > 1 ? 's' : ''}`);
+  }
+
+  console.log(`\n   Run: krolik fix --from-refactor`);
+}
 
 /**
  * Command handler for CLI
@@ -97,6 +163,14 @@ export async function refactorCommand(
       if (options.verbose !== undefined) typeFixOpts.verbose = options.verbose;
       const result = await applyTypeFixes(analysis, projectRoot, typeFixOpts);
       appliedTypeFixes = result.success;
+    }
+
+    // Cache recommendations for fix --from-refactor integration
+    // Create enhanced analysis to get recommendations (same as printAnalysis does internally)
+    const enhanced = await createEnhancedAnalysis(analysis, projectRoot, resolved.targetPath);
+    if (enhanced.recommendations?.length > 0) {
+      cacheRecommendations(projectRoot, resolved.relativePath, enhanced.recommendations);
+      printAutoFixHint(enhanced.recommendations);
     }
 
     // Run typecheck after applying changes

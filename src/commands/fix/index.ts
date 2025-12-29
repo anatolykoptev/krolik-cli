@@ -342,6 +342,17 @@ function showBackupInfo(backup: BackupInfo, results: FixResult[]): void {
 
 import { formatAuditAge, hasAuditData, isAuditDataStale, readAuditData } from './audit-reader';
 
+// ============================================================================
+// REFACTOR INTEGRATION
+// ============================================================================
+
+import {
+  formatRefactorAge,
+  hasRefactorData,
+  isRefactorDataStale,
+  readRefactorData,
+} from './refactor-reader';
+
 /**
  * Run fix with cached audit data
  */
@@ -381,6 +392,66 @@ async function runFixFromAudit(
   return generateFixPlanFromIssues(projectRoot, result.issues, options);
 }
 
+/**
+ * Run fix with cached refactor data
+ *
+ * Uses auto-fixable recommendations from `krolik refactor` command.
+ */
+async function runFixFromRefactor(
+  projectRoot: string,
+  options: FixOptions,
+  logger: {
+    info: (msg: string) => void;
+    debug: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+  },
+): Promise<{ plans: FixPlan[]; skipStats: SkipStats; totalIssues: number } | null> {
+  // Check if refactor data exists
+  if (!hasRefactorData(projectRoot)) {
+    logger.error("No refactor data found. Run 'krolik refactor' first.");
+    console.log(chalk.dim('  Then use: krolik fix --from-refactor'));
+    return null;
+  }
+
+  // Warn if stale
+  if (isRefactorDataStale(projectRoot, 60)) {
+    logger.warn("Refactor data is stale (>1 hour old). Consider running 'krolik refactor' again.");
+  }
+
+  // Read refactor data (only auto-fixable recommendations)
+  const result = readRefactorData(projectRoot, true);
+  if (!result.success) {
+    logger.error(result.error);
+    return null;
+  }
+
+  const ageLabel = formatRefactorAge(result.age);
+  const autoFixableCount = result.recommendations.length;
+  logger.info(
+    `Using cached refactor data (${ageLabel}, ${autoFixableCount} auto-fixable recommendations)`,
+  );
+
+  if (autoFixableCount === 0) {
+    logger.info('No auto-fixable recommendations found in refactor analysis.');
+    return {
+      plans: [],
+      skipStats: {
+        noStrategy: 0,
+        noContent: 0,
+        contextSkipped: 0,
+        noFix: 0,
+        noFixer: 0,
+        categories: new Map(),
+      },
+      totalIssues: 0,
+    };
+  }
+
+  // Generate plan from converted issues
+  return generateFixPlanFromIssues(projectRoot, result.issues, options);
+}
+
 // ============================================================================
 // MAIN COMMAND
 // ============================================================================
@@ -398,10 +469,15 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
     // Step 1: Biome fixes
     if (await runBiomeStep(config.projectRoot, options, logger)) return;
 
-    // Step 2: Generate fix plan (from audit or fresh analysis)
+    // Step 2: Generate fix plan (from cache or fresh analysis)
     let planResult: { plans: FixPlan[]; skipStats: SkipStats; totalIssues: number };
 
-    if (options.fromAudit) {
+    if (options.fromRefactor) {
+      // Use cached refactor recommendations
+      const refactorResult = await runFixFromRefactor(config.projectRoot, options, logger);
+      if (!refactorResult) return;
+      planResult = refactorResult;
+    } else if (options.fromAudit) {
       // Use cached audit data
       const auditResult = await runFixFromAudit(config.projectRoot, options, logger);
       if (!auditResult) return;

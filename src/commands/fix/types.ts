@@ -35,7 +35,8 @@ export type QualityCategory =
   | 'agent' // AI agent operations
   | 'refine' // @namespace structure violations
   | 'security' // Command injection, path traversal, SQL injection
-  | 'modernization'; // Legacy patterns (require, sync fs)
+  | 'modernization' // Legacy patterns (require, sync fs)
+  | 'i18n'; // Hardcoded text that should be translated
 
 /**
  * A single quality issue found in a file
@@ -324,6 +325,13 @@ export interface FixOptions {
   fromAudit?: boolean;
   /** Only fix quick wins from audit (auto-fixable issues) */
   quickWinsOnly?: boolean;
+
+  // ============================================================================
+  // REFACTOR INTEGRATION (--from-refactor)
+  // ============================================================================
+
+  /** Use cached refactor analysis for auto-fixable recommendations */
+  fromRefactor?: boolean;
   /** Include risky fixers (requires explicit confirmation) */
   all?: boolean;
   /** Create backup before fixing */
@@ -382,6 +390,10 @@ export interface FixOptions {
   // SRP fixers
   /** Fix SRP violations (too many exports/functions) */
   fixSrp?: boolean;
+
+  // Refactor integration fixers
+  /** Fix duplicate functions (merge) */
+  fixDuplicate?: boolean;
 }
 
 /**

@@ -29,6 +29,7 @@ const CATEGORY_BASE_EFFORT: Record<QualityCategory, number> = {
   refine: 35, // @namespace structure migration
   security: 15, // Security vulnerability fix
   modernization: 10, // Legacy pattern update
+  i18n: 15, // Extract to translation key
 };
 
 /**

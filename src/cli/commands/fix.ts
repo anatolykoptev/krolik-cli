@@ -63,6 +63,7 @@ function buildFixerFlags(options: CommandOptions): Record<string, boolean | unde
     fixMagicNumbers: options.fixMagicNumbers as boolean | undefined,
     fixUrls: options.fixUrls as boolean | undefined,
     fixSrp: options.fixSrp as boolean | undefined,
+    fixDuplicate: options.fixDuplicate as boolean | undefined,
   };
 }
 
@@ -81,6 +82,7 @@ function buildContextOptions(options: CommandOptions): Record<string, unknown> {
     dryRun: options.dryRun,
     showDiff: options.dryRun, // Always show diff in dry-run
     fromAudit: options.fromAudit,
+    fromRefactor: options.fromRefactor,
     format: 'ai', // Always AI format
   };
 }
@@ -112,6 +114,7 @@ Examples:
     .option('--quick', 'Trivial fixes only (console, debugger, alert)')
     .option('--all', 'Include risky fixers + auto-backup')
     .option('--from-audit', 'Use cached audit data')
+    .option('--from-refactor', 'Use cached refactor data (auto-fixable recommendations)')
     .option('--limit <n>', 'Max fixes to apply', parseInt)
     .option('--yes', 'Auto-confirm all fixes')
     // Fixer modules (10) - for granular control
@@ -125,6 +128,7 @@ Examples:
     .option('--fix-magic-numbers', 'Fix magic numbers')
     .option('--fix-urls', 'Fix hardcoded URLs')
     .option('--fix-srp', 'Fix SRP violations')
+    .option('--fix-duplicate', 'Fix duplicate functions (merge)')
     .action(async (options: CommandOptions) => {
       const { runFix } = await import('../../commands/fix');
       const contextOptions = buildContextOptions(options);

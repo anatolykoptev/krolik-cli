@@ -65,6 +65,7 @@ const CATEGORY_PRIORITY: Record<QualityCategory, PriorityLevel> = {
   agent: 'medium', // AI operations
   refine: 'high', // @namespace structure
   modernization: 'low', // Legacy patterns (require, sync fs)
+  i18n: 'medium', // Localization improvements
 };
 
 // ============================================================================
@@ -276,6 +277,7 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     refine: '@Namespace Structure Issues',
     security: 'Security Issues',
     modernization: 'Legacy Code Patterns',
+    i18n: 'Hardcoded Text (I18n)',
   };
 
   const descriptions: Record<QualityCategory, string> = {
@@ -293,6 +295,7 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     refine: 'Migrate lib/ to @namespace pattern',
     security: 'Fix security vulnerabilities and unsafe patterns',
     modernization: 'Update require() to import and sync fs to async',
+    i18n: 'Extract hardcoded text to translation keys',
   };
 
   const group = createGroup(`category:${category}`, issues, titles[category]);
