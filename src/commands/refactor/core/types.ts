@@ -10,17 +10,22 @@
 // ============================================================================
 
 /**
+ * Location of a duplicate function/export
+ */
+export interface DuplicateLocation {
+  file: string;
+  line: number;
+  exported: boolean;
+}
+
+/**
  * Detected duplicate function/export
  */
 export interface DuplicateInfo {
   /** Function/export name */
   name: string;
   /** File locations where found */
-  locations: Array<{
-    file: string;
-    line: number;
-    exported: boolean;
-  }>;
+  locations: DuplicateLocation[];
   /** Similarity score 0-1 (1 = identical) */
   similarity: number;
   /** Recommendation */

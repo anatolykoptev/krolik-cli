@@ -45,6 +45,7 @@ export {
 } from './parsing';
 // Pattern detection utilities
 export {
+  isCommonCallbackPattern,
   isPlaceholderName,
   isShortVerbPrefix,
   isSuffixOnlyName,

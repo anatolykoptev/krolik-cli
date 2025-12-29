@@ -6,10 +6,15 @@
 import { detectNamingPattern } from '@/lib/@discovery/reusables';
 import { GENERIC_STRUCTURAL_PATTERNS } from './constants';
 import { getVowelRatio, isAbbreviation, splitIntoSegments } from './linguistic';
-import { isPlaceholderName, isShortVerbPrefix, isSuffixOnlyName } from './patterns';
+import {
+  isCommonCallbackPattern,
+  isPlaceholderName,
+  isShortVerbPrefix,
+  isSuffixOnlyName,
+} from './patterns';
 
 // Re-export pattern functions for backward compatibility
-export { isPlaceholderName, isSuffixOnlyName } from './patterns';
+export { isCommonCallbackPattern, isPlaceholderName, isSuffixOnlyName } from './patterns';
 
 /**
  * Check if a function name is likely generic/not meaningful for duplicate detection
@@ -48,6 +53,9 @@ export function isMeaningfulFunctionName(name: string): boolean {
 
   // Must be at least 4 chars
   if (name.length < 4) return false;
+
+  // Skip common callback patterns - they repeat everywhere by design
+  if (isCommonCallbackPattern(name)) return false;
 
   // 1. Check if it matches a recognized naming pattern from @reusable
   const namedPattern = detectNamingPattern(name);

@@ -59,10 +59,14 @@ function planDuplicateActions(
       const [keep, ...remove] = dup.locations;
       if (!keep) continue;
 
+      const targetRel = normalizeToRelative(keep.file, libPath);
+
       for (const loc of remove) {
         // Normalize paths to be relative to lib
         const sourceRel = normalizeToRelative(loc.file, libPath);
-        const targetRel = normalizeToRelative(keep.file, libPath);
+
+        // Skip if source and target are the same file
+        if (sourceRel === targetRel) continue;
 
         actions.push({
           type: 'merge',

@@ -137,6 +137,55 @@ export function isPlaceholderName(name: string): boolean {
 }
 
 /**
+ * Detect common callback/handler patterns that are expected to repeat
+ * across different components (e.g., handleSubmit, onChange, onLoadingChange)
+ *
+ * These are NOT real duplicates - they are naming conventions for event handlers
+ */
+export function isCommonCallbackPattern(name: string): boolean {
+  // 1. handle* patterns (handleSubmit, handleChange, handleClick, etc.)
+  if (/^handle[A-Z][a-zA-Z]*$/.test(name)) {
+    return true;
+  }
+
+  // 2. on*Change patterns (onLoadingChange, onValueChange, etc.)
+  if (/^on[A-Z][a-zA-Z]*Change$/.test(name)) {
+    return true;
+  }
+
+  // 3. on*Click patterns (onClick, onButtonClick, etc.)
+  if (/^on[A-Z]?[a-zA-Z]*Click$/.test(name)) {
+    return true;
+  }
+
+  // 4. on*Submit patterns
+  if (/^on[A-Z]?[a-zA-Z]*Submit$/.test(name)) {
+    return true;
+  }
+
+  // 5. Common React lifecycle/effect patterns
+  if (/^use[A-Z][a-zA-Z]*Effect$/.test(name)) {
+    return true;
+  }
+
+  // 6. Common form field handlers
+  if (/^(onChange|onBlur|onFocus|onInput|onKeyDown|onKeyUp|onKeyPress)$/.test(name)) {
+    return true;
+  }
+
+  // 7. Common event handlers that repeat everywhere
+  if (
+    /^(onClose|onOpen|onToggle|onSelect|onClear|onReset|onCancel|onConfirm|onSave|onDelete|onEdit|onAdd|onRemove)$/.test(
+      name,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Dynamically detect short verb prefixes that need a subject
  */
 export function isShortVerbPrefix(name: string): boolean {

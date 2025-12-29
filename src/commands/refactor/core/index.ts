@@ -19,6 +19,7 @@ export type {
   DirectoryInfo,
   // Duplicate detection
   DuplicateInfo,
+  DuplicateLocation,
   FunctionSignature,
   // Migration
   MigrationAction,

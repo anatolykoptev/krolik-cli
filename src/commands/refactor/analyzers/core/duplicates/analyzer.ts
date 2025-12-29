@@ -5,11 +5,40 @@
 
 import { findFiles, readFile } from '../../../../../lib';
 import type { Project } from '../../../../../lib/@ast';
-import type { DuplicateInfo, FunctionSignature } from '../../../core';
+import type { DuplicateInfo, DuplicateLocation, FunctionSignature } from '../../../core';
 import { SIMILARITY_THRESHOLDS } from '../../shared';
 import { isMeaningfulFunctionName } from './name-detection';
 import { findSourceFiles, parseFilesWithSwc, parseFilesWithTsMorph } from './parsing';
 import { calculateGroupSimilarity } from './similarity';
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Deduplicate locations by file:line key
+ * Returns unique locations and whether there are multiple unique files
+ */
+function deduplicateLocations(funcs: FunctionSignature[]): {
+  locations: DuplicateLocation[];
+  uniqueFileCount: number;
+} {
+  const seen = new Map<string, DuplicateLocation>();
+  const uniqueFiles = new Set<string>();
+
+  for (const f of funcs) {
+    const key = `${f.file}:${f.line}`;
+    if (!seen.has(key)) {
+      seen.set(key, { file: f.file, line: f.line, exported: f.exported });
+      uniqueFiles.add(f.file);
+    }
+  }
+
+  return {
+    locations: [...seen.values()],
+    uniqueFileCount: uniqueFiles.size,
+  };
+}
 
 /**
  * Options for duplicate detection
@@ -57,6 +86,15 @@ export async function findDuplicates(
   for (const [name, funcs] of byName) {
     if (funcs.length < 2) continue;
 
+    // Deduplicate locations and check if there are multiple unique files
+    const { locations, uniqueFileCount } = deduplicateLocations(funcs);
+
+    // Skip if all occurrences are in the same file (not a real duplicate)
+    if (uniqueFileCount < 2) continue;
+
+    // Skip if only one unique location after deduplication
+    if (locations.length < 2) continue;
+
     const similarity = calculateGroupSimilarity(funcs);
 
     let recommendation: 'merge' | 'rename' | 'keep-both' = 'keep-both';
@@ -68,11 +106,7 @@ export async function findDuplicates(
 
     duplicates.push({
       name,
-      locations: funcs.map((f) => ({
-        file: f.file,
-        line: f.line,
-        exported: f.exported,
-      })),
+      locations,
       similarity,
       recommendation,
     });
@@ -91,6 +125,15 @@ export async function findDuplicates(
   for (const [, funcs] of byHash) {
     if (funcs.length < 2) continue;
 
+    // Deduplicate locations and check if there are multiple unique files
+    const { locations, uniqueFileCount } = deduplicateLocations(funcs);
+
+    // Skip if all occurrences are in the same file
+    if (uniqueFileCount < 2) continue;
+
+    // Skip if only one unique location after deduplication
+    if (locations.length < 2) continue;
+
     const uniqueNames = new Set(funcs.map((f) => f.name));
     if (uniqueNames.size === 1) continue;
 
@@ -104,11 +147,7 @@ export async function findDuplicates(
 
     duplicates.push({
       name: `[identical body] ${sortedNames.join(' / ')}`,
-      locations: funcs.map((f) => ({
-        file: f.file,
-        line: f.line,
-        exported: f.exported,
-      })),
+      locations,
       similarity: 1,
       recommendation: 'merge',
     });
