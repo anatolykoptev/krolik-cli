@@ -6,9 +6,9 @@
  * Uses shared context from @lib/@context
  */
 
-import { DEFAULT_MAX_NESTING } from '../../../lib/@patterns/complexity';
-import { isCliFile } from '../../../lib/@patterns/file-context';
-import { LINT_RULES, type LintRule } from '../../../lib/@patterns/lint';
+import { DEFAULT_MAX_NESTING } from '../../../lib/@detectors/complexity';
+import { isCliFile } from '../../../lib/@detectors/file-context';
+import { LINT_RULES, type LintRule } from '../../../lib/@detectors/lint';
 import type { QualityIssue } from '../types';
 
 /**

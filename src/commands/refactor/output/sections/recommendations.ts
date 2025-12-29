@@ -3,7 +3,7 @@
  * @description Recommendations section formatter with priority sorting and output limits
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type { EnhancedRefactorAnalysis, Recommendation } from '../../core';
 import { deduplicateRecommendations, sortByPriority } from '../helpers';
 import { applyLimit, type SectionLimits } from '../limits';

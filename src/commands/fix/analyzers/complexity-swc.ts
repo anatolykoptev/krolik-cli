@@ -17,7 +17,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import { offsetToLine, parseFile, visitNode } from '../../../lib/parsing/swc';
+import { offsetToLine, parseFile, visitNode } from '../../../lib/@ast/swc';
 import type { FunctionInfo, SplitSuggestion } from '../types';
 
 // ============================================================================

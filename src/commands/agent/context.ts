@@ -6,10 +6,10 @@
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { detectLibraries } from '@/lib/integrations/context7';
-import { searchDocs } from '@/lib/storage/docs';
-import type { Memory } from '@/lib/storage/memory';
-import { search, searchByFeatures } from '@/lib/storage/memory';
+import { detectLibraries } from '@/lib/@integrations/context7';
+import { searchDocs } from '@/lib/@storage/docs';
+import type { Memory } from '@/lib/@storage/memory';
+import { search, searchByFeatures } from '@/lib/@storage/memory';
 import type { AgentContext, AgentOptions, LibraryDocSnippet } from './types';
 
 /**

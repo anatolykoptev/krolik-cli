@@ -3,7 +3,7 @@
  * @description Dynamic function name detection without hardcoded word lists
  */
 
-import { detectNamingPattern } from '@/lib/modules';
+import { detectNamingPattern } from '@/lib/@discovery/reusables';
 import { GENERIC_STRUCTURAL_PATTERNS } from './constants';
 import { getVowelRatio, isAbbreviation, splitIntoSegments } from './linguistic';
 import { isPlaceholderName, isShortVerbPrefix, isSuffixOnlyName } from './patterns';

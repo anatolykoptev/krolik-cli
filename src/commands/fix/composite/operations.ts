@@ -13,7 +13,7 @@ import * as path from 'node:path';
 import { Glob } from 'glob';
 import { SyntaxKind } from 'ts-morph';
 import { astPool } from '@/lib/@ast';
-import { escapeRegex } from '../../../lib/security/regex';
+import { escapeRegex } from '../../../lib/@security/regex';
 import type { FixOperation } from '../types';
 import type {
   CompositeStep,

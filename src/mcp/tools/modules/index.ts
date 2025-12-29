@@ -11,7 +11,7 @@ import {
   type ModuleExport,
   scanLibModules,
   searchExports,
-} from '../../../lib/discovery';
+} from '../../../lib/@discovery';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { escapeXml, truncate } from '../core/formatting';
 import { resolveProjectPath } from '../core/projects';

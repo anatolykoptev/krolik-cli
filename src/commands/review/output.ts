@@ -3,7 +3,7 @@
  * @description Review output formatters
  */
 
-import { escapeXml, formatJson as formatJsonBase } from '@/lib/format';
+import { escapeXml, formatJson as formatJsonBase } from '@/lib/@format';
 import type { Logger, ReviewResult } from '../../types';
 
 /**

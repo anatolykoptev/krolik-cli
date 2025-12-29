@@ -8,7 +8,7 @@
  * - Rollback point display mode (full list vs collapsed count)
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type { EnhancedMigrationAction, EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateAffectedFiles, deduplicateMigrationActions, sortByOrder } from '../helpers';
 import { applyLimit, type SectionLimits } from '../limits';

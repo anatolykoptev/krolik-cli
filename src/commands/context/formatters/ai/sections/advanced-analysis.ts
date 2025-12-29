@@ -3,7 +3,7 @@
  * @description Formatters for advanced analysis sections: Import Graph, DB Relations, API Contracts, Env Vars
  */
 
-import { detectEnvVarSeverity } from '@/lib/@patterns';
+import { detectEnvVarSeverity } from '@/lib/@detectors';
 import type { AiContextData } from '../../../types';
 import { escapeXml, MAX_ITEMS_LARGE, MAX_ITEMS_MEDIUM, MAX_SIZE } from '../helpers';
 

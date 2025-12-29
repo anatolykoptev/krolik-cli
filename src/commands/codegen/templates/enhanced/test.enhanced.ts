@@ -3,7 +3,7 @@
  * @description Docs-enhanced test file template
  */
 
-import { toPascalCase } from '@/lib/format';
+import { toPascalCase } from '@/lib/@format';
 import type { DocHints } from '../../services/types';
 
 /**

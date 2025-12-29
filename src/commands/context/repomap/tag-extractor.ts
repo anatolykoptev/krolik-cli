@@ -19,8 +19,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { Node } from '@swc/core';
-import { scanDirectorySync } from '@/lib/core/fs';
-import { getNodeType, offsetToLine, parseFile, visitNodeWithCallbacks } from '@/lib/parsing/swc';
+import { getNodeType, offsetToLine, parseFile, visitNodeWithCallbacks } from '@/lib/@ast/swc';
+import { scanDirectorySync } from '@/lib/@core/fs';
 import type { SymbolGraph, Tag } from './types.js';
 
 /**

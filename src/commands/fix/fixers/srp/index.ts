@@ -13,7 +13,7 @@ import {
   type FunctionInfo,
   parseCode,
 } from '../../../../lib/@ast';
-import { extractVerbPrefix } from '../../../../lib/@patterns';
+import { extractVerbPrefix } from '../../../../lib/@detectors';
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 

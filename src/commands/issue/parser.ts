@@ -3,7 +3,7 @@
  * @description GitHub issue body parsing utilities
  */
 
-import { CODE_FILE_EXTENSIONS } from '@/lib/constants/file-patterns';
+import { CODE_FILE_EXTENSIONS } from '@/lib/@constants/file-patterns';
 import type { Priority } from '@/types/severity';
 
 // Re-export Priority for backwards compatibility

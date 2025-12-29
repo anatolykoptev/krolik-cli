@@ -33,9 +33,13 @@ import * as path from 'node:path';
 
 import type { Node } from '@swc/core';
 import {
-  detectLanguage as detectLanguageFromI18n,
-  isUserFacingText as isUserFacingTextFromI18n,
-} from '../../../../lib/@i18n';
+  getNodeType,
+  getSnippet,
+  offsetToPosition,
+  parseFile,
+  visitNode,
+} from '../../../../lib/@ast/swc';
+import { findFiles, readFile, relativePath } from '../../../../lib/@core';
 import {
   CATEGORY_BY_ATTRIBUTE,
   CATEGORY_BY_COMPONENT,
@@ -45,15 +49,11 @@ import {
   I18N_SKIP_FILE_PATTERNS,
   isTechnicalString,
   SKIP_ATTRIBUTES,
-} from '../../../../lib/@patterns/i18n';
-import { findFiles, readFile, relativePath } from '../../../../lib/core';
+} from '../../../../lib/@detectors/i18n';
 import {
-  getNodeType,
-  getSnippet,
-  offsetToPosition,
-  parseFile,
-  visitNode,
-} from '../../../../lib/parsing/swc';
+  detectLanguage as detectLanguageFromI18n,
+  isUserFacingText as isUserFacingTextFromI18n,
+} from '../../../../lib/@i18n';
 
 import type {
   ComponentI18nGroup,

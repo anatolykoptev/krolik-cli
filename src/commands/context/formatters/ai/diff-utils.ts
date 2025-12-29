@@ -3,7 +3,7 @@
  * @description Smart diff truncation and filtering for AI context
  */
 
-import { MAX_DIFF_LINES } from '@/lib/format';
+import { MAX_DIFF_LINES } from '@/lib/@format';
 
 // File extension priorities (higher = more important)
 const EXTENSION_PRIORITY: Record<string, number> = {

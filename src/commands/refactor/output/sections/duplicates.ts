@@ -7,7 +7,7 @@
  * - Number of locations shown per duplicate
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type { EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateDuplicates, sortBySimilarity } from '../helpers';
 import { applyLimit, type SectionLimits } from '../limits';

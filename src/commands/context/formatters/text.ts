@@ -10,7 +10,7 @@ import {
   heading,
   horizontalRule,
   inlineCode,
-} from '@/lib/format';
+} from '@/lib/@format';
 import type { ContextResult, Logger } from '../../../types';
 
 const MAX_BODY_LENGTH = 500;

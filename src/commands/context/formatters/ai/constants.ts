@@ -6,7 +6,7 @@
  * Local constants are kept for values specific to this formatter.
  */
 
-import { MAX_INLINE_LIST_ITEMS, MAX_MEMORY_ITEMS, MAX_PATH_LENGTH } from '@/lib/format';
+import { MAX_INLINE_LIST_ITEMS, MAX_MEMORY_ITEMS, MAX_PATH_LENGTH } from '@/lib/@format';
 
 // Re-export optimizer constants for convenience
 export { MAX_INLINE_LIST_ITEMS, MAX_MEMORY_ITEMS, MAX_PATH_LENGTH };

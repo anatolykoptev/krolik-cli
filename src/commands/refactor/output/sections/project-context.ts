@@ -3,7 +3,7 @@
  * @description Project context section formatter
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type { EnhancedRefactorAnalysis } from '../../core';
 
 /**

@@ -13,7 +13,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanDirectory } from '@/lib/core/fs';
+import { scanDirectory } from '@/lib/@core/fs';
 
 /**
  * Field definition in Zod schema

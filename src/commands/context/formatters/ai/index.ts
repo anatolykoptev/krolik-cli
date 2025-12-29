@@ -15,8 +15,8 @@
  * P3 (Low - details on demand): tree, github-issues, library-docs, etc.
  */
 
+import { optimizeXml } from '../../../../lib/@format';
 import { getDomainKeywords } from '../../../../lib/domains';
-import { optimizeXml } from '../../../../lib/format';
 import type { AiContextData } from '../../types';
 import {
   formatApiContractsSection,

@@ -3,7 +3,7 @@
  * @description Docs-enhanced tRPC route template
  */
 
-import { toCamelCase, toPascalCase } from '@/lib/format';
+import { toCamelCase, toPascalCase } from '@/lib/@format';
 import type { DocHints } from '../../services/types';
 
 /**

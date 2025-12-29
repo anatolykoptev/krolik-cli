@@ -6,7 +6,7 @@
  * Always safe to remove - these are debugging artifacts.
  */
 
-import { isInsideLineComment, isInsideStringLine } from '../../../../lib/parsing/swc';
+import { isInsideLineComment, isInsideStringLine } from '../../../../lib/@ast/swc';
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 import {

@@ -15,7 +15,7 @@ import {
   save,
   search,
   stats,
-} from '@/lib/storage/memory';
+} from '@/lib/@storage/memory';
 import { getCurrentBranch, getRecentCommits } from '../../lib/@git';
 import type { CommandContext, OutputFormat } from '../../types';
 

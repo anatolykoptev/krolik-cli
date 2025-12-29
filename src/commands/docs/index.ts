@@ -10,14 +10,14 @@ import {
   getSuggestions,
   hasContext7ApiKey,
   resolveLibraryId,
-} from '@/lib/integrations/context7';
+} from '@/lib/@integrations/context7';
 import {
   clearExpired,
   deleteLibrary,
   getLibraryByName,
   listLibraries,
   searchDocs,
-} from '@/lib/storage/docs';
+} from '@/lib/@storage/docs';
 import type { CommandContext, OutputFormat } from '../../types';
 
 interface DocsFetchOptions {

@@ -18,12 +18,11 @@
 
 // Configuration
 export { defineConfig, getConfig, loadConfig } from './config';
-export { getCurrentBranch, getStatus, isGitRepo } from './lib/@git';
-export { findFiles, readFile, writeFile } from './lib/core/fs';
-
+export { findFiles, readFile, writeFile } from './lib/@core/fs';
 // Library utilities (for advanced usage)
-export { createLogger } from './lib/core/logger';
-export { exec, execLines, tryExec } from './lib/core/shell';
+export { createLogger } from './lib/@core/logger';
+export { exec, execLines, tryExec } from './lib/@core/shell';
+export { getCurrentBranch, getStatus, isGitRepo } from './lib/@git';
 // Types
 // Command types
 export type {

@@ -3,7 +3,7 @@
  * @description Linguistic analysis utilities for name detection
  */
 
-import { extractVerbPrefix } from '../../../../../lib/@patterns';
+import { extractVerbPrefix } from '../../../../../lib/@detectors';
 
 /**
  * Split name into semantic segments (camelCase/snake_case)

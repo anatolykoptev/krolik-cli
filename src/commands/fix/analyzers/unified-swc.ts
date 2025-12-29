@@ -30,8 +30,8 @@
 
 import type { Node, Span } from '@swc/core';
 import { parseSync } from '@swc/core';
-import { isCliFile, shouldSkipForAnalysis } from '../../../lib/@patterns';
-import { shouldSkipFile } from '../../../lib/@patterns/hardcoded/index';
+import { calculateLineOffsets, getContext, getSnippet, offsetToLine } from '../../../lib/@ast/swc';
+import { isCliFile, shouldSkipForAnalysis } from '../../../lib/@detectors';
 import {
   type DetectorContext,
   detectHardcodedValue,
@@ -49,16 +49,11 @@ import {
   type ReturnTypeDetection,
   type SecurityDetection,
   type TypeSafetyDetection,
-} from '../../../lib/@swc/detectors';
-import {
-  calculateLineOffsets,
-  getContext,
-  getSnippet,
-  offsetToLine,
-} from '../../../lib/parsing/swc';
+} from '../../../lib/@detectors/ast';
+import { shouldSkipFile } from '../../../lib/@detectors/hardcoded/index';
 import type { FunctionInfo, HardcodedValue, QualityIssue } from '../types';
 
-// Note: All detection types and functions are now imported from lib/@swc/detectors
+// Note: All detection types and functions are now imported from lib/@detectors/ast
 
 // Default thresholds for complexity detection
 const DEFAULT_MAX_COMPLEXITY = 10;

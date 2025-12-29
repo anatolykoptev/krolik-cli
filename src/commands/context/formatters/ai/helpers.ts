@@ -2,11 +2,11 @@
  * @module commands/context/formatters/ai/helpers
  * @description Helper utilities for AI XML formatter
  *
- * NOTE: All formatters and utilities are now consolidated in '@/lib/format'.
+ * NOTE: All formatters and utilities are now consolidated in '@/lib/@format'.
  */
 
 // Re-export from lib/format for backwards compatibility
-export { abbreviatePath, escapeXml, truncate } from '@/lib/format';
+export { abbreviatePath, escapeXml, truncate } from '@/lib/@format';
 
 // Re-export constants for convenience (includes optimizer constants)
 export {

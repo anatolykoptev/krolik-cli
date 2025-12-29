@@ -4,7 +4,7 @@
  *
  * This module provides formatting utilities for displaying signatures in the
  * Aider-style repo map format. The core extraction logic has been moved to
- * `@/lib/parsing/signatures` for reusability.
+ * `@/lib/@ast/signatures` for reusability.
  *
  * @example
  * import { extractSignatures, formatSignaturesForFile } from './signatures';
@@ -19,15 +19,15 @@
  */
 
 // Re-export types
-export type { Signature, SignatureOptions } from '@/lib/parsing/signatures';
+export type { Signature, SignatureOptions } from '@/lib/@ast/signatures';
 // Re-export core extraction functionality from lib
 export {
   extractSignatures,
   extractSignaturesFromFiles,
-} from '@/lib/parsing/signatures';
+} from '@/lib/@ast/signatures';
 
 // Import Signature type for formatting functions
-import type { Signature } from '@/lib/parsing/signatures';
+import type { Signature } from '@/lib/@ast/signatures';
 
 // ============================================================================
 // AIDER-STYLE FORMATTING

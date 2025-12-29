@@ -28,13 +28,8 @@
 
 import type { Node, Span } from '@swc/core';
 import { parseSync } from '@swc/core';
-import { shouldSkipForAnalysis } from '../../../lib/@patterns';
-import {
-  calculateLineOffsets,
-  getSnippet,
-  offsetToLine,
-  visitNode,
-} from '../../../lib/parsing/swc';
+import { calculateLineOffsets, getSnippet, offsetToLine, visitNode } from '../../../lib/@ast/swc';
+import { shouldSkipForAnalysis } from '../../../lib/@detectors';
 import type { QualityIssue } from '../types';
 
 /**

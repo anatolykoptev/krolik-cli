@@ -3,7 +3,7 @@
  * @description GitHub CLI (gh) wrapper utilities
  */
 
-import { execLines, shellOpts, tryExec } from '../core/shell';
+import { execLines, shellOpts, tryExec } from '../@core/shell';
 
 /**
  * GitHub issue information

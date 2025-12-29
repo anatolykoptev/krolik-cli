@@ -16,7 +16,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { glob } from 'glob';
 import { fileCache, validatePathWithinProject } from '@/lib';
-import { getIgnorePatterns } from '@/lib/constants';
+import { getIgnorePatterns } from '@/lib/@constants';
 import { analyzeFile } from './analyzers';
 import { runFixerAnalysis } from './core/runner';
 

@@ -3,7 +3,7 @@
  * @description Routes output formatters
  */
 
-import { formatJson as formatJsonBase } from '@/lib/format';
+import { formatJson as formatJsonBase } from '@/lib/@format';
 import type { Logger } from '../../types';
 import type { TrpcRouter } from './parser';
 

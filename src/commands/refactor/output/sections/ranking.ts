@@ -8,7 +8,7 @@
  * - Safe refactoring order (topological phases)
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type {
   CouplingMetrics,
   DependencyHotspot,

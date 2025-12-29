@@ -3,7 +3,7 @@
  * @description Schema output formatters (text, json, markdown)
  */
 
-import { formatJson as formatJsonBase } from '@/lib/format';
+import { formatJson as formatJsonBase } from '@/lib/@format';
 import type { Logger } from '../../types';
 import { groupByDomain, groupByFile } from './grouping';
 import type { PrismaEnum, PrismaModel } from './parser';

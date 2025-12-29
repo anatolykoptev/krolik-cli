@@ -16,7 +16,7 @@ import {
   recent,
   save,
   search,
-} from '@/lib/storage/memory';
+} from '@/lib/@storage/memory';
 import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@git';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { formatError, formatMCPError } from '../core/errors';

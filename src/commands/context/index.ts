@@ -10,9 +10,9 @@ import {
   fetchAndCacheDocs,
   getSuggestions,
   hasContext7ApiKey,
-} from '@/lib/integrations/context7';
-import { getSectionsByLibrary, searchDocs } from '@/lib/storage/docs';
-import { type Memory, search as searchMemory } from '@/lib/storage/memory';
+} from '@/lib/@integrations/context7';
+import { getSectionsByLibrary, searchDocs } from '@/lib/@storage/docs';
+import { type Memory, search as searchMemory } from '@/lib/@storage/memory';
 import {
   getCurrentBranch,
   getDiff,

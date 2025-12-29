@@ -9,10 +9,10 @@
  * - Skill: progressive disclosure knowledge (SKILL.md in skills/[name]/ folder)
  */
 
-import type { Memory } from '@/lib/storage/memory';
+import type { Memory } from '@/lib/@storage/memory';
 import type { OutputFormat } from '../../types';
 
-export type { Memory } from '@/lib/storage/memory';
+export type { Memory } from '@/lib/@storage/memory';
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@git';

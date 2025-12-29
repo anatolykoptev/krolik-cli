@@ -6,7 +6,7 @@
  * Uses AST for safe transformations.
  */
 
-import { isInsideStringLine } from '../../../../lib/parsing/swc';
+import { isInsideStringLine } from '../../../../lib/@ast/swc';
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 

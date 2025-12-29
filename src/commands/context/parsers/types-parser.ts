@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanDirectory } from '@/lib/core/fs';
+import { scanDirectory } from '@/lib/@core/fs';
 import type { ExtractedType, ImportItem, ImportRelation, TypeProperty } from './types';
 
 const MAX_TYPES_PER_FILE = 10;

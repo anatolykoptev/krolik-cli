@@ -15,7 +15,7 @@
  * 4. Priority-ordered items
  */
 
-import { abbreviateSeverity } from '@/lib/format';
+import { abbreviateSeverity } from '@/lib/@format';
 import type { AiContextData } from '../../../types';
 
 /** Severity levels for issues */

@@ -3,7 +3,7 @@
  * @description Reusable modules section formatter
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type {
   EnhancedRefactorAnalysis,
   ReusableModuleSummary,

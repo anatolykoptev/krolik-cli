@@ -3,7 +3,7 @@
  * @description XML/AI-friendly format output
  */
 
-import { optimizeXml } from '../../../lib/format';
+import { optimizeXml } from '../../../lib/@format';
 import type { StatusResult } from '../../../types';
 import { determineNextAction } from './shared';
 

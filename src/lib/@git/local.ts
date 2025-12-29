@@ -8,8 +8,8 @@
  * - 5-second TTL cache to reduce redundant git operations
  */
 
-import { execLines, shellOpts, tryExec } from '../core/shell';
-import { escapeShellArg } from '../security';
+import { execLines, shellOpts, tryExec } from '../@core/shell';
+import { escapeShellArg } from '../@security';
 import type { GitAheadBehind, GitCommit, GitStatus } from './types';
 
 // ============================================================================

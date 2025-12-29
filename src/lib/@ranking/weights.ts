@@ -18,7 +18,7 @@
  * ```
  */
 
-import { detectNamingPattern } from '@/lib/modules/signals';
+import { detectNamingPattern } from '@/lib/@discovery/reusables/signals';
 import type { FeatureDomainMatch, SymbolWeightContext } from './types.js';
 
 // ============================================================================

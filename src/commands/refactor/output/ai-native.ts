@@ -32,7 +32,7 @@
  * </refactor-analysis>
  */
 
-import { optimizeXml } from '../../../lib/format';
+import { optimizeXml } from '../../../lib/@format';
 import type { EnhancedRefactorAnalysis } from '../core';
 import { getLimits, type OutputLevel, type SectionLimits, selectOutputLevel } from './limits';
 import {

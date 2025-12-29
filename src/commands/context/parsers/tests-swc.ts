@@ -13,13 +13,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { CallExpression, Identifier, Node } from '@swc/core';
-import { scanDirectory } from '@/lib/core/fs';
-import {
-  extractStringArg,
-  getNodeType,
-  parseFile,
-  visitNodeWithCallbacks,
-} from '@/lib/parsing/swc';
+import { extractStringArg, getNodeType, parseFile, visitNodeWithCallbacks } from '@/lib/@ast/swc';
+import { scanDirectory } from '@/lib/@core/fs';
 import type { TestInfo } from './types';
 
 const MAX_TESTS_PER_DESCRIBE = 15;

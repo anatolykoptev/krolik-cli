@@ -3,7 +3,7 @@
  * @description Architecture health section formatter
  */
 
-import { escapeXml } from '../../../../lib/format';
+import { escapeXml } from '../../../../lib/@format';
 import type { ArchViolation, EnhancedRefactorAnalysis } from '../../core';
 import { deduplicateViolations, sortBySeverity } from '../helpers';
 

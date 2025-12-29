@@ -3,8 +3,8 @@
  * @description Docs-enhanced Prisma to Zod schema template
  */
 
+import { toCamelCase } from '@/lib/@format';
 import { fieldToZod } from '@/lib/@prisma';
-import { toCamelCase } from '@/lib/format';
 import type { PrismaEnum, PrismaModel } from '../../generators/prisma-zod';
 import type { DocHints } from '../../services/types';
 

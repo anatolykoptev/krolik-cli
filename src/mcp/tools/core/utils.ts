@@ -127,11 +127,13 @@ export function runKrolik(args: string, projectRoot: string, timeout = 30000): s
   const argArray = parseCommandArgs(args);
 
   // Use node with absolute path to CLI instead of npx (package not published)
+  // maxBuffer: 50MB to handle large outputs (default 1MB causes truncation)
   const result = spawnSync('node', [CLI_PATH, ...argArray], {
     cwd: projectRoot,
     encoding: 'utf-8',
     timeout,
     stdio: ['pipe', 'pipe', 'pipe'],
+    maxBuffer: 50 * 1024 * 1024,
   });
 
   // Handle spawn errors (e.g., node executable not found)
