@@ -132,6 +132,8 @@ export interface EnhancedAnalysisOptions {
   includeFileSize?: boolean;
   /** Include PageRank-based ranking analysis (default: true) */
   includeRanking?: boolean;
+  /** Quick mode: only ranking, skip slow analyses (default: false) */
+  quickMode?: boolean;
 }
 
 /**
@@ -143,7 +145,12 @@ export async function createEnhancedAnalysis(
   targetPath: string,
   options: EnhancedAnalysisOptions = {},
 ): Promise<EnhancedRefactorAnalysis> {
-  const { includeReusable = true, includeFileSize = true, includeRanking = true } = options;
+  const {
+    includeReusable = true,
+    includeFileSize = true,
+    includeRanking = true,
+    quickMode = false,
+  } = options;
 
   // Detect project context
   const projectContext = detectProjectContext(projectRoot);
@@ -163,9 +170,9 @@ export async function createEnhancedAnalysis(
   // Create enhanced migration plan
   const enhancedMigration = createEnhancedMigrationPlan(baseAnalysis.migration, archHealth);
 
-  // Analyze reusable modules
+  // Analyze reusable modules (skip in quick mode)
   let reusableModules: ReusableModulesInfo | undefined;
-  if (includeReusable) {
+  if (includeReusable && !quickMode) {
     try {
       reusableModules = await analyzeReusableModules(projectRoot, targetPath);
     } catch {
@@ -173,9 +180,9 @@ export async function createEnhancedAnalysis(
     }
   }
 
-  // Analyze file sizes
+  // Analyze file sizes (skip in quick mode)
   let fileSizeAnalysis: FileSizeAnalysis | undefined;
-  if (includeFileSize) {
+  if (includeFileSize && !quickMode) {
     try {
       fileSizeAnalysis = analyzeFileSizes(targetPath, projectRoot);
     } catch {

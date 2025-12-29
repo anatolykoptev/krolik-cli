@@ -278,20 +278,19 @@ export async function printAnalysis(
   const format = options.format ?? 'text';
   const mode = resolveMode(options);
 
-  // Skip enhanced analysis in quick mode for faster execution (~2s savings)
-  if (mode !== 'quick') {
-    // Generate enhanced XML for saving
-    const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath);
-    const xmlOutput = formatAiNativeXml(enhanced, { mode });
+  // Generate enhanced analysis (quick mode skips slow parts but keeps ranking)
+  const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath, {
+    quickMode: mode === 'quick',
+  });
+  const xmlOutput = formatAiNativeXml(enhanced, { mode });
 
-    // Save to .krolik/REFACTOR.xml for AI access
-    saveKrolikFile(projectRoot, 'REFACTOR.xml', xmlOutput);
+  // Save to .krolik/REFACTOR.xml for AI access
+  saveKrolikFile(projectRoot, 'REFACTOR.xml', xmlOutput);
 
-    // For XML format, output XML
-    if (format === 'xml') {
-      console.log(xmlOutput);
-      return;
-    }
+  // For XML format, output XML
+  if (format === 'xml') {
+    console.log(xmlOutput);
+    return;
   }
 
   // Output in requested format

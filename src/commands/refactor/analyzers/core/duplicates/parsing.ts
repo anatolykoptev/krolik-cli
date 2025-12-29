@@ -13,58 +13,70 @@ import { extractFunctions } from './extraction';
 import { normalizeBody } from './normalization';
 
 /**
+ * Parse a single file using SWC
+ */
+function parseFileWithSwc(
+  file: string,
+  projectRoot: string,
+  verbose: boolean,
+): FunctionSignature[] {
+  const functions: FunctionSignature[] = [];
+
+  try {
+    const content = readFile(file);
+    if (!content) return functions;
+
+    // Skip large files
+    if (content.length > LIMITS.MAX_FILE_SIZE) {
+      if (verbose) {
+        logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
+      }
+      return functions;
+    }
+
+    const relPath = path.relative(projectRoot, file);
+    const swcFunctions = extractFunctionsSwc(file, content);
+
+    // Convert SWC functions to FunctionSignature format
+    for (const swcFunc of swcFunctions) {
+      const bodyText = content.slice(swcFunc.bodyStart, swcFunc.bodyEnd);
+      const normalizedBodyText = normalizeBody(bodyText);
+      const tokens = new Set(normalizedBodyText.split(/\s+/).filter((t) => t.length > 0));
+
+      functions.push({
+        name: swcFunc.name,
+        file: relPath,
+        line: swcFunc.line,
+        params: [], // SWC doesn't provide type info
+        returnType: 'unknown',
+        exported: swcFunc.isExported,
+        bodyHash: swcFunc.bodyHash,
+        normalizedBody: normalizedBodyText,
+        tokens,
+      });
+    }
+  } catch (error) {
+    if (verbose) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
+    }
+  }
+
+  return functions;
+}
+
+/**
  * Parse files using SWC (fast path, 10-20x faster than ts-morph)
+ * Uses parallel processing for better performance
  */
 export function parseFilesWithSwc(
   files: string[],
   projectRoot: string,
   verbose: boolean,
 ): FunctionSignature[] {
-  const allFunctions: FunctionSignature[] = [];
-
-  for (const file of files) {
-    try {
-      const content = readFile(file);
-      if (!content) continue;
-
-      // Skip large files
-      if (content.length > LIMITS.MAX_FILE_SIZE) {
-        if (verbose) {
-          logger.warn(`Skipping large file: ${path.relative(projectRoot, file)}`);
-        }
-        continue;
-      }
-
-      const relPath = path.relative(projectRoot, file);
-      const swcFunctions = extractFunctionsSwc(file, content);
-
-      // Convert SWC functions to FunctionSignature format
-      for (const swcFunc of swcFunctions) {
-        const bodyText = content.slice(swcFunc.bodyStart, swcFunc.bodyEnd);
-        const normalizedBodyText = normalizeBody(bodyText);
-        const tokens = new Set(normalizedBodyText.split(/\s+/).filter((t) => t.length > 0));
-
-        allFunctions.push({
-          name: swcFunc.name,
-          file: relPath,
-          line: swcFunc.line,
-          params: [], // SWC doesn't provide type info
-          returnType: 'unknown',
-          exported: swcFunc.isExported,
-          bodyHash: swcFunc.bodyHash,
-          normalizedBody: normalizedBodyText,
-          tokens,
-        });
-      }
-    } catch (error) {
-      if (verbose) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.warn(`Failed to parse ${path.relative(projectRoot, file)}: ${message}`);
-      }
-    }
-  }
-
-  return allFunctions;
+  // Process files in parallel batches using flatMap
+  // SWC parsing is CPU-bound, so we process all files at once
+  return files.flatMap((file) => parseFileWithSwc(file, projectRoot, verbose));
 }
 
 /**
