@@ -26,7 +26,7 @@
 import {
   type JsxAttribute,
   type JsxText,
-  Node,
+  type Node,
   Project,
   type SourceFile,
   type StringLiteral,
@@ -193,6 +193,74 @@ function shouldSkipText(text: string): boolean {
   return SKIP_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
+// ============================================================================
+// STRING CONTEXT DETECTION (refactored for low complexity)
+// ============================================================================
+
+/** SyntaxKinds that indicate import/export context */
+const IMPORT_EXPORT_KINDS = new Set([
+  SyntaxKind.ImportDeclaration,
+  SyntaxKind.ExportDeclaration,
+  SyntaxKind.ImportSpecifier,
+  SyntaxKind.ExportSpecifier,
+]);
+
+/** SyntaxKinds that indicate type annotation context */
+const TYPE_ANNOTATION_KINDS = new Set([
+  SyntaxKind.TypeLiteral,
+  SyntaxKind.TypeAliasDeclaration,
+  SyntaxKind.InterfaceDeclaration,
+  SyntaxKind.LiteralType,
+]);
+
+/** SyntaxKinds that indicate expression inside JSX needing ancestor check */
+const JSX_ANCESTOR_CHECK_KINDS = new Set([
+  SyntaxKind.BinaryExpression,
+  SyntaxKind.ConditionalExpression,
+]);
+
+/** Direct mapping from parent SyntaxKind to StringContext */
+const DIRECT_CONTEXT_MAP: ReadonlyMap<SyntaxKind, StringContext> = new Map([
+  [SyntaxKind.JsxAttribute, 'jsx-attribute'],
+  [SyntaxKind.JsxExpression, 'jsx-expression'],
+  [SyntaxKind.PropertyAssignment, 'object-property'],
+  [SyntaxKind.ShorthandPropertyAssignment, 'object-property'],
+  [SyntaxKind.CallExpression, 'function-argument'],
+  [SyntaxKind.ArrayLiteralExpression, 'array-element'],
+  [SyntaxKind.VariableDeclaration, 'variable'],
+  [SyntaxKind.TemplateSpan, 'template-literal'],
+  [SyntaxKind.TemplateExpression, 'template-literal'],
+]);
+
+/**
+ * Check if a node is inside a JSX element or fragment
+ */
+function isInsideJsx(startNode: Node): boolean {
+  let current: Node | undefined = startNode;
+  while (current) {
+    const kind = current.getKind();
+    if (kind === SyntaxKind.JsxElement || kind === SyntaxKind.JsxFragment) {
+      return true;
+    }
+    current = current.getParent();
+  }
+  return false;
+}
+
+/**
+ * Check if node is a module specifier in import/export
+ */
+function isModuleSpecifier(node: StringLiteral): boolean {
+  const parent = node.getParent();
+  if (!parent) return false;
+
+  const grandParent = parent.getParent();
+  if (!grandParent) return false;
+
+  const gpKind = grandParent.getKind();
+  return gpKind === SyntaxKind.ImportDeclaration || gpKind === SyntaxKind.ExportDeclaration;
+}
+
 /**
  * Get the context of a string literal based on its parent node
  */
@@ -203,102 +271,29 @@ function getStringContext(node: StringLiteral): StringContext {
   const parentKind = parent.getKind();
 
   // Import/export paths - always skip
-  if (
-    parentKind === SyntaxKind.ImportDeclaration ||
-    parentKind === SyntaxKind.ExportDeclaration ||
-    parentKind === SyntaxKind.ImportSpecifier ||
-    parentKind === SyntaxKind.ExportSpecifier
-  ) {
+  if (IMPORT_EXPORT_KINDS.has(parentKind)) {
     return 'import';
   }
 
   // Module specifier in import/export
-  if (Node.isStringLiteral(node)) {
-    const grandParent = parent.getParent();
-    if (grandParent) {
-      const gpKind = grandParent.getKind();
-      if (gpKind === SyntaxKind.ImportDeclaration || gpKind === SyntaxKind.ExportDeclaration) {
-        return 'import';
-      }
-    }
+  if (isModuleSpecifier(node)) {
+    return 'import';
   }
 
   // Type annotations - skip
-  if (
-    parentKind === SyntaxKind.TypeLiteral ||
-    parentKind === SyntaxKind.TypeAliasDeclaration ||
-    parentKind === SyntaxKind.InterfaceDeclaration ||
-    parentKind === SyntaxKind.LiteralType
-  ) {
+  if (TYPE_ANNOTATION_KINDS.has(parentKind)) {
     return 'type-annotation';
   }
 
-  // JSX Attribute: <Component prop="text" />
-  if (parentKind === SyntaxKind.JsxAttribute) {
-    return 'jsx-attribute';
+  // Direct context mapping (most common cases)
+  const directContext = DIRECT_CONTEXT_MAP.get(parentKind);
+  if (directContext) {
+    return directContext;
   }
 
-  // JSX Expression Container: <div>{"text"}</div>
-  if (parentKind === SyntaxKind.JsxExpression) {
-    return 'jsx-expression';
-  }
-
-  // Property assignment in object: { key: "value" }
-  if (parentKind === SyntaxKind.PropertyAssignment) {
-    return 'object-property';
-  }
-
-  // Shorthand property: { key } where key is a string variable
-  if (parentKind === SyntaxKind.ShorthandPropertyAssignment) {
-    return 'object-property';
-  }
-
-  // Function/method call argument
-  if (parentKind === SyntaxKind.CallExpression) {
-    return 'function-argument';
-  }
-
-  // Array element
-  if (parentKind === SyntaxKind.ArrayLiteralExpression) {
-    return 'array-element';
-  }
-
-  // Variable declaration: const x = "text"
-  if (parentKind === SyntaxKind.VariableDeclaration) {
-    return 'variable';
-  }
-
-  // Template literal span
-  if (parentKind === SyntaxKind.TemplateSpan || parentKind === SyntaxKind.TemplateExpression) {
-    return 'template-literal';
-  }
-
-  // Binary expression (often in JSX: {val || "text"})
-  if (parentKind === SyntaxKind.BinaryExpression) {
-    // Check if we're inside JSX
-    let current: Node | undefined = parent;
-    while (current) {
-      const kind = current.getKind();
-      if (kind === SyntaxKind.JsxElement || kind === SyntaxKind.JsxFragment) {
-        return 'jsx-expression';
-      }
-      current = current.getParent();
-    }
-    return 'other';
-  }
-
-  // Conditional expression (ternary)
-  if (parentKind === SyntaxKind.ConditionalExpression) {
-    // Check if we're inside JSX
-    let current: Node | undefined = parent;
-    while (current) {
-      const kind = current.getKind();
-      if (kind === SyntaxKind.JsxElement || kind === SyntaxKind.JsxFragment) {
-        return 'jsx-expression';
-      }
-      current = current.getParent();
-    }
-    return 'other';
+  // Binary/conditional expressions need JSX ancestor check
+  if (JSX_ANCESTOR_CHECK_KINDS.has(parentKind)) {
+    return isInsideJsx(parent) ? 'jsx-expression' : 'other';
   }
 
   return 'other';

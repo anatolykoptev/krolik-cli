@@ -8,7 +8,7 @@
  * - Format via `biome format --write`
  */
 
-import { execSync, type SpawnSyncReturns, spawnSync } from 'node:child_process';
+import { execFileSync, type SpawnSyncReturns, spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -470,7 +470,7 @@ function parseBiomeJsonOutput(output: string): BiomeDiagnostic[] {
 export function getBiomeVersion(projectRoot: string): string | null {
   try {
     const biome = getBiomePath(projectRoot);
-    const result = execSync(`${biome} --version`, {
+    const result = execFileSync(biome, ['--version'], {
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: 'pipe',

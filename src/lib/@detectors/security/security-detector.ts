@@ -17,18 +17,250 @@ import type { Node, Span } from '@swc/core';
 import type { SecurityDetection } from '../patterns/ast/types';
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS & LOOKUP TABLES
 // ============================================================================
 
 /** Child process methods that can lead to command injection */
-const COMMAND_EXEC_METHODS = ['execSync', 'exec', 'spawn', 'spawnSync'] as const;
+const COMMAND_EXEC_METHODS = new Set(['execSync', 'exec', 'spawn', 'spawnSync']);
 
 /** Path methods that can lead to path traversal */
-const PATH_METHODS = ['join', 'resolve'] as const;
+const PATH_METHODS = new Set(['join', 'resolve']);
+
+/** AST node types that indicate untrusted input */
+const UNTRUSTED_ARG_TYPES = new Set(['Identifier', 'MemberExpression', 'CallExpression']);
+
+// ============================================================================
+// TYPE HELPERS
+// ============================================================================
+
+/** Extract type from a node */
+function getNodeType(node: Node | undefined): string | undefined {
+  return (node as { type?: string } | undefined)?.type;
+}
+
+/** Extract span from a node */
+function getNodeSpan(node: Node): Span | undefined {
+  return (node as { span?: Span }).span;
+}
+
+/** Extract identifier value from a node */
+function getIdentifierValue(node: Node): string | undefined {
+  return (node as { value?: string }).value;
+}
+
+/** Extract expression from an argument node */
+function getArgumentExpression(arg: Node): Node | undefined {
+  return (arg as { expression?: Node }).expression;
+}
+
+// ============================================================================
+// CALL EXPRESSION PARSER
+// ============================================================================
+
+interface ParsedCallExpression {
+  callee: Node;
+  calleeType: string;
+  args: Node[];
+  span: Span;
+}
+
+/**
+ * Parse a CallExpression node into its components
+ * Returns null if the node is not a valid call expression
+ */
+function parseCallExpression(node: Node): ParsedCallExpression | null {
+  const nodeType = getNodeType(node);
+  const span = getNodeSpan(node);
+
+  if (!span || nodeType !== 'CallExpression') {
+    return null;
+  }
+
+  const callExpr = node as { callee?: Node; arguments?: Node[] };
+  const callee = callExpr.callee;
+
+  if (!callee) {
+    return null;
+  }
+
+  const calleeType = getNodeType(callee);
+  if (!calleeType) {
+    return null;
+  }
+
+  return {
+    callee,
+    calleeType,
+    args: callExpr.arguments ?? [],
+    span,
+  };
+}
+
+// ============================================================================
+// COMMAND INJECTION DETECTION
+// ============================================================================
+
+/**
+ * Check if an argument is a template literal with expressions (interpolation)
+ */
+function hasTemplateInterpolation(argExpr: Node): boolean {
+  const argType = getNodeType(argExpr);
+  if (argType !== 'TemplateLiteral') {
+    return false;
+  }
+
+  const templateLiteral = argExpr as { expressions?: unknown[] };
+  const expressions = templateLiteral.expressions ?? [];
+  return expressions.length > 0;
+}
+
+/**
+ * Detect command injection from a parsed call expression
+ *
+ * Detects: execSync(`rm -rf ${userInput}`)
+ */
+function detectCommandInjectionFromCall(parsed: ParsedCallExpression): SecurityDetection | null {
+  if (parsed.calleeType !== 'Identifier') {
+    return null;
+  }
+
+  const methodName = getIdentifierValue(parsed.callee);
+  if (!methodName || !COMMAND_EXEC_METHODS.has(methodName)) {
+    return null;
+  }
+
+  const firstArg = parsed.args[0];
+  if (!firstArg) {
+    return null;
+  }
+
+  const argExpr = getArgumentExpression(firstArg);
+  if (!argExpr) {
+    return null;
+  }
+
+  if (hasTemplateInterpolation(argExpr)) {
+    return {
+      type: 'command-injection',
+      offset: parsed.span.start,
+      method: methodName,
+    };
+  }
+
+  return null;
+}
+
+// ============================================================================
+// PATH TRAVERSAL DETECTION
+// ============================================================================
+
+/**
+ * Check if an argument represents untrusted input
+ *
+ * Untrusted types: Identifier, MemberExpression, CallExpression, TemplateLiteral with expressions
+ * Safe types: StringLiteral, NumericLiteral
+ */
+function isUntrustedArgument(arg: Node): boolean {
+  const argExpr = getArgumentExpression(arg);
+  if (!argExpr) {
+    return false;
+  }
+
+  const argType = getNodeType(argExpr);
+  if (!argType) {
+    return false;
+  }
+
+  // Direct untrusted types
+  if (UNTRUSTED_ARG_TYPES.has(argType)) {
+    return true;
+  }
+
+  // Template literal with expressions = potential untrusted input
+  if (argType === 'TemplateLiteral') {
+    return hasTemplateInterpolation(argExpr);
+  }
+
+  return false;
+}
+
+/**
+ * Extract path method name from a MemberExpression callee
+ * Returns method name if callee is path.join or path.resolve, null otherwise
+ */
+function extractPathMethod(callee: Node): string | null {
+  const memberExpr = callee as { object?: Node; property?: Node };
+  const { object, property } = memberExpr;
+
+  if (!object || !property) {
+    return null;
+  }
+
+  // Check if object is "path" identifier
+  if (getNodeType(object) !== 'Identifier') {
+    return null;
+  }
+
+  if (getIdentifierValue(object) !== 'path') {
+    return null;
+  }
+
+  // Check if property is join or resolve identifier
+  if (getNodeType(property) !== 'Identifier') {
+    return null;
+  }
+
+  const methodName = getIdentifierValue(property);
+  if (!methodName || !PATH_METHODS.has(methodName)) {
+    return null;
+  }
+
+  return methodName;
+}
+
+/**
+ * Detect path traversal from a parsed call expression
+ *
+ * Only flags when path segments (arguments after the first) contain untrusted input.
+ * First argument is assumed to be a trusted base path.
+ */
+function detectPathTraversalFromCall(parsed: ParsedCallExpression): SecurityDetection | null {
+  if (parsed.calleeType !== 'MemberExpression') {
+    return null;
+  }
+
+  const methodName = extractPathMethod(parsed.callee);
+  if (!methodName) {
+    return null;
+  }
+
+  // Skip first argument (trusted base path), check remaining path segments
+  const pathSegmentArgs = parsed.args.slice(1);
+  const hasUntrustedSegment = pathSegmentArgs.some(isUntrustedArgument);
+
+  if (hasUntrustedSegment) {
+    return {
+      type: 'path-traversal',
+      offset: parsed.span.start,
+      method: `path.${methodName}`,
+    };
+  }
+
+  return null;
+}
 
 // ============================================================================
 // MAIN DETECTOR
 // ============================================================================
+
+/** Strategy function type for security detection */
+type SecurityDetector = (parsed: ParsedCallExpression) => SecurityDetection | null;
+
+/** Ordered list of security detection strategies */
+const SECURITY_DETECTORS: SecurityDetector[] = [
+  detectCommandInjectionFromCall,
+  detectPathTraversalFromCall,
+];
 
 /**
  * Detect security issue from AST node
@@ -37,138 +269,15 @@ const PATH_METHODS = ['join', 'resolve'] as const;
  * @returns Detection result or null if no issue found
  */
 export function detectSecurityIssue(node: Node): SecurityDetection | null {
-  const nodeType = (node as { type?: string }).type;
-  const span = (node as { span?: Span }).span;
-
-  if (!span) {
+  const parsed = parseCallExpression(node);
+  if (!parsed) {
     return null;
   }
 
-  // Only process CallExpression nodes
-  if (nodeType !== 'CallExpression') {
-    return null;
-  }
-
-  const callExpr = node as {
-    callee?: Node;
-    arguments?: Node[];
-    span?: Span;
-  };
-
-  const callee = callExpr.callee;
-  if (!callee) {
-    return null;
-  }
-
-  const calleeType = (callee as { type?: string }).type;
-
-  // 1. Command Injection - execSync, exec, spawn with template literals
-  if (calleeType === 'Identifier') {
-    const identifier = callee as { value?: string };
-    const identifierValue = identifier.value;
-
-    if (
-      identifierValue &&
-      COMMAND_EXEC_METHODS.includes(identifierValue as (typeof COMMAND_EXEC_METHODS)[number])
-    ) {
-      const args = callExpr.arguments ?? [];
-      const firstArg = args[0];
-
-      // Check if first argument is a template literal with expressions
-      // Note: SWC wraps arguments in { spread, expression } objects
-      if (firstArg) {
-        const argExpr = (firstArg as { expression?: Node }).expression;
-        if (argExpr) {
-          const argType = (argExpr as { type?: string }).type;
-          if (argType === 'TemplateLiteral') {
-            const templateLiteral = argExpr as { expressions?: unknown[] };
-            const expressions = templateLiteral.expressions ?? [];
-
-            // Template literal with interpolation = potential injection
-            if (expressions.length > 0) {
-              return {
-                type: 'command-injection',
-                offset: span.start,
-                method: identifierValue,
-              };
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // 2. Path Traversal - path.join() or path.resolve() with variables
-  if (calleeType === 'MemberExpression') {
-    const memberExpr = callee as {
-      object?: Node;
-      property?: Node;
-    };
-
-    const object = memberExpr.object;
-    const property = memberExpr.property;
-
-    if (!object || !property) {
-      return null;
-    }
-
-    // Check if object is "path"
-    const objectType = (object as { type?: string }).type;
-    if (objectType === 'Identifier') {
-      const objectValue = (object as { value?: string }).value;
-      if (objectValue === 'path') {
-        // Check if property is join or resolve
-        const propertyType = (property as { type?: string }).type;
-        if (propertyType === 'Identifier') {
-          const propertyValue = (property as { value?: string }).value;
-          if (
-            propertyValue &&
-            PATH_METHODS.includes(propertyValue as (typeof PATH_METHODS)[number])
-          ) {
-            const args = callExpr.arguments ?? [];
-
-            // Only flag if path segments (args after the first) contain variables
-            // First arg is typically a trusted base path (projectRoot, basePath, etc.)
-            // path.join(projectRoot, 'file.json') → SAFE (literal segment)
-            // path.join(projectRoot, userInput) → DANGEROUS (variable segment)
-            const pathSegmentArgs = args.slice(1); // Skip first argument (base path)
-
-            const hasUntrustedPathSegment = pathSegmentArgs.some((arg) => {
-              const argExpr = (arg as { expression?: Node }).expression;
-              if (!argExpr) return false;
-
-              const argType = (argExpr as { type?: string }).type;
-
-              // Variable identifier = potential untrusted input
-              if (argType === 'Identifier') return true;
-
-              // Template literal with expressions = potential untrusted input
-              if (argType === 'TemplateLiteral') {
-                const templateLiteral = argExpr as { expressions?: unknown[] };
-                return (templateLiteral.expressions?.length ?? 0) > 0;
-              }
-
-              // Member expression (obj.prop) = potential untrusted input
-              if (argType === 'MemberExpression') return true;
-
-              // Call expression (fn()) = potential untrusted input
-              if (argType === 'CallExpression') return true;
-
-              // String literal = SAFE
-              // Numeric literal = SAFE
-              return false;
-            });
-
-            if (hasUntrustedPathSegment) {
-              return {
-                type: 'path-traversal',
-                offset: span.start,
-                method: `path.${propertyValue}`,
-              };
-            }
-          }
-        }
-      }
+  for (const detector of SECURITY_DETECTORS) {
+    const result = detector(parsed);
+    if (result) {
+      return result;
     }
   }
 

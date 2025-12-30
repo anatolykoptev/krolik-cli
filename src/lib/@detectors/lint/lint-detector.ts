@@ -17,6 +17,162 @@ import type { LintDetection } from '../patterns/ast/types';
 import { isConsoleMember, isDialogFunction, isEvalFunction } from '../patterns/browser-apis';
 
 // ============================================================================
+// INTERNAL TYPES FOR NODE EXTRACTION
+// ============================================================================
+
+interface CatchClauseNode {
+  body?: {
+    type?: string;
+    stmts?: unknown[];
+  };
+}
+
+interface CallExpressionNode {
+  callee?: Node;
+  base?: Node;
+  span?: Span;
+}
+
+interface MemberExpressionNode {
+  object?: Node;
+  property?: Node;
+}
+
+interface IdentifierNode {
+  type?: string;
+  value?: string;
+}
+
+// ============================================================================
+// HELPER DETECTORS (each with complexity <= 10)
+// ============================================================================
+
+/**
+ * Detect debugger statement
+ */
+function detectDebuggerStatement(nodeType: string, offset: number): LintDetection | null {
+  if (nodeType === 'DebuggerStatement') {
+    return { type: 'debugger', offset };
+  }
+  return null;
+}
+
+/**
+ * Detect empty catch block
+ * Empty = no statements or only a return statement
+ */
+function detectEmptyCatchBlock(node: Node, nodeType: string, offset: number): LintDetection | null {
+  if (nodeType !== 'CatchClause') {
+    return null;
+  }
+
+  const catchClause = node as CatchClauseNode;
+  const body = catchClause.body;
+
+  if (!body || body.type !== 'BlockStatement') {
+    return null;
+  }
+
+  const stmts = body.stmts ?? [];
+
+  // Empty catch block
+  if (stmts.length === 0) {
+    return { type: 'empty-catch', offset };
+  }
+
+  // Catch with only return statement (also considered empty handling)
+  if (stmts.length === 1) {
+    const stmt = stmts[0] as { type?: string };
+    if (stmt.type === 'ReturnStatement') {
+      return { type: 'empty-catch', offset };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract callee from call expression or optional chaining
+ */
+function extractCallee(node: Node, nodeType: string): Node | null {
+  if (nodeType !== 'CallExpression' && nodeType !== 'OptionalChainingExpression') {
+    return null;
+  }
+
+  const callExpr = node as CallExpressionNode;
+  return callExpr.callee ?? callExpr.base ?? null;
+}
+
+/**
+ * Detect console.* method calls from member expression
+ */
+function detectConsoleCall(callee: Node, offset: number): LintDetection | null {
+  const calleeType = (callee as { type?: string }).type;
+
+  if (calleeType !== 'MemberExpression') {
+    return null;
+  }
+
+  const memberExpr = callee as MemberExpressionNode;
+  const object = memberExpr.object;
+  const property = memberExpr.property;
+
+  if (!object || !property) {
+    return null;
+  }
+
+  const objectNode = object as IdentifierNode;
+  const propertyNode = property as IdentifierNode;
+
+  if (objectNode.type !== 'Identifier' || propertyNode.type !== 'Identifier') {
+    return null;
+  }
+
+  const objectValue = objectNode.value;
+  const propertyValue = propertyNode.value;
+
+  if (!objectValue || !propertyValue) {
+    return null;
+  }
+
+  if (isConsoleMember(propertyValue, objectValue)) {
+    return { type: 'console', offset, method: propertyValue };
+  }
+
+  return null;
+}
+
+/**
+ * Detect global function calls: alert/confirm/prompt and eval
+ */
+function detectGlobalFunctionCall(callee: Node, offset: number): LintDetection | null {
+  const calleeType = (callee as { type?: string }).type;
+
+  if (calleeType !== 'Identifier') {
+    return null;
+  }
+
+  const identifier = callee as IdentifierNode;
+  const name = identifier.value;
+
+  if (!name) {
+    return null;
+  }
+
+  // Dialog functions: alert, confirm, prompt
+  if (isDialogFunction(name)) {
+    return { type: 'alert', offset, method: name };
+  }
+
+  // Eval function
+  if (isEvalFunction(name)) {
+    return { type: 'eval', offset, method: name };
+  }
+
+  return null;
+}
+
+// ============================================================================
 // MAIN DETECTOR
 // ============================================================================
 
@@ -30,129 +186,31 @@ export function detectLintIssue(node: Node): LintDetection | null {
   const nodeType = (node as { type?: string }).type;
   const span = (node as { span?: Span }).span;
 
-  if (!span) {
+  if (!span || !nodeType) {
     return null;
   }
 
+  const offset = span.start;
+
   // 1. Debugger statement
-  if (nodeType === 'DebuggerStatement') {
-    return {
-      type: 'debugger',
-      offset: span.start,
-    };
-  }
+  const debuggerResult = detectDebuggerStatement(nodeType, offset);
+  if (debuggerResult) return debuggerResult;
 
   // 2. Empty catch block
-  if (nodeType === 'CatchClause') {
-    const catchClause = node as {
-      body?: {
-        type?: string;
-        stmts?: unknown[];
-      };
-    };
+  const emptyCatchResult = detectEmptyCatchBlock(node, nodeType, offset);
+  if (emptyCatchResult) return emptyCatchResult;
 
-    const body = catchClause.body;
-    if (body && body.type === 'BlockStatement') {
-      const stmts = body.stmts ?? [];
+  // 3. Call expressions (console, alert, eval)
+  const callee = extractCallee(node, nodeType);
+  if (!callee) return null;
 
-      // Empty catch block
-      if (stmts.length === 0) {
-        return {
-          type: 'empty-catch',
-          offset: span.start,
-        };
-      }
+  // 3a. Console method calls
+  const consoleResult = detectConsoleCall(callee, offset);
+  if (consoleResult) return consoleResult;
 
-      // Catch with only return statement (also considered empty handling)
-      if (stmts.length === 1) {
-        const stmt = stmts[0] as { type?: string };
-        if (stmt.type === 'ReturnStatement') {
-          return {
-            type: 'empty-catch',
-            offset: span.start,
-          };
-        }
-      }
-    }
-  }
-
-  // 3. CallExpression or OptionalChainingExpression - check for console, alert, eval
-  if (nodeType === 'CallExpression' || nodeType === 'OptionalChainingExpression') {
-    const callExpr = node as {
-      callee?: Node;
-      base?: Node; // For OptionalChainingExpression
-      span?: Span;
-    };
-
-    // Get the actual callee (might be in 'base' for optional chaining)
-    const callee = callExpr.callee ?? callExpr.base;
-    if (!callee) {
-      return null;
-    }
-
-    const calleeType = (callee as { type?: string }).type;
-
-    // 3a. MemberExpression - console.* method calls (object-based detection)
-    if (calleeType === 'MemberExpression') {
-      const memberExpr = callee as {
-        object?: Node;
-        property?: Node;
-      };
-
-      const object = memberExpr.object;
-      const property = memberExpr.property;
-
-      if (!object || !property) {
-        return null;
-      }
-
-      // Get object and property values for pattern-based detection
-      const objectType = (object as { type?: string }).type;
-      const propertyType = (property as { type?: string }).type;
-
-      if (objectType === 'Identifier' && propertyType === 'Identifier') {
-        const objectValue = (object as { value?: string }).value;
-        const propertyValue = (property as { value?: string }).value;
-
-        // Use pattern-based console detection (any console.* method)
-        if (objectValue && propertyValue && isConsoleMember(propertyValue, objectValue)) {
-          return {
-            type: 'console',
-            offset: span.start,
-            method: propertyValue,
-          };
-        }
-      }
-    }
-
-    // 3b. Identifier - alert(), confirm(), prompt(), eval()
-    if (calleeType === 'Identifier') {
-      const identifier = callee as { value?: string };
-      const identifierValue = identifier.value;
-
-      if (!identifierValue) {
-        return null;
-      }
-
-      // Use pattern-based dialog function detection (global window APIs)
-      if (isDialogFunction(identifierValue)) {
-        return {
-          type: 'alert',
-          offset: span.start,
-          method: identifierValue,
-        };
-      }
-
-      // Use pattern-based eval detection
-      if (isEvalFunction(identifierValue)) {
-        return {
-          type: 'eval',
-          offset: span.start,
-          method: identifierValue,
-        };
-      }
-    }
-  }
+  // 3b. Global function calls (alert, eval)
+  const globalResult = detectGlobalFunctionCall(callee, offset);
+  if (globalResult) return globalResult;
 
   return null;
 }

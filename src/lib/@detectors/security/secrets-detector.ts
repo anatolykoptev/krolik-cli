@@ -11,7 +11,7 @@
 
 import type { Node, Span } from '@swc/core';
 import { ALL_PATTERNS } from './patterns';
-import type { SecretDetection, SecretDetectorContext, SecretType } from './types';
+import type { SecretDetection, SecretDetectorContext, SecretPattern, SecretType } from './types';
 import {
   extractVariableName,
   isEnvReference,
@@ -19,6 +19,133 @@ import {
   isTestFile,
   redactSecret,
 } from './validators';
+
+// ============================================================================
+// HELPER FUNCTIONS (extracted to reduce complexity)
+// ============================================================================
+
+/**
+ * Extract string value from AST node
+ * @returns String value or null if node is not a string literal
+ */
+function extractStringValue(node: Node): string | null {
+  const nodeType = (node as { type?: string }).type;
+
+  if (nodeType === 'StringLiteral') {
+    return (node as { value?: string }).value ?? '';
+  }
+
+  if (nodeType === 'TemplateLiteral') {
+    const quasis = (node as { quasis?: Array<{ raw?: string }> }).quasis ?? [];
+    return quasis.map((q) => q.raw ?? '').join('');
+  }
+
+  return null;
+}
+
+/**
+ * Check if a string value should be skipped from secret detection
+ */
+function shouldSkipValue(value: string): boolean {
+  if (!value || value.length < 8) return true;
+  if (isEnvReference(value)) return true;
+  if (isPlaceholder(value)) return true;
+  return false;
+}
+
+/**
+ * Build detection context from inputs
+ */
+function buildDetectorContext(
+  content: string,
+  filepath: string,
+  offset: number,
+  context?: SecretDetectorContext,
+): SecretDetectorContext {
+  const extractedVarName = context?.variableName ?? extractVariableName(content, offset);
+  const detectorContext: SecretDetectorContext = {
+    ...context,
+    isTestFile: context?.isTestFile ?? isTestFile(filepath),
+    checkEntropy: context?.checkEntropy ?? true,
+  };
+
+  if (extractedVarName !== undefined) {
+    detectorContext.variableName = extractedVarName;
+  }
+
+  return detectorContext;
+}
+
+/**
+ * Calculate adjusted confidence based on context
+ */
+function calculateAdjustedConfidence(
+  pattern: SecretPattern,
+  context: SecretDetectorContext,
+): number {
+  let confidence = pattern.baseConfidence;
+
+  // Reduce confidence for test files (except critical severity)
+  if (context.isTestFile && pattern.severity !== 'critical') {
+    confidence = Math.max(confidence - 30, 10);
+  }
+
+  return confidence;
+}
+
+/**
+ * Match a value against a single pattern
+ * @returns Detection result or null if no match
+ */
+function matchPattern(
+  value: string,
+  pattern: SecretPattern,
+  offset: number,
+  context: SecretDetectorContext,
+): SecretDetection | null {
+  const match = value.match(pattern.pattern);
+  if (!match) return null;
+
+  // Run custom validation if present
+  if (pattern.validate && !pattern.validate(value, context)) {
+    return null;
+  }
+
+  const confidence = calculateAdjustedConfidence(pattern, context);
+
+  // Skip low-confidence detections for generic patterns
+  if (confidence < 50 && pattern.type === 'high-entropy-string') {
+    return null;
+  }
+
+  return {
+    type: pattern.type,
+    offset,
+    severity: pattern.severity,
+    confidence,
+    preview: redactSecret(match[0]),
+    context: pattern.description,
+  };
+}
+
+/**
+ * Find first matching pattern in a value
+ */
+function findFirstPatternMatch(
+  value: string,
+  offset: number,
+  context: SecretDetectorContext,
+): SecretDetection | null {
+  for (const pattern of ALL_PATTERNS) {
+    const result = matchPattern(value, pattern, offset, context);
+    if (result) return result;
+  }
+  return null;
+}
+
+// ============================================================================
+// MAIN API
+// ============================================================================
 
 /**
  * Detect secrets in a string value from AST node
@@ -35,86 +162,37 @@ export function detectSecret(
   filepath: string,
   context?: SecretDetectorContext,
 ): SecretDetection | null {
-  const nodeType = (node as { type?: string }).type;
   const span = (node as { span?: Span }).span;
+  if (!span) return null;
 
-  if (!span) {
-    return null;
-  }
+  const value = extractStringValue(node);
+  if (value === null) return null;
 
-  // Only process StringLiteral and TemplateLiteral nodes
-  if (nodeType !== 'StringLiteral' && nodeType !== 'TemplateLiteral') {
-    return null;
-  }
+  if (shouldSkipValue(value)) return null;
 
-  // Extract string value
-  let value: string;
-  if (nodeType === 'StringLiteral') {
-    value = (node as { value?: string }).value ?? '';
-  } else {
-    // For template literals, concatenate quasis
-    const quasis = (node as { quasis?: Array<{ raw?: string }> }).quasis ?? [];
-    value = quasis.map((q) => q.raw ?? '').join('');
-  }
+  const detectorContext = buildDetectorContext(content, filepath, span.start, context);
 
-  // Skip empty or very short strings
-  if (!value || value.length < 8) {
-    return null;
-  }
+  return findFirstPatternMatch(value, span.start, detectorContext);
+}
 
-  // Skip environment variable references
-  if (isEnvReference(value)) {
-    return null;
-  }
+/**
+ * Find all matching patterns in a value
+ */
+function findAllPatternMatches(
+  value: string,
+  offset: number,
+  context: SecretDetectorContext,
+): SecretDetection[] {
+  const results: SecretDetection[] = [];
 
-  // Skip obvious placeholders
-  if (isPlaceholder(value)) {
-    return null;
-  }
-
-  // Build context
-  const extractedVarName = context?.variableName ?? extractVariableName(content, span.start);
-  const detectorContext: SecretDetectorContext = {
-    ...context,
-    isTestFile: context?.isTestFile ?? isTestFile(filepath),
-    checkEntropy: context?.checkEntropy ?? true,
-  };
-  if (extractedVarName !== undefined) {
-    detectorContext.variableName = extractedVarName;
-  }
-
-  // Check all patterns
   for (const pattern of ALL_PATTERNS) {
-    const match = value.match(pattern.pattern);
-    if (!match) continue;
-
-    // Run custom validation if present
-    if (pattern.validate && !pattern.validate(value, detectorContext)) {
-      continue;
+    const result = matchPattern(value, pattern, offset, context);
+    if (result) {
+      results.push(result);
     }
-
-    // Reduce confidence for test files (except critical severity)
-    let confidence = pattern.baseConfidence;
-    if (detectorContext.isTestFile && pattern.severity !== 'critical') {
-      confidence = Math.max(confidence - 30, 10);
-    }
-
-    // Skip low-confidence detections for generic patterns
-    if (confidence < 50 && pattern.type === 'high-entropy-string') {
-      continue;
-    }
-
-    return {
-      type: pattern.type,
-      offset: span.start,
-      severity: pattern.severity,
-      confidence,
-      preview: redactSecret(match[0]),
-      context: pattern.description,
-    };
   }
 
-  return null;
+  return results;
 }
 
 /**
@@ -131,55 +209,18 @@ export function detectAllSecrets(
   value: string,
   context?: SecretDetectorContext,
 ): SecretDetection[] {
-  const results: SecretDetection[] = [];
-
-  // Skip empty or very short strings
-  if (!value || value.length < 8) {
-    return results;
+  if (shouldSkipValue(value)) {
+    return [];
   }
 
-  // Skip environment variable references
-  if (isEnvReference(value)) {
-    return results;
-  }
+  // Use default context values if not provided
+  const detectorContext: SecretDetectorContext = {
+    ...context,
+    isTestFile: context?.isTestFile ?? false,
+    checkEntropy: context?.checkEntropy ?? true,
+  };
 
-  // Skip obvious placeholders
-  if (isPlaceholder(value)) {
-    return results;
-  }
-
-  // Check all patterns
-  for (const pattern of ALL_PATTERNS) {
-    const match = value.match(pattern.pattern);
-    if (!match) continue;
-
-    // Run custom validation if present
-    if (pattern.validate && !pattern.validate(value, context)) {
-      continue;
-    }
-
-    // Reduce confidence for test files (except critical severity)
-    let confidence = pattern.baseConfidence;
-    if (context?.isTestFile && pattern.severity !== 'critical') {
-      confidence = Math.max(confidence - 30, 10);
-    }
-
-    // Skip low-confidence detections for generic patterns
-    if (confidence < 50 && pattern.type === 'high-entropy-string') {
-      continue;
-    }
-
-    results.push({
-      type: pattern.type,
-      offset: 0, // Offset within the string
-      severity: pattern.severity,
-      confidence,
-      preview: redactSecret(match[0]),
-      context: pattern.description,
-    });
-  }
-
-  return results;
+  return findAllPatternMatches(value, 0, detectorContext);
 }
 
 // ============================================================================
