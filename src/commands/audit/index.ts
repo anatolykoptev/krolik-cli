@@ -75,6 +75,7 @@ function extractReportSummary(report: AIReport, relativePath: string): ReportSum
     low: report.summary.byPriority.low ?? 0,
     hotspotFiles: report.hotspots.slice(0, 5).map((h) => h.file),
     quickWins: report.quickWins.length,
+    ...(report.excludedI18nCount !== undefined && { excludedI18nCount: report.excludedI18nCount }),
   };
 }
 

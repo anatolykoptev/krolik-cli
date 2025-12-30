@@ -11,9 +11,9 @@
  * 4. Flush new translations to locale files
  */
 
-import * as path from 'node:path';
 import {
   createLocaleCatalog,
+  DEFAULT_I18N_CONFIG,
   type LocaleCatalog,
   type ResolvedKey,
   resolveKey,
@@ -44,26 +44,23 @@ let stats = {
 
 /**
  * Initialize catalog before fixing
- * Loads existing translations from locale files
+ *
+ * Loads existing translations from locale files.
+ * If locale directory doesn't exist, creates it with default structure:
+ * - apps/web/public/locales/ru/common.json
+ * - apps/web/public/locales/en/common.json
  */
 export async function initializeCatalog(projectRoot: string): Promise<void> {
   catalog = createLocaleCatalog();
   resolvedKeys.clear();
   stats = { existingKeys: 0, newKeys: 0, collisions: 0 };
 
-  // Find locales directory (try common locations)
-  const localesPaths = [
-    path.join(projectRoot, 'apps/web/public/locales'),
-    path.join(projectRoot, 'public/locales'),
-    path.join(projectRoot, 'locales'),
-  ];
-
-  for (const localesDir of localesPaths) {
-    try {
-      await catalog.load(localesDir, 'ru');
-      return;
-    } catch {}
-  }
+  // Load or create locale directory with auto-initialization
+  // This will:
+  // 1. Detect existing locales directory (apps/web/public/locales, public/locales, etc.)
+  // 2. If not found, create appropriate directory based on project structure
+  // 3. Create default language files (ru/common.json, en/common.json)
+  await catalog.loadOrCreate(projectRoot, 'ru', DEFAULT_I18N_CONFIG);
 }
 
 /**

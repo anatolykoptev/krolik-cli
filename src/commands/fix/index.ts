@@ -303,13 +303,9 @@ async function applyFixes(
     totalIssues: totalFixes,
   };
 
-  // Call onStart lifecycle hooks
-  for (const fixer of fixers) {
-    if (fixer.onStart) {
-      logger.debug(`Initializing ${fixer.metadata.name}...`);
-      await fixer.onStart(context);
-    }
-  }
+  // Note: onStart is already called before plan generation in runFix()
+  // Calling it again here would reset catalog state (e.g., i18n translations)
+  // So we skip onStart in applyFixes
 
   // Apply fixes in parallel across files
   logger.info('Applying fixes (parallel execution)...');
@@ -549,6 +545,22 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
     } else {
       // Fresh analysis
       logger.info('Analyzing code quality...');
+
+      // Initialize fixers before plan generation (lifecycle: onStart)
+      // This is needed because fix() is called during plan generation
+      // and some fixers (like i18n) need to load catalogs first
+      const allFixers = registry.all();
+      const initContext: FixerContext = {
+        projectRoot: config.projectRoot,
+        dryRun: options.dryRun ?? false,
+        totalIssues: 0, // Will be updated after plan generation
+      };
+      for (const fixer of allFixers) {
+        if (fixer.onStart) {
+          await fixer.onStart(initContext);
+        }
+      }
+
       planResult = await generateFixPlan(config.projectRoot, options);
     }
 

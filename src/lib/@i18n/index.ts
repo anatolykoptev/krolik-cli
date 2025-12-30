@@ -23,7 +23,7 @@
 // Export base class
 export { BaseLanguagePlugin } from './base';
 // Export catalog
-export type { FindByValueOptions, LocaleCatalog } from './catalog';
+export type { FindByValueOptions, LoadOptions, LocaleCatalog } from './catalog';
 export { createLocaleCatalog, defaultCatalog } from './catalog';
 // Export key resolver
 export type {
@@ -62,6 +62,16 @@ export {
 } from './namespace-resolver';
 // Export registry
 export { createLanguageRegistry, LanguageRegistry } from './registry';
+// Export setup
+export type { I18nSetupConfig, LocalesDirResult } from './setup';
+export {
+  DEFAULT_I18N_CONFIG,
+  detectLocalesDir,
+  ensureLocalesDir,
+  getOrCreateLocalesDir,
+  initDefaultLocales,
+  initLanguageLocales,
+} from './setup';
 // Export types
 export type {
   LanguageDetectionResult,

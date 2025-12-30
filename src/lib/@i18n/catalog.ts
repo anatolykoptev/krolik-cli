@@ -25,9 +25,22 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import { getOrCreateLocalesDir, type I18nSetupConfig } from './setup';
+
 // ============================================================================
 // TYPES
 // ============================================================================
+
+/**
+ * Options for loading locale catalog
+ */
+export interface LoadOptions {
+  /** Automatically create directory and base files if missing (default: false) */
+  autoCreate?: boolean;
+
+  /** Configuration for auto-creation (used when autoCreate is true) */
+  setupConfig?: I18nSetupConfig;
+}
 
 /**
  * Options for finding translations by value
@@ -42,7 +55,10 @@ export interface FindByValueOptions {
  */
 export interface LocaleCatalog {
   /** Load all locale files for a language */
-  load(localesDir: string, language: string): Promise<void>;
+  load(localesDir: string, language: string, options?: LoadOptions): Promise<void>;
+
+  /** Load with auto-creation of directory structure (convenience method) */
+  loadOrCreate(projectRoot: string, language: string, config?: I18nSetupConfig): Promise<string>;
 
   /** Find existing key by value (reverse lookup) */
   findByValue(value: string, options?: FindByValueOptions): string | null;
@@ -235,7 +251,7 @@ export function createLocaleCatalog(): LocaleCatalog {
   /**
    * Load all locale files for a language
    */
-  async function load(localesDir: string, language: string): Promise<void> {
+  async function load(localesDir: string, language: string, options?: LoadOptions): Promise<void> {
     // Clear existing data
     clear();
 
@@ -245,12 +261,32 @@ export function createLocaleCatalog(): LocaleCatalog {
     const langDir = path.join(localesDir, language);
 
     // Check if directory exists
+    let dirExists = false;
     try {
       const stat = await fs.promises.stat(langDir);
-      if (!stat.isDirectory()) {
-        return;
-      }
+      dirExists = stat.isDirectory();
     } catch {
+      dirExists = false;
+    }
+
+    // Auto-create if enabled and directory doesn't exist
+    if (!dirExists && options?.autoCreate) {
+      const setupConfig = options.setupConfig ?? {
+        languages: [language],
+        defaultNamespaces: ['common'],
+      };
+      await fs.promises.mkdir(langDir, { recursive: true });
+
+      // Create default namespace files
+      for (const namespace of setupConfig.defaultNamespaces) {
+        const filePath = path.join(langDir, `${namespace}.json`);
+        const content = setupConfig.initialContent?.[namespace] ?? {};
+        await fs.promises.writeFile(filePath, `${JSON.stringify(content, null, 2)}\n`, 'utf-8');
+      }
+      dirExists = true;
+    }
+
+    if (!dirExists) {
       return;
     }
 
@@ -444,8 +480,36 @@ export function createLocaleCatalog(): LocaleCatalog {
     loadedLanguage = '';
   }
 
+  /**
+   * Load with auto-creation of directory structure
+   * Convenience method that ensures locale files exist before loading
+   *
+   * @param projectRoot - Root directory of the project
+   * @param language - Language code (e.g., 'ru', 'en')
+   * @param config - Setup configuration (optional)
+   * @returns Path to the locale directory
+   */
+  async function loadOrCreate(
+    projectRoot: string,
+    language: string,
+    config?: I18nSetupConfig,
+  ): Promise<string> {
+    // Get or create the locales directory
+    const localesDir = await getOrCreateLocalesDir(projectRoot, config);
+
+    // Load with auto-create enabled
+    const loadOptions: LoadOptions = { autoCreate: true };
+    if (config) {
+      loadOptions.setupConfig = config;
+    }
+    await load(localesDir, language, loadOptions);
+
+    return localesDir;
+  }
+
   return {
     load,
+    loadOrCreate,
     findByValue,
     hasKey,
     getValue,
