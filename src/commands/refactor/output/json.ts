@@ -3,7 +3,7 @@
  * @description JSON output formatter
  */
 
-import type { RefactorAnalysis } from '../core';
+import type { RefactorAnalysis } from '../core/types';
 
 // ============================================================================
 // MAIN FORMATTER

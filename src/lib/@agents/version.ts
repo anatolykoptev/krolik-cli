@@ -3,7 +3,7 @@
  * @description Version utilities for agents repository
  */
 
-import { getGitVersion, type VersionInfo } from '../@git';
+import { getGitVersion, type VersionInfo } from '../@vcs';
 import { getAgentsHome } from './paths';
 
 export type { VersionInfo };

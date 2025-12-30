@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { cloneRepo, isGitAvailable, pullRepo } from '../@git';
+import { cloneRepo, isGitAvailable, pullRepo } from '../@vcs';
 import { AGENTS_REPO_URL, getAgentsHome, getKrolikHome } from './paths';
 
 /**

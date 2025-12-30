@@ -5,9 +5,9 @@
  * Handles safe deletion of files and directories.
  */
 
-import { logger } from '../../../../lib';
-import type { MigrationAction } from '../../core';
-import type { ExecutionResult } from '../core/orchestrator';
+import { logger } from '../../../../lib/@core/logger';
+import type { MigrationAction } from '../../core/types';
+import type { ExecutionResult } from '../core/types';
 import { createBackup, safeDelete, validatePath } from '../security';
 
 /**

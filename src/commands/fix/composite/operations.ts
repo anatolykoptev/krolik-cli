@@ -14,7 +14,7 @@ import { Glob } from 'glob';
 import { SyntaxKind } from 'ts-morph';
 import { astPool } from '@/lib/@ast';
 import { escapeRegex } from '../../../lib/@security/regex';
-import type { FixOperation } from '../types';
+import type { FixOperation } from '../core';
 import type {
   CompositeStep,
   CompositeTransform,

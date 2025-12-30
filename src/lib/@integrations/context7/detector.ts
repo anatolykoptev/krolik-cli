@@ -20,8 +20,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { detectMonorepo, readPackageJson } from '../../@discovery';
-// Use adapter to access storage (proper layer separation)
-import { getDefaultRepository } from './adapters';
+// Use factory to access storage (proper layer separation)
+import { getDefaultRepository } from './factory';
 import { initializeRegistry, resolveLibraryIdSync } from './registry';
 import type { DetectedLibrary } from './types';
 

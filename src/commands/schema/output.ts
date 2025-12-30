@@ -4,7 +4,7 @@
  */
 
 import { formatJson as formatJsonBase } from '@/lib/@format';
-import type { Logger } from '../../types';
+import type { Logger } from '../../types/commands/base';
 import { groupByDomain, groupByFile } from './grouping';
 import type { PrismaEnum, PrismaModel } from './parser';
 

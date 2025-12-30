@@ -10,8 +10,9 @@
  */
 
 import * as path from 'node:path';
-import { exists, findFiles, readFile } from '../../../../lib';
-import type { DirectoryInfo, ProjectContext, StandardCheck, StandardsCompliance } from '../../core';
+import { exists, findFiles, readFile } from '../../../../lib/@core/fs';
+import type { DirectoryInfo, StandardCheck, StandardsCompliance } from '../../core/types';
+import type { ProjectContext } from '../../core/types-ai';
 
 // ============================================================================
 // MAIN ENTRY

@@ -4,9 +4,9 @@
  */
 
 import { analyzeQuality } from './analyze';
+import type { FixOperation, FixOptions, QualityIssue } from './core';
+import { getFixDifficulty, isFixerEnabled } from './core';
 import { registry } from './fixers';
-import type { FixOperation, FixOptions, QualityIssue } from './types';
-import { getFixDifficulty, isFixerEnabled } from './types';
 
 // ============================================================================
 // TYPES

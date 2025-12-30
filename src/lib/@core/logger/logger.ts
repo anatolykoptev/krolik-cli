@@ -4,7 +4,7 @@
  */
 
 import chalk from 'chalk';
-import type { Logger, LogLevel } from '../../../types';
+import type { Logger, LogLevel } from '../../../types/commands/base';
 
 /**
  * Logger options

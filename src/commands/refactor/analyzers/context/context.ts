@@ -6,8 +6,8 @@
  */
 
 import * as path from 'node:path';
-import { readFile } from '../../../../lib';
-import type { EntryPoints, ProjectContext, ProjectType, TechStack } from '../../core';
+import { readFile } from '../../../../lib/@core/fs';
+import type { EntryPoints, ProjectContext, ProjectType, TechStack } from '../../core/types-ai';
 import {
   findDir,
   getAllDependencies,

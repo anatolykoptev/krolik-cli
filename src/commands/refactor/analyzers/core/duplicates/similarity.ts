@@ -3,7 +3,7 @@
  * @description Similarity calculation for function duplicate detection
  */
 
-import type { FunctionSignature } from '../../../core';
+import type { FunctionSignature } from '../../../core/types';
 import { jaccardSimilarity, SIMILARITY_THRESHOLDS } from '../../shared';
 
 /**

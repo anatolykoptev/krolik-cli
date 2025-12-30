@@ -64,7 +64,6 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@typescript-eslint/parser": "^8.50.1",
     "better-sqlite3": "^12.5.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
@@ -72,7 +71,6 @@
     "glob": "^13.0.0",
     "gpt-tokenizer": "^3.4.0",
     "i18next-cli": "^1.33.5",
-    "jscodeshift": "^17.3.0",
     "minify-xml": "^4.5.2",
     "ora": "^8.2.0",
     "prettier": "^3.7.4",

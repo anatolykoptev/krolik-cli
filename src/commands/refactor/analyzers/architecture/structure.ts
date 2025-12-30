@@ -4,8 +4,8 @@
  */
 
 import * as path from 'node:path';
-import { exists, findFiles, getSubdirectories } from '../../../../lib';
-import type { StructureAnalysis, StructureIssue } from '../../core';
+import { exists, findFiles, getSubdirectories } from '../../../../lib/@core/fs';
+import type { StructureAnalysis, StructureIssue } from '../../core/types';
 
 // ============================================================================
 // CONSTANTS

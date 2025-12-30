@@ -6,7 +6,7 @@
  * as a single atomic unit - all succeed or all rollback.
  */
 
-import type { FixOperation } from '../types';
+import type { FixOperation } from '../core';
 
 // ============================================================================
 // COMPOSITE OPERATION

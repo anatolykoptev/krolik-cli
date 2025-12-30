@@ -13,8 +13,8 @@ import {
   getMissingSubDocs,
   getSyncStatus,
   syncClaudeMd,
-} from '../../lib';
-import type { CommandContext } from '../../types';
+} from '../../lib/@claude';
+import type { CommandContext } from '../../types/commands/base';
 
 interface SyncOptions {
   force?: boolean;

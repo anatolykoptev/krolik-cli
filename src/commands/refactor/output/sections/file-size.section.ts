@@ -7,7 +7,7 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { FileSizeAnalysis, FileSizeIssue } from '../../core';
+import type { FileSizeAnalysis, FileSizeIssue } from '../../core/types-ai';
 import { sortBySeverity } from '../helpers';
 import type { Section, SectionContext } from '../registry';
 

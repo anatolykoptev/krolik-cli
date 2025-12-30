@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { DirectoryInfo } from '../../../core';
+import type { DirectoryInfo } from '../../../core/types';
 import { countTsFiles, findLibDir, getSubdirs, isNamespaced } from './fs-utils';
 import { generateNamespaceMigrationPlan } from './migration';
 import { calculateNamespaceScore, detectNamespaceCategory } from './scoring';

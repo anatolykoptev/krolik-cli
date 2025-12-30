@@ -5,8 +5,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { getAheadBehind, getCurrentBranch, getStatus as getGitStatus, tryExec } from '../../lib';
-import type { StatusResult } from '../../types';
+import { tryExec } from '../../lib/@core/shell';
+import { getAheadBehind, getCurrentBranch, getStatus as getGitStatus } from '../../lib/@vcs';
+import type { StatusResult } from '../../types/commands/status';
 
 /**
  * Git check result

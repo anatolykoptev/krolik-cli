@@ -16,7 +16,7 @@ import type {
   ReusableModuleSummary,
   ReusableModulesByCategory,
   ReusableModulesInfo,
-} from '../../core';
+} from '../../core/types-ai';
 
 // ============================================================================
 // CONVERSION

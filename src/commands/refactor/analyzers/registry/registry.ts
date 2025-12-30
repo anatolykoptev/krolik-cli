@@ -9,6 +9,7 @@
  * - Performance measurement
  */
 
+import { Registry } from '@/lib/@core';
 import type { Analyzer, AnalyzerContext, AnalyzerResult } from './types';
 
 // ============================================================================
@@ -18,11 +19,11 @@ import type { Analyzer, AnalyzerContext, AnalyzerResult } from './types';
 /**
  * Registry for managing and executing analyzers.
  *
- * Features:
- * - Register/unregister analyzers
- * - Topologically sort by dependencies
- * - Execute all analyzers in correct order
- * - Track execution results and timing
+ * Extends the generic Registry with analyzer-specific functionality:
+ * - Dependency-aware topological sorting
+ * - Automatic execution ordering
+ * - Error handling with proper status tracking
+ * - Performance measurement
  *
  * @example
  * ```typescript
@@ -36,85 +37,23 @@ import type { Analyzer, AnalyzerContext, AnalyzerResult } from './types';
  * const results = await analyzerRegistry.runAll(context);
  * ```
  */
-export class AnalyzerRegistry {
-  private analyzers = new Map<string, Analyzer<unknown>>();
-
-  /**
-   * Register a single analyzer.
-   *
-   * @param analyzer - The analyzer to register
-   * @throws Error if analyzer with same ID already exists
-   */
-  register<T>(analyzer: Analyzer<T>): void {
-    const id = analyzer.metadata.id;
-    if (this.analyzers.has(id)) {
-      throw new Error(`Analyzer with id "${id}" is already registered`);
-    }
-    this.analyzers.set(id, analyzer as Analyzer<unknown>);
+export class AnalyzerRegistry extends Registry<Analyzer<unknown>> {
+  constructor() {
+    super({ onDuplicate: 'throw' });
   }
 
   /**
-   * Register multiple analyzers at once.
-   *
-   * @param analyzers - Array of analyzers to register
+   * Extract ID from analyzer metadata
    */
-  registerAll(analyzers: Analyzer<unknown>[]): void {
-    for (const analyzer of analyzers) {
-      this.register(analyzer);
-    }
+  protected getId(analyzer: Analyzer<unknown>): string {
+    return analyzer.metadata.id;
   }
 
   /**
-   * Get an analyzer by its ID.
-   *
-   * @param id - The analyzer ID
-   * @returns The analyzer or undefined if not found
-   */
-  get<T>(id: string): Analyzer<T> | undefined {
-    return this.analyzers.get(id) as Analyzer<T> | undefined;
-  }
-
-  /**
-   * Check if an analyzer with the given ID exists.
-   *
-   * @param id - The analyzer ID
-   * @returns true if the analyzer exists
-   */
-  has(id: string): boolean {
-    return this.analyzers.has(id);
-  }
-
-  /**
-   * Get all registered analyzers.
-   *
-   * @returns Array of all registered analyzers
-   */
-  all(): Analyzer<unknown>[] {
-    return Array.from(this.analyzers.values());
-  }
-
-  /**
-   * Get all registered analyzer IDs.
-   *
-   * @returns Array of analyzer IDs
+   * Get all registered analyzer IDs (alias for names())
    */
   ids(): string[] {
-    return Array.from(this.analyzers.keys());
-  }
-
-  /**
-   * Clear all registered analyzers.
-   * Useful for testing.
-   */
-  clear(): void {
-    this.analyzers.clear();
-  }
-
-  /**
-   * Get the number of registered analyzers.
-   */
-  get size(): number {
-    return this.analyzers.size;
+    return this.names();
   }
 
   /**
@@ -237,7 +176,7 @@ export class AnalyzerRegistry {
         return;
       }
 
-      const analyzer = this.analyzers.get(id);
+      const analyzer = this.items.get(id);
       if (!analyzer) {
         console.warn(`[AnalyzerRegistry] Unknown analyzer dependency: ${id}`);
         return;
@@ -257,7 +196,7 @@ export class AnalyzerRegistry {
     };
 
     // Visit all analyzers
-    for (const id of this.analyzers.keys()) {
+    for (const id of this.items.keys()) {
       visit(id);
     }
 

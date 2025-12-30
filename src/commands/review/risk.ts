@@ -3,7 +3,7 @@
  * @description Risk assessment for code changes
  */
 
-import type { FileChange, ReviewIssue } from '../../types';
+import type { FileChange, ReviewIssue } from '../../types/commands/review';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 

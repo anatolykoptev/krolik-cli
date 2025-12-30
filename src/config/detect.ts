@@ -5,8 +5,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { exists, isDirectory, readJson } from '../lib';
-import type { FeatureConfig, PathConfig, PrismaConfig, TrpcConfig } from '../types';
+import { exists, isDirectory, readJson } from '../lib/@core/fs';
+import type { FeatureConfig, PathConfig, PrismaConfig, TrpcConfig } from '../types/config';
 
 /**
  * Package.json structure (partial)

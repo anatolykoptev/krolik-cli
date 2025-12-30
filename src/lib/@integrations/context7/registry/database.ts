@@ -8,8 +8,8 @@
  * - Registry statistics
  */
 
-// Use adapter to access storage (proper layer separation)
-import { getRegistryDatabase } from '../adapters';
+// Use factory to access storage (proper layer separation)
+import { getRegistryDatabase } from '../factory';
 import type { LibraryMapping, LibraryTopic, RegistryStats } from '../types';
 
 // Alias for backward compatibility within this file

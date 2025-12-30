@@ -64,6 +64,7 @@ function buildFixerFlags(options: CommandOptions): Record<string, boolean | unde
     fixUrls: options.fixUrls as boolean | undefined,
     fixSrp: options.fixSrp as boolean | undefined,
     fixDuplicate: options.fixDuplicate as boolean | undefined,
+    cleanupDeprecated: options.cleanupDeprecated as boolean | undefined,
   };
 }
 
@@ -129,6 +130,7 @@ Examples:
     .option('--fix-urls', 'Fix hardcoded URLs')
     .option('--fix-srp', 'Fix SRP violations')
     .option('--fix-duplicate', 'Fix duplicate functions (merge)')
+    .option('--cleanup-deprecated', 'Delete deprecated shim files and update imports')
     .action(async (options: CommandOptions) => {
       const { runFix } = await import('../../commands/fix');
       const contextOptions = buildContextOptions(options);

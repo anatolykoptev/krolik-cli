@@ -1,12 +1,22 @@
 /**
  * @module lib/@detectors/types
  * @description Shared types for pattern matching
+ *
+ * NOTE: QualityCategory, QualityIssue, HardcodedType, and HardcodedValue
+ * are canonically defined in ./issue-factory/types.ts and re-exported here.
  */
 
 import { Severity } from '@/types/severity';
 
 // Re-export Severity for backwards compatibility
 export { Severity };
+
+// Re-export canonical types from issue-factory
+export type {
+  HardcodedType,
+  HardcodedValue,
+  QualityCategory,
+} from './patterns/issue-factory/types';
 
 /**
  * Pattern match result
@@ -19,30 +29,3 @@ export interface PatternMatch {
   /** Captured groups */
   groups?: Record<string, string>;
 }
-
-/**
- * Hardcoded value types
- */
-export type HardcodedType = 'number' | 'url' | 'color' | 'string';
-
-/**
- * Detected hardcoded value
- */
-export interface HardcodedValue {
-  value: string | number;
-  type: HardcodedType;
-  line: number;
-  column: number;
-  context?: string;
-}
-
-/**
- * Quality categories
- */
-export type QualityCategory =
-  | 'lint'
-  | 'type-safety'
-  | 'complexity'
-  | 'hardcoded'
-  | 'srp'
-  | 'documentation';

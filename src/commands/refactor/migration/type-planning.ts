@@ -7,7 +7,7 @@
  */
 
 import * as path from 'node:path';
-import { findFiles, readFile } from '../../../lib';
+import { findFiles, readFile } from '../../../lib/@core/fs';
 import type { TypeDuplicateInfo } from '../core/types';
 import type {
   ImportUpdateAction,

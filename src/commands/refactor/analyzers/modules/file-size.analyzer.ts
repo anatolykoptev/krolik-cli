@@ -32,7 +32,7 @@
 
 import * as path from 'node:path';
 
-import type { FileSizeAnalysis } from '../../core';
+import type { FileSizeAnalysis } from '../../core/types-ai';
 import { analyzeFileSizes } from '../metrics/file-size';
 import type { Analyzer } from '../registry';
 

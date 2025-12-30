@@ -4,7 +4,7 @@
  */
 
 import { formatJson as formatJsonBase } from '@/lib/@format';
-import type { Logger } from '../../types';
+import type { Logger } from '../../types/commands/base';
 import type { TrpcRouter } from './parser';
 
 /**

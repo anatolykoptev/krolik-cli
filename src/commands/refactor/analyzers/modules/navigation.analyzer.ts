@@ -6,7 +6,7 @@
  * Depends on: project-context analyzer.
  */
 
-import type { AiNavigation, ProjectContext } from '../../core';
+import type { AiNavigation, ProjectContext } from '../../core/types-ai';
 import { generateAiNavigation } from '../context/navigation';
 import type { Analyzer, AnalyzerContext, AnalyzerResult } from '../registry';
 

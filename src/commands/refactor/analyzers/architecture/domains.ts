@@ -6,9 +6,10 @@
  */
 
 import * as path from 'node:path';
-import { exists, findFiles } from '../../../../lib';
-import type { DomainInfo, NamespaceCategory } from '../../core';
-import { detectCategory, NAMESPACE_INFO } from '../../core';
+import { exists, findFiles } from '../../../../lib/@core/fs';
+import { detectCategory, NAMESPACE_INFO } from '../../core/constants';
+import type { NamespaceCategory } from '../../core/types';
+import type { DomainInfo } from '../../core/types-ai';
 import { getSubdirectories } from '../shared';
 
 // ============================================================================

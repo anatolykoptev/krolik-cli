@@ -6,15 +6,33 @@
  * information about reusable utilities.
  */
 
+import { escapeXml, truncate } from '@/lib/@format';
 import {
   getModule,
   type ModuleExport,
   scanLibModules,
   searchExports,
 } from '../../../lib/@discovery';
-import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
-import { escapeXml, truncate } from '../core/formatting';
+import {
+  type ActionDefinition,
+  formatToolError,
+  type MCPToolDefinition,
+  PROJECT_PROPERTY,
+  registerTool,
+  validateActionRequirements,
+  withErrorHandler,
+} from '../core';
 import { resolveProjectPath } from '../core/projects';
+
+// ============================================================================
+// ACTION DEFINITIONS
+// ============================================================================
+
+const MODULES_ACTIONS: Record<string, ActionDefinition> = {
+  list: {},
+  search: { requires: [{ param: 'query', message: 'query is required for search action' }] },
+  get: { requires: [{ param: 'module', message: 'module is required for get action' }] },
+};
 
 // ============================================================================
 // ACTION HANDLERS
@@ -256,13 +274,9 @@ Examples:
   handler: (args, workspaceRoot) => {
     const action = args.action as string;
 
-    // Validate action-specific requirements
-    if (action === 'search' && !args.query) {
-      return 'Error: query is required for search action';
-    }
-    if (action === 'get' && !args.module) {
-      return 'Error: module is required for get action';
-    }
+    // Validate action requirements using shared utility
+    const validationError = validateActionRequirements(action, args, MODULES_ACTIONS);
+    if (validationError) return validationError;
 
     // Resolve project path
     const projectArg = typeof args.project === 'string' ? args.project : undefined;
@@ -278,7 +292,8 @@ Examples:
       module: args.module as string | undefined,
     };
 
-    try {
+    // Use consistent error handling wrapper
+    return withErrorHandler('modules', action, () => {
       switch (action) {
         case 'list':
           return handleList(projectPath);
@@ -287,12 +302,10 @@ Examples:
         case 'get':
           return handleGet(projectPath, modulesArgs.module as string);
         default:
-          return `Error: Unknown action: ${action}. Valid actions: list, search, get`;
+          // This should never happen due to validateActionRequirements
+          return formatToolError('modules', action, `Unknown action: ${action}`);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `<modules-error action="${escapeXml(action)}"><message>${escapeXml(message)}</message></modules-error>`;
-    }
+    });
   },
 };
 

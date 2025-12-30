@@ -1,113 +1,31 @@
 /**
  * @module commands/fix/core/types
- * @description Core types for the Fixer architecture
+ * @description Core types for the fix command
  *
- * Re-exports common types from ../types and adds Fixer-specific interfaces.
+ * Re-exports all types from the split type files in core/types/
  */
 
-// ============================================================================
-// RE-EXPORT COMMON TYPES FROM ../types
-// ============================================================================
-
+// Re-export all types from the new split structure
 export type {
+  // Analysis
   FileAnalysis,
+  // Fix
   FixAction,
   FixDifficulty,
+  // Fixer
+  Fixer,
+  FixerContext,
+  FixerMetadata,
   FixOperation,
   FixResult,
   FixStrategy,
   FunctionInfo,
   HardcodedValue,
+  // Categories
   QualityCategory,
   QualityIssue,
   QualityReport,
   QualitySeverity,
   RecommendationItem,
   SplitSuggestion,
-} from '../types';
-
-// ============================================================================
-// FIXER-SPECIFIC TYPES (unique to core/)
-// ============================================================================
-
-import type { FixDifficulty, FixOperation, QualityCategory, QualityIssue } from '../types';
-
-/**
- * Fixer metadata - describes a fixer
- */
-export interface FixerMetadata {
-  /** Unique fixer identifier (e.g., "console", "debugger", "any-type") */
-  id: string;
-  /** Human-readable name (e.g., "Console Statements") */
-  name: string;
-  /** Description for help text */
-  description: string;
-  /** Category this fixer handles */
-  category: QualityCategory;
-  /** Default difficulty level */
-  difficulty: FixDifficulty;
-  /** CLI flag name (e.g., "--fix-console") */
-  cliFlag: string;
-  /** Optional negation flag (e.g., "--no-console") */
-  negateFlag?: string | undefined;
-  /** Tags for grouping (e.g., ["trivial", "safe-to-autofix"]) */
-  tags?: string[] | undefined;
-}
-
-/**
- * Context passed to fixer lifecycle hooks
- */
-export interface FixerContext {
-  /** Project root directory */
-  projectRoot: string;
-  /** Whether this is a dry run (preview only) */
-  dryRun: boolean;
-  /** Total number of issues being fixed */
-  totalIssues: number;
-}
-
-/**
- * Fixer interface - self-contained unit for detecting and fixing issues
- */
-export interface Fixer {
-  /** Metadata about this fixer */
-  metadata: FixerMetadata;
-
-  /**
-   * Analyze content and return issues this fixer can handle
-   * @param content - File content
-   * @param file - File path
-   * @returns Array of quality issues
-   */
-  analyze(content: string, file: string): QualityIssue[];
-
-  /**
-   * Generate fix operation for an issue
-   * @param issue - The issue to fix
-   * @param content - Current file content
-   * @returns Fix operation or null if can't fix
-   */
-  fix(issue: QualityIssue, content: string): Promise<FixOperation | null> | FixOperation | null;
-
-  /**
-   * Optional: check if this issue should be skipped (e.g., in test files)
-   * @param issue - The issue to check
-   * @param content - File content
-   * @returns true to skip, false to process
-   */
-  shouldSkip?(issue: QualityIssue, content: string): boolean;
-
-  /**
-   * Optional: called before any fixes are applied
-   * Use for loading resources, initializing state, etc.
-   * @param context - Fixer context with project info
-   */
-  onStart?(context: FixerContext): Promise<void> | void;
-
-  /**
-   * Optional: called after all fixes are applied
-   * Use for flushing resources, cleanup, writing files, etc.
-   * @param context - Fixer context with project info
-   */
-  onComplete?(context: FixerContext): Promise<void> | void;
-}
+} from './types/index';

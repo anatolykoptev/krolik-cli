@@ -27,7 +27,8 @@ import {
   formatCacheStats,
   isGitRepoForBackup as isGitRepo,
 } from '@/lib';
-import type { CommandContext } from '../../types';
+import type { CommandContext } from '../../types/commands/base';
+import type { FixOptions, FixResult } from './core';
 import { formatPlan, formatPlanForAI, formatResults } from './formatters';
 import { applyFixesParallel } from './parallel-executor';
 import { type FixPlan, generateFixPlan, generateFixPlanFromIssues, type SkipStats } from './plan';
@@ -46,13 +47,12 @@ import {
   runTypeCheck,
   type TsCheckResult,
 } from './strategies/shared';
-import type { FixOptions, FixResult } from './types';
 
 export { applyFix, applyFixes, createBackup, rollbackFix } from './applier';
-export { findStrategy } from './strategies';
 // Re-export types
-export type { FixOperation, FixOptions, FixResult } from './types';
-export { getFixDifficulty } from './types';
+export type { FixOperation, FixOptions, FixResult } from './core';
+export { getFixDifficulty } from './core';
+export { findStrategy } from './strategies';
 
 // Import registry for --list-fixers
 import { registry } from './fixers';
@@ -406,12 +406,120 @@ import { formatAuditAge, hasAuditData, isAuditDataStale, readAuditData } from '.
 // REFACTOR INTEGRATION
 // ============================================================================
 
+import { cleanupDeprecatedFile } from './fixers/backwards-compat';
 import {
   formatRefactorAge,
   hasRefactorData,
   isRefactorDataStale,
   readRefactorData,
 } from './refactor-reader';
+
+// ============================================================================
+// BACKWARDS-COMPAT CLEANUP
+// ============================================================================
+
+/**
+ * Run cleanup of deprecated backwards-compat shim files
+ *
+ * Uses audit data to find deprecated files and cleans them up:
+ * 1. Update imports in all affected files
+ * 2. Delete the deprecated shim file
+ */
+async function runCleanupDeprecated(
+  projectRoot: string,
+  dryRun: boolean,
+  logger: {
+    info: (msg: string) => void;
+    debug: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+  },
+): Promise<void> {
+  // Read audit data to get backwards-compat issues
+  if (!hasAuditData(projectRoot)) {
+    logger.error("No audit data found. Run 'krolik audit' first to detect deprecated files.");
+    return;
+  }
+
+  const result = readAuditData(projectRoot, false);
+  if (!result.success) {
+    logger.error(result.error);
+    return;
+  }
+
+  // Filter to backwards-compat issues only
+  const bcIssues = result.issues.filter((i) => i.category === 'backwards-compat');
+
+  if (bcIssues.length === 0) {
+    logger.info('No backwards-compat shim files found in audit data.');
+    return;
+  }
+
+  logger.info(`Found ${bcIssues.length} backwards-compat shim files to clean up.`);
+  console.log('');
+
+  let totalUpdated = 0;
+  let totalDeleted = 0;
+  let totalErrors = 0;
+
+  for (const issue of bcIssues) {
+    // Extract target path from snippet (→ @/lib/new-path)
+    const targetMatch = issue.snippet?.match(/^→\s*(.+)$/);
+    const targetPath = targetMatch?.[1];
+
+    if (!targetPath) {
+      console.log(chalk.yellow(`⚠️  ${issue.file}: No target path found, skipping`));
+      continue;
+    }
+
+    console.log(chalk.cyan(`📦 ${issue.file}`));
+    console.log(chalk.dim(`   → ${targetPath}`));
+
+    const cleanupResult = await cleanupDeprecatedFile(issue.file, targetPath, projectRoot, dryRun);
+
+    if (dryRun) {
+      if (cleanupResult.updatedFiles.length > 0) {
+        console.log(chalk.dim(`   Would update ${cleanupResult.updatedFiles.length} files`));
+        for (const file of cleanupResult.updatedFiles.slice(0, 5)) {
+          console.log(chalk.dim(`     - ${file}`));
+        }
+        if (cleanupResult.updatedFiles.length > 5) {
+          console.log(chalk.dim(`     ... and ${cleanupResult.updatedFiles.length - 5} more`));
+        }
+      } else {
+        console.log(chalk.dim('   No files import this module'));
+      }
+      console.log(chalk.dim('   Would delete file'));
+    } else {
+      if (cleanupResult.success) {
+        if (cleanupResult.updatedFiles.length > 0) {
+          console.log(chalk.green(`   ✅ Updated ${cleanupResult.updatedFiles.length} imports`));
+          totalUpdated += cleanupResult.updatedFiles.length;
+        }
+        if (cleanupResult.deleted) {
+          console.log(chalk.green('   🗑️  Deleted file'));
+          totalDeleted++;
+        }
+      } else {
+        console.log(chalk.red(`   ❌ Errors: ${cleanupResult.errors.join(', ')}`));
+        totalErrors += cleanupResult.errors.length;
+      }
+    }
+    console.log('');
+  }
+
+  // Summary
+  if (dryRun) {
+    console.log(chalk.yellow('Dry run complete. Use --yes to apply changes.'));
+  } else {
+    console.log(chalk.bold('Summary:'));
+    console.log(chalk.green(`  ✅ Updated imports: ${totalUpdated}`));
+    console.log(chalk.green(`  🗑️  Deleted files: ${totalDeleted}`));
+    if (totalErrors > 0) {
+      console.log(chalk.red(`  ❌ Errors: ${totalErrors}`));
+    }
+  }
+}
 
 /**
  * Run fix with cached audit data
@@ -523,6 +631,12 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
   const { config, logger, options } = ctx;
 
   try {
+    // Special mode: cleanup deprecated files
+    if (options.cleanupDeprecated) {
+      await runCleanupDeprecated(config.projectRoot, !options.yes, logger);
+      return;
+    }
+
     // Step 0: TypeScript check
     if (await runTypecheckStep(config.projectRoot, options, logger)) return;
 

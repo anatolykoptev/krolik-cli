@@ -7,8 +7,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { detectFeatures, detectMonorepoPackages } from '../../config';
 import { createEnhancedAnalysis } from './analyzers/enhanced';
-import type { Recommendation, RefactorOptions } from './core';
-import { getModeFlags, resolveMode } from './core';
+import type { RefactorOptions } from './core/options';
+import { getModeFlags, resolveMode } from './core/options';
+import type { Recommendation } from './core/types-ai';
 import { resolvePackagePaths, resolvePaths } from './paths';
 import {
   applyMigrations,

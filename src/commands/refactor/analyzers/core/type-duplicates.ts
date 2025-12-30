@@ -9,7 +9,9 @@
  */
 
 import * as path from 'node:path';
-import { findFiles, logger, readFile, validatePathWithinProject } from '../../../../lib';
+import { findFiles, readFile } from '../../../../lib/@core/fs';
+import { logger } from '../../../../lib/@core/logger';
+import { validatePathWithinProject } from '../../../../lib/@security';
 import type { TypeDuplicateInfo } from '../../core/types';
 import { hashContent, jaccardSimilarity, LIMITS, SIMILARITY_THRESHOLDS } from '../shared';
 import { extractTypesSwc, type SwcTypeInfo } from './swc-parser';

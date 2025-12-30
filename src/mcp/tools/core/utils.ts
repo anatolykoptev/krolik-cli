@@ -57,14 +57,6 @@ export function sanitizeIssueNumber(input: unknown): number | null {
   return null;
 }
 
-/**
- * Escape shell argument for safe use in commands
- */
-export function escapeShellArg(arg: string): string {
-  // Replace single quotes with escaped version and wrap in single quotes
-  return `'${arg.replace(/'/g, "'\\''")}'`;
-}
-
 // ============================================================================
 // TOOL EXECUTION
 // ============================================================================
@@ -154,4 +146,90 @@ export function runKrolik(args: string, projectRoot: string, timeout = 30000): s
 
   // Success - return stdout
   return result.stdout || '';
+}
+
+// ============================================================================
+// ACTION-BASED TOOL HELPERS
+// ============================================================================
+
+/**
+ * Action requirement definition for validation
+ */
+export interface ActionRequirement {
+  /** Required parameter name */
+  param: string;
+  /** Error message if missing */
+  message?: string;
+}
+
+/**
+ * Action definition for multi-action tools
+ */
+export interface ActionDefinition {
+  /** Required parameters for this action */
+  requires?: ActionRequirement[];
+}
+
+/**
+ * Validate action requirements for multi-action tools
+ *
+ * @param action - The action to validate
+ * @param args - Tool arguments
+ * @param actions - Map of action names to their definitions
+ * @returns Error message if validation fails, undefined otherwise
+ *
+ * @example
+ * const actions = {
+ *   search: { requires: [{ param: 'query', message: 'query is required for search' }] },
+ *   fetch: { requires: [{ param: 'library' }] },
+ *   list: {}
+ * };
+ *
+ * const error = validateActionRequirements('search', args, actions);
+ * if (error) return error;
+ */
+export function validateActionRequirements(
+  action: string,
+  args: Record<string, unknown>,
+  actions: Record<string, ActionDefinition>,
+): string | undefined {
+  const actionDef = actions[action];
+
+  if (!actionDef) {
+    const validActions = Object.keys(actions).join(', ');
+    return `Error: Unknown action: ${action}. Valid actions: ${validActions}`;
+  }
+
+  if (actionDef.requires) {
+    for (const req of actionDef.requires) {
+      if (args[req.param] === undefined || args[req.param] === null || args[req.param] === '') {
+        return req.message ?? `Error: ${req.param} is required for ${action} action`;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Get string value from args with type safety
+ */
+export function getStringArg(args: Record<string, unknown>, key: string): string | undefined {
+  const value = args[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Get number value from args with type safety
+ */
+export function getNumberArg(args: Record<string, unknown>, key: string): number | undefined {
+  const value = args[key];
+  return typeof value === 'number' ? value : undefined;
+}
+
+/**
+ * Get boolean value from args with type safety
+ */
+export function getBooleanArg(args: Record<string, unknown>, key: string): boolean {
+  return args[key] === true;
 }

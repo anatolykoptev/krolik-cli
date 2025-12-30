@@ -5,7 +5,7 @@
 
 import * as path from 'node:path';
 import { cosmiconfig } from 'cosmiconfig';
-import type { KrolikConfig, ResolvedConfig } from '../types';
+import type { KrolikConfig, ResolvedConfig } from '../types/config';
 import { createDefaultConfig } from './defaults';
 import { detectAll } from './detect';
 

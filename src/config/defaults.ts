@@ -10,7 +10,7 @@ import type {
   ResolvedConfig,
   TemplateConfig,
   TrpcConfig,
-} from '../types';
+} from '../types/config';
 
 /**
  * Default path configuration

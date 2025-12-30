@@ -3,7 +3,7 @@
  * @description Security and performance pattern checks
  */
 
-import type { ReviewCategory, ReviewIssue, ReviewSeverity } from '../../types';
+import type { ReviewCategory, ReviewIssue, ReviewSeverity } from '../../types/commands/review';
 
 /**
  * Pattern definition

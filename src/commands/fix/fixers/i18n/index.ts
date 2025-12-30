@@ -29,7 +29,13 @@
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixerContext, FixOperation, QualityIssue } from '../../core/types';
 import { analyzeI18nIssues } from './analyzer';
-import { fixI18nIssue, flushCatalog, getFixStats, initializeCatalog } from './fixer';
+import {
+  addMissingImports,
+  fixI18nIssue,
+  flushCatalog,
+  getFixStats,
+  initializeCatalog,
+} from './fixer';
 
 // ============================================================================
 // FIXER METADATA
@@ -112,7 +118,7 @@ export const i18nFixer: Fixer = {
   },
 
   /**
-   * Flush new translations to locale files
+   * Flush new translations to locale files and add missing imports
    */
   async onComplete(context: FixerContext): Promise<void> {
     // Skip flush on dry run
@@ -129,6 +135,14 @@ export const i18nFixer: Fixer = {
       return;
     }
 
+    // Add missing imports to fixed files
+    const importsAdded = addMissingImports();
+    if (importsAdded > 0) {
+      // eslint-disable-next-line no-console
+      console.log(`  ✓ Added t() import to ${importsAdded} file(s)`);
+    }
+
+    // Flush translations to locale files
     const result = await flushCatalog();
     if (result.newKeys > 0) {
       // eslint-disable-next-line no-console
@@ -172,9 +186,11 @@ export {
   SKIP_PATTERNS,
 } from './constants';
 export {
+  addMissingImports,
   fixI18nIssue,
   flushCatalog,
   generateI18nImport,
+  getFilesNeedingImport,
   getFixStats,
   hasI18nImport,
   initializeCatalog,

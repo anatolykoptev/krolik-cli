@@ -9,8 +9,6 @@
  * - Project-wide library fetching
  */
 
-// Use adapter to access storage (proper layer separation)
-import { getDefaultRepository } from '../adapters';
 import {
   type CodeSnippet,
   Context7Client,
@@ -18,6 +16,8 @@ import {
   hasContext7ApiKey,
   type SearchResult,
 } from '../client';
+// Use factory to access storage (proper layer separation)
+import { getDefaultRepository } from '../factory';
 import {
   getTopicsForLibrary,
   initializeRegistry,

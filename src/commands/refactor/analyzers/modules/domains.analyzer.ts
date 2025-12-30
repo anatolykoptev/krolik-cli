@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { DomainInfo } from '../../core';
+import type { DomainInfo } from '../../core/types-ai';
 import { classifyDomains } from '../architecture/domains';
 import type { Analyzer } from '../registry';
 

@@ -16,7 +16,9 @@
  * ```
  */
 
-import { parseFile, visitNodeWithCallbacks } from './index';
+// Import directly from source files to avoid circular dependency with ./index barrel
+import { parseFile } from './parser';
+import { visitNodeWithCallbacks } from './visitor';
 
 /**
  * Parsed import statement

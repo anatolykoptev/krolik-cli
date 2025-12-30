@@ -18,7 +18,7 @@ import {
   listLibraries,
   searchDocs,
 } from '@/lib/@storage/docs';
-import type { CommandContext, OutputFormat } from '../../types';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 
 interface DocsFetchOptions {
   library: string;

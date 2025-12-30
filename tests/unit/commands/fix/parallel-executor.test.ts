@@ -29,6 +29,7 @@ vi.mock('@/lib', () => ({
   formatCacheStats: vi.fn(() => ''),
 }));
 
+import type { FixOperation, QualityIssue } from '../../../../src/commands/fix/core';
 import {
   createConcurrencyLimiter,
   estimateExecutionTime,
@@ -36,7 +37,6 @@ import {
   groupByDirectory,
 } from '../../../../src/commands/fix/parallel-executor';
 import type { FixPlan } from '../../../../src/commands/fix/plan';
-import type { FixOperation, QualityIssue } from '../../../../src/commands/fix/types';
 
 // ============================================================================
 // TEST UTILITIES

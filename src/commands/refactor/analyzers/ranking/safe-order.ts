@@ -162,14 +162,25 @@ export function topologicalSort(
 // ============================================================================
 
 /**
+ * Build a lookup map for coupling metrics (O(n) -> enables O(1) lookups)
+ */
+function buildCouplingMap(couplingMetrics: CouplingMetrics[]): Map<string, CouplingMetrics> {
+  return new Map(couplingMetrics.map((c) => [c.path, c]));
+}
+
+/**
  * Classify a node as leaf, intermediate, or core based on coupling
+ *
+ * For batch operations, use classifyNodes() which pre-computes percentiles
  */
 export function classifyNode(
   node: string,
   couplingMetrics: CouplingMetrics[],
   pageRankScores: Map<string, number>,
 ): 'leaf' | 'intermediate' | 'core' {
-  const coupling = couplingMetrics.find((c) => c.path === node);
+  // Build map for O(1) lookup (avoids O(n^2) when called in loop)
+  const couplingMap = buildCouplingMap(couplingMetrics);
+  const coupling = couplingMap.get(node);
   if (!coupling) return 'intermediate';
 
   const Ca = coupling.afferentCoupling;
@@ -208,10 +219,12 @@ function calculatePercentile(value: number, allValues: number[]): number {
 
 /**
  * Calculate risk score for a phase
+ *
+ * Uses pre-built coupling map for O(1) lookups (avoids O(n*m) complexity)
  */
 function calculatePhaseRisk(
   modules: string[],
-  couplingMetrics: CouplingMetrics[],
+  couplingMap: Map<string, CouplingMetrics>,
   pageRankScores: Map<string, number>,
   isCycle: boolean,
 ): number {
@@ -219,7 +232,7 @@ function calculatePhaseRisk(
 
   let totalRisk = 0;
   for (const module of modules) {
-    const coupling = couplingMetrics.find((c) => c.path === module);
+    const coupling = couplingMap.get(module);
     const Ca = coupling?.afferentCoupling ?? 0;
     const pageRank = pageRankScores.get(module) ?? 0;
     totalRisk += Ca * 10 + pageRank * 100;
@@ -242,6 +255,39 @@ function getRiskLevel(riskScore: number): RefactoringPhase['riskLevel'] {
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
+
+/**
+ * Classify a node using pre-built maps for O(1) lookups
+ * Internal function used by generateSafeRefactoringOrder
+ */
+function classifyNodeWithMaps(
+  node: string,
+  couplingMap: Map<string, CouplingMetrics>,
+  pageRankScores: Map<string, number>,
+  allCa: number[],
+  allPageRank: number[],
+): 'leaf' | 'intermediate' | 'core' {
+  const coupling = couplingMap.get(node);
+  if (!coupling) return 'intermediate';
+
+  const Ca = coupling.afferentCoupling;
+  const pageRank = pageRankScores.get(node) ?? 0;
+
+  const caPercentile = calculatePercentile(Ca, allCa);
+  const prPercentile = calculatePercentile(pageRank, allPageRank);
+
+  // Leaf: no dependents or very low PageRank
+  if (Ca === 0 || (caPercentile < 20 && prPercentile < 20)) {
+    return 'leaf';
+  }
+
+  // Core: high dependents or high PageRank
+  if (caPercentile >= CORE_THRESHOLD_PERCENTILE || prPercentile >= CORE_THRESHOLD_PERCENTILE) {
+    return 'core';
+  }
+
+  return 'intermediate';
+}
 
 /**
  * Generate safe refactoring order based on dependency topology
@@ -270,16 +316,29 @@ export function generateSafeRefactoringOrder(
     };
   }
 
+  // Pre-build lookup map for O(1) coupling access (avoids O(n^2) from find() in loops)
+  const couplingMap = buildCouplingMap(couplingMetrics);
+
+  // Pre-compute percentile arrays once (used by classifyNode)
+  const allCa = couplingMetrics.map((c) => c.afferentCoupling);
+  const allPageRank = Array.from(pageRankScores.values());
+
   // 1. Find SCCs (cycles)
   const sccs = findStronglyConnectedComponents(dependencyGraph);
   const cycles = sccs.filter((scc) => scc.length > 1);
 
-  // 2. Classify nodes
+  // 2. Classify nodes using pre-built maps (O(n) instead of O(n^2))
   const leafNodes: string[] = [];
   const coreNodes: string[] = [];
 
   for (const node of nodes) {
-    const classification = classifyNode(node, couplingMetrics, pageRankScores);
+    const classification = classifyNodeWithMaps(
+      node,
+      couplingMap,
+      pageRankScores,
+      allCa,
+      allPageRank,
+    );
     if (classification === 'leaf') {
       leafNodes.push(node);
     } else if (classification === 'core') {
@@ -370,7 +429,7 @@ export function generateSafeRefactoringOrder(
       const scc = sccs[sccIdx]!;
       const isCycle = scc.length > 1;
 
-      const riskScore = calculatePhaseRisk(scc, couplingMetrics, pageRankScores, isCycle);
+      const riskScore = calculatePhaseRisk(scc, couplingMap, pageRankScores, isCycle);
       const category = isCycle
         ? 'cycle'
         : scc.every((n) => leafNodes.includes(n))

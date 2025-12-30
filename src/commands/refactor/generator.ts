@@ -5,8 +5,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { DirectoryInfo, NamespaceCategory } from './core';
 import { NAMESPACE_INFO } from './core/constants';
+import type { DirectoryInfo, NamespaceCategory } from './core/types';
 
 // ============================================================================
 // TYPES

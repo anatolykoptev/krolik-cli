@@ -10,8 +10,8 @@ import {
   detectSrcPaths,
   type MonorepoPackage,
 } from '../../../config';
-import { exists, relativePath as getRelativePath } from '../../../lib';
-import type { RefactorOptions } from '../core';
+import { exists, relativePath as getRelativePath } from '../../../lib/@core/fs';
+import type { RefactorOptions } from '../core/options';
 import type { ResolvedPathsWithPackage } from './types';
 
 /**

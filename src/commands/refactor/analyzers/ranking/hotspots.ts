@@ -239,20 +239,25 @@ export function detectHotspots(
   // Get all PageRank values for percentile calculation
   const allScores = Array.from(prResult.scores.values());
 
+  // Build coupling lookup map for O(1) access (avoids O(n^2) from find() in loop)
+  const couplingMap = new Map(couplingMetrics.map((c) => [c.path, c]));
+
   // Create hotspots from top PageRank scores
   const sortedModules = Array.from(prResult.scores.entries()).sort((a, b) => b[1] - a[1]);
 
   const hotspots: DependencyHotspot[] = [];
 
+  const defaultCoupling: CouplingMetrics = {
+    path: '',
+    afferentCoupling: 0,
+    efferentCoupling: 0,
+    instability: 0,
+    riskScore: 0,
+  };
+
   for (const [module, score] of sortedModules.slice(0, count)) {
     const percentile = calculatePercentile(score, allScores);
-    const coupling = couplingMetrics.find((c) => c.path === module) ?? {
-      path: module,
-      afferentCoupling: 0,
-      efferentCoupling: 0,
-      instability: 0,
-      riskScore: 0,
-    };
+    const coupling = couplingMap.get(module) ?? { ...defaultCoupling, path: module };
 
     const hotspotBase = {
       path: module,

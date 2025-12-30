@@ -13,7 +13,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import chalk from 'chalk';
-import type { BaseCommandOptions, CommandContext } from '../../types';
+import type { BaseCommandOptions, CommandContext } from '../../types/commands/base';
 import {
   BUNDLE_TYPES,
   getAllGenerators,

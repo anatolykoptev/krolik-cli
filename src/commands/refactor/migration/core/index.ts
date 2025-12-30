@@ -3,13 +3,12 @@
  * @description Migration orchestration exports
  */
 
-export type {
-  ExecutionResult,
-  MigrationExecutionOptions,
-  MigrationExecutionResult,
-} from './orchestrator';
-
 export {
   executeMigrationAction,
   executeMigrationPlan,
 } from './orchestrator';
+export type {
+  ExecutionResult,
+  MigrationExecutionOptions,
+  MigrationExecutionResult,
+} from './types';

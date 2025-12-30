@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { ProjectContext } from '../../core';
+import type { ProjectContext } from '../../core/types-ai';
 import { detectProjectContext } from '../context/context';
 import type { Analyzer } from '../registry';
 

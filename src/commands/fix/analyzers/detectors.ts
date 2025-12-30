@@ -3,8 +3,8 @@
  * @description File type detection - now uses shared @context library
  */
 
-import { detectFileType as detectFileTypeFromContext } from '../../../lib/@detectors/file-context';
-import type { FileAnalysis } from '../types';
+import { detectFileType as detectFileTypeFromContext } from '@/lib/@detectors/patterns/file-context';
+import type { FileAnalysis } from '../core';
 
 /**
  * Detect file type based on path and content

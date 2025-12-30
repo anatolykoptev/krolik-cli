@@ -3,17 +3,17 @@
  * @description Git diff analysis utilities
  */
 
+import { tryExec } from '../../lib/@core/shell';
+import { escapeShellArg } from '../../lib/@security';
 import {
-  escapeShellArg,
   getCurrentBranch,
   getDefaultBranch,
   getDiff,
   getFileDiff,
   getPR,
   getStagedDiff,
-  tryExec,
-} from '../../lib';
-import type { FileChange } from '../../types';
+} from '../../lib/@vcs';
+import type { FileChange } from '../../types/commands/review';
 
 /**
  * PR information for review

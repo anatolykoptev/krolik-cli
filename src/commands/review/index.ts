@@ -5,15 +5,14 @@
 
 import { detectLibraries } from '@/lib/@integrations/context7';
 import { searchDocs } from '@/lib/@storage/docs';
-import { escapeXml } from '../../lib';
+import { escapeXml } from '../../lib/@format';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type {
-  CommandContext,
   DocReference,
   FileChange,
-  OutputFormat,
   ReviewIssue,
   ReviewResult,
-} from '../../types';
+} from '../../types/commands/review';
 import { buildAgentContext, formatContextForPrompt } from '../agent/context';
 import { findAgentsPath, loadAgentByName } from '../agent/loader';
 import {

@@ -3,7 +3,7 @@
  * @description Path-based threshold configuration and overrides
  */
 
-import type { ThresholdOverride, Thresholds } from '../types';
+import type { ThresholdOverride, Thresholds } from '../core';
 
 const DEFAULT_PAGE_SIZE = 20;
 

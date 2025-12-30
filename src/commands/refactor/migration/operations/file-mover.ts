@@ -5,7 +5,8 @@
  * Handles moving individual files with internal import updates.
  */
 
-import { logger, readFile, writeFile } from '../../../../lib';
+import { readFile, writeFile } from '../../../../lib/@core/fs';
+import { logger } from '../../../../lib/@core/logger';
 import { updateInternalImports } from '../imports';
 import { safeDelete } from '../security';
 

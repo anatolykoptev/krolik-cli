@@ -7,7 +7,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { exists, readFile } from '../../../../lib';
+import { exists, readFile } from '../../../../lib/@core/fs';
 
 // ============================================================================
 // TYPES

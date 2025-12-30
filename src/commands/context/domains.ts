@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { DOMAIN_FILES, getApproaches as getApproachesFromConfig } from '../../config/domains';
 import { detectDomainsFromText } from '../../lib/domains';
-import type { KrolikConfig } from '../../types';
+import type { KrolikConfig } from '../../types/config';
 
 /**
  * Detect domains from text content

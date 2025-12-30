@@ -1,7 +1,7 @@
-import type { NumberRange } from '../../../lib/@detectors/complexity';
+import type { NumberRange } from '../../../lib/@detectors';
 
 // Re-export for backwards compatibility
-export type { NumberRange } from '../../../lib/@detectors/complexity';
+export type { NumberRange } from '../../../lib/@detectors';
 
 export interface PatternMatch<T = string> {
   matched: boolean;

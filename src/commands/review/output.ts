@@ -3,23 +3,10 @@
  * @description Review output formatters
  */
 
+import { groupByPropertyToRecord } from '@/lib/@core';
 import { escapeXml, formatJson as formatJsonBase } from '@/lib/@format';
-import type { Logger, ReviewResult } from '../../types';
-
-/**
- * Group items by a key
- */
-function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
-  return array.reduce(
-    (result, item) => {
-      const k = String(item[key]);
-      result[k] = result[k] || [];
-      result[k].push(item);
-      return result;
-    },
-    {} as Record<string, T[]>,
-  );
-}
+import type { Logger } from '../../types/commands/base';
+import type { ReviewResult } from '../../types/commands/review';
 
 /**
  * Print review to console
@@ -60,7 +47,7 @@ export function printReview(review: ReviewResult, logger: Logger): void {
   // Issues
   if (review.issues.length > 0) {
     console.log('=== Issues Found ===');
-    const grouped = groupBy(review.issues, 'severity');
+    const grouped = groupByPropertyToRecord(review.issues, 'severity');
 
     if (grouped.error) {
       console.log('\x1b[31mERRORS:\x1b[0m');
@@ -238,7 +225,7 @@ export function formatMarkdown(review: ReviewResult): string {
   if (review.issues.length > 0) {
     lines.push('## Issues');
     lines.push('');
-    const grouped = groupBy(review.issues, 'severity');
+    const grouped = groupByPropertyToRecord(review.issues, 'severity');
 
     if (grouped.error) {
       lines.push('### 🔴 Errors');

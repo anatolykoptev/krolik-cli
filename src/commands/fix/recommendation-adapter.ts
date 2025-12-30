@@ -14,8 +14,8 @@
  * - Derived fixerId based on category
  */
 
-import type { Recommendation, RecommendationCategory } from '../refactor/core';
-import type { QualityCategory, QualityIssue, QualitySeverity } from './types';
+import type { Recommendation, RecommendationCategory } from '../refactor/core/types-ai';
+import type { QualityCategory, QualityIssue, QualitySeverity } from './core';
 
 // ============================================================================
 // CATEGORY MAPPING

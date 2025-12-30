@@ -31,12 +31,13 @@ import type { Fixer } from '../core/types';
 
 import { alertFixer } from './alert';
 import { anyTypeFixer } from './any-type';
+// Refactor integration fixers (safe)
+import { backwardsCompatFixer } from './backwards-compat';
 // Complexity fixers (risky - require review)
 import { complexityFixer } from './complexity';
 // Lint fixers (trivial - safe to auto-apply)
 import { consoleFixer } from './console';
 import { debuggerFixer } from './debugger';
-// Refactor integration fixers (safe)
 import { duplicateFixer } from './duplicate';
 import { equalityFixer } from './equality';
 import { evalFixer } from './eval';
@@ -75,6 +76,7 @@ export const allFixers: Fixer[] = [
   magicNumbersFixer,
   hardcodedUrlsFixer,
   duplicateFixer, // Refactor integration: merge duplicate functions
+  backwardsCompatFixer, // Cleanup deprecated shim files
 
   i18nFixer, // I18n: extract hardcoded text to translation keys
 
@@ -96,6 +98,7 @@ export const fixersByCategory = {
   srp: [srpFixer],
   refine: [refineFixer],
   i18n: [i18nFixer],
+  'backwards-compat': [backwardsCompatFixer],
 };
 
 /**
@@ -112,6 +115,7 @@ export const fixersByDifficulty = {
     magicNumbersFixer,
     hardcodedUrlsFixer,
     duplicateFixer,
+    backwardsCompatFixer,
     i18nFixer, // I18n: extract hardcoded text to translation keys
   ],
   risky: [complexityFixer, longFunctionsFixer, srpFixer, refineFixer],
@@ -140,6 +144,7 @@ export { registry };
 
 export { alertFixer } from './alert';
 export { anyTypeFixer } from './any-type';
+export { backwardsCompatFixer } from './backwards-compat';
 export { complexityFixer } from './complexity';
 // Export individual fixers
 export { consoleFixer } from './console';

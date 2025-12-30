@@ -5,8 +5,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { saveKrolikFile } from '../../lib';
-import type { CommandContext, OutputFormat } from '../../types';
+import { saveKrolikFile } from '../../lib/@core/fs';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import { formatAI, formatJson, formatMarkdown, printSchema, type SchemaOutput } from './output';
 import { parseSchemaDirectory } from './parser';
 

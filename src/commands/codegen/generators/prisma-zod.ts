@@ -193,6 +193,3 @@ class PrismaZodGeneratorClass extends BaseGenerator {
 }
 
 export const prismaZodGenerator = new PrismaZodGeneratorClass();
-
-// Re-export types for external use
-export type { PrismaEnum, PrismaModel };

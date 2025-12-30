@@ -21,7 +21,7 @@
  * - hardcoded/   - magic numbers, URLs extraction
  */
 
-import type { FixStrategy, QualityIssue } from '../types';
+import type { FixStrategy, QualityIssue } from '../core';
 import { complexityStrategy } from './complexity';
 import { hardcodedStrategy } from './hardcoded';
 import { lintStrategy } from './lint';

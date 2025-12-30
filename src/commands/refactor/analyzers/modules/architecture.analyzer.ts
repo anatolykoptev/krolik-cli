@@ -26,7 +26,7 @@
  * ```
  */
 
-import type { ArchHealth } from '../../core';
+import type { ArchHealth } from '../../core/types-ai';
 import { analyzeArchHealth } from '../architecture/architecture';
 import type { Analyzer } from '../registry';
 

@@ -1,26 +1,36 @@
 /**
  * @module lib/@i18n/setup
- * @description Locale directory setup and initialization
+ * @description Dynamic locale directory detection and initialization
  *
- * Provides automatic creation of locale directory structure and base files.
- * Follows Airbnb/Google i18n workflow: ensure structure exists before operations.
+ * Uses pattern-based detection similar to @discovery/routes:
+ * - Detects i18n libraries from package.json
+ * - Maps libraries to expected locale paths
+ * - Scans for existing locale directories
+ * - Creates missing structure based on detected patterns
  *
  * @example
  * ```typescript
- * import { ensureLocalesDir, initDefaultLocales } from '@/lib/@i18n/setup';
+ * import { detectLocalesDir, ensureLocalesStructure } from '@/lib/@i18n/setup';
  *
- * // Ensure directory structure exists
- * const localesDir = await ensureLocalesDir('/path/to/project');
- * // => '/path/to/project/apps/web/public/locales'
+ * // Detect existing locales directory
+ * const localesDir = detectLocalesDir('/path/to/project');
  *
- * // Initialize with base files
- * await initDefaultLocales(localesDir, { languages: ['ru', 'en'] });
- * // Creates: ru/common.json, en/common.json
+ * // Ensure structure exists (creates if missing)
+ * const result = await ensureLocalesStructure('/path/to/project');
  * ```
  */
 
-import * as fs from 'node:fs';
 import * as path from 'node:path';
+
+import {
+  ensureDir,
+  exists,
+  getSubdirectories,
+  isDirectory,
+  readJson,
+  writeJson,
+} from '../@core/fs';
+import { detectMonorepo } from '../@discovery';
 
 // ============================================================================
 // TYPES
@@ -52,21 +62,80 @@ export interface LocalesDirResult {
 
   /** Whether any files were created */
   filesCreated: number;
+
+  /** Detected i18n library */
+  detectedLibrary?: string;
 }
 
 /**
- * Result of a single file initialization
+ * Detected i18n configuration
  */
-interface FileInitResult {
-  path: string;
-  created: boolean;
-  merged: boolean;
-  keysAdded: number;
+interface I18nDetection {
+  /** Detected i18n libraries */
+  libraries: Set<string>;
+
+  /** Candidate paths based on detected libraries */
+  candidatePaths: string[];
+
+  /** Is this a monorepo? */
+  isMonorepo: boolean;
+
+  /** Web app path (for monorepos) */
+  webAppPath?: string;
 }
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS - Framework-to-paths mapping (like routes.ts)
 // ============================================================================
+
+/**
+ * I18n library to locale path mapping
+ * Key: npm package name, Value: candidate paths relative to project/package root
+ */
+const I18N_LIBRARY_CANDIDATES: Record<string, { deps: string[]; paths: string[] }> = {
+  'next-i18next': {
+    deps: ['next-i18next'],
+    paths: ['public/locales', 'locales'],
+  },
+  'react-i18next': {
+    deps: ['react-i18next', 'i18next'],
+    paths: ['public/locales', 'src/locales', 'locales', 'src/i18n/locales'],
+  },
+  i18next: {
+    deps: ['i18next'],
+    paths: ['locales', 'src/locales', 'public/locales'],
+  },
+  'next-intl': {
+    deps: ['next-intl'],
+    paths: ['messages', 'locales', 'src/messages'],
+  },
+  lingui: {
+    deps: ['@lingui/core', '@lingui/react'],
+    paths: ['src/locales', 'locales'],
+  },
+  'vue-i18n': {
+    deps: ['vue-i18n'],
+    paths: ['src/locales', 'locales', 'src/i18n'],
+  },
+};
+
+/**
+ * Monorepo package paths where locales typically live
+ * Checked in order of priority
+ */
+const MONOREPO_WEB_PACKAGES = [
+  'apps/web',
+  'apps/frontend',
+  'apps/client',
+  'packages/web',
+  'packages/frontend',
+  'packages/app',
+] as const;
+
+/**
+ * Generic fallback paths when no library is detected
+ */
+const FALLBACK_PATHS = ['public/locales', 'locales', 'src/locales'] as const;
 
 /** Default configuration */
 export const DEFAULT_I18N_CONFIG: I18nSetupConfig = {
@@ -77,62 +146,205 @@ export const DEFAULT_I18N_CONFIG: I18nSetupConfig = {
   },
 };
 
-/** Ordered list of paths to try for locale directory detection */
-const LOCALE_PATHS = [
-  'apps/web/public/locales',
-  'public/locales',
-  'locales',
-  'src/locales',
-] as const;
-
 // ============================================================================
-// HELPERS
+// CACHE
 // ============================================================================
 
+/** Cache for detected i18n config per project */
+const detectionCache = new Map<string, I18nDetection>();
+
 /**
- * Check if a directory exists
+ * Clear detection cache (for testing or project changes)
  */
-async function directoryExists(dirPath: string): Promise<boolean> {
-  try {
-    const stat = await fs.promises.stat(dirPath);
-    return stat.isDirectory();
-  } catch {
-    return false;
-  }
+export function clearI18nDetectionCache(): void {
+  detectionCache.clear();
+}
+
+// ============================================================================
+// DETECTION - Dynamic path discovery
+// ============================================================================
+
+/**
+ * Read package.json dependencies
+ */
+function readDependencies(pkgPath: string): Set<string> {
+  const pkg = readJson<{
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  }>(pkgPath);
+
+  if (!pkg) return new Set();
+
+  return new Set([
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.devDependencies ?? {}),
+  ]);
 }
 
 /**
- * Check if a file exists
+ * Detect i18n libraries and candidate paths
  */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    const stat = await fs.promises.stat(filePath);
-    return stat.isFile();
-  } catch {
-    return false;
+function detectI18nConfig(projectRoot: string): I18nDetection {
+  const cached = detectionCache.get(projectRoot);
+  if (cached) return cached;
+
+  const detection: I18nDetection = {
+    libraries: new Set(),
+    candidatePaths: [],
+    isMonorepo: false,
+  };
+
+  // Check for monorepo
+  const monorepo = detectMonorepo(projectRoot);
+  detection.isMonorepo = monorepo !== null;
+
+  // Find web app package in monorepo
+  if (detection.isMonorepo) {
+    for (const pkgPath of MONOREPO_WEB_PACKAGES) {
+      const fullPath = path.join(projectRoot, pkgPath);
+      if (isDirectory(fullPath)) {
+        detection.webAppPath = pkgPath;
+        break;
+      }
+    }
   }
+
+  // Read root package.json
+  const rootDeps = readDependencies(path.join(projectRoot, 'package.json'));
+
+  // Read web app package.json (for monorepos)
+  let webDeps = new Set<string>();
+  if (detection.webAppPath) {
+    const webPkgPath = path.join(projectRoot, detection.webAppPath, 'package.json');
+    webDeps = readDependencies(webPkgPath);
+  }
+
+  const allDeps = new Set([...rootDeps, ...webDeps]);
+
+  // Detect i18n libraries
+  for (const [library, config] of Object.entries(I18N_LIBRARY_CANDIDATES)) {
+    if (config.deps.some((dep) => allDeps.has(dep))) {
+      detection.libraries.add(library);
+
+      // Add paths for this library
+      for (const libPath of config.paths) {
+        // For monorepos, prefix with web app path
+        if (detection.webAppPath) {
+          detection.candidatePaths.push(path.join(detection.webAppPath, libPath));
+        }
+        // Also check at project root
+        detection.candidatePaths.push(libPath);
+      }
+    }
+  }
+
+  // Add fallback paths if no library detected
+  if (detection.libraries.size === 0) {
+    for (const fallbackPath of FALLBACK_PATHS) {
+      if (detection.webAppPath) {
+        detection.candidatePaths.push(path.join(detection.webAppPath, fallbackPath));
+      }
+      detection.candidatePaths.push(fallbackPath);
+    }
+  }
+
+  // Remove duplicates while preserving order
+  detection.candidatePaths = [...new Set(detection.candidatePaths)];
+
+  detectionCache.set(projectRoot, detection);
+  return detection;
+}
+
+// ============================================================================
+// DIRECTORY DETECTION
+// ============================================================================
+
+/**
+ * Check if directory looks like a locales directory
+ * (contains language subdirectories with JSON files)
+ */
+function isLocalesDirectory(dirPath: string): boolean {
+  if (!isDirectory(dirPath)) return false;
+
+  const subdirs = getSubdirectories(dirPath);
+  if (subdirs.length === 0) return false;
+
+  // Check if any subdir looks like a language code (2-5 chars)
+  // and contains JSON files
+  for (const subdir of subdirs) {
+    if (subdir.length >= 2 && subdir.length <= 5) {
+      const langDir = path.join(dirPath, subdir);
+
+      // Check for JSON files in the language directory
+      try {
+        const entries = require('node:fs').readdirSync(langDir);
+        if (entries.some((f: string) => f.endsWith('.json'))) {
+          return true;
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+  }
+
+  return false;
 }
 
 /**
- * Read JSON file safely
+ * Detect existing locales directory
+ *
+ * Uses dynamic detection based on:
+ * 1. Detected i18n libraries from package.json
+ * 2. Project structure (monorepo vs single package)
+ * 3. Common path patterns
+ *
+ * @param projectRoot - Project root directory
+ * @returns Path to locales directory or null if not found
  */
-async function readJsonSafe(filePath: string): Promise<Record<string, unknown> | null> {
-  try {
-    const content = await fs.promises.readFile(filePath, 'utf-8');
-    return JSON.parse(content) as Record<string, unknown>;
-  } catch {
-    return null;
+export function detectLocalesDir(projectRoot: string): string | null {
+  const detection = detectI18nConfig(projectRoot);
+
+  // Check each candidate path
+  for (const candidatePath of detection.candidatePaths) {
+    const fullPath = path.join(projectRoot, candidatePath);
+
+    if (isLocalesDirectory(fullPath)) {
+      return fullPath;
+    }
+
+    // Also check if directory exists but is empty (still valid)
+    if (isDirectory(fullPath)) {
+      return fullPath;
+    }
   }
+
+  return null;
 }
 
 /**
- * Write JSON file with consistent formatting
+ * Get the best path for creating locales directory
+ *
+ * Based on detected i18n library and project structure
  */
-async function writeJson(filePath: string, content: Record<string, unknown>): Promise<void> {
-  const dir = path.dirname(filePath);
-  await fs.promises.mkdir(dir, { recursive: true });
-  await fs.promises.writeFile(filePath, `${JSON.stringify(content, null, 2)}\n`, 'utf-8');
+export function getBestLocalesPath(projectRoot: string): string {
+  const detection = detectI18nConfig(projectRoot);
+
+  // Return first candidate path (highest priority)
+  if (detection.candidatePaths.length > 0) {
+    return path.join(projectRoot, detection.candidatePaths[0]!);
+  }
+
+  // Ultimate fallback
+  if (detection.webAppPath) {
+    return path.join(projectRoot, detection.webAppPath, 'public', 'locales');
+  }
+
+  return path.join(projectRoot, 'public', 'locales');
 }
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
 
 /**
  * Deep merge two objects (source into target)
@@ -169,168 +381,95 @@ function deepMergeNew(
   return { merged: result, keysAdded };
 }
 
-// ============================================================================
-// MAIN FUNCTIONS
-// ============================================================================
-
-/**
- * Detect the locale directory in a project
- *
- * Tries common paths in order:
- * 1. apps/web/public/locales (monorepo)
- * 2. public/locales (Next.js)
- * 3. locales (generic)
- * 4. src/locales (alternative)
- *
- * @param projectRoot - Root directory of the project
- * @returns Path to locale directory or null if not found
- */
-export async function detectLocalesDir(projectRoot: string): Promise<string | null> {
-  for (const relativePath of LOCALE_PATHS) {
-    const fullPath = path.join(projectRoot, relativePath);
-    if (await directoryExists(fullPath)) {
-      return fullPath;
-    }
-  }
-  return null;
-}
-
-/**
- * Ensure locale directory exists, creating it if necessary
- *
- * Uses smart detection:
- * 1. If directory exists, return it
- * 2. If monorepo structure detected (apps/web), use apps/web/public/locales
- * 3. If public folder exists, use public/locales
- * 4. Otherwise, use locales at project root
- *
- * @param projectRoot - Root directory of the project
- * @returns Result with path and creation status
- */
-export async function ensureLocalesDir(projectRoot: string): Promise<LocalesDirResult> {
-  // First, try to find existing directory
-  const existing = await detectLocalesDir(projectRoot);
-  if (existing) {
-    return { path: existing, existed: true, filesCreated: 0 };
-  }
-
-  // Determine best path based on project structure
-  let targetPath: string;
-
-  // Check for monorepo structure
-  const webAppPath = path.join(projectRoot, 'apps', 'web');
-  if (await directoryExists(webAppPath)) {
-    targetPath = path.join(webAppPath, 'public', 'locales');
-  }
-  // Check for public folder (Next.js)
-  else if (await directoryExists(path.join(projectRoot, 'public'))) {
-    targetPath = path.join(projectRoot, 'public', 'locales');
-  }
-  // Fallback to root-level locales
-  else {
-    targetPath = path.join(projectRoot, 'locales');
-  }
-
-  // Create directory
-  await fs.promises.mkdir(targetPath, { recursive: true });
-
-  return { path: targetPath, existed: false, filesCreated: 0 };
-}
-
 /**
  * Initialize locale files for a specific language
- *
- * For each namespace:
- * - If file doesn't exist: create with initial content
- * - If file exists: merge new keys (existing keys preserved)
  *
  * @param localesDir - Path to locales directory
  * @param language - Language code (e.g., 'ru', 'en')
  * @param config - Setup configuration
- * @returns Array of file initialization results
+ * @returns Number of files created
  */
-export async function initLanguageLocales(
+export function initLanguageLocales(
   localesDir: string,
   language: string,
   config: I18nSetupConfig = DEFAULT_I18N_CONFIG,
-): Promise<FileInitResult[]> {
+): number {
   const langDir = path.join(localesDir, language);
-  await fs.promises.mkdir(langDir, { recursive: true });
+  ensureDir(langDir);
 
-  const results: FileInitResult[] = [];
+  let filesCreated = 0;
 
   for (const namespace of config.defaultNamespaces) {
     const filePath = path.join(langDir, `${namespace}.json`);
     const initialContent = config.initialContent?.[namespace] ?? {};
 
-    if (await fileExists(filePath)) {
+    if (exists(filePath)) {
       // File exists - merge new keys
-      const existing = await readJsonSafe(filePath);
+      const existing = readJson<Record<string, unknown>>(filePath);
       if (existing) {
         const { merged, keysAdded } = deepMergeNew(existing, initialContent);
         if (keysAdded > 0) {
-          await writeJson(filePath, merged);
-          results.push({ path: filePath, created: false, merged: true, keysAdded });
-        } else {
-          results.push({ path: filePath, created: false, merged: false, keysAdded: 0 });
+          writeJson(filePath, merged);
         }
       }
     } else {
-      // File doesn't exist - create with initial content
-      await writeJson(filePath, initialContent);
-      results.push({
-        path: filePath,
-        created: true,
-        merged: false,
-        keysAdded: Object.keys(initialContent).length,
-      });
+      // File doesn't exist - create
+      writeJson(filePath, initialContent);
+      filesCreated++;
     }
   }
 
-  return results;
+  return filesCreated;
 }
 
 /**
- * Initialize all default locales
+ * Ensure locales directory structure exists
  *
  * Creates the complete locale structure:
- * - Ensures locales directory exists
+ * - Detects or creates locales directory
  * - For each language, ensures namespace files exist
- * - Merges initial content into existing files
  *
  * @param projectRoot - Root directory of the project
  * @param config - Setup configuration (optional)
- * @returns Combined result of all operations
+ * @returns Result with path and creation status
  */
-export async function initDefaultLocales(
+export async function ensureLocalesStructure(
   projectRoot: string,
   config: I18nSetupConfig = DEFAULT_I18N_CONFIG,
 ): Promise<LocalesDirResult> {
-  // Ensure directory exists
-  const dirResult = await ensureLocalesDir(projectRoot);
+  // Try to find existing directory
+  let localesDir = detectLocalesDir(projectRoot);
+  const existed = localesDir !== null;
+
+  // Create if not found
+  if (!localesDir) {
+    localesDir = getBestLocalesPath(projectRoot);
+    ensureDir(localesDir);
+  }
+
+  // Get detected library for reporting
+  const detection = detectI18nConfig(projectRoot);
+  const detectedLibrary = detection.libraries.size > 0 ? [...detection.libraries][0] : undefined;
 
   let filesCreated = 0;
 
   // Initialize each language
   for (const language of config.languages) {
-    const langResults = await initLanguageLocales(dirResult.path, language, config);
-    filesCreated += langResults.filter((r) => r.created).length;
+    filesCreated += initLanguageLocales(localesDir, language, config);
   }
 
   return {
-    path: dirResult.path,
-    existed: dirResult.existed,
+    path: localesDir,
+    existed,
     filesCreated,
+    ...(detectedLibrary && { detectedLibrary }),
   };
 }
 
 /**
  * Get or create locales directory with full initialization
  *
- * Convenience function that combines detection, creation, and initialization:
- * 1. Detects existing locale directory
- * 2. If not found, creates appropriate directory structure
- * 3. Ensures all language/namespace files exist
+ * Convenience function that combines detection, creation, and initialization
  *
  * @param projectRoot - Root directory of the project
  * @param config - Setup configuration (optional)
@@ -340,6 +479,37 @@ export async function getOrCreateLocalesDir(
   projectRoot: string,
   config: I18nSetupConfig = DEFAULT_I18N_CONFIG,
 ): Promise<string> {
-  const result = await initDefaultLocales(projectRoot, config);
+  const result = await ensureLocalesStructure(projectRoot, config);
   return result.path;
+}
+
+// ============================================================================
+// ASYNC WRAPPERS (for compatibility with existing code)
+// ============================================================================
+
+/**
+ * Ensure locale directory exists (async wrapper)
+ * @deprecated Use ensureLocalesStructure instead
+ */
+export async function ensureLocalesDir(projectRoot: string): Promise<LocalesDirResult> {
+  const existing = detectLocalesDir(projectRoot);
+  if (existing) {
+    return { path: existing, existed: true, filesCreated: 0 };
+  }
+
+  const targetPath = getBestLocalesPath(projectRoot);
+  ensureDir(targetPath);
+
+  return { path: targetPath, existed: false, filesCreated: 0 };
+}
+
+/**
+ * Initialize default locales (async wrapper)
+ * @deprecated Use ensureLocalesStructure instead
+ */
+export async function initDefaultLocales(
+  projectRoot: string,
+  config: I18nSetupConfig = DEFAULT_I18N_CONFIG,
+): Promise<LocalesDirResult> {
+  return ensureLocalesStructure(projectRoot, config);
 }

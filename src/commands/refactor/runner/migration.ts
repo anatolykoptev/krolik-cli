@@ -9,8 +9,8 @@ import {
   createBackupBranch,
   type GitBackupResult,
   hasUncommittedChanges,
-} from '../../../lib';
-import type { RefactorAnalysis } from '../core';
+} from '../../../lib/@vcs';
+import type { RefactorAnalysis } from '../core/types';
 import {
   createTypeMigrationPlan,
   executeMigrationPlan,

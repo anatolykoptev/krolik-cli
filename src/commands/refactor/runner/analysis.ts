@@ -3,21 +3,22 @@
  * @description Analysis orchestration for refactor command
  */
 
-import { exists, saveKrolikFile } from '../../../lib';
+import { exists, saveKrolikFile } from '../../../lib/@core/fs';
 import {
   analyzeStructure,
   createEnhancedAnalysis,
   findDuplicates,
   findTypeDuplicates,
 } from '../analyzers';
+import { clearFileCache } from '../core/file-cache';
+import type { RefactorOptions } from '../core/options';
+import { getModeFlags, resolveMode } from '../core/options';
 import type {
   DuplicateInfo,
   RefactorAnalysis,
-  RefactorOptions,
   StructureAnalysis,
   TypeDuplicateInfo,
-} from '../core';
-import { clearFileCache, getModeFlags, resolveMode } from '../core';
+} from '../core/types';
 import { createMigrationPlan, findAffectedImports } from '../migration';
 import { formatAiNativeXml, formatMigrationPreview, formatRefactor } from '../output';
 import { resolvePaths } from '../paths';

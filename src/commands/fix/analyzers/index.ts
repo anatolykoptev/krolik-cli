@@ -5,7 +5,7 @@
 
 import * as path from 'node:path';
 import { fileCache } from '@/lib';
-import type { FileAnalysis, QualityOptions } from '../types';
+import type { FileAnalysis, QualityOptions } from '../core';
 
 // Internal imports (only what's used in this file)
 import { checkMixedConcerns } from './concerns';
@@ -26,19 +26,10 @@ export { detectFileType } from './detectors';
 export { checkDocumentation } from './documentation';
 export { detectHardcodedValues } from './hardcoded';
 export { checkLintRules_all as checkLintRules, isCliFile, type LintOptions } from './lint-rules';
-/** @deprecated Use checkReturnTypesSwcUnified from unified-swc.ts instead */
-export { checkReturnTypesSwc } from './return-types-swc';
 export { checkSRP } from './srp';
 export { buildThresholds, getThresholdsForPath } from './thresholds';
 export { checkTypeSafety } from './type-safety';
-export {
-  analyzeFileUnified,
-  checkLintRulesSwc,
-  checkReturnTypesSwcUnified,
-  checkTypeSafetySwc,
-  detectHardcodedSwc,
-  extractFunctionsUnified,
-} from './unified-swc';
+export { analyzeFileUnified } from './unified-swc';
 
 const ERROR_CODE = 30;
 

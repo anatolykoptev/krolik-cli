@@ -11,8 +11,8 @@
  */
 
 import { applyFix, createBackup } from './applier';
+import type { FixOptions, FixResult } from './core';
 import type { FixPlan } from './plan';
-import type { FixOptions, FixResult } from './types';
 
 // ============================================================================
 // TYPES

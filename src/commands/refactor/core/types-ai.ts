@@ -7,7 +7,9 @@
  */
 
 import type { RoutesOutput } from '../../routes';
-import type { I18nAnalysisResult } from '../analyzers/modules/i18n.analyzer';
+// NOTE: Import from i18n.types.ts (not i18n.analyzer.ts) to avoid circular dependency
+// (i18n.analyzer.ts imports registry which imports core which re-exports this file)
+import type { I18nAnalysisResult } from '../analyzers/modules/i18n.types';
 import type { RankingAnalysis } from '../analyzers/ranking/types';
 import type { MigrationAction, MigrationPlan, NamespaceCategory, RefactorAnalysis } from './types';
 

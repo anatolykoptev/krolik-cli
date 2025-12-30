@@ -8,9 +8,10 @@
 import * as path from 'node:path';
 import type { ImportDeclaration, Module } from '@swc/core';
 import { parseSync } from '@swc/core';
-import { exists, findFiles, readFile } from '../../../../lib';
-import type { ArchHealth, ArchViolation, NamespaceCategory } from '../../core';
-import { ALLOWED_DEPS, detectCategory, isBoundaryFile, NAMESPACE_INFO } from '../../core';
+import { exists, findFiles, readFile } from '../../../../lib/@core/fs';
+import { ALLOWED_DEPS, detectCategory, isBoundaryFile, NAMESPACE_INFO } from '../../core/constants';
+import type { NamespaceCategory } from '../../core/types';
+import type { ArchHealth, ArchViolation } from '../../core/types-ai';
 import { getSubdirectories } from '../shared';
 
 // ============================================================================
@@ -108,6 +109,26 @@ function extractRuntimeImports(content: string, filePath: string): string[] {
 }
 
 /**
+ * Build directory lookup maps for O(1) access
+ * Handles variations: name, @name, name without @
+ */
+function buildDirLookupMaps(allDirs: DirectoryWithCategory[]): Map<string, DirectoryWithCategory> {
+  const map = new Map<string, DirectoryWithCategory>();
+  for (const dir of allDirs) {
+    // Direct name lookup
+    map.set(dir.name, dir);
+    // Also index without @ prefix if present
+    if (dir.name.startsWith('@')) {
+      map.set(dir.name.slice(1), dir);
+    } else {
+      // Also index with @ prefix
+      map.set(`@${dir.name}`, dir);
+    }
+  }
+  return map;
+}
+
+/**
  * Analyze dependencies of a directory
  *
  * Uses SWC AST for accurate detection:
@@ -118,6 +139,9 @@ function extractRuntimeImports(content: string, filePath: string): string[] {
  */
 export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCategory[]): string[] {
   const deps = new Set<string>();
+
+  // Build lookup map for O(1) access (avoids O(n^2) from find() in nested loop)
+  const dirLookup = buildDirLookupMaps(allDirs);
 
   const files = findFiles(dirPath, {
     extensions: ['.ts', '.tsx'],
@@ -141,10 +165,8 @@ export function analyzeDependencies(dirPath: string, allDirs: DirectoryWithCateg
       if (importPath.includes('@/lib/') || importPath.includes('/lib/')) {
         const libMatch = importPath.match(/lib\/(@?[\w-]+)/);
         if (libMatch) {
-          const depName = libMatch[1];
-          const depDir = allDirs.find(
-            (d) => d.name === depName || d.name === `@${depName}` || `@${d.name}` === depName,
-          );
+          const depName = libMatch[1]!;
+          const depDir = dirLookup.get(depName);
           if (depDir && depDir.path !== dirPath) {
             deps.add(depDir.name);
           }
@@ -203,17 +225,19 @@ export function findCircularDeps(graph: Record<string, string[]>): string[][] {
 
 /**
  * Check for layer violations between directories
+ *
+ * Uses pre-built lookup map for O(1) access (avoids O(n*m) complexity)
  */
 function checkLayerViolations(
   dir: DirectoryWithCategory,
   deps: string[],
-  dirs: DirectoryWithCategory[],
+  dirLookup: Map<string, DirectoryWithCategory>,
 ): ArchViolation[] {
   const violations: ArchViolation[] = [];
   const dirLayer = NAMESPACE_INFO[dir.category].layer;
 
   for (const dep of deps) {
-    const depDir = dirs.find((d) => d.name === dep);
+    const depDir = dirLookup.get(dep);
     if (!depDir) continue;
 
     const depLayer = NAMESPACE_INFO[depDir.category].layer;
@@ -265,6 +289,9 @@ export function analyzeArchHealth(targetPath: string, _projectRoot: string): Arc
   // Get all directories with their categories
   const dirs = getDirectoriesWithCategories(targetPath);
 
+  // Pre-build lookup map for O(1) access (avoids O(n^2) in checkLayerViolations)
+  const dirLookup = buildDirLookupMaps(dirs);
+
   // Build dependency graph and check violations
   for (const dir of dirs) {
     const deps = analyzeDependencies(dir.path, dirs);
@@ -276,8 +303,8 @@ export function analyzeArchHealth(targetPath: string, _projectRoot: string): Arc
       compliant: true,
     };
 
-    // Check for layer violations
-    const dirViolations = checkLayerViolations(dir, deps, dirs);
+    // Check for layer violations (uses pre-built lookup map)
+    const dirViolations = checkLayerViolations(dir, deps, dirLookup);
     violations.push(...dirViolations);
 
     // Mark non-compliant

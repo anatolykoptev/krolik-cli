@@ -4,9 +4,9 @@
  */
 
 import * as path from 'node:path';
-import { escapeXml } from '../../../lib';
+import { escapeXml } from '../../../lib/@format';
+import type { FixOperation } from '../core';
 import type { FixPlan, FixPlanItem, SkipStats } from '../plan';
-import type { FixOperation } from '../types';
 
 // ============================================================================
 // TYPES

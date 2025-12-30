@@ -3,7 +3,7 @@
  * @description Documentation (JSDoc) checks for exported functions
  */
 
-import type { FunctionInfo, QualityIssue } from '../types';
+import type { FunctionInfo, QualityIssue } from '../core';
 
 /**
  * File patterns to skip for documentation checks

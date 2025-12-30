@@ -7,7 +7,12 @@
  */
 
 import * as path from 'node:path';
-import type { AddNewCodeHints, AiNavigation, FilePatternInfo, ProjectContext } from '../../core';
+import type {
+  AddNewCodeHints,
+  AiNavigation,
+  FilePatternInfo,
+  ProjectContext,
+} from '../../core/types-ai';
 
 // ============================================================================
 // ADD NEW CODE HINTS

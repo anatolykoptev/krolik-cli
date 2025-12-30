@@ -3,6 +3,7 @@
  * @description Group models by domain/file
  */
 
+import { groupBy, groupByProperty } from '@/lib/@core';
 import type { PrismaModel } from './parser';
 
 /**
@@ -28,31 +29,14 @@ const DEFAULT_DOMAINS: Record<string, string> = {
  * Group models by file
  */
 export function groupByFile(models: PrismaModel[]): Map<string, PrismaModel[]> {
-  const grouped = new Map<string, PrismaModel[]>();
-
-  for (const model of models) {
-    const group = grouped.get(model.file) || [];
-    group.push(model);
-    grouped.set(model.file, group);
-  }
-
-  return grouped;
+  return groupByProperty(models, 'file');
 }
 
 /**
  * Group models by domain (inferred from filename)
  */
 export function groupByDomain(models: PrismaModel[]): Map<string, PrismaModel[]> {
-  const grouped = new Map<string, PrismaModel[]>();
-
-  for (const model of models) {
-    const domain = inferDomain(model.file);
-    const group = grouped.get(domain) || [];
-    group.push(model);
-    grouped.set(domain, group);
-  }
-
-  return grouped;
+  return groupBy(models, (model) => inferDomain(model.file));
 }
 
 /**

@@ -4,14 +4,10 @@
  */
 
 import chalk from 'chalk';
-import {
-  createMissingSubDocs,
-  DOCS_VERSION,
-  measureTime,
-  needsSync,
-  syncClaudeMd,
-} from '../../lib';
-import type { CommandContext, OutputFormat, StatusResult } from '../../types';
+import { createMissingSubDocs, DOCS_VERSION, needsSync, syncClaudeMd } from '../../lib/@claude';
+import { measureTime } from '../../lib/@core/time';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
+import type { StatusResult } from '../../types/commands/status';
 import { checkGit, checkLint, checkTypecheck, toStatusResult } from './checks';
 import { formatAI, formatJson, formatMarkdown, printStatus } from './output';
 import { getProjectInfo } from './project-info';

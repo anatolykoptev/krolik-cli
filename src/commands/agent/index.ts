@@ -7,8 +7,9 @@
  * 2. Orchestration mode: Analyze task and coordinate multiple agents
  */
 
-import { escapeXml, measureTime } from '../../lib';
-import type { CommandContext } from '../../types';
+import { measureTime } from '../../lib/@core/time';
+import { escapeXml } from '../../lib/@format';
+import type { CommandContext } from '../../types/commands/base';
 import { AGENT_CATEGORIES, resolveCategory } from './categories';
 import { buildAgentContext, formatContextForPrompt } from './context';
 import {

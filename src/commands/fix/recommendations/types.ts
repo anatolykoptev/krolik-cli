@@ -3,7 +3,7 @@
  * @description Types for recommendations system
  */
 
-import type { FileAnalysis } from '../types';
+import type { FileAnalysis } from '../core';
 
 /**
  * Recommendation category

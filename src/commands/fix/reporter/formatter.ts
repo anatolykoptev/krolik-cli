@@ -3,7 +3,7 @@
  * @description Formatters for AI Report output
  */
 
-import { escapeXml } from '../../../lib';
+import { escapeXml } from '../../../lib/@format';
 import { normalizePath } from './grouping';
 import type {
   ActionStep,
@@ -464,6 +464,122 @@ export function formatAsXml(report: AIReport): string {
       lines.push('    </step>');
     }
     lines.push('  </action-plan>');
+  }
+
+  // Ranking (dependency hotspots + safe refactoring order)
+  if (report.ranking && report.ranking.hotspots.length > 0) {
+    lines.push('');
+    lines.push('  <!-- RANKING - PageRank-based dependency analysis -->');
+    lines.push(
+      `  <ranking modules="${report.ranking.stats.nodeCount}" edges="${report.ranking.stats.edgeCount}" cycles="${report.ranking.stats.cycleCount}">`,
+    );
+
+    // Hotspots
+    lines.push(`    <hotspots count="${report.ranking.hotspots.length}">`);
+    for (const hotspot of report.ranking.hotspots.slice(0, 10)) {
+      lines.push(
+        `      <hotspot path="${escapeXml(hotspot.path)}" percentile="${hotspot.percentile}" risk="${hotspot.risk}">`,
+      );
+      lines.push(
+        `        <metrics pagerank="${hotspot.pageRank.toFixed(4)}" ca="${hotspot.coupling.afferent}" ce="${hotspot.coupling.efferent}" instability="${hotspot.coupling.instability.toFixed(2)}" />`,
+      );
+      lines.push('      </hotspot>');
+    }
+    lines.push('    </hotspots>');
+
+    // Safe refactoring order
+    if (report.ranking.safeOrder.length > 0) {
+      lines.push(`    <safe-order phases="${report.ranking.safeOrder.length}">`);
+      for (const phase of report.ranking.safeOrder.slice(0, 5)) {
+        const modules = phase.modules.join(', ');
+        lines.push(
+          `      <phase order="${phase.order}" modules="${phase.modules.length}" risk="${phase.risk}">${modules}</phase>`,
+        );
+      }
+      lines.push('    </safe-order>');
+    }
+
+    // Cycles (if any)
+    if (report.ranking.cycles.length > 0) {
+      lines.push(`    <cycles count="${report.ranking.cycles.length}">`);
+      for (const cycle of report.ranking.cycles.slice(0, 3)) {
+        lines.push(`      <cycle>${cycle.join(' → ')}</cycle>`);
+      }
+      lines.push('    </cycles>');
+    }
+
+    // Leaf/Core nodes
+    if (report.ranking.leafNodes.length > 0) {
+      lines.push(
+        `    <leaf-nodes hint="safe to refactor first">${report.ranking.leafNodes.slice(0, 5).join(', ')}</leaf-nodes>`,
+      );
+    }
+    if (report.ranking.coreNodes.length > 0) {
+      lines.push(
+        `    <core-nodes hint="refactor last">${report.ranking.coreNodes.join(', ')}</core-nodes>`,
+      );
+    }
+
+    lines.push('    <hint>Run: krolik refactor for full analysis and migration plan</hint>');
+    lines.push('  </ranking>');
+  }
+
+  // Backwards-compat shim files (should be deleted)
+  if (report.backwardsCompatFiles && report.backwardsCompatFiles.length > 0) {
+    lines.push('');
+    lines.push('  <!-- BACKWARDS-COMPAT - Deprecated shim files that should be deleted -->');
+    lines.push(
+      `  <backwards-compat count="${report.backwardsCompatFiles.length}" action="delete">`,
+    );
+    for (const file of report.backwardsCompatFiles) {
+      lines.push(
+        `    <shim path="${escapeXml(file.path)}" confidence="${file.confidence}%"${file.movedTo ? ` target="${escapeXml(file.movedTo)}"` : ''}>`,
+      );
+      lines.push(`      <reason>${escapeXml(file.reason)}</reason>`);
+      lines.push(`      <suggestion>${escapeXml(file.suggestion)}</suggestion>`);
+      lines.push('    </shim>');
+    }
+    lines.push('    <hint>Delete these files and update imports to use the new locations</hint>');
+    lines.push('  </backwards-compat>');
+  }
+
+  // Recommendations (top 10 from refactor analysis)
+  if (report.recommendations && report.recommendations.length > 0) {
+    lines.push('');
+    lines.push('  <!-- RECOMMENDATIONS - Top refactoring priorities -->');
+    lines.push(`  <recommendations count="${report.recommendations.length}">`);
+    for (const rec of report.recommendations) {
+      lines.push(
+        `    <rec priority="${rec.priority}" category="${rec.category}" effort="${rec.effort}" auto="${rec.autoFixable}">`,
+      );
+      lines.push(`      <title>${escapeXml(rec.title)}</title>`);
+      lines.push(`      <description>${escapeXml(rec.description)}</description>`);
+      if (rec.affectedFiles.length > 0) {
+        lines.push(`      <files>${rec.affectedFiles.map((f) => escapeXml(f)).join(', ')}</files>`);
+      }
+      lines.push('    </rec>');
+    }
+    lines.push('  </recommendations>');
+  }
+
+  // Duplicates summary
+  if (report.duplicates && report.duplicates.totalGroups > 0) {
+    lines.push('');
+    lines.push('  <!-- DUPLICATES - Function duplicates summary -->');
+    lines.push(
+      `  <duplicates total="${report.duplicates.totalGroups}" merge="${report.duplicates.mergeCount}" rename="${report.duplicates.renameCount}">`,
+    );
+    for (const dup of report.duplicates.topDuplicates.slice(0, 5)) {
+      lines.push(
+        `    <dup name="${escapeXml(dup.name)}" similarity="${(dup.similarity * 100).toFixed(0)}%" locations="${dup.locationCount}" action="${dup.recommendation}">`,
+      );
+      lines.push(`      <files>${dup.files.map((f) => escapeXml(f)).join(', ')}</files>`);
+      lines.push('    </dup>');
+    }
+    lines.push(
+      '    <hint>Run: krolik refactor --duplicates-only for full duplicate analysis</hint>',
+    );
+    lines.push('  </duplicates>');
   }
 
   lines.push('</ai-report>');

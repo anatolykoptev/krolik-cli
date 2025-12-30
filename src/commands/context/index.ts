@@ -13,6 +13,7 @@ import {
 } from '@/lib/@integrations/context7';
 import { getSectionsByLibrary, searchDocs } from '@/lib/@storage/docs';
 import { type Memory, search as searchMemory } from '@/lib/@storage/memory';
+import { saveKrolikFile } from '../../lib/@core/fs';
 import {
   getCurrentBranch,
   getDiff,
@@ -23,9 +24,10 @@ import {
   isGhAvailable,
   isGitRepo,
   listIssues,
-  saveKrolikFile,
-} from '../../lib';
-import type { CommandContext, ContextResult, KrolikConfig } from '../../types';
+} from '../../lib/@vcs';
+import type { CommandContext } from '../../types/commands/base';
+import type { ContextResult } from '../../types/commands/context';
+import type { KrolikConfig } from '../../types/config';
 import { analyzeRoutes } from '../routes';
 import { analyzeSchema } from '../schema';
 import { extractTodos } from '../status/todos';

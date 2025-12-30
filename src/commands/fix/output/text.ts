@@ -9,7 +9,7 @@ import type {
   QualityReport,
   RecommendationItem,
   SplitSuggestion,
-} from '../types';
+} from '../core';
 
 // ============================================================================
 // SECTION FORMATTERS

@@ -3,7 +3,7 @@
  * @description Namespace migration plan generation
  */
 
-import type { DirectoryInfo, NamespaceCategory } from '../../../core';
+import type { DirectoryInfo, NamespaceCategory } from '../../../core/types';
 import type {
   NamespaceImportUpdate,
   NamespaceMigrationMove,

@@ -3,8 +3,8 @@
  * @description Namespace scoring and categorization logic
  */
 
-import type { DirectoryInfo, NamespaceCategory } from '../../../core';
 import { NAMESPACE_KEYWORDS } from '../../../core/constants';
+import type { DirectoryInfo, NamespaceCategory } from '../../../core/types';
 
 // ============================================================================
 // CONSTANTS

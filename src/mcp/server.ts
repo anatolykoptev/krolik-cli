@@ -19,7 +19,7 @@
 
 import * as readline from 'node:readline';
 
-import type { ResolvedConfig } from '../types';
+import type { ResolvedConfig } from '../types/config';
 import {
   handleInitialize,
   handleResourcesList,

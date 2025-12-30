@@ -6,7 +6,9 @@
  * with dependency management, metadata, and result handling.
  */
 
-import type { RefactorAnalysis } from '../../core';
+// NOTE: Import directly from types.ts to avoid circular dependency
+// (core/index.ts re-exports types-ai.ts which imports i18n.analyzer.ts which imports registry)
+import type { RefactorAnalysis } from '../../core/types';
 
 // ============================================================================
 // STATUS & RESULT TYPES

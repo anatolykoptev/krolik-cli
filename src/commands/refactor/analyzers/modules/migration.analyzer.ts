@@ -6,13 +6,12 @@
  * Depends on: architecture analyzer.
  */
 
+import type { MigrationPlan, RefactorAnalysis } from '../../core/types';
 import type {
   ArchHealth,
   EnhancedMigrationAction,
   EnhancedMigrationPlan,
-  MigrationPlan,
-  RefactorAnalysis,
-} from '../../core';
+} from '../../core/types-ai';
 import type { Analyzer, AnalyzerContext, AnalyzerResult } from '../registry';
 
 // ============================================================================

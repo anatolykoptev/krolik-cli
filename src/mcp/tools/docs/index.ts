@@ -5,6 +5,7 @@
  * Uses direct function imports instead of CLI subprocess calls for better performance.
  */
 
+import { escapeXml, truncate } from '@/lib/@format';
 import {
   detectLibraries,
   fetchAndCacheDocs,
@@ -18,9 +19,28 @@ import {
   listLibraries,
   searchDocs,
 } from '@/lib/@storage/docs';
-import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
-import { escapeXml, truncate } from '../core/formatting';
+import {
+  type ActionDefinition,
+  formatToolError,
+  type MCPToolDefinition,
+  PROJECT_PROPERTY,
+  registerTool,
+  validateActionRequirements,
+  withErrorHandler,
+} from '../core';
 import { resolveProjectPath } from '../core/projects';
+
+// ============================================================================
+// ACTION DEFINITIONS
+// ============================================================================
+
+const DOCS_ACTIONS: Record<string, ActionDefinition> = {
+  search: { requires: [{ param: 'query', message: 'query is required for search action' }] },
+  list: {},
+  fetch: { requires: [{ param: 'library', message: 'library is required for fetch action' }] },
+  detect: {},
+  clear: {},
+};
 
 // ============================================================================
 // ACTION HANDLERS
@@ -265,13 +285,9 @@ Examples:
   handler: async (args, workspaceRoot) => {
     const action = args.action as string;
 
-    // Validate action-specific requirements
-    if (action === 'search' && !args.query) {
-      return 'Error: query is required for search action';
-    }
-    if (action === 'fetch' && !args.library) {
-      return 'Error: library is required for fetch action';
-    }
+    // Validate action requirements using shared utility
+    const validationError = validateActionRequirements(action, args, DOCS_ACTIONS);
+    if (validationError) return validationError;
 
     // Resolve project path (needed for detect action)
     const projectArg = typeof args.project === 'string' ? args.project : undefined;
@@ -291,7 +307,8 @@ Examples:
       expired: args.expired as boolean | undefined,
     };
 
-    try {
+    // Use consistent error handling wrapper
+    return withErrorHandler('docs', action, async () => {
       switch (action) {
         case 'search':
           return handleSearch(docsArgs);
@@ -304,12 +321,10 @@ Examples:
         case 'clear':
           return handleClear(docsArgs);
         default:
-          return `Error: Unknown action: ${action}. Valid actions: search, list, fetch, detect, clear`;
+          // This should never happen due to validateActionRequirements
+          return formatToolError('docs', action, `Unknown action: ${action}`);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `<docs-error action="${escapeXml(action)}"><message>${escapeXml(message)}</message></docs-error>`;
-    }
+    });
   },
 };
 

@@ -4,7 +4,7 @@
  */
 
 import type { Priority } from '@/types/severity';
-import type { FixDifficulty, QualityCategory, QualityIssue } from '../types';
+import type { FixDifficulty, QualityCategory, QualityIssue } from '../core';
 
 // ============================================================================
 // EFFORT ESTIMATION
@@ -232,6 +232,117 @@ export interface AIReport {
   nextAction?: NextActionItem;
   /** Anti-patterns to avoid */
   doNot?: string[];
+  /** Number of i18n issues excluded from main report (shown separately) */
+  excludedI18nCount?: number;
+  /** Backwards-compat shim files that should be deleted */
+  backwardsCompatFiles?: BackwardsCompatSummary[];
+  /** Ranking analysis (hotspots, safe refactoring order) */
+  ranking?: RankingSummary;
+  /** Top recommendations from refactor analysis */
+  recommendations?: RecommendationSummary[];
+  /** Duplicate functions summary */
+  duplicates?: DuplicateSummary;
+}
+
+// ============================================================================
+// BACKWARDS-COMPAT SUMMARY
+// ============================================================================
+
+/**
+ * Backwards-compat shim file summary
+ */
+export interface BackwardsCompatSummary {
+  /** File path */
+  path: string;
+  /** Confidence level (50-100) */
+  confidence: number;
+  /** Detection reason */
+  reason: string;
+  /** Where the code moved to */
+  movedTo?: string;
+  /** Suggested action */
+  suggestion: string;
+}
+
+// ============================================================================
+// RECOMMENDATION SUMMARY
+// ============================================================================
+
+/**
+ * Simplified recommendation for audit report
+ */
+export interface RecommendationSummary {
+  priority: number;
+  category: 'architecture' | 'duplication' | 'structure' | 'naming' | 'documentation';
+  title: string;
+  description: string;
+  effort: 'low' | 'medium' | 'high';
+  autoFixable: boolean;
+  affectedFiles: string[];
+}
+
+// ============================================================================
+// DUPLICATE SUMMARY
+// ============================================================================
+
+/**
+ * Simplified duplicates summary for audit report
+ */
+export interface DuplicateSummary {
+  /** Total duplicate groups found */
+  totalGroups: number;
+  /** Groups recommended for merge */
+  mergeCount: number;
+  /** Groups recommended for rename */
+  renameCount: number;
+  /** Top duplicate groups (by location count) */
+  topDuplicates: Array<{
+    name: string;
+    similarity: number;
+    locationCount: number;
+    recommendation: 'merge' | 'rename' | 'keep-both';
+    files: string[];
+  }>;
+}
+
+// ============================================================================
+// RANKING SUMMARY
+// ============================================================================
+
+/**
+ * Simplified ranking summary for audit report
+ */
+export interface RankingSummary {
+  /** Top hotspot modules by PageRank centrality */
+  hotspots: Array<{
+    path: string;
+    pageRank: number;
+    percentile: number;
+    risk: 'critical' | 'high' | 'medium' | 'low';
+    coupling: {
+      afferent: number;
+      efferent: number;
+      instability: number;
+    };
+  }>;
+  /** Safe refactoring order (first N phases) */
+  safeOrder: Array<{
+    order: number;
+    modules: string[];
+    risk: 'critical' | 'high' | 'medium' | 'low';
+  }>;
+  /** Circular dependencies (must refactor together) */
+  cycles: string[][];
+  /** Leaf nodes (safe to refactor first) */
+  leafNodes: string[];
+  /** Core nodes (refactor last) */
+  coreNodes: string[];
+  /** Dependency graph stats */
+  stats: {
+    nodeCount: number;
+    edgeCount: number;
+    cycleCount: number;
+  };
 }
 
 // ============================================================================

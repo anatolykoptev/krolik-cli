@@ -3,7 +3,7 @@
  * @description Options types for fix command and quality analysis
  */
 
-import type { OutputFormat } from '../../../types';
+import type { OutputFormat } from '../../../types/commands/base';
 import type { QualityCategory, QualitySeverity } from './types';
 
 // ============================================================================
@@ -83,6 +83,8 @@ export interface QualityOptions {
   category?: QualityCategory;
   /** Filter by severity */
   severity?: QualitySeverity;
+  /** Include risky fixers in analysis */
+  includeRisky?: boolean;
 }
 
 // ============================================================================
@@ -116,10 +118,37 @@ export interface FixOptions {
   yes?: boolean;
   /** Only fix trivial issues (console, debugger, etc) */
   trivialOnly?: boolean;
+  /** Fix trivial + safe issues (excludes risky) */
+  safe?: boolean;
   /** Create backup before fixing */
   backup?: boolean;
   /** Max fixes to apply */
   limit?: number;
+
+  // ============================================================================
+  // AUDIT INTEGRATION (--from-audit)
+  // ============================================================================
+
+  /** Use cached audit data instead of running analysis */
+  fromAudit?: boolean;
+  /** Only fix quick wins from audit (auto-fixable issues) */
+  quickWinsOnly?: boolean;
+
+  // ============================================================================
+  // REFACTOR INTEGRATION (--from-refactor)
+  // ============================================================================
+
+  /** Use cached refactor analysis for auto-fixable recommendations */
+  fromRefactor?: boolean;
+  /** Include risky fixers (requires explicit confirmation) */
+  all?: boolean;
+
+  // ============================================================================
+  // BACKWARDS-COMPAT CLEANUP
+  // ============================================================================
+
+  /** Delete deprecated shim files and update imports */
+  cleanupDeprecated?: boolean;
 
   // ============================================================================
   // TOOL OPTIONS

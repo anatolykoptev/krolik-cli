@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { ReusableModulesInfo } from '../../core';
+import type { ReusableModulesInfo } from '../../core/types-ai';
 import { analyzeReusableModules } from '../metrics/reusable';
 import type { Analyzer } from '../registry';
 

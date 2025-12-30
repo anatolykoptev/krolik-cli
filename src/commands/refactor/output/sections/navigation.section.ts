@@ -5,7 +5,7 @@
  * Shows navigation hints for AI assistants about where to add new code.
  */
 
-import type { AiNavigation } from '../../core';
+import type { AiNavigation } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

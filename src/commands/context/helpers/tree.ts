@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { generateSkipPatterns } from '@/lib/@detectors/dynamic-skip';
+import { generateSkipPatterns } from '@/lib/@detectors';
 import type { ProjectTree } from '../types';
 
 const MAX_DEPTH = 3;

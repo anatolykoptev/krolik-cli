@@ -6,9 +6,10 @@
  */
 
 import * as path from 'node:path';
-import { ensureDir, exists, isDirectory, logger } from '../../../../lib';
-import type { MigrationAction } from '../../core';
-import type { ExecutionResult } from '../core/orchestrator';
+import { ensureDir, exists, isDirectory } from '../../../../lib/@core/fs';
+import { logger } from '../../../../lib/@core/logger';
+import type { MigrationAction } from '../../core/types';
+import type { ExecutionResult } from '../core/types';
 import { updateImports } from '../imports';
 import { moveDirectory } from '../operations/directory-mover';
 import { moveSingleFile } from '../operations/file-mover';

@@ -9,16 +9,15 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { analyzeRoutes, type RoutesOutput } from '../../routes';
+import type { MigrationPlan, RefactorAnalysis } from '../core/types';
 import type {
   ArchHealth,
   EnhancedMigrationAction,
   EnhancedMigrationPlan,
   EnhancedRefactorAnalysis,
   FileSizeAnalysis,
-  MigrationPlan,
-  RefactorAnalysis,
   ReusableModulesInfo,
-} from '../core';
+} from '../core/types-ai';
 import { analyzeArchHealth } from './architecture/architecture';
 import { classifyDomains } from './architecture/domains';
 import { detectProjectContext } from './context/context';

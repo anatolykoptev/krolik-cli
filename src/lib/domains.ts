@@ -3,7 +3,7 @@
  * @description Domain resolution utilities for universal CLI support
  */
 
-import type { DomainConfig, KrolikConfig } from '../types';
+import type { DomainConfig, KrolikConfig } from '../types/config';
 
 /**
  * Resolved domain keywords for filtering

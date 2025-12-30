@@ -21,8 +21,11 @@ import {
   runSyncer,
   runTypesGenerator,
 } from 'i18next-cli';
-import { transliterate } from './index';
+import { transliterateRussian } from './languages/russian';
 import { detectNamespace } from './namespace-resolver';
+
+// Local wrapper to maintain API compatibility
+const transliterate = transliterateRussian;
 
 // ============================================================================
 // TYPES

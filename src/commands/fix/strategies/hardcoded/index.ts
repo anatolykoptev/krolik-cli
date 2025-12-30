@@ -13,7 +13,7 @@
  * - Formats output with Prettier
  */
 
-import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../core';
 import { looksLikeTimestamp } from './ast-utils';
 import { ALLOWED_NUMBERS, FIXABLE_PATTERNS } from './constants';
 import { generateNumberFix, generateUrlFix } from './generators';

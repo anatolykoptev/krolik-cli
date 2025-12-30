@@ -17,7 +17,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { globSync } from 'glob';
-import type { FileSizeAnalysis, FileSizeIssue, FileSizeSeverity } from '../../core';
+import type { FileSizeAnalysis, FileSizeIssue, FileSizeSeverity } from '../../core/types-ai';
 
 // ============================================================================
 // THRESHOLDS

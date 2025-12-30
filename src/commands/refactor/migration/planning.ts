@@ -6,8 +6,13 @@
  */
 
 import * as path from 'node:path';
-import { normalizeToRelative } from '../../../lib';
-import type { DuplicateInfo, MigrationAction, MigrationPlan, StructureAnalysis } from '../core';
+import { normalizeToRelative } from '../../../lib/@security';
+import type {
+  DuplicateInfo,
+  MigrationAction,
+  MigrationPlan,
+  StructureAnalysis,
+} from '../core/types';
 
 // ============================================================================
 // MIGRATION PLANNING

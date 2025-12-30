@@ -5,8 +5,9 @@
  * Prevents code corruption when multiple fixes target overlapping line ranges.
  */
 
-import type { FixAction, FixDifficulty, FixOperation, QualityIssue } from '../types';
-import { getFixDifficulty } from '../types';
+import { getFixDifficulty } from './difficulty';
+import type { QualityIssue } from './types/analysis';
+import type { FixAction, FixDifficulty, FixOperation } from './types/fix';
 
 // ============================================================================
 // TYPES

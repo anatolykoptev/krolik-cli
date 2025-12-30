@@ -7,7 +7,7 @@
 
 import { escapeXml } from '../../../../lib/@format';
 import type { DuplicatesAnalysis } from '../../analyzers/modules/duplicates.analyzer';
-import type { DuplicateInfo, TypeDuplicateInfo } from '../../core';
+import type { DuplicateInfo, TypeDuplicateInfo } from '../../core/types';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

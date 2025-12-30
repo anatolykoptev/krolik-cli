@@ -6,11 +6,17 @@
  * layer, maintaining proper architectural boundaries. All other context7 files
  * receive their dependencies via injection.
  *
+ * This file now also contains:
+ * - SqliteLibraryRepository class (merged from adapters/)
+ * - Registry database configuration (merged from adapters/)
+ *
  * Usage:
  * - Call initializeContext7() once at application startup
  * - Use getDefaultRepository() to get the library repository
  * - The registry database is automatically configured
  */
+
+import type { Database } from 'better-sqlite3';
 
 // Storage imports - this factory is the boundary between layers
 import {
@@ -25,9 +31,174 @@ import {
   searchDocs,
 } from '@/lib/@storage';
 
-import type { LibraryStorageFunctions } from './adapters/sqlite-library-repository';
-import { SqliteLibraryRepository } from './adapters/sqlite-library-repository';
-import { configureRegistryDatabase } from './adapters/sqlite-registry-repository';
+import type {
+  CachedLibrary,
+  DocSearchResult,
+  DocSection,
+  DocsSearchOptions,
+  ILibraryRepository,
+} from './types';
+
+// ============================================================================
+// Registry Database Configuration (merged from adapters/sqlite-registry-repository)
+// ============================================================================
+
+/**
+ * Database getter function type for dependency injection.
+ */
+export type DatabaseGetter = () => Database;
+
+// Injected database getter - set via configureRegistryDatabase()
+let databaseGetter: DatabaseGetter | null = null;
+
+/**
+ * Configure the database getter for the registry.
+ * Must be called before using getRegistryDatabase().
+ *
+ * @param getter - Function that returns the database instance
+ *
+ * @example
+ * ```ts
+ * import { getDatabase } from '@/lib/@storage';
+ * configureRegistryDatabase(getDatabase);
+ * ```
+ */
+export function configureRegistryDatabase(getter: DatabaseGetter): void {
+  databaseGetter = getter;
+}
+
+/**
+ * Get the shared SQLite database instance.
+ *
+ * This function provides access to the application's shared database
+ * for registry operations. The database getter must be configured
+ * via configureRegistryDatabase() before use.
+ *
+ * @returns SQLite database instance
+ * @throws Error if database getter is not configured
+ *
+ * @example
+ * ```ts
+ * const db = getRegistryDatabase();
+ * db.exec('CREATE TABLE IF NOT EXISTS ...');
+ * ```
+ */
+export function getRegistryDatabase(): Database {
+  if (!databaseGetter) {
+    throw new Error(
+      'Registry database not configured. Call configureRegistryDatabase() first, ' +
+        'or use the factory from context7/factory.ts',
+    );
+  }
+  return databaseGetter();
+}
+
+/**
+ * Reset the database configuration (useful for testing).
+ */
+export function resetRegistryDatabase(): void {
+  databaseGetter = null;
+}
+
+// ============================================================================
+// Library Storage Functions Interface
+// ============================================================================
+
+/**
+ * Storage functions interface for dependency injection.
+ * This defines the contract that the storage layer must fulfill.
+ */
+export interface LibraryStorageFunctions {
+  getLibrary: (libraryId: string) => CachedLibrary | null;
+  getLibraryByName: (name: string) => CachedLibrary | null;
+  saveLibrary: (libraryId: string, name: string, version?: string) => CachedLibrary;
+  saveSection: (
+    libraryId: string,
+    topic: string | undefined,
+    title: string,
+    content: string,
+    codeSnippets: string[],
+    pageNumber: number,
+  ) => DocSection;
+  searchDocs: (options: DocsSearchOptions) => DocSearchResult[];
+  listLibraries: () => CachedLibrary[];
+  deleteLibrary: (libraryId: string) => boolean;
+  clearExpired: () => { librariesDeleted: number };
+}
+
+// ============================================================================
+// SqliteLibraryRepository Class (merged from adapters/sqlite-library-repository)
+// ============================================================================
+
+/**
+ * SQLite-based implementation of ILibraryRepository.
+ *
+ * Uses injected storage functions for all database operations.
+ * This class follows the Repository pattern and provides a clean
+ * interface for the domain layer.
+ *
+ * @example
+ * ```ts
+ * // Via factory (recommended)
+ * import { createLibraryRepository } from './factory';
+ * const repository = createLibraryRepository();
+ *
+ * // Direct instantiation (for testing)
+ * const repository = new SqliteLibraryRepository(mockStorageFunctions);
+ * const library = repository.getLibrary('/vercel/next.js');
+ * ```
+ */
+export class SqliteLibraryRepository implements ILibraryRepository {
+  private readonly storage: LibraryStorageFunctions;
+
+  constructor(storage: LibraryStorageFunctions) {
+    this.storage = storage;
+  }
+
+  getLibrary(libraryId: string): CachedLibrary | null {
+    return this.storage.getLibrary(libraryId);
+  }
+
+  getLibraryByName(name: string): CachedLibrary | null {
+    return this.storage.getLibraryByName(name);
+  }
+
+  saveLibrary(libraryId: string, name: string, version?: string): CachedLibrary {
+    return this.storage.saveLibrary(libraryId, name, version);
+  }
+
+  saveSection(
+    libraryId: string,
+    topic: string | undefined,
+    title: string,
+    content: string,
+    codeSnippets: string[],
+    pageNumber: number,
+  ): DocSection {
+    return this.storage.saveSection(libraryId, topic, title, content, codeSnippets, pageNumber);
+  }
+
+  searchDocs(options: DocsSearchOptions): DocSearchResult[] {
+    return this.storage.searchDocs(options);
+  }
+
+  listLibraries(): CachedLibrary[] {
+    return this.storage.listLibraries();
+  }
+
+  deleteLibrary(libraryId: string): boolean {
+    return this.storage.deleteLibrary(libraryId);
+  }
+
+  clearExpired(): number {
+    const result = this.storage.clearExpired();
+    return result.librariesDeleted;
+  }
+}
+
+// ============================================================================
+// Factory Functions
+// ============================================================================
 
 // Singleton instance
 let defaultRepository: SqliteLibraryRepository | null = null;

@@ -8,7 +8,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import type { ModernizationDetection } from '../ast/types';
+import type { ModernizationDetection } from '../patterns/ast/types';
 
 // ============================================================================
 // MAIN DETECTOR

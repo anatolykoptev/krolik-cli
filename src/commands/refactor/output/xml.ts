@@ -4,7 +4,7 @@
  */
 
 import { escapeXml } from '../../../lib/@format';
-import type { RefactorAnalysis } from '../core';
+import type { RefactorAnalysis } from '../core/types';
 
 // ============================================================================
 // MAIN FORMATTER

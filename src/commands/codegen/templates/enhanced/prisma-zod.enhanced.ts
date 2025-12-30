@@ -5,7 +5,7 @@
 
 import { toCamelCase } from '@/lib/@format';
 import { fieldToZod } from '@/lib/@prisma';
-import type { PrismaEnum, PrismaModel } from '../../generators/prisma-zod';
+import type { PrismaEnum, PrismaModel } from '../../../schema/parser';
 import type { DocHints } from '../../services/types';
 
 /**

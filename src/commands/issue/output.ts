@@ -16,7 +16,7 @@ import {
   wrapXml,
 } from '@/lib/@format';
 
-import type { Logger } from '../../types';
+import type { Logger } from '../../types/commands/base';
 import type { ParsedIssue } from './parser';
 
 /**

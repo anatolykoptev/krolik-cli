@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { FixOperation, QualityIssue } from '../../../../../src/commands/fix/core';
 import {
   computePriority,
   detectAndResolve,
@@ -16,7 +17,6 @@ import {
   rangesIdentical,
   rangesOverlap,
 } from '../../../../../src/commands/fix/core/conflict-detector';
-import type { FixOperation, QualityIssue } from '../../../../../src/commands/fix/types';
 
 // ============================================================================
 // TEST HELPERS

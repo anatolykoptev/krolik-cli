@@ -22,7 +22,8 @@
  */
 
 import { type AnalyzerContext, type AnalyzerResult, analyzerRegistry } from '../analyzers/registry';
-import type { ArchHealth, RefactorAnalysis } from '../core';
+import type { RefactorAnalysis } from '../core/types';
+import type { ArchHealth } from '../core/types-ai';
 import { getLimits, type SectionLimits } from '../output/limits';
 import { type OutputLevel, type SectionContext, sectionRegistry } from '../output/registry';
 

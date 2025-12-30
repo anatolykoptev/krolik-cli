@@ -3,8 +3,8 @@
  * @description Effort estimation for code quality issues
  */
 
-import type { FixDifficulty, QualityCategory, QualityIssue } from '../types';
-import { getFixDifficulty } from '../types';
+import type { FixDifficulty, QualityCategory, QualityIssue } from '../core';
+import { getFixDifficulty } from '../core';
 import type { EffortEstimate, EffortLevel } from './types';
 
 // ============================================================================
@@ -27,6 +27,7 @@ const CATEGORY_BASE_EFFORT: Record<QualityCategory, number> = {
   composite: 15, // Multi-file operation
   agent: 20, // AI-assisted fix
   refine: 35, // @namespace structure migration
+  'backwards-compat': 15, // Remove backwards compatibility shim
   security: 15, // Security vulnerability fix
   modernization: 10, // Legacy pattern update
   i18n: 15, // Extract to translation key

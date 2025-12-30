@@ -3,7 +3,7 @@
  * @description Summary report generation for refactor command
  */
 
-import type { RefactorAnalysis } from '../core';
+import type { RefactorAnalysis } from '../core/types';
 import type { TypecheckResult } from './typecheck';
 
 /**

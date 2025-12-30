@@ -6,17 +6,15 @@
  * - Finding files that import a given module
  * - Updating import statements in files
  * - Updating internal imports when files move
+ *
+ * Uses dynamic path resolution from @discovery/paths to support
+ * any project structure without hardcoded paths.
  */
 
 import * as path from 'node:path';
-import {
-  escapeRegex,
-  escapeReplacement,
-  exists,
-  findFiles,
-  readFile,
-  writeFile,
-} from '../../../lib';
+import { exists, findFiles, readFile, writeFile } from '../../../lib/@core/fs';
+import { createPathResolver, type PathResolver } from '../../../lib/@discovery/paths';
+import { escapeRegex, escapeReplacement } from '../../../lib/@security';
 
 // ============================================================================
 // TYPES
@@ -29,11 +27,40 @@ export interface UpdateImportsResult {
 }
 
 // ============================================================================
+// PATH RESOLVER CACHE
+// ============================================================================
+
+/** Cached path resolver per project root */
+const resolverCache = new Map<string, PathResolver>();
+
+/**
+ * Get or create path resolver for project
+ */
+function getResolver(projectRoot: string): PathResolver {
+  let resolver = resolverCache.get(projectRoot);
+  if (!resolver) {
+    resolver = createPathResolver(projectRoot);
+    resolverCache.set(projectRoot, resolver);
+  }
+  return resolver;
+}
+
+/**
+ * Clear resolver cache (for testing or project changes)
+ */
+export function clearResolverCache(): void {
+  resolverCache.clear();
+}
+
+// ============================================================================
 // IMPORT ANALYSIS
 // ============================================================================
 
 /**
  * Find all files that import a given module
+ *
+ * Uses dynamic path resolution to work with any project structure.
+ * Scans the source directory detected from tsconfig.json.
  */
 export async function findAffectedImports(
   modulePath: string,
@@ -44,7 +71,9 @@ export async function findAffectedImports(
   const escapedBasename = escapeRegex(moduleBasename);
   const escapedPath = escapeRegex(modulePath.replace('.ts', ''));
 
-  const srcPath = path.join(projectRoot, 'src');
+  // Use dynamic source directory detection
+  const resolver = getResolver(projectRoot);
+  const srcPath = path.join(projectRoot, resolver.sourceDir);
   const files = await findFiles(srcPath, {
     extensions: ['.ts', '.tsx'],
     skipDirs: ['node_modules', 'dist', '.next'],
@@ -81,16 +110,38 @@ export async function findAffectedImports(
 
 /**
  * Calculate new relative import path after a file move
+ *
+ * @param importingFile - File containing the import (relative to project root)
+ * @param newModulePath - New module path (relative to source directory)
+ * @param projectRoot - Project root directory
+ * @param resolver - Path resolver instance
  */
 function calculateNewImportPath(
   importingFile: string,
-  _oldModulePath: string,
   newModulePath: string,
   projectRoot: string,
-  libPath: string,
+  resolver: PathResolver,
 ): string {
   const importingDir = path.dirname(path.join(projectRoot, importingFile));
-  const newModuleAbs = path.join(libPath, newModulePath);
+
+  // Resolve new module path - could be aliased or relative
+  let newModuleAbs: string;
+
+  if (resolver.isAlias(newModulePath)) {
+    // Aliased path: @/lib/utils -> src/lib/utils
+    const resolved = resolver.resolveAlias(newModulePath);
+    if (resolved) {
+      newModuleAbs = path.join(projectRoot, resolved);
+    } else {
+      newModuleAbs = path.join(projectRoot, resolver.sourceDir, newModulePath);
+    }
+  } else if (newModulePath.startsWith('/') || path.isAbsolute(newModulePath)) {
+    // Absolute path
+    newModuleAbs = newModulePath;
+  } else {
+    // Relative to source directory
+    newModuleAbs = path.join(projectRoot, resolver.sourceDir, newModulePath);
+  }
 
   let relativePath = path.relative(importingDir, newModuleAbs);
 
@@ -105,15 +156,24 @@ function calculateNewImportPath(
 
 /**
  * Update imports in a file with proper validation
+ *
+ * Uses dynamic path resolution to support any project structure.
+ *
+ * @param filePath - File to update imports in
+ * @param oldPath - Old import path (module being replaced)
+ * @param newPath - New import path (replacement module)
+ * @param projectRoot - Project root directory
+ * @param libPath - DEPRECATED: ignored, uses dynamic detection
  */
 export async function updateImports(
   filePath: string,
   oldPath: string,
   newPath: string,
   projectRoot: string,
-  libPath: string,
+  _libPath?: string, // Kept for backwards compatibility, but ignored
 ): Promise<UpdateImportsResult> {
   const errors: string[] = [];
+  const resolver = getResolver(projectRoot);
 
   try {
     const fullPath = path.isAbsolute(filePath) ? filePath : path.join(projectRoot, filePath);
@@ -142,13 +202,13 @@ export async function updateImports(
     // Build new import path relative to the importing file
     const newRelativePath = calculateNewImportPath(
       path.relative(projectRoot, fullPath),
-      oldPath,
       newPath,
       projectRoot,
-      libPath,
+      resolver,
     );
 
     // Import patterns - improved to catch more cases
+    // Uses dynamic path detection instead of hardcoded patterns
     const patterns = [
       // Match './oldname' or '../path/oldname'
       {
@@ -160,9 +220,9 @@ export async function updateImports(
         find: new RegExp(`(from\\s+['"]\\./)${oldEscaped}(['"])`, 'g'),
         replace: `$1${newEscaped}$2`,
       },
-      // Match lib direct imports like '../../lib/fs'
+      // Match aliased imports (e.g., @/lib/oldname)
       {
-        find: new RegExp(`(from\\s+['"][^'"]*lib/)${oldEscaped}(['"])`, 'g'),
+        find: new RegExp(`(from\\s+['"]@[^'"]*/)${oldEscaped}(['"])`, 'g'),
         replace: `$1${newEscaped}$2`,
       },
     ];

@@ -3,7 +3,7 @@
  * @description Single Responsibility Principle and size violation checks
  */
 
-import type { FileAnalysis, QualityIssue, Thresholds } from '../types';
+import type { FileAnalysis, QualityIssue, Thresholds } from '../core';
 
 const MAGIC_15 = 15;
 

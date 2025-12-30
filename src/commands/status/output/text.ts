@@ -4,7 +4,8 @@
  */
 
 import { formatJson as formatJsonBase } from '@/lib/@format';
-import type { Logger, StatusResult } from '../../../types';
+import type { Logger } from '../../../types/commands/base';
+import type { StatusResult } from '../../../types/commands/status';
 import {
   buildStackSummary,
   formatAheadBehind,

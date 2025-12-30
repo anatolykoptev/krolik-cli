@@ -10,6 +10,45 @@
  * - Project detection and resolution
  * - Common utility functions
  * - Standardized error handling
+ *
+ * ## Tool Implementation Patterns
+ *
+ * ### CLI-based Tools (status, audit, fix, review, etc.)
+ * Use `buildFlags` + `runKrolik` for tools that wrap CLI commands:
+ * ```typescript
+ * handler: (args, workspaceRoot) => {
+ *   const result = buildFlags(args, schema);
+ *   if (!result.ok) return result.error;
+ *   return withProjectDetection(args, workspaceRoot, (projectPath) => {
+ *     return runKrolik(`command ${result.flags}`, projectPath);
+ *   });
+ * }
+ * ```
+ *
+ * ### Action-based Tools (docs, modules)
+ * Use `validateActionRequirements` + `withErrorHandler` for multi-action tools:
+ * ```typescript
+ * const ACTIONS: Record<string, ActionDefinition> = {
+ *   search: { requires: [{ param: 'query' }] },
+ *   list: {},
+ * };
+ *
+ * handler: (args, workspaceRoot) => {
+ *   const error = validateActionRequirements(action, args, ACTIONS);
+ *   if (error) return error;
+ *   return withErrorHandler('toolname', action, () => handleAction());
+ * }
+ * ```
+ *
+ * ### Direct Function Tools (memory)
+ * Use `resolveProjectPath` + `formatError` for direct function calls:
+ * ```typescript
+ * handler: (args, workspaceRoot) => {
+ *   const resolved = resolveProjectPath(workspaceRoot, args.project);
+ *   if ('error' in resolved) return resolved.error;
+ *   try { return handleAction(); } catch (e) { return formatError(e); }
+ * }
+ * ```
  */
 
 // Error handling

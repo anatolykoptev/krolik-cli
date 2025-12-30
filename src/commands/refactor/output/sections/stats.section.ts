@@ -7,7 +7,7 @@
 
 import type { DuplicatesAnalysis } from '../../analyzers/modules/duplicates.analyzer';
 import type { RecommendationsAnalysis } from '../../analyzers/modules/recommendations.analyzer';
-import type { ArchHealth, FileSizeAnalysis } from '../../core';
+import type { ArchHealth, FileSizeAnalysis } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

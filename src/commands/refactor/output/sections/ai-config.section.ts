@@ -6,8 +6,9 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { ArchHealth, DomainInfo, NamespaceCategory } from '../../core';
 import { NAMESPACE_INFO } from '../../core/constants';
+import type { NamespaceCategory } from '../../core/types';
+import type { ArchHealth, DomainInfo } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

@@ -35,7 +35,7 @@ describe('FixerRegistry', () => {
       expect(registry.size).toBe(1);
       expect(registry.get('test')?.metadata.name).toBe('Second');
       expect(mockWarn).toHaveBeenCalledWith(
-        expect.stringContaining("Fixer 'test' is already registered"),
+        expect.stringContaining("Item 'test' is already registered"),
       );
 
       mockWarn.mockRestore();

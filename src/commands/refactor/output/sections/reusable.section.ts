@@ -6,7 +6,7 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { ReusableModuleSummary, ReusableModulesInfo } from '../../core';
+import type { ReusableModuleSummary, ReusableModulesInfo } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

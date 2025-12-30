@@ -8,7 +8,7 @@
  * - diagnostics/ - checkers, output
  */
 
-import type { CommandContext } from '../../types';
+import type { CommandContext } from '../../types/commands/base';
 import { getPluginsByType } from './core/config';
 import type { SetupOptions } from './core/types';
 import { printDiagnostics } from './diagnostics';

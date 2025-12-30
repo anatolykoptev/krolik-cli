@@ -14,8 +14,8 @@ Layer 1: @format        — xml, json, markdown, frontmatter
          @security      — escape, path, regex, validation
          @cache         — file caching
 Layer 2: @ast           — swc/ (fast), ts-morph/ (types)
-         @detectors     — lint, hardcoded, secrets, security, complexity
-         @git           — git operations, github API
+         @detectors     — lint/, security/, quality/ (consolidated)
+         @vcs           — version control (git operations, github API)
          @tokens        — LLM token counting
          @ranking       — PageRank algorithms
 Layer 3: @discovery     — project, schema, routes, architecture, reusables

@@ -8,12 +8,18 @@
  * - utils: General utility functions (object manipulation)
  * - shell: Shell command execution utilities
  * - fs: File system utilities and directory scanning
+ * - registry: Generic registry pattern implementation
+ * - constants: Centralized constants for Krolik CLI
  */
 
+// Constants (centralized)
+export * from './constants';
 // File system utilities
 export * from './fs';
 // Logger utilities
 export * from './logger';
+// Registry pattern
+export * from './registry';
 // Shell execution utilities
 export * from './shell';
 // Time measurement utilities

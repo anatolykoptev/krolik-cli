@@ -3,7 +3,7 @@
  * @description Shared output helpers and types
  */
 
-import type { StatusResult } from '../../../types';
+import type { StatusResult } from '../../../types/commands/status';
 
 /** Next action recommendation */
 export interface NextAction {
@@ -13,7 +13,7 @@ export interface NextAction {
 }
 
 /** Re-export formatDuration for backwards compatibility */
-export { formatDuration } from '../../../lib';
+export { formatDuration } from '../../../lib/@core/time';
 
 // ============================================================================
 // CONSTANTS

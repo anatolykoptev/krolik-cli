@@ -13,8 +13,8 @@
 import * as fs from 'node:fs';
 import { applyFix } from '../applier';
 import type { FileBackup } from '../composite';
+import type { FixOperation } from '../core';
 import { isTscAvailable, runTypeCheck } from '../strategies/shared';
-import type { FixOperation } from '../types';
 import type {
   ExecutorOptions,
   ImprovementPlan,

@@ -6,6 +6,7 @@
  */
 
 import * as path from 'node:path';
+import { escapeXml, truncate } from '@/lib/@format';
 import {
   type Memory,
   type MemoryContext,
@@ -17,10 +18,9 @@ import {
   save,
   search,
 } from '@/lib/@storage/memory';
-import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@git';
+import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@vcs';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { formatError, formatMCPError } from '../core/errors';
-import { escapeXml, truncate } from '../core/formatting';
 import { resolveProjectPath } from '../core/projects';
 
 // ============================================================================
@@ -421,8 +421,7 @@ Useful for:
     try {
       return handleRecent(recentArgs, resolved.path);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `<memory-recent status="error"><message>${escapeXml(message)}</message></memory-recent>`;
+      return formatError(error);
     }
   },
 };

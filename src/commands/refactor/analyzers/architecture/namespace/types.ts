@@ -3,7 +3,7 @@
  * @description TypeScript interfaces for namespace analysis
  */
 
-import type { DirectoryInfo } from '../../../core';
+import type { DirectoryInfo } from '../../../core/types';
 
 /**
  * Represents a single move operation in namespace migration

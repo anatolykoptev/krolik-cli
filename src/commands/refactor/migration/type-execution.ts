@@ -7,7 +7,6 @@
  */
 
 import * as path from 'node:path';
-import { exists } from '../../../lib';
 import {
   getProject,
   type Project,
@@ -15,6 +14,7 @@ import {
   type SourceFile,
   SyntaxKind,
 } from '../../../lib/@ast';
+import { exists } from '../../../lib/@core/fs';
 import type {
   ImportUpdateAction,
   TypeMigrationAction,

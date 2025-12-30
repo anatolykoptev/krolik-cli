@@ -13,7 +13,7 @@
  * - E6xx: Validation errors
  */
 
-import { escapeXml } from './formatting';
+import { escapeXml } from '@/lib/@format';
 
 // ============================================================================
 // TYPES
@@ -384,4 +384,56 @@ export function formatError(error: unknown): string {
     '  <hint>An unexpected error occurred</hint>',
     '</error>',
   ].join('\n');
+}
+
+/**
+ * Format a tool-specific error with context
+ *
+ * @param toolName - Name of the tool (e.g., "docs", "modules")
+ * @param action - The action that failed (e.g., "search", "fetch")
+ * @param message - Error message
+ * @returns XML-formatted error string
+ *
+ * @example
+ * formatToolError('docs', 'fetch', 'API rate limit exceeded')
+ * // Returns: <docs-error action="fetch"><message>API rate limit exceeded</message></docs-error>
+ */
+export function formatToolError(toolName: string, action: string, message: string): string {
+  return `<${escapeXml(toolName)}-error action="${escapeXml(action)}"><message>${escapeXml(message)}</message></${escapeXml(toolName)}-error>`;
+}
+
+/**
+ * Wrap a handler function with consistent error handling
+ *
+ * @param toolName - Name of the tool for error formatting
+ * @param action - Action being performed
+ * @param fn - The handler function to wrap
+ * @returns Result or formatted error
+ *
+ * @example
+ * return withErrorHandler('docs', 'search', () => {
+ *   return handleSearch(args);
+ * });
+ */
+export function withErrorHandler<T extends string>(
+  toolName: string,
+  action: string,
+  fn: () => T | Promise<T>,
+): T | Promise<T> {
+  try {
+    const result = fn();
+
+    // Handle both sync and async functions
+    if (result instanceof Promise) {
+      return result.catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        return formatToolError(toolName, action, message) as T;
+      });
+    }
+
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return formatToolError(toolName, action, message) as T;
+  }
 }

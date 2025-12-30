@@ -3,9 +3,9 @@
  * @description Main duplicate function detection and analysis
  */
 
-import { findFiles, readFile } from '../../../../../lib';
 import type { Project } from '../../../../../lib/@ast';
-import type { DuplicateInfo, DuplicateLocation, FunctionSignature } from '../../../core';
+import { findFiles, readFile } from '../../../../../lib/@core/fs';
+import type { DuplicateInfo, DuplicateLocation, FunctionSignature } from '../../../core/types';
 import { SIMILARITY_THRESHOLDS } from '../../shared';
 import { isMeaningfulFunctionName, isNextJsConventionPattern } from './name-detection';
 import { findSourceFiles, parseFilesWithSwc, parseFilesWithTsMorph } from './parsing';

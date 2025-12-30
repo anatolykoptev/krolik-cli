@@ -10,12 +10,12 @@
  */
 
 import type { Memory } from '@/lib/@storage/memory';
-import type { OutputFormat } from '../../types';
+import type { OutputFormat } from '../../types/commands/base';
 
 export type { Memory } from '@/lib/@storage/memory';
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
-export type { VersionInfo } from '../../lib/@git';
+export type { VersionInfo } from '../../lib/@vcs';
 
 /**
  * Component type in wshobson/agents

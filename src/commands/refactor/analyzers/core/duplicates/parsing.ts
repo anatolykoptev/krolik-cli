@@ -4,9 +4,10 @@
  */
 
 import * as path from 'node:path';
-import { findFiles, logger, readFile } from '../../../../../lib';
 import { getProject, type Project, releaseProject } from '../../../../../lib/@ast';
-import type { FunctionSignature } from '../../../core';
+import { findFiles, readFile } from '../../../../../lib/@core/fs';
+import { logger } from '../../../../../lib/@core/logger';
+import type { FunctionSignature } from '../../../core/types';
 import { findTsConfig, LIMITS } from '../../shared';
 import { extractFunctionsSwc } from '../swc-parser';
 import { extractFunctions } from './extraction';

@@ -48,16 +48,15 @@ export {
 // EXECUTION
 // ============================================================================
 
-export type {
-  ExecutionResult,
-  MigrationExecutionOptions,
-  MigrationExecutionResult,
-} from './core/orchestrator';
-
 export {
   executeMigrationAction,
   executeMigrationPlan,
 } from './core/orchestrator';
+export type {
+  ExecutionResult,
+  MigrationExecutionOptions,
+  MigrationExecutionResult,
+} from './core/types';
 
 // ============================================================================
 // BARREL

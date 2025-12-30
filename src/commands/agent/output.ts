@@ -4,7 +4,7 @@
  */
 
 import chalk from 'chalk';
-import { escapeXml, truncate } from '../../lib';
+import { escapeXml, truncate } from '../../lib/@format';
 import { AGENT_CATEGORIES } from './categories';
 import type { AgentCategory, AgentDefinition, AgentResult, RepoStats } from './types';
 

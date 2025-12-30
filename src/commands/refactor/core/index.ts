@@ -2,146 +2,37 @@
  * @module commands/refactor/core
  * @description Core infrastructure for refactor command
  *
- * Exports:
- * - Types: DuplicateInfo, StructureAnalysis, MigrationPlan, RefactorAnalysis
- * - AI Types: ProjectContext, ArchHealth, EnhancedRefactorAnalysis
- * - Options: RefactorOptions, MigrationOptions
- * - Constants: NAMESPACE_KEYWORDS, NAMESPACE_INFO, ALLOWED_DEPS
+ * MINIMAL BARREL - Only the most common exports.
+ * For specific types, import directly from:
+ * - ./types        - Base types (DuplicateInfo, StructureAnalysis, etc.)
+ * - ./types-ai     - AI-enhanced types (ProjectContext, ArchHealth, etc.)
+ * - ./options      - Command options (RefactorOptions, etc.)
+ * - ./constants    - Constants (NAMESPACE_INFO, etc.)
+ * - ./file-cache   - File caching utilities
+ * - ./types-migration - Type migration types
  */
 
 // ============================================================================
-// BASE TYPES
+// MOST COMMON TYPES (10-15 max)
 // ============================================================================
 
+// Constants - frequently needed for category detection
+export { detectCategory, NAMESPACE_INFO } from './constants';
+// Options - always needed
+export type { RefactorOptions } from './options';
+export { getModeFlags, resolveMode } from './options';
+// Base types - most frequently used
 export type {
-  // Barrel
-  BarrelExport,
-  DirectoryInfo,
-  // Duplicate detection
   DuplicateInfo,
-  DuplicateLocation,
-  FunctionSignature,
-  // Migration
-  MigrationAction,
-  MigrationActionType,
   MigrationPlan,
-  // Namespace
   NamespaceCategory,
-  // Analysis
   RefactorAnalysis,
-  RiskLevel,
-  // Standards
-  StandardCheck,
-  StandardsCompliance,
-  // Structure analysis
   StructureAnalysis,
-  StructureIssue,
-  StructureIssueType,
-  TypeDuplicateInfo,
 } from './types';
-
-// ============================================================================
-// AI-ENHANCED TYPES
-// ============================================================================
-
+// AI types - most frequently used
 export type {
-  // Navigation
-  AddNewCodeHints,
-  AiNavigation,
   ArchHealth,
-  ArchViolation,
-  DomainInfo,
-  EffortLevel,
-  // Enhanced migration
-  EnhancedMigrationAction,
-  EnhancedMigrationPlan,
-  // Enhanced analysis
   EnhancedRefactorAnalysis,
-  EntryPoints,
-  ExecutionStep,
-  // Domains
-  FileMoveInfo,
-  FilePatternInfo,
-  // File size analysis
-  FileSizeAnalysis,
-  FileSizeIssue,
-  FileSizeSeverity,
-  ImportConventions,
-  LayerComplianceInfo,
-  NamingConventions,
   ProjectContext,
-  // Project context
-  ProjectType,
   Recommendation,
-  // Recommendations
-  RecommendationCategory,
-  // Reusable modules
-  ReusabilityLevel,
-  ReusableCategory,
-  ReusableModuleSummary,
-  ReusableModulesByCategory,
-  ReusableModulesInfo,
-  TechStack,
-  // Architecture
-  ViolationType,
 } from './types-ai';
-
-// ============================================================================
-// OPTIONS
-// ============================================================================
-
-export type {
-  AnalysisOptions,
-  MigrationOptions,
-  ModeAnalysisFlags,
-  OutputFormat,
-  RefactorMode,
-  RefactorOptions,
-} from './options';
-
-export {
-  DEFAULT_REFACTOR_OPTIONS,
-  getModeFlags,
-  mergeOptions,
-  resolveMode,
-} from './options';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-export {
-  ALLOWED_DEPS,
-  BOUNDARY_FILE_PATTERNS,
-  detectCategory,
-  getLayerNumber,
-  isBoundaryFile,
-  isDependencyAllowed,
-  NAMESPACE_INFO,
-  NAMESPACE_KEYWORDS,
-} from './constants';
-
-// ============================================================================
-// TYPE MIGRATION
-// ============================================================================
-
-export type {
-  CanonicalSelectionCriteria,
-  ImportUpdateAction,
-  TypeLocationInfo,
-  TypeMigrationAction,
-  TypeMigrationActionType,
-  TypeMigrationExecutionOptions,
-  TypeMigrationExecutionResult,
-  TypeMigrationPlan,
-  TypeMigrationPlanOptions,
-  TypeMigrationResult,
-} from './types-migration';
-
-export { DEFAULT_CANONICAL_CRITERIA } from './types-migration';
-
-// ============================================================================
-// FILE CACHE
-// ============================================================================
-
-export { clearFileCache, type FindFilesOptions, getCachedFiles } from './file-cache';

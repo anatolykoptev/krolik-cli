@@ -4,8 +4,9 @@
  */
 
 import * as path from 'node:path';
-import type { QualityCategory, QualityIssue } from '../types';
-import { getFixDifficulty } from '../types';
+import { groupBy } from '@/lib/@core';
+import type { QualityCategory, QualityIssue } from '../core';
+import { getFixDifficulty } from '../core';
 import { aggregateEffort, estimateEffort } from './effort';
 import type { EnrichedIssue, IssueGroup, PriorityLevel } from './types';
 
@@ -66,6 +67,7 @@ const CATEGORY_PRIORITY: Record<QualityCategory, PriorityLevel> = {
   refine: 'high', // @namespace structure
   modernization: 'low', // Legacy patterns (require, sync fs)
   i18n: 'medium', // Localization improvements
+  'backwards-compat': 'medium', // Backwards compatibility shims
 };
 
 // ============================================================================
@@ -158,14 +160,7 @@ export function enrichIssue(issue: QualityIssue): EnrichedIssue {
  * Group issues by file
  */
 export function groupByFile(issues: EnrichedIssue[]): IssueGroup[] {
-  const fileMap = new Map<string, EnrichedIssue[]>();
-
-  for (const enriched of issues) {
-    const file = enriched.issue.file;
-    const group = fileMap.get(file) ?? [];
-    group.push(enriched);
-    fileMap.set(file, group);
-  }
+  const fileMap = groupBy(issues, (i) => i.issue.file);
 
   const groups: IssueGroup[] = [];
   for (const [file, fileIssues] of fileMap) {
@@ -179,18 +174,11 @@ export function groupByFile(issues: EnrichedIssue[]): IssueGroup[] {
  * Group issues by category
  */
 export function groupByCategory(issues: EnrichedIssue[]): IssueGroup[] {
-  const categoryMap = new Map<QualityCategory, EnrichedIssue[]>();
-
-  for (const enriched of issues) {
-    const category = enriched.issue.category;
-    const group = categoryMap.get(category) ?? [];
-    group.push(enriched);
-    categoryMap.set(category, group);
-  }
+  const categoryMap = groupBy(issues, (i) => i.issue.category);
 
   const groups: IssueGroup[] = [];
   for (const [category, catIssues] of categoryMap) {
-    groups.push(createCategoryGroup(category, catIssues));
+    groups.push(createCategoryGroup(category as QualityCategory, catIssues));
   }
 
   return groups.sort((a, b) => priorityOrder(a.priority) - priorityOrder(b.priority));
@@ -200,14 +188,7 @@ export function groupByCategory(issues: EnrichedIssue[]): IssueGroup[] {
  * Group issues by priority
  */
 export function groupByPriority(issues: EnrichedIssue[]): IssueGroup[] {
-  const priorityMap = new Map<PriorityLevel, EnrichedIssue[]>();
-
-  for (const enriched of issues) {
-    const priority = enriched.priority;
-    const group = priorityMap.get(priority) ?? [];
-    group.push(enriched);
-    priorityMap.set(priority, group);
-  }
+  const priorityMap = groupBy(issues, (i) => i.priority);
 
   const groups: IssueGroup[] = [];
   const priorities: PriorityLevel[] = ['critical', 'high', 'medium', 'low'];
@@ -278,6 +259,7 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     security: 'Security Issues',
     modernization: 'Legacy Code Patterns',
     i18n: 'Hardcoded Text (I18n)',
+    'backwards-compat': 'Backwards Compatibility Shims',
   };
 
   const descriptions: Record<QualityCategory, string> = {
@@ -296,6 +278,7 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     security: 'Fix security vulnerabilities and unsafe patterns',
     modernization: 'Update require() to import and sync fs to async',
     i18n: 'Extract hardcoded text to translation keys',
+    'backwards-compat': 'Delete deprecated shim files and update imports',
   };
 
   const group = createGroup(`category:${category}`, issues, titles[category]);

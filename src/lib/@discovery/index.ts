@@ -8,21 +8,35 @@
  * - Route discovery (tRPC, Next.js, Express)
  * - Module scanning (lib/@* modules)
  * - Architecture pattern detection
+ * - Dynamic path resolution (tsconfig.json aliases)
  *
  * @example
  * import {
  *   findProjectRoot,
  *   findSchemaDir,
  *   findRoutersDir,
+ *   createPathResolver,
  *   collectArchitecturePatterns
  * } from '@/lib/@discovery';
  */
 
 // Architecture pattern detection
 export * from './architecture';
+// Simple regex-based code extraction (for reporting)
+export { extractCodeStructure, extractExportNames, extractImportPaths } from './code-extraction';
 export type { ModuleExport, ModuleInfo, ModuleScanResult } from './modules';
 // Module scanning (lib/@* modules)
 export { formatModulesMarkdown, getModule, scanLibModules, searchExports } from './modules';
+// Dynamic path resolution (tsconfig.json aliases)
+export type { PathResolver, TsConfigPaths } from './paths';
+export {
+  aliasToRelative,
+  createPathResolver,
+  getAliasPatterns,
+  normalizeImportPath,
+  parseTsConfig,
+  relativeToAlias,
+} from './paths';
 export type { MonorepoInfo, ProjectInfo } from './project';
 // Project discovery
 export {

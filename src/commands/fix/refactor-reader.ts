@@ -10,9 +10,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { EnhancedRefactorAnalysis, Recommendation } from '../refactor/core';
+import type { EnhancedRefactorAnalysis, Recommendation } from '../refactor/core/types-ai';
+import type { QualityIssue } from './core';
 import { adaptRecommendationsToIssues } from './recommendation-adapter';
-import type { QualityIssue } from './types';
 
 // ============================================================================
 // CONSTANTS

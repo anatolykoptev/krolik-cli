@@ -10,7 +10,7 @@
  */
 
 import { escapeXml } from '@/lib';
-import type { QualityReport } from '../types';
+import type { QualityReport } from '../core';
 import { formatAIReport, transformToAIFormat } from './ai-format';
 
 /**

@@ -7,8 +7,8 @@
  */
 
 import * as fs from 'node:fs';
-import { saveKrolikFile } from '../../lib';
-import type { CommandContext, OutputFormat } from '../../types';
+import { saveKrolikFile } from '../../lib/@core/fs';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type { FixerRegistry } from '../fix/core/registry';
 import type { AIReport } from '../fix/reporter/types';
 import { getProjectStatus } from '../status';

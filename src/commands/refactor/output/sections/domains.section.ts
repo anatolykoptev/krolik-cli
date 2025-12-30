@@ -6,7 +6,7 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { DomainInfo } from '../../core';
+import type { DomainInfo } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

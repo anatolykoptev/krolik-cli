@@ -7,7 +7,7 @@ import type { Command } from 'commander';
 import { needsSync, syncClaudeMd } from '@/lib/@claude';
 import { loadConfig } from '../config';
 import { createLogger } from '../lib/@core/logger';
-import type { OutputFormat } from '../types';
+import type { OutputFormat } from '../types/commands/base';
 import type { CommandOptions } from './types';
 
 /**

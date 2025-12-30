@@ -4,7 +4,7 @@
  */
 
 import { type SourceFile, SyntaxKind } from '../../../../../lib/@ast';
-import type { FunctionSignature } from '../../../core';
+import type { FunctionSignature } from '../../../core/types';
 import { hashBody, normalizeBody } from './normalization';
 
 /**

@@ -15,8 +15,8 @@ import {
   getAgentsVersion,
   getRepoStats,
 } from '../../../lib/@agents';
-import type { VersionInfo } from '../../../lib/@git';
-import { isGitAvailable } from '../../../lib/@git';
+import type { VersionInfo } from '../../../lib/@vcs';
+import { isGitAvailable } from '../../../lib/@vcs';
 import {
   INSTALLED_PLUGINS_PATH,
   KNOWN_MARKETPLACES_PATH,

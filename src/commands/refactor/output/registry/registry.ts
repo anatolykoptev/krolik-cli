@@ -8,6 +8,7 @@
  * - Ordered rendering with conditional skipping
  */
 
+import { Registry } from '@/lib/@core';
 import type { Section, SectionContext } from './types';
 
 // ============================================================================
@@ -32,8 +33,7 @@ export interface RequirementCheckResult {
 /**
  * Registry for managing and rendering output sections.
  *
- * Provides centralized section management with:
- * - Section registration and lookup
+ * Extends the generic Registry with section-specific functionality:
  * - Dependency checking against analyzer results
  * - Ordered rendering with conditional skipping
  * - XML comments for skipped sections explaining why
@@ -48,82 +48,23 @@ export interface RequirementCheckResult {
  * const lines = sectionRegistry.formatAll(context);
  * ```
  */
-export class SectionRegistry {
-  /** Registered sections by ID */
-  private sections = new Map<string, Section>();
-
-  /**
-   * Register a section with the registry.
-   *
-   * @param section - The section to register
-   */
-  register(section: Section): void {
-    this.sections.set(section.metadata.id, section);
+export class SectionRegistry extends Registry<Section> {
+  constructor() {
+    super({ onDuplicate: 'overwrite' });
   }
 
   /**
-   * Register multiple sections at once.
-   *
-   * @param sections - Array of sections to register
+   * Extract ID from section metadata
    */
-  registerAll(sections: Section[]): void {
-    for (const section of sections) {
-      this.register(section);
-    }
+  protected getId(section: Section): string {
+    return section.metadata.id;
   }
 
   /**
-   * Get a section by ID.
-   *
-   * @param id - Section ID to look up
-   * @returns The section if found, undefined otherwise
-   */
-  get(id: string): Section | undefined {
-    return this.sections.get(id);
-  }
-
-  /**
-   * Check if a section with the given ID exists.
-   *
-   * @param id - Section ID to check
-   * @returns true if the section exists
-   */
-  has(id: string): boolean {
-    return this.sections.has(id);
-  }
-
-  /**
-   * Get all registered sections.
-   *
-   * @returns Array of all registered sections
-   */
-  all(): Section[] {
-    return Array.from(this.sections.values());
-  }
-
-  /**
-   * Get all registered section IDs.
-   *
-   * @returns Array of all section IDs
+   * Get all registered section IDs (alias for names())
    */
   ids(): string[] {
-    return Array.from(this.sections.keys());
-  }
-
-  /**
-   * Clear all registered sections.
-   *
-   * Primarily used for testing.
-   */
-  clear(): void {
-    this.sections.clear();
-  }
-
-  /**
-   * Get the number of registered sections.
-   */
-  get size(): number {
-    return this.sections.size;
+    return this.names();
   }
 
   /**

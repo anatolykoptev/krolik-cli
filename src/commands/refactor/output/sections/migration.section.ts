@@ -6,7 +6,7 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { EnhancedMigrationAction, EnhancedMigrationPlan } from '../../core';
+import type { EnhancedMigrationAction, EnhancedMigrationPlan } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

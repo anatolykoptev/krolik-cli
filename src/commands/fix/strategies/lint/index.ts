@@ -17,8 +17,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { FixContext } from '../../context';
 import { buildFixContext, shouldSkipConsoleFix } from '../../context';
+import type { FixOperation, FixStrategy, QualityIssue } from '../../core';
 import { containsKeyword } from '../../core';
-import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
 import { LINT_KEYWORDS } from './constants';
 import { fixAlert, fixConsole, fixDebugger } from './fixes';
 

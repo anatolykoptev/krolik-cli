@@ -19,11 +19,15 @@
  * ```
  */
 
-import { filterStopWords, transliterate } from './index';
+import { filterRussianStopWords, transliterateRussian } from './languages/russian';
 import { detectNamespace } from './namespace-resolver';
 
 // Re-export for convenience
 export { detectNamespace } from './namespace-resolver';
+
+// Local wrappers to maintain API compatibility
+const transliterate = transliterateRussian;
+const filterStopWords = filterRussianStopWords;
 
 // ============================================================================
 // CONSTANTS

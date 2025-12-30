@@ -16,18 +16,18 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { glob } from 'glob';
 import { fileCache, validatePathWithinProject } from '@/lib';
-import { getIgnorePatterns } from '@/lib/@constants';
+import { getIgnorePatterns } from '@/lib/@core/constants';
+import { detectBackwardsCompat } from '@/lib/@detectors';
 import { analyzeFile } from './analyzers';
-import { runFixerAnalysis } from './core/runner';
-
-import { checkRecommendations, type RecommendationResult } from './recommendations';
 import type {
   FileAnalysis,
   QualityIssue,
   QualityOptions,
   QualityReport,
   RecommendationItem,
-} from './types';
+} from './core';
+import { runFixerAnalysis } from './core/runner';
+import { checkRecommendations, type RecommendationResult } from './recommendations';
 import './fixers'; // Auto-register all fixers
 
 const TOP_RECOMMENDATIONS_LIMIT = 15;
@@ -131,6 +131,30 @@ export async function analyzeQuality(
         }
       }
 
+      // Detect backwards-compatibility shim files
+      // These are deprecated re-export files that should be deleted
+      if (!options.category || options.category === 'backwards-compat') {
+        const bcDetection = detectBackwardsCompat(content, relativePath);
+        if (bcDetection.isShim) {
+          const bcIssue: QualityIssue = {
+            file: relativePath,
+            line: bcDetection.deprecatedLines[0] || 1,
+            severity: 'warning',
+            category: 'backwards-compat',
+            message: `Backwards-compat shim file (${bcDetection.confidence}% confidence): ${bcDetection.reason}`,
+            suggestion: bcDetection.suggestion,
+          };
+
+          // Only add snippet if movedTo is defined
+          if (bcDetection.movedTo) {
+            bcIssue.snippet = `→ ${bcDetection.movedTo}`;
+          }
+
+          analysis.issues.push(bcIssue);
+          allIssues.push(bcIssue);
+        }
+      }
+
       // Store content for AI context - key by both absolute and relative paths
       fileContents.set(analysis.path, content);
       fileContents.set(analysis.relativePath, content);
@@ -169,6 +193,7 @@ export async function analyzeQuality(
       security: filteredIssues.filter((i) => i.category === 'security').length,
       modernization: filteredIssues.filter((i) => i.category === 'modernization').length,
       i18n: filteredIssues.filter((i) => i.category === 'i18n').length,
+      'backwards-compat': filteredIssues.filter((i) => i.category === 'backwards-compat').length,
     },
   };
 

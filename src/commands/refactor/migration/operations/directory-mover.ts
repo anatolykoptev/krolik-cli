@@ -6,7 +6,7 @@
  */
 
 import * as path from 'node:path';
-import { ensureDir, findFiles, readFile, writeFile } from '../../../../lib';
+import { ensureDir, findFiles, readFile, writeFile } from '../../../../lib/@core/fs';
 import { updateInternalImports } from '../imports';
 import { safeDelete } from '../security';
 

@@ -3,7 +3,7 @@
  * @description Security analysis command
  */
 
-import type { CommandContext, OutputFormat } from '../../types';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 
 interface SecurityOptions {
   fix?: boolean;

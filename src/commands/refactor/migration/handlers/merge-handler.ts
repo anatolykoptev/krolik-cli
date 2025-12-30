@@ -5,8 +5,8 @@
  * Handles merging imports from one module to another.
  */
 
-import type { MigrationAction } from '../../core';
-import type { ExecutionResult } from '../core/orchestrator';
+import type { MigrationAction } from '../../core/types';
+import type { ExecutionResult } from '../core/types';
 import { updateImports } from '../imports';
 
 /**

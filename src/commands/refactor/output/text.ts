@@ -3,7 +3,7 @@
  * @description Human-readable text output formatter
  */
 
-import type { MigrationPlan, RefactorAnalysis, StructureAnalysis } from '../core';
+import type { MigrationPlan, RefactorAnalysis, StructureAnalysis } from '../core/types';
 
 // ============================================================================
 // MAIN FORMATTER

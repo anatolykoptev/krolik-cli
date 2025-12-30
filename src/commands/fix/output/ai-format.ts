@@ -10,7 +10,7 @@
  */
 
 import { escapeXml } from '@/lib';
-import type { FileAnalysis, QualityIssue, QualityReport } from '../types';
+import type { FileAnalysis, QualityIssue, QualityReport } from '../core';
 
 // ============================================================================
 // AI-ENHANCED TYPES

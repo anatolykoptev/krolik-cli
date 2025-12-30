@@ -8,8 +8,8 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { QualityIssue, QualitySeverity } from './core';
 import type { AIReport, EnrichedIssue, PriorityLevel } from './reporter/types';
-import type { QualityIssue, QualitySeverity } from './types';
 
 // ============================================================================
 // CONSTANTS
@@ -151,6 +151,26 @@ export function readAuditData(projectRoot: string, quickWinsOnly = false): Audit
 
     // Convert to QualityIssue[]
     const issues = enrichedIssues.map(enrichedToQualityIssue);
+
+    // Add backwards-compat issues from separate section
+    if (report.backwardsCompatFiles && report.backwardsCompatFiles.length > 0) {
+      for (const bcFile of report.backwardsCompatFiles) {
+        const bcIssue: QualityIssue = {
+          file: bcFile.path,
+          severity: 'warning',
+          category: 'backwards-compat',
+          message: `Backwards-compat shim (${bcFile.confidence}%): ${bcFile.reason}`,
+          suggestion: bcFile.suggestion,
+        };
+
+        // Only add snippet if movedTo is defined
+        if (bcFile.movedTo) {
+          bcIssue.snippet = `→ ${bcFile.movedTo}`;
+        }
+
+        issues.push(bcIssue);
+      }
+    }
 
     return {
       success: true,

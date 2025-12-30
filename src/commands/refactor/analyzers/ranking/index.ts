@@ -135,6 +135,9 @@ export function enrichPriority(
     };
   }
 
+  // Build coupling lookup map for O(1) access (avoids O(n^2) from find() in loop)
+  const couplingMap = new Map(couplingMetrics.map((c) => [c.path, c.afferentCoupling]));
+
   // Calculate average PageRank of affected files
   let totalPageRank = 0;
   let totalCoupling = 0;
@@ -145,9 +148,9 @@ export function enrichPriority(
     const moduleKey = findMatchingModule(file, pageRankScores);
     if (moduleKey) {
       totalPageRank += pageRankScores.get(moduleKey) ?? 0;
-      const coupling = couplingMetrics.find((c) => c.path === moduleKey);
-      if (coupling) {
-        totalCoupling += coupling.afferentCoupling;
+      const coupling = couplingMap.get(moduleKey);
+      if (coupling !== undefined) {
+        totalCoupling += coupling;
       }
       matchedFiles++;
     }

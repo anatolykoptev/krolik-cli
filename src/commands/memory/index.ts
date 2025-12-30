@@ -16,8 +16,8 @@ import {
   search,
   stats,
 } from '@/lib/@storage/memory';
-import { getCurrentBranch, getRecentCommits } from '../../lib/@git';
-import type { CommandContext, OutputFormat } from '../../types';
+import { getCurrentBranch, getRecentCommits } from '../../lib/@vcs';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 
 /**
  * Memory save options

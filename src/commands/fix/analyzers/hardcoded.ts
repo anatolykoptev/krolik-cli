@@ -4,8 +4,8 @@ import {
   shouldSkipFile,
   shouldSkipLine,
   shouldSkipUrl,
-} from '../../../lib/@detectors/hardcoded/index';
-import type { HardcodedValue } from '../types';
+} from '@/lib/@detectors/quality/hardcoded/index';
+import type { HardcodedValue } from '../core';
 
 const MAX_CONTEXT_LENGTH = 80;
 

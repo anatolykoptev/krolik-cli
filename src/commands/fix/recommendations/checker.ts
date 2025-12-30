@@ -3,7 +3,7 @@
  * @description Recommendation checking logic
  */
 
-import type { FileAnalysis } from '../types';
+import type { FileAnalysis } from '../core';
 import { ALL_RECOMMENDATIONS } from './rules';
 import type { Recommendation, RecommendationResult } from './types';
 

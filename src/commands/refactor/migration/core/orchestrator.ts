@@ -5,32 +5,18 @@
  * Coordinates migration execution by routing actions to appropriate handlers.
  */
 
-import { logger } from '../../../../lib';
-import type { MigrationAction, MigrationPlan } from '../../core';
-import type { MigrationOptions } from '../../core/options';
+import { logger } from '../../../../lib/@core/logger';
+import type { MigrationAction, MigrationPlan } from '../../core/types';
 import { updateBarrelFile } from '../barrel';
 import { executeCreateBarrel } from '../handlers/barrel-handler';
 import { executeDelete } from '../handlers/delete-handler';
 import { executeUpdateImports } from '../handlers/import-handler';
 import { executeMerge } from '../handlers/merge-handler';
 import { executeMove } from '../handlers/move-handler';
+import type { ExecutionResult, MigrationExecutionOptions, MigrationExecutionResult } from './types';
 
-// Type alias for backwards compatibility (exported for public API)
-export type MigrationExecutionOptions = MigrationOptions;
-
-// ============================================================================
-// TYPES
-// ============================================================================
-
-export interface ExecutionResult {
-  success: boolean;
-  message: string;
-}
-
-export interface MigrationExecutionResult {
-  success: boolean;
-  results: string[];
-}
+// Re-export types for backwards compatibility
+export type { ExecutionResult, MigrationExecutionOptions, MigrationExecutionResult } from './types';
 
 // ============================================================================
 // ACTION EXECUTION

@@ -21,29 +21,10 @@ import * as path from 'node:path';
 import { findFiles } from '../../../../lib/@core';
 import { detectHardcodedStrings, hasRussianText } from '../../../../lib/@i18n';
 import type { Analyzer, AnalyzerResult } from '../registry';
+import type { FileI18nInfo, I18nAnalysisResult } from './i18n.types';
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
-/**
- * File-level i18n analysis result
- */
-export interface FileI18nInfo {
-  file: string;
-  count: number;
-  lines: number[];
-}
-
-/**
- * I18n analysis result
- */
-export interface I18nAnalysisResult {
-  files: FileI18nInfo[];
-  totalStrings: number;
-  totalFiles: number;
-  timestamp: string;
-}
+// Re-export types for backwards compatibility
+export type { FileI18nInfo, I18nAnalysisResult } from './i18n.types';
 
 // ============================================================================
 // CONSTANTS

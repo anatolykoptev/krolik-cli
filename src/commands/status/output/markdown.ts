@@ -3,7 +3,7 @@
  * @description Markdown format output
  */
 
-import type { StatusResult } from '../../../types';
+import type { StatusResult } from '../../../types/commands/status';
 import { formatDuration, getHealthEmoji } from './shared';
 
 // ============================================================================

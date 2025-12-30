@@ -9,7 +9,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileCache } from '@/lib';
-import type { FixOperation, FixResult, QualityIssue } from './types';
+import type { FixOperation, FixResult, QualityIssue } from './core';
 
 // ============================================================================
 // PATCH TYPES

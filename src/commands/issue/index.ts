@@ -9,8 +9,9 @@
  * - Priority detection from labels and body
  */
 
-import { getIssue, isGhAuthenticated, isGhAvailable, sanitizeIssueNumber } from '../../lib';
-import type { CommandContext, OutputFormat } from '../../types';
+import { sanitizeIssueNumber } from '../../lib/@security';
+import { getIssue, isGhAuthenticated, isGhAvailable } from '../../lib/@vcs';
+import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import { formatAI, formatJson, formatMarkdown, printIssue } from './output';
 import { parseIssue } from './parser';
 

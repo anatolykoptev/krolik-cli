@@ -6,7 +6,8 @@
  */
 
 import * as path from 'node:path';
-import { escapeRegex, exists, readFile, writeFile } from '../../../lib';
+import { exists, readFile, writeFile } from '../../../lib/@core/fs';
+import { escapeRegex } from '../../../lib/@security';
 
 // ============================================================================
 // BARREL FILE UPDATE

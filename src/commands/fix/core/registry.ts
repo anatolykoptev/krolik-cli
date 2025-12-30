@@ -25,6 +25,7 @@
  * ```
  */
 
+import { Registry } from '@/lib/@core';
 import type { FixDifficulty, Fixer, FixerMetadata, QualityCategory } from './types';
 
 /**
@@ -49,55 +50,29 @@ export interface FixerFilter {
 
 /**
  * Fixer Registry class
+ *
+ * Extends the generic Registry with fixer-specific functionality:
+ * - Filtering by category, difficulty, tags
+ * - CLI flag generation
+ * - Enabled fixer resolution based on CLI options
  */
-export class FixerRegistry {
-  private fixers = new Map<string, Fixer>();
-
-  /**
-   * Register a fixer
-   */
-  register(fixer: Fixer): void {
-    if (this.fixers.has(fixer.metadata.id)) {
-      console.warn(`Fixer '${fixer.metadata.id}' is already registered, overwriting`);
-    }
-    this.fixers.set(fixer.metadata.id, fixer);
+export class FixerRegistry extends Registry<Fixer> {
+  constructor() {
+    super({ onDuplicate: 'warn' });
   }
 
   /**
-   * Register multiple fixers
+   * Extract ID from fixer metadata
    */
-  registerAll(fixers: Fixer[]): void {
-    for (const fixer of fixers) {
-      this.register(fixer);
-    }
+  protected getId(fixer: Fixer): string {
+    return fixer.metadata.id;
   }
 
   /**
-   * Get a fixer by ID
-   */
-  get(id: string): Fixer | undefined {
-    return this.fixers.get(id);
-  }
-
-  /**
-   * Check if a fixer exists
-   */
-  has(id: string): boolean {
-    return this.fixers.has(id);
-  }
-
-  /**
-   * Get all registered fixers
-   */
-  all(): Fixer[] {
-    return [...this.fixers.values()];
-  }
-
-  /**
-   * Get all fixer IDs
+   * Get all fixer IDs (alias for names())
    */
   ids(): string[] {
-    return [...this.fixers.keys()];
+    return this.names();
   }
 
   /**
@@ -240,20 +215,6 @@ export class FixerRegistry {
 
     // Convert kebab-case to camelCase
     return key.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
-  }
-
-  /**
-   * Clear all registered fixers (for testing)
-   */
-  clear(): void {
-    this.fixers.clear();
-  }
-
-  /**
-   * Get count of registered fixers
-   */
-  get size(): number {
-    return this.fixers.size;
   }
 }
 

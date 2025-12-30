@@ -3,7 +3,7 @@
  * @description Mixed concerns detection (UI + logic in same file)
  */
 
-import type { QualityIssue } from '../types';
+import type { QualityIssue } from '../core';
 
 /**
  * Patterns indicating different concerns

@@ -6,7 +6,7 @@
 import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import { getAgentsVersion, updateAgentsRepo as updateAgentsRepoShared } from '../../../lib/@agents';
-import { isGitAvailable } from '../../../lib/@git';
+import { isGitAvailable } from '../../../lib/@vcs';
 import { getPlugin } from '../core/config';
 import { AGENTS_DIR, AGENTS_PLUGINS_DIR } from '../core/paths';
 import type { InstallerOptions, InstallResult } from '../core/types';

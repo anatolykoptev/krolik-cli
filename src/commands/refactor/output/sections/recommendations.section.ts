@@ -7,7 +7,7 @@
 
 import { escapeXml } from '../../../../lib/@format';
 import type { RecommendationsAnalysis } from '../../analyzers/modules/recommendations.analyzer';
-import type { Recommendation } from '../../core';
+import type { Recommendation } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

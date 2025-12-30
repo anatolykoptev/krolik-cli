@@ -3,7 +3,7 @@
  * @description TypeScript type safety issue detection
  */
 
-import type { QualityIssue, QualitySeverity } from '../types';
+import type { QualityIssue, QualitySeverity } from '../core';
 
 /**
  * Type safety pattern definitions

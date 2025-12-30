@@ -24,19 +24,6 @@
  * ```
  */
 
-// Adapters (for advanced usage)
-export {
-  configureRegistryDatabase,
-  createLibraryRepository,
-  type DatabaseGetter,
-  getDefaultRepository,
-  getRegistryDatabase,
-  initializeContext7,
-  type LibraryStorageFunctions,
-  resetContext7,
-  resetRegistryDatabase,
-  SqliteLibraryRepository,
-} from './adapters';
 // Types from client
 export type {
   CodeDocsResponse,
@@ -56,10 +43,21 @@ export {
   type SearchLibraryResponse,
   type SearchResult,
 } from './client';
-// Core interfaces
-export type { ILibraryRepository } from './core/ports';
 // Detector
 export { detectLibraries, getSuggestions, getSupportedLibraries } from './detector';
+// Factory (includes adapters functionality)
+export {
+  configureRegistryDatabase,
+  createLibraryRepository,
+  type DatabaseGetter,
+  getDefaultRepository,
+  getRegistryDatabase,
+  initializeContext7,
+  type LibraryStorageFunctions,
+  resetContext7,
+  resetRegistryDatabase,
+  SqliteLibraryRepository,
+} from './factory';
 // Fetcher
 export {
   DEFAULT_MAX_PAGES,
@@ -111,7 +109,7 @@ export {
   seedDefaultTopics,
   selectBestResult,
 } from './registry';
-// Types from types.ts
+// Types (includes port interfaces)
 export type {
   CachedLibrary,
   DetectedLibrary,
@@ -119,10 +117,18 @@ export type {
   DocSection,
   DocsCacheStats,
   DocsFetchOptions,
+  DocsResponse,
   DocsSearchOptions,
+  IDocumentFetcher,
+  ILibraryRepository,
+  ILibraryResolver,
+  IResilientFetcher,
+  IResolverChain,
+  ITopicProvider,
   LibraryMapping,
   LibraryTopic,
   RegistryStats,
+  ResilientFetcherConfig,
   ResolutionResult,
   ResolutionSource,
 } from './types';

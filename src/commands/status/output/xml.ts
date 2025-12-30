@@ -4,7 +4,7 @@
  */
 
 import { optimizeXml } from '../../../lib/@format';
-import type { StatusResult } from '../../../types';
+import type { StatusResult } from '../../../types/commands/status';
 import { determineNextAction } from './shared';
 
 // ============================================================================
@@ -289,6 +289,8 @@ export interface ReportSummary {
   low: number;
   hotspotFiles: string[];
   quickWins: number;
+  /** Number of i18n issues excluded (>= 100) */
+  excludedI18nCount?: number;
 }
 
 /**
@@ -338,7 +340,16 @@ ${summary.hotspotFiles
   .slice(0, 3)
   .map((f) => `    <file>${f}</file>`)
   .join('\n')}
-  </hotspot_files>
+  </hotspot_files>${
+    summary.excludedI18nCount
+      ? `
+
+  <i18n_note>
+    🌍 ${summary.excludedI18nCount} i18n issues (hardcoded text) detected.
+    Run: krolik fix --category i18n --dry-run
+  </i18n_note>`
+      : ''
+  }
 </report-summary>
 
 <project-health status="${status.health}" emoji="${healthEmoji}">

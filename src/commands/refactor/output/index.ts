@@ -9,7 +9,8 @@
  * - AI-Native: Enhanced XML optimized for AI agents
  */
 
-import type { OutputFormat, RefactorAnalysis } from '../core';
+import type { OutputFormat } from '../core/options';
+import type { RefactorAnalysis } from '../core/types';
 
 // ============================================================================
 // EXPORTS

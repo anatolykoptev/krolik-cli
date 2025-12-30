@@ -12,7 +12,7 @@
  * - Direct: import { orchestrate } from './orchestrator'
  */
 
-import { escapeXml } from '../../lib';
+import { escapeXml } from '../../lib/@format';
 import { AGENT_CATEGORIES } from './categories';
 import { buildAgentContext, formatContextForPrompt } from './context';
 import { findAgentsPath, loadAgentsByCategory } from './loader';

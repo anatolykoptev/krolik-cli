@@ -7,8 +7,8 @@
 
 import { type NumericLiteral, SyntaxKind, type VariableDeclaration } from 'ts-morph';
 import { astPool } from '@/lib/@ast';
+import type { FixOperation } from '../../core';
 import { createFullFileReplace } from '../../core';
-import type { FixOperation } from '../../types';
 import { formatWithPrettier } from '../shared';
 import {
   extractASTContext,

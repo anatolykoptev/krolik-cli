@@ -55,6 +55,8 @@ export {
   isTrivialFix,
   sortByDifficulty,
 } from './difficulty';
+// Filtering
+export { filterIssuesByFixerFlags, isFixerEnabled } from './filtering';
 // Line utilities
 export {
   clearLineCache,
@@ -130,6 +132,7 @@ export type {
   FixAction,
   FixDifficulty,
   Fixer,
+  FixerContext,
   FixerMetadata,
   FixOperation,
   FixResult,

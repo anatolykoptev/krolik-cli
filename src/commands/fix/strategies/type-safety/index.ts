@@ -11,8 +11,8 @@
  * they require proper null checks which need context understanding.
  */
 
+import type { FixOperation, FixStrategy, QualityIssue } from '../../core';
 import { containsKeyword } from '../../core';
-import type { FixOperation, FixStrategy, QualityIssue } from '../../types';
 import { TYPE_SAFETY_KEYWORDS } from './constants';
 import { fixAnyType, fixTsIgnore, fixTsNocheck } from './fixes';
 

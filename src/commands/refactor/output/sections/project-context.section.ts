@@ -7,7 +7,7 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { ProjectContext } from '../../core';
+import type { ProjectContext } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

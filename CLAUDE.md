@@ -15,6 +15,32 @@
 | Functions | Pure first |
 | CLI flags | Extend existing, never add new |
 
+## ⛔ FORBIDDEN: Regex for Code Analysis
+
+**NEVER use regex to analyze or transform code.** Regex cannot reliably distinguish:
+- JSX attributes vs object properties vs function arguments
+- String literals in different contexts
+- Nested structures and edge cases
+
+| ❌ Forbidden | ✅ Required |
+|-------------|-------------|
+| Regex patterns for parsing | SWC for fast analysis (`lib/@swc`) |
+| String matching for context | ts-morph AST for transformations (`lib/@ast`) |
+| Line-by-line text replacement | AST-based node replacement |
+
+**Why:** Regex leads to exponential edge cases (11+ patterns for i18n alone). AST gives 100% accuracy via `SyntaxKind`.
+
+**Example — i18n string replacement:**
+```typescript
+// ❌ WRONG: Regex-based (breaks constantly)
+if (/^\w+:\s*["']/.test(line)) { /* object property? maybe... */ }
+
+// ✅ CORRECT: AST-based (always accurate)
+if (parent.getKind() === SyntaxKind.PropertyAssignment) { /* definitely object property */ }
+```
+
+**See:** [ast-transformer.ts](src/lib/@i18n/ast-transformer.ts) for reference implementation.
+
 <!-- krolik:start -->
 <!-- version: 6.0.0 | auto-updated -->
 
@@ -97,7 +123,7 @@ krolik-cli/
 │   ├── lib/            # Shared utilities
 │   │   ├── @agents/    # Agent definitions & orchestration
 │   │   ├── @ast/       # ts-morph AST pool (CRITICAL!)
-│   │   ├── @git/       # Git operations
+│   │   ├── @vcs/       # Version Control System (Git/GitHub)
 │   │   ├── @patterns/  # Dynamic pattern detection
 │   │   ├── @prisma/    # Prisma schema parsing
 │   │   ├── @ranking/   # PageRank for file importance

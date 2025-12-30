@@ -3,7 +3,8 @@
  * @description Type-safe flag building for CLI commands
  */
 
-import { escapeShellArg, sanitizeFeatureName, sanitizeIssueNumber } from './utils';
+import { escapeShellArg } from '@/lib/@security';
+import { sanitizeFeatureName, sanitizeIssueNumber } from './utils';
 
 // ============================================================================
 // TYPES

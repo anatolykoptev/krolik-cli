@@ -7,7 +7,7 @@
  */
 
 import { escapeXml } from '../../../../lib/@format';
-import type { ArchHealth, ArchViolation } from '../../core';
+import type { ArchHealth, ArchViolation } from '../../core/types-ai';
 import type { Section, SectionContext } from '../registry';
 
 // ============================================================================

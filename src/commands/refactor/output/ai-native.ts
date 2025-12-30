@@ -16,7 +16,7 @@ import { optimizeXml } from '../../../lib/@format';
 import type { DuplicatesAnalysis } from '../analyzers/modules/duplicates.analyzer';
 import type { RecommendationsAnalysis } from '../analyzers/modules/recommendations.analyzer';
 import type { AnalyzerResult } from '../analyzers/registry';
-import type { EnhancedRefactorAnalysis } from '../core';
+import type { EnhancedRefactorAnalysis } from '../core/types-ai';
 import { getLimits, type OutputLevel, selectOutputLevel } from './limits';
 import { type SectionContext, sectionRegistry } from './registry';
 

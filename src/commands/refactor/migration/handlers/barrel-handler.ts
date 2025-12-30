@@ -6,10 +6,10 @@
  */
 
 import * as path from 'node:path';
-import { exists, findFiles, readFile, writeFile } from '../../../../lib';
-import type { MigrationAction } from '../../core';
+import { exists, findFiles, readFile, writeFile } from '../../../../lib/@core/fs';
+import type { MigrationAction } from '../../core/types';
 import { analyzeExports, generateBarrelContent, generateExportStatement } from '../barrel';
-import type { ExecutionResult } from '../core/orchestrator';
+import type { ExecutionResult } from '../core/types';
 import { validatePath } from '../security';
 
 /**

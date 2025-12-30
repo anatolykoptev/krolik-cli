@@ -6,7 +6,8 @@
  * Depends on: architecture, domains, duplicates analyzers.
  */
 
-import type { ArchHealth, DomainInfo, Recommendation, RefactorAnalysis } from '../../core';
+import type { RefactorAnalysis } from '../../core/types';
+import type { ArchHealth, DomainInfo, Recommendation } from '../../core/types-ai';
 import { generateRecommendations } from '../metrics/recommendations';
 import type { Analyzer, AnalyzerContext, AnalyzerResult } from '../registry';
 

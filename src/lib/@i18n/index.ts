@@ -65,9 +65,12 @@ export { createLanguageRegistry, LanguageRegistry } from './registry';
 // Export setup
 export type { I18nSetupConfig, LocalesDirResult } from './setup';
 export {
+  clearI18nDetectionCache,
   DEFAULT_I18N_CONFIG,
   detectLocalesDir,
   ensureLocalesDir,
+  ensureLocalesStructure,
+  getBestLocalesPath,
   getOrCreateLocalesDir,
   initDefaultLocales,
   initLanguageLocales,
@@ -172,3 +175,23 @@ export function isUserFacingText(text: string): boolean {
 
   return false;
 }
+
+// ============================================================================
+// AST TRANSFORMER
+// ============================================================================
+
+// Export AST transformer
+export type {
+  ReplacementResult,
+  StringContext,
+  TransformOptions,
+  TransformResult,
+  TranslatableString,
+} from './ast-transformer';
+export {
+  analyzeFile,
+  analyzeFiles,
+  collectTranslatableStrings,
+  transformFile,
+  transformFiles,
+} from './ast-transformer';

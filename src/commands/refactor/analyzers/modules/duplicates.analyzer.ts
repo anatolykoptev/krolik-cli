@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { DuplicateInfo, TypeDuplicateInfo } from '../../core';
+import type { DuplicateInfo, TypeDuplicateInfo } from '../../core/types';
 import type { Analyzer } from '../registry';
 
 // ============================================================================
