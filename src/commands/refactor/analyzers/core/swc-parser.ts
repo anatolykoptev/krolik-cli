@@ -320,10 +320,15 @@ function visitNode(
     }
   }
 
-  // Clear variable name when entering object/array literals
-  // This prevents arrow functions inside objects from inheriting the parent variable name
+  // Clear variable name when entering object/array literals or call expressions
+  // This prevents arrow functions inside objects/calls from inheriting the parent variable name
   // e.g., `const format = { debug: () => ... }` - the arrow function should NOT be named "format"
-  if (nodeType === 'ObjectExpression' || nodeType === 'ArrayExpression') {
+  // e.g., `const files = arr.filter((f) => ...)` - the callback should NOT be named "files"
+  if (
+    nodeType === 'ObjectExpression' ||
+    nodeType === 'ArrayExpression' ||
+    nodeType === 'CallExpression'
+  ) {
     currentContext.variableName = undefined;
   }
 

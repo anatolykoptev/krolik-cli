@@ -34,5 +34,11 @@ export * from './analysis';
 
 export * from './signatures';
 
+// ============================================================================
+// FINGERPRINTING (structural clone detection)
+// ============================================================================
+
+export * from './fingerprint';
+
 // NOTE: SWC exports are available via '@/lib/@ast/swc'
 // This avoids naming conflicts with ts-morph exports

@@ -117,11 +117,11 @@ export const duplicatesSection: Section = {
 
       lines.push('    <!-- FUNCTION DUPLICATES - Consider merging or extracting -->');
       lines.push(`    <function-duplicates count="${data.functions.length}">`);
-      for (const dup of sortedFunctions.slice(0, 10)) {
+      for (const dup of sortedFunctions.slice(0, 100)) {
         formatFunctionDuplicate(lines, dup, '      ');
       }
-      if (sortedFunctions.length > 10) {
-        lines.push(`      <!-- +${sortedFunctions.length - 10} more function duplicates -->`);
+      if (sortedFunctions.length > 100) {
+        lines.push(`      <!-- +${sortedFunctions.length - 100} more function duplicates -->`);
       }
       lines.push('    </function-duplicates>');
     }
@@ -133,11 +133,11 @@ export const duplicatesSection: Section = {
 
       lines.push('    <!-- TYPE DUPLICATES - Consider consolidating -->');
       lines.push(`    <type-duplicates count="${data.types.length}">`);
-      for (const dup of sortedTypes.slice(0, 10)) {
+      for (const dup of sortedTypes.slice(0, 100)) {
         formatTypeDuplicate(lines, dup, '      ');
       }
-      if (sortedTypes.length > 10) {
-        lines.push(`      <!-- +${sortedTypes.length - 10} more type duplicates -->`);
+      if (sortedTypes.length > 100) {
+        lines.push(`      <!-- +${sortedTypes.length - 100} more type duplicates -->`);
       }
       lines.push('    </type-duplicates>');
     }
