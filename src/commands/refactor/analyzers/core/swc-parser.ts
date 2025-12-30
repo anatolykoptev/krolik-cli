@@ -4,16 +4,20 @@
  *
  * Uses SWC for 10-20x faster AST parsing compared to ts-morph.
  * Performs syntax-only parsing (no type checking) for maximum speed.
+ *
+ * IMPORTANT: Uses parseFile from @ast/swc/parser to handle SWC's
+ * accumulating span offsets correctly via baseOffset normalization.
  */
 
 import * as crypto from 'node:crypto';
-import type { Node, Span } from '@swc/core';
-import {
-  type ArrowFunctionExpression,
-  type FunctionDeclaration,
-  type FunctionExpression,
-  parseSync,
+import type {
+  ArrowFunctionExpression,
+  FunctionDeclaration,
+  FunctionExpression,
+  Node,
+  Span,
 } from '@swc/core';
+import { parseFile } from '../../../../lib/@ast/swc/parser';
 
 export interface SwcFunctionInfo {
   name: string;
@@ -51,17 +55,19 @@ export function extractFunctionsSwc(filePath: string, content: string): SwcFunct
   const functions: SwcFunctionInfo[] = [];
 
   try {
-    const ast = parseSync(content, {
-      syntax: 'typescript',
-      tsx: filePath.endsWith('.tsx'),
-    });
+    // Use parseFile from central @ast module which handles span offset normalization
+    const { ast, lineOffsets, baseOffset } = parseFile(filePath, content);
 
-    // Calculate line offsets for position mapping
-    const lineOffsets = calculateLineOffsets(content);
-
-    // Visit all nodes
+    // Visit all nodes, passing baseOffset for span normalization
     visitNode(ast, (node, context) => {
-      const funcInfo = extractFunctionInfo(node, filePath, content, lineOffsets, context);
+      const funcInfo = extractFunctionInfo(
+        node,
+        filePath,
+        content,
+        lineOffsets,
+        context,
+        baseOffset,
+      );
       if (funcInfo) {
         functions.push(funcInfo);
       }
@@ -80,15 +86,11 @@ export function extractTypesSwc(filePath: string, content: string): SwcTypeInfo[
   const types: SwcTypeInfo[] = [];
 
   try {
-    const ast = parseSync(content, {
-      syntax: 'typescript',
-      tsx: filePath.endsWith('.tsx'),
-    });
-
-    const lineOffsets = calculateLineOffsets(content);
+    // Use parseFile from central @ast module which handles span offset normalization
+    const { ast, lineOffsets, baseOffset } = parseFile(filePath, content);
 
     visitNode(ast, (node, context) => {
-      const typeInfo = extractTypeInfo(node, filePath, content, lineOffsets, context);
+      const typeInfo = extractTypeInfo(node, filePath, content, lineOffsets, context, baseOffset);
       if (typeInfo) {
         types.push(typeInfo);
       }
@@ -109,15 +111,30 @@ function extractTypeInfo(
   content: string,
   lineOffsets: number[],
   context: VisitContext,
+  baseOffset: number,
 ): SwcTypeInfo | null {
   const nodeType = (node as { type?: string }).type;
 
   if (nodeType === 'TsInterfaceDeclaration') {
-    return extractInterfaceInfo(node, filePath, content, lineOffsets, context.isExported);
+    return extractInterfaceInfo(
+      node,
+      filePath,
+      content,
+      lineOffsets,
+      context.isExported,
+      baseOffset,
+    );
   }
 
   if (nodeType === 'TsTypeAliasDeclaration') {
-    return extractTypeAliasInfo(node, filePath, content, lineOffsets, context.isExported);
+    return extractTypeAliasInfo(
+      node,
+      filePath,
+      content,
+      lineOffsets,
+      context.isExported,
+      baseOffset,
+    );
   }
 
   return null;
@@ -132,6 +149,7 @@ function extractInterfaceInfo(
   content: string,
   lineOffsets: number[],
   isExported: boolean,
+  baseOffset: number,
 ): SwcTypeInfo | null {
   const iface = node as unknown as {
     id?: { value?: string };
@@ -143,8 +161,9 @@ function extractInterfaceInfo(
   if (!name) return null;
 
   const span = iface.span;
-  const start = span?.start ?? 0;
-  const end = span?.end ?? content.length;
+  // Normalize span using baseOffset, then convert SWC's 1-based to 0-based
+  const start = Math.max(0, (span?.start ?? 1) - baseOffset - 1);
+  const end = Math.min(content.length, (span?.end ?? content.length + 1) - baseOffset - 1);
   const position = offsetToPosition(start, lineOffsets);
 
   // Extract field names
@@ -157,7 +176,7 @@ function extractInterfaceInfo(
       if (propName) {
         fields.push(propName);
         // Get type annotation text if available
-        const typeText = extractTypeText(member.typeAnnotation, content);
+        const typeText = extractTypeText(member.typeAnnotation, content, baseOffset);
         fieldDefs.push(`${propName}:${normalizeTypeText(typeText)}`);
       }
     } else if (member.type === 'TsMethodSignature' && member.key) {
@@ -194,6 +213,7 @@ function extractTypeAliasInfo(
   content: string,
   lineOffsets: number[],
   isExported: boolean,
+  baseOffset: number,
 ): SwcTypeInfo | null {
   const typeAlias = node as unknown as {
     id?: { value?: string };
@@ -205,11 +225,12 @@ function extractTypeAliasInfo(
   if (!name) return null;
 
   const span = typeAlias.span;
-  const start = span?.start ?? 0;
-  const end = span?.end ?? content.length;
+  // Normalize span using baseOffset, then convert SWC's 1-based to 0-based
+  const start = Math.max(0, (span?.start ?? 1) - baseOffset - 1);
+  const end = Math.min(content.length, (span?.end ?? content.length + 1) - baseOffset - 1);
   const position = offsetToPosition(start, lineOffsets);
 
-  const typeText = extractTypeText(typeAlias.typeAnnotation, content);
+  const typeText = extractTypeText(typeAlias.typeAnnotation, content, baseOffset);
   const normalizedStructure = normalizeTypeText(typeText);
   const definition = content.slice(start, Math.min(end, start + 500));
 
@@ -228,13 +249,16 @@ function extractTypeAliasInfo(
 /**
  * Extract type text from type annotation node
  */
-function extractTypeText(typeAnnotation: unknown, content: string): string {
+function extractTypeText(typeAnnotation: unknown, content: string, baseOffset: number): string {
   if (!typeAnnotation || typeof typeAnnotation !== 'object') return 'unknown';
 
   const span = (typeAnnotation as { span?: Span }).span;
   if (!span) return 'unknown';
 
-  return content.slice(span.start, span.end);
+  // Normalize span using baseOffset, then convert SWC's 1-based to 0-based
+  const start = Math.max(0, span.start - baseOffset - 1);
+  const end = Math.min(content.length, span.end - baseOffset - 1);
+  return content.slice(start, end);
 }
 
 /**
@@ -253,19 +277,6 @@ function normalizeTypeText(typeText: string): string {
       .sort()
       .join('|')
   );
-}
-
-/**
- * Calculate line offsets for position mapping
- */
-function calculateLineOffsets(content: string): number[] {
-  const offsets: number[] = [0];
-  for (let i = 0; i < content.length; i++) {
-    if (content[i] === '\n') {
-      offsets.push(i + 1);
-    }
-  }
-  return offsets;
 }
 
 /**
@@ -358,19 +369,36 @@ function extractFunctionInfo(
   content: string,
   lineOffsets: number[],
   context: VisitContext,
+  baseOffset: number,
 ): SwcFunctionInfo | null {
   const nodeType = (node as { type?: string }).type;
 
   if (nodeType === 'FunctionDeclaration') {
     const func = node as unknown as FunctionDeclaration;
     const name = func.identifier?.value ?? 'anonymous';
-    return createFunctionInfo(func, name, filePath, content, lineOffsets, context.isExported);
+    return createFunctionInfo(
+      func,
+      name,
+      filePath,
+      content,
+      lineOffsets,
+      context.isExported,
+      baseOffset,
+    );
   }
 
   if (nodeType === 'FunctionExpression') {
     const func = node as unknown as FunctionExpression;
     const name = func.identifier?.value ?? 'anonymous';
-    return createFunctionInfo(func, name, filePath, content, lineOffsets, context.isExported);
+    return createFunctionInfo(
+      func,
+      name,
+      filePath,
+      content,
+      lineOffsets,
+      context.isExported,
+      baseOffset,
+    );
   }
 
   if (nodeType === 'ArrowFunctionExpression') {
@@ -382,7 +410,15 @@ function extractFunctionInfo(
       // Skip anonymous arrow functions (callbacks, inline functions, etc.)
       return null;
     }
-    return createFunctionInfo(func, name, filePath, content, lineOffsets, context.isExported);
+    return createFunctionInfo(
+      func,
+      name,
+      filePath,
+      content,
+      lineOffsets,
+      context.isExported,
+      baseOffset,
+    );
   }
 
   return null;
@@ -398,10 +434,12 @@ function createFunctionInfo(
   content: string,
   lineOffsets: number[],
   isExported: boolean,
+  baseOffset: number,
 ): SwcFunctionInfo {
   const span = (func as { span?: Span }).span;
-  const start = span?.start ?? 0;
-  const end = span?.end ?? content.length;
+  // Normalize span using baseOffset, then convert SWC's 1-based to 0-based
+  const start = Math.max(0, (span?.start ?? 1) - baseOffset - 1);
+  const end = Math.min(content.length, (span?.end ?? content.length + 1) - baseOffset - 1);
 
   const position = offsetToPosition(start, lineOffsets);
   const bodyContent = content.slice(start, end);

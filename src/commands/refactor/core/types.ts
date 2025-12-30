@@ -48,6 +48,10 @@ export interface FunctionSignature {
   normalizedBody: string;
   /** Cached tokens for similarity calculation */
   tokens?: Set<string>;
+  /** Structural fingerprint for clone detection (catches renamed clones) */
+  fingerprint?: string;
+  /** Structural complexity score */
+  complexity?: number;
 }
 
 // ============================================================================

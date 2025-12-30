@@ -4,7 +4,12 @@
  */
 
 import * as path from 'node:path';
-import { getProject, type Project, releaseProject } from '../../../../../lib/@ast';
+import {
+  generateFingerprint,
+  getProject,
+  type Project,
+  releaseProject,
+} from '../../../../../lib/@ast';
 import { findFiles, readFile } from '../../../../../lib/@core/fs';
 import { logger } from '../../../../../lib/@core/logger';
 import type { FunctionSignature } from '../../../core/types';
@@ -44,6 +49,9 @@ function parseFileWithSwc(
       const normalizedBodyText = normalizeBody(bodyText);
       const tokens = new Set(normalizedBodyText.split(/\s+/).filter((t) => t.length > 0));
 
+      // Calculate structural fingerprint for clone detection
+      const fpResult = generateFingerprint(bodyText);
+
       functions.push({
         name: swcFunc.name,
         file: relPath,
@@ -54,6 +62,9 @@ function parseFileWithSwc(
         bodyHash: swcFunc.bodyHash,
         normalizedBody: normalizedBodyText,
         tokens,
+        // Fingerprint catches renamed clones (same structure, different identifiers)
+        ...(fpResult.fingerprint && { fingerprint: fpResult.fingerprint }),
+        ...(fpResult.complexity > 0 && { complexity: fpResult.complexity }),
       });
     }
   } catch (error) {

@@ -135,6 +135,9 @@ export async function findDuplicates(
     byHash.set(func.bodyHash, existing);
   }
 
+  // Track reported locations to avoid duplicating in fingerprint section
+  const reportedLocations = new Set<string>();
+
   for (const [, funcs] of byHash) {
     if (funcs.length < 2) continue;
 
@@ -158,10 +161,66 @@ export async function findDuplicates(
       return a.localeCompare(b);
     });
 
+    // Mark these locations as reported
+    for (const loc of locations) {
+      reportedLocations.add(`${loc.file}:${loc.line}`);
+    }
+
     duplicates.push({
       name: `[identical body] ${sortedNames.join(' / ')}`,
       locations,
       similarity: 1,
+      recommendation: 'merge',
+    });
+  }
+
+  // Find structural clones (same structure, different variable names) using fingerprints
+  // This catches renamed clones that bodyHash misses:
+  // e.g., `getUser(id) { return db.find(id); }` and `fetchItem(key) { return store.find(key); }`
+  const byFingerprint = new Map<string, FunctionSignature[]>();
+
+  for (const func of allFunctions) {
+    // Skip tiny functions and functions without fingerprint
+    if (!isLargeEnoughForDuplication(func)) continue;
+    if (!func.fingerprint) continue;
+
+    // Skip if already reported in another duplicate group
+    const locKey = `${func.file}:${func.line}`;
+    if (reportedLocations.has(locKey)) continue;
+
+    const existing = byFingerprint.get(func.fingerprint) ?? [];
+    existing.push(func);
+    byFingerprint.set(func.fingerprint, existing);
+  }
+
+  for (const [, funcs] of byFingerprint) {
+    if (funcs.length < 2) continue;
+
+    // Deduplicate locations and check if there are multiple unique files
+    const { locations, uniqueFileCount } = deduplicateLocations(funcs);
+
+    // Skip if all occurrences are in the same file
+    if (uniqueFileCount < 2) continue;
+
+    // Skip if only one unique location after deduplication
+    if (locations.length < 2) continue;
+
+    const uniqueNames = new Set(funcs.map((f) => f.name));
+    // Only report if names are actually different (otherwise would be caught by name matching)
+    if (uniqueNames.size < 2) continue;
+
+    const sortedNames = [...uniqueNames].sort((a, b) => {
+      const aExported = funcs.some((f) => f.name === a && f.exported);
+      const bExported = funcs.some((f) => f.name === b && f.exported);
+      if (aExported && !bExported) return -1;
+      if (!aExported && bExported) return 1;
+      return a.localeCompare(b);
+    });
+
+    duplicates.push({
+      name: `[structural clone] ${sortedNames.join(' / ')}`,
+      locations,
+      similarity: 0.95, // Slightly less than identical body to differentiate
       recommendation: 'merge',
     });
   }
