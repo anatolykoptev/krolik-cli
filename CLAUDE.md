@@ -104,54 +104,51 @@ krolik-cli/
 │   ├── commands/       # Command implementations
 │   │   ├── agent/      # Multi-agent orchestration
 │   │   ├── audit/      # Code quality audit
-│   │   ├── codegen/    # Code generation
-│   │   ├── context/    # AI-context generation
-│   │   ├── docs/       # Library documentation cache
-│   │   ├── fix/        # Auto-fix quality issues
+│   │   ├── codegen/    # Code generation (templates, generators)
+│   │   ├── context/    # AI-context generation (formatters, parsers, repomap)
+│   │   ├── docs/       # Library documentation cache (Context7)
+│   │   ├── fix/        # Auto-fix (fixers, analyzers, strategies, recommendations)
 │   │   ├── init/       # Project initialization
 │   │   ├── issue/      # GitHub issue parsing
-│   │   ├── memory/     # Persistent memory
-│   │   ├── refactor/   # Module refactoring
-│   │   ├── review/     # Code review
+│   │   ├── memory/     # Persistent memory (SQLite)
+│   │   ├── refactor/   # Module refactoring (duplicates, migrations)
+│   │   ├── review/     # Code review (git diff analysis)
 │   │   ├── routes/     # tRPC routes analysis
 │   │   ├── schema/     # Prisma schema analysis
 │   │   ├── security/   # Security audit
-│   │   ├── setup/      # Plugin installation
+│   │   ├── setup/      # Plugin installation (diagnostics, installers)
 │   │   ├── status/     # Project diagnostics
 │   │   └── sync/       # Sync operations
 │   ├── config/         # Config loading (cosmiconfig)
-│   ├── lib/            # Shared utilities
+│   ├── lib/            # Shared utilities (@-prefixed modules)
 │   │   ├── @agents/    # Agent definitions & orchestration
-│   │   ├── @ast/       # ts-morph AST pool (CRITICAL!)
-│   │   ├── @vcs/       # Version Control System (Git/GitHub)
-│   │   ├── @patterns/  # Dynamic pattern detection
+│   │   ├── @ast/       # AST operations (ts-morph pool, SWC parser, fingerprinting)
+│   │   ├── @cache/     # SQLite caching layer
+│   │   ├── @claude/    # Claude Code integration (sections)
+│   │   ├── @core/      # Foundation: fs, shell, logger, time, utils, constants
+│   │   ├── @detectors/ # Issue detectors: lint, security, i18n, quality, patterns
+│   │   ├── @discovery/ # File discovery: architecture, reusables
+│   │   ├── @format/    # Formatters: markdown, xml, json
+│   │   ├── @i18n/      # Internationalization (AST transformer, languages)
+│   │   ├── @integrations/ # External: Context7
 │   │   ├── @prisma/    # Prisma schema parsing
 │   │   ├── @ranking/   # PageRank for file importance
-│   │   ├── @swc/       # SWC-based fast parsing
+│   │   ├── @security/  # Sanitization, secrets detection
+│   │   ├── @storage/   # Memory & docs storage (SQLite)
 │   │   ├── @tokens/    # Token counting (gpt-tokenizer)
-│   │   ├── cache/      # SQLite caching layer
-│   │   ├── claude/     # Claude Code integration
-│   │   ├── constants/  # Shared constants
-│   │   ├── core/       # Foundation: fs, shell, logger, time
-│   │   ├── discovery/  # File & pattern discovery
-│   │   ├── format/     # Formatters: markdown, xml, json
-│   │   ├── integrations/ # External: context7
-│   │   ├── modules/    # Module analysis
-│   │   ├── parsing/    # Zod schema parsing
-│   │   ├── security/   # Sanitization, env detection
-│   │   └── storage/    # Memory storage (SQLite)
+│   │   └── @vcs/       # Version Control (Git, GitHub)
 │   ├── mcp/            # MCP server
-│   │   ├── tools/      # MCP tool implementations
+│   │   ├── tools/      # MCP tool implementations (14 tools)
 │   │   ├── handlers.ts
 │   │   ├── resources.ts
 │   │   └── server.ts
 │   └── types/          # TypeScript types
 ├── tests/
 │   ├── unit/           # Unit tests (mirror src/)
-│   ├── integration/    # Integration tests
 │   ├── fixtures/       # Test data
-│   └── helpers/        # Test utilities
-└── docs/               # Documentation
+│   ├── helpers/        # Test utilities
+│   └── scripts/        # Test scripts
+└── .changeset/         # Changesets for releases
 ```
 
 ## Coding Standards
@@ -204,17 +201,22 @@ try {
 - `getProject()` + `releaseProject()` — multi-file operations
 - Never use deprecated `createProject()` directly
 
-## Critical: Pattern Detection
+## Critical: Discovery & Detection
 
-**NEVER hardcode patterns.** Use `lib/@patterns` for dynamic detection:
+**NEVER hardcode paths or patterns.** Use discovery modules:
 
 ```typescript
-import { detectPatterns, getProjectPatterns } from '@/lib/@patterns';
+// Architecture discovery
+import { detectArchitecture, detectMonorepoPackages } from '@/lib/@discovery';
+import { detectSrcPaths } from '@/config/detect';
 
-// Auto-detect project conventions
-const patterns = await getProjectPatterns(projectRoot);
-const apiDir = patterns.apiDirectory;
-const components = patterns.componentPatterns;
+const packages = await detectMonorepoPackages(projectRoot);
+const srcPaths = detectSrcPaths(projectRoot, 'src');
+
+// Issue detection (lint, security, i18n, quality)
+import { detectLintIssue, detectSecurityIssue } from '@/lib/@detectors';
+
+const issues = detectLintIssue(content, filePath, lineNumber);
 ```
 
 ## SWC Fast Parsing
@@ -222,10 +224,22 @@ const components = patterns.componentPatterns;
 For performance-critical parsing (10-50x faster than ts-morph):
 
 ```typescript
-import { parseFile, extractFunctions } from '@/lib/@swc';
+import { parseFile } from '@/lib/@ast/swc/parser';
 
-const ast = await parseFile(filePath);
-const functions = extractFunctions(ast);
+// parseFile returns AST with offset normalization for span handling
+const { ast, lineOffsets, baseOffset } = parseFile(filePath, content);
+
+// IMPORTANT: SWC spans accumulate across calls, use baseOffset to normalize:
+const normalizedStart = span.start - baseOffset - 1; // -1 for 1-based to 0-based
+```
+
+For function extraction use the refactor analyzer:
+
+```typescript
+import { extractFunctionsSwc } from '@/commands/refactor/analyzers/core/swc-parser';
+
+const functions = extractFunctionsSwc(filePath, content);
+// Returns: SwcFunctionInfo[] with name, line, bodyHash, fingerprint, etc.
 ```
 
 ## Refactor Command Architecture
@@ -378,10 +392,11 @@ git push
 | CLI Entry | [src/bin/cli.ts](src/bin/cli.ts) |
 | MCP Server | [src/mcp/server.ts](src/mcp/server.ts) |
 | MCP Tools | [src/mcp/tools/](src/mcp/tools/) |
-| AST Pool | [src/lib/@ast/](src/lib/@ast/) |
-| Pattern Detection | [src/lib/@patterns/](src/lib/@patterns/) |
+| AST (ts-morph + SWC) | [src/lib/@ast/](src/lib/@ast/) |
+| Issue Detectors | [src/lib/@detectors/](src/lib/@detectors/) |
 | Agent System | [src/lib/@agents/](src/lib/@agents/) |
 | Fix Command Docs | [src/commands/fix/CLAUDE.md](src/commands/fix/CLAUDE.md) |
+| Lib Internal Docs | [src/lib/CLAUDE.md](src/lib/CLAUDE.md) |
 
 ## Dependencies
 
@@ -392,12 +407,18 @@ git push
 - `better-sqlite3` — Memory/cache storage
 - `gpt-tokenizer` — Token counting
 - `zod` — Schema validation
+- `chalk` — Terminal styling
+- `ora` — Spinners
+- `glob` — File matching
+- `prettier` — Code formatting
 
 **Dev:**
-- `@swc/core` — Fast parsing
-- `biome` — Lint + format
+- `@swc/core` — Fast parsing (10-50x faster than ts-morph)
+- `@biomejs/biome` — Lint + format
 - `vitest` — Testing
 - `tsup` — Build
+- `@changesets/cli` — Release management
+- `husky` + `lint-staged` — Pre-commit hooks
 
 ## Related CLAUDE.md Files
 
