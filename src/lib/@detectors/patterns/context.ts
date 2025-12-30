@@ -10,6 +10,7 @@
  * For verb detection: extractVerbPrefix(), isVerbLike(), groupByVerbPrefix()
  */
 
+import { isInsideComment } from '@/lib/@ast/swc';
 import { createTsDirectiveIssue, type QualityIssue, type TsDirectiveType } from './issue-factory';
 
 // ============================================================================
@@ -111,15 +112,33 @@ const IMPERATIVE_PATTERNS = [
 // ============================================================================
 
 /**
- * Check if a position is inside a string literal in the line
+ * Check if the directive is a real TS directive (not just mentioned in JSDoc)
+ *
+ * Real directives appear immediately after comment start:
+ * - // @ts-expect-error    ✓ real directive
+ * - /* @ts-nocheck * / ✓ real directive
+ * - // @ts-expect-error: reason ✓ real directive with explanation
+ * - * - @ts-nocheck comments ✗ JSDoc description
+ * - // This fixes @ts-expect-error ✗ not at start
  */
-function isInsideStringLiteral(line: string, position: number): boolean {
-  const beforeDirective = line.slice(0, position);
-  const singleQuotes = (beforeDirective.match(/'/g) || []).length;
-  const doubleQuotes = (beforeDirective.match(/"/g) || []).length;
-  const backticks = (beforeDirective.match(/`/g) || []).length;
+function isRealTsDirective(line: string, matchIndex: number): boolean {
+  const beforeMatch = line.slice(0, matchIndex);
 
-  return singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0 || backticks % 2 !== 0;
+  // Check for line comment directive: // @ts-*
+  const lineCommentMatch = beforeMatch.match(/\/\/\s*$/);
+  if (lineCommentMatch) {
+    return true;
+  }
+
+  // Check for block comment directive at start: /* @ts-* or /** @ts-*
+  // The @ts-* should be at the very start of the comment content
+  const blockCommentMatch = beforeMatch.match(/\/\*+\s*$/);
+  if (blockCommentMatch) {
+    return true;
+  }
+
+  // Not a real directive - it's mentioned in the middle of a comment
+  return false;
 }
 
 /**
@@ -137,37 +156,51 @@ function createSnippet(line: string): string {
 /**
  * Check for @ts-expect-error, @ts-nocheck, and @ts-expect-error in comments
  *
- * This function scans the file content line by line and detects:
- * - @ts-expect-error - Always flagged as error
- * - @ts-nocheck - Always flagged as error
- * - @ts-expect-error - Flagged as info if missing explanation
+ * Uses AST-based comment detection to avoid false positives in:
+ * - String literals: "@ts-expect-error"
+ * - Regex patterns: /@ts-expect-error/
+ * - Code: pattern = '@ts-expect-error'
+ *
+ * Only reports directives that are INSIDE actual comments.
  */
 export function checkTsDirectives(content: string, filepath: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const lines = content.split('\n');
+  let charOffset = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? '';
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      continue;
-    }
+    const lineStartOffset = charOffset;
 
     for (const { pattern, type } of DIRECTIVE_PATTERNS) {
-      const match = pattern.exec(trimmed);
+      const match = pattern.exec(line);
       if (!match) {
         continue;
       }
 
-      if (isInsideStringLiteral(trimmed, match.index)) {
+      // Calculate absolute offset in the full content
+      const absoluteOffset = lineStartOffset + match.index;
+
+      // Only report if the directive is inside a comment
+      // This filters out regex literals like /@ts-expect-error/ and strings
+      if (!isInsideComment(content, absoluteOffset)) {
         continue;
       }
 
-      const snippet = createSnippet(trimmed);
+      // Only report if it's a real directive (not just mentioned in JSDoc)
+      // Real: // @ts-expect-error, /* @ts-nocheck */
+      // Not real: * - @ts-nocheck comments (removes)
+      if (!isRealTsDirective(line, match.index)) {
+        continue;
+      }
+
+      const snippet = createSnippet(line);
       const issue = createTsDirectiveIssue(type, i + 1, snippet, filepath);
       issues.push(issue);
     }
+
+    // Move to next line (+1 for newline character)
+    charOffset = lineStartOffset + line.length + 1;
   }
 
   return issues;
@@ -197,15 +230,23 @@ export function checkTsNoCheck(content: string, filepath: string): QualityIssue[
 export function countTsDirectives(content: string): number {
   let count = 0;
   const lines = content.split('\n');
+  let charOffset = 0;
 
   for (const line of lines) {
-    const trimmed = line.trim();
+    const lineStartOffset = charOffset;
+
     for (const { pattern } of DIRECTIVE_PATTERNS) {
-      const match = pattern.exec(trimmed);
-      if (match && !isInsideStringLiteral(trimmed, match.index)) {
-        count++;
+      const match = pattern.exec(line);
+      if (match) {
+        const absoluteOffset = lineStartOffset + match.index;
+        // Must be inside a comment AND be a real directive
+        if (isInsideComment(content, absoluteOffset) && isRealTsDirective(line, match.index)) {
+          count++;
+        }
       }
     }
+
+    charOffset = lineStartOffset + line.length + 1;
   }
 
   return count;

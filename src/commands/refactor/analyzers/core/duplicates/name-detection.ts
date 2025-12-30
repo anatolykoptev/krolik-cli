@@ -8,6 +8,7 @@ import { GENERIC_STRUCTURAL_PATTERNS } from './constants';
 import { getVowelRatio, isAbbreviation, splitIntoSegments } from './linguistic';
 import {
   isCommonCallbackPattern,
+  isCommonVariableName,
   isPlaceholderName,
   isShortVerbPrefix,
   isSuffixOnlyName,
@@ -16,6 +17,7 @@ import {
 // Re-export pattern functions for backward compatibility
 export {
   isCommonCallbackPattern,
+  isCommonVariableName,
   isNextJsConventionPattern,
   isPlaceholderName,
   isSuffixOnlyName,
@@ -61,6 +63,10 @@ export function isMeaningfulFunctionName(name: string): boolean {
 
   // Skip common callback patterns - they repeat everywhere by design
   if (isCommonCallbackPattern(name)) return false;
+
+  // Skip common variable names that are used everywhere for intermediate results
+  // These are NOT real duplicates: files, sorted, items, parts, results, etc.
+  if (isCommonVariableName(name)) return false;
 
   // 1. Check if it matches a recognized naming pattern from @reusable
   const namedPattern = detectNamingPattern(name);

@@ -10,6 +10,7 @@
  * - fs: File system utilities and directory scanning
  * - registry: Generic registry pattern implementation
  * - constants: Centralized constants for Krolik CLI
+ * - text: Text and linguistic analysis (morphology, syllables, naming)
  */
 
 // Constants (centralized)
@@ -22,6 +23,8 @@ export * from './logger';
 export * from './registry';
 // Shell execution utilities
 export * from './shell';
+// Text and linguistic analysis
+export * from './text';
 // Time measurement utilities
 export * from './time';
 // General utilities

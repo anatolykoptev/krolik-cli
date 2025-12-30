@@ -90,6 +90,85 @@ export function isSuffixOnlyName(name: string): boolean {
 }
 
 /**
+ * Detect common variable names that are used everywhere for intermediate results
+ *
+ * These are NOT real duplicates - they are common naming conventions for:
+ * - Collection results (files, items, parts, entries)
+ * - Filtered/sorted results (sorted, filtered, matched)
+ * - Iteration variables (line, lines, path, paths)
+ *
+ * @example
+ * const files = await findFiles(...);     // Common result name
+ * const sorted = [...items].sort(...);    // Common transformation name
+ * const parts = path.split('/');          // Common decomposition name
+ */
+export function isCommonVariableName(name: string): boolean {
+  const lowerName = name.toLowerCase();
+
+  // 1. Common collection/result variable names (plurals)
+  const commonCollectionNames = [
+    // File system
+    /^(files|dirs|directories|folders|paths|sources)$/i,
+    // Array operations
+    /^(items|entries|elements|records|rows|lines|parts|chunks|segments|tokens)$/i,
+    // Results
+    /^(results|matches|hits|findings|issues|errors|warnings)$/i,
+    // Data
+    /^(keys|values|pairs|fields|props|attrs|args|params)$/i,
+    // Strings
+    /^(words|chars|names|labels|tags|ids)$/i,
+  ];
+
+  for (const pattern of commonCollectionNames) {
+    if (pattern.test(lowerName)) {
+      return true;
+    }
+  }
+
+  // 2. Common transformation result names (past participles as variable names)
+  const transformationPatterns = [
+    /^(sorted|filtered|mapped|reduced|grouped|merged|joined|split|parsed|formatted)$/i,
+    /^(processed|transformed|converted|normalized|validated|sanitized|cleaned)$/i,
+    /^(matched|found|selected|picked|extracted|collected|gathered)$/i,
+    /^(updated|modified|changed|fixed|patched|adjusted)$/i,
+  ];
+
+  for (const pattern of transformationPatterns) {
+    if (pattern.test(lowerName)) {
+      return true;
+    }
+  }
+
+  // 3. Common iteration variable names
+  const iterationPatterns = [
+    /^(line|path|file|dir|item|entry|key|value|name|index|offset)$/i,
+    /^(current|next|prev|first|last|head|tail)$/i,
+    /^(left|right|start|end|begin|stop)$/i,
+  ];
+
+  for (const pattern of iterationPatterns) {
+    if (pattern.test(lowerName)) {
+      return true;
+    }
+  }
+
+  // 4. Common temporary/intermediate result names
+  const tempPatterns = [
+    /^(temp|tmp|buf|buffer|acc|accumulator|memo|cache)$/i,
+    /^(output|input|source|target|dest|destination)$/i,
+    /^(raw|clean|final|base|root|parent|child)$/i,
+  ];
+
+  for (const pattern of tempPatterns) {
+    if (pattern.test(lowerName)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Dynamically detect placeholder/test names
  * Uses linguistic patterns to identify metasyntactic variables
  */
