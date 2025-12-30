@@ -33,7 +33,7 @@ export const metadata = createFixerMetadata(
   'backwards-compat',
   {
     description: 'Delete deprecated shim files and update imports',
-    difficulty: 'safe',
+    difficulty: 'risky', // TODO: not production-ready
     cliFlag: '--cleanup-deprecated',
     tags: ['safe', 'refactoring', 'cleanup'],
   },

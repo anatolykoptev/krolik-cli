@@ -10,7 +10,7 @@ import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('hardcoded-urls', 'Hardcoded URLs', 'hardcoded', {
   description: 'Extract hardcoded URLs to constants',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-urls',
   tags: ['safe', 'hardcoded', 'refactoring'],
 });

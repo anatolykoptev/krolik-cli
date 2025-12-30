@@ -21,7 +21,7 @@ import { fixEvalIssue } from './fixer';
  */
 export const metadata = createFixerMetadata('eval', 'Eval Security', 'type-safety', {
   description: 'Detect and fix eval() security risks',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-eval',
   negateFlag: '--no-eval',
   tags: ['security', 'safe', 'eval'],

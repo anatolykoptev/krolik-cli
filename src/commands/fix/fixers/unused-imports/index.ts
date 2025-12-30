@@ -21,7 +21,7 @@ import { fixUnusedImportIssue } from './fixer';
  */
 export const metadata = createFixerMetadata('unused-imports', 'Unused Imports', 'lint', {
   description: 'Remove unused imports',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-imports',
   negateFlag: '--no-imports',
   tags: ['safe', 'imports', 'cleanup'],

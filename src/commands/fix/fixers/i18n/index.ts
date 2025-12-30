@@ -46,7 +46,7 @@ import {
  */
 export const metadata = createFixerMetadata('i18n', 'I18n Hardcoded Strings', 'i18n', {
   description: 'Extract hardcoded Russian text to i18n translation keys',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-i18n',
   negateFlag: '--no-i18n',
   tags: ['i18n', 'localization', 'russian', 'catalog-first'],

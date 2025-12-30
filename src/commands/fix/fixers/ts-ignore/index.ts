@@ -10,7 +10,7 @@ import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('ts-ignore', 'TS-Ignore Comments', 'type-safety', {
   description: 'Remove @ts-ignore/@ts-nocheck comments',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-ts-ignore',
   tags: ['safe', 'type-safety'],
 });

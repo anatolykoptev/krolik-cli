@@ -25,7 +25,7 @@ import { fixEqualityIssue } from './fixer';
  */
 export const metadata = createFixerMetadata('equality', 'Strict Equality', 'type-safety', {
   description: 'Replace == with === and != with !==',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-equality',
   negateFlag: '--no-equality',
   tags: ['safe', 'type-safety', 'eslint'],

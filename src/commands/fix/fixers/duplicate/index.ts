@@ -22,7 +22,7 @@ import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('duplicate', 'Duplicate Functions', 'lint', {
   description: 'Merge duplicate functions from refactor analysis',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-duplicate',
   tags: ['safe', 'refactoring', 'deduplication'],
 });

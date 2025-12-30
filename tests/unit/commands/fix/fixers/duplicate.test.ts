@@ -22,7 +22,7 @@ describe('duplicate fixer', () => {
     });
 
     it('has safe difficulty', () => {
-      expect(metadata.difficulty).toBe('safe');
+      expect(metadata.difficulty).toBe('risky');
     });
 
     it('has correct CLI flag', () => {

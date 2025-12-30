@@ -12,7 +12,7 @@ import { splitLines } from '../../core/utils';
 
 export const metadata = createFixerMetadata('any-type', 'Any Type Usage', 'type-safety', {
   description: 'Replace `any` with `unknown`',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-any',
   negateFlag: '--no-any',
   tags: ['safe', 'type-safety'],

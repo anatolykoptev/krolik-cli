@@ -12,7 +12,7 @@ import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
 
 export const metadata = createFixerMetadata('magic-numbers', 'Magic Numbers', 'hardcoded', {
   description: 'Extract magic numbers to named constants',
-  difficulty: 'safe',
+  difficulty: 'risky', // TODO: not production-ready
   cliFlag: '--fix-magic-numbers',
   tags: ['safe', 'hardcoded', 'refactoring'],
 });
