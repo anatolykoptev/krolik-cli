@@ -1,5 +1,32 @@
 # @anatolykoptev/krolik-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- **Structural Clone Detection** - New fingerprint-based algorithm for detecting renamed clones
+  - Catches functions with same logic but different variable/function names
+  - Uses AST normalization + MD5 hashing for structural comparison
+  - Integrated into `refactor` command output as `[structural clone]` entries
+  - Found 82 structural clone groups in krolik-cli codebase
+
+- **SWC Parser Fix** - Fixed critical bug with accumulating span offsets
+  - SWC's `parseSync` accumulates byte offsets across multiple calls
+  - Now uses centralized `parseFile` from `@ast/swc/parser` with `baseOffset` normalization
+  - All span-dependent operations (body extraction, fingerprinting) now work correctly
+
+- **Fixers Risk Assessment** - All fixers marked as `risky` (not production-ready)
+  - 16 fixers updated: console, debugger, alert, ts-ignore, any-type, equality, etc.
+  - Prevents accidental code modifications until fixers are properly tested
+  - Use `--all` flag to enable risky fixers explicitly
+
+### Technical Details
+
+- Added `fingerprint` and `complexity` fields to `FunctionSignature` type
+- Integrated `generateFingerprint()` in duplicate parsing pipeline
+- Added fingerprint-based grouping in `analyzer.ts` for structural clone detection
+- Fixed `extractFunctionsSwc`, `extractTypesSwc` and related functions to use `baseOffset`
+
 ## 0.5.0
 
 ### Minor Changes
