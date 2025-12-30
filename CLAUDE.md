@@ -2,7 +2,7 @@
 
 > Internal guide for developing krolik-cli. For **usage** docs, see root `CLAUDE.md`.
 
-**Version:** 0.3.0 | **Node:** >=20 | **Package Manager:** pnpm
+**Version:** 0.7.0 | **Node:** >=20 | **Package Manager:** pnpm
 
 ## Architecture Principles
 
@@ -341,6 +341,35 @@ pnpm check:fix        # Fix lint + format
 ./dist/bin/cli.js status --fast
 ./dist/bin/cli.js context --quick
 ```
+
+## ⛔ Release: ONLY via Changesets
+
+**NEVER manually change version in package.json!**
+
+| ❌ Forbidden | ✅ Required |
+|-------------|-------------|
+| `npm version patch/minor/major` | `pnpm changeset` |
+| Edit `package.json` version | Create `.changeset/*.md` file |
+| Manual `npm publish` | Push to GitHub → Actions publish |
+
+**Release workflow:**
+
+```bash
+# 1. Create changeset (describes changes)
+pnpm changeset
+
+# 2. Commit and push
+git add .changeset/*.md
+git commit -m "chore: add changeset for <feature>"
+git push
+
+# 3. GitHub Actions automatically:
+#    - Runs changeset version (bumps package.json)
+#    - Publishes to npm via Trusted Publisher
+#    - Creates GitHub release
+```
+
+**Why:** Trusted Publisher uses OIDC (no npm tokens), ensures provenance, publishes to both npm and GitHub releases atomically.
 
 ## Key Locations
 
