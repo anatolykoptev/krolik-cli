@@ -57,7 +57,7 @@ Examples:
 
       // Handle --project option
       if (options.project) {
-        const resolved = resolveProjectPath(process.cwd(), options.project);
+        const resolved = resolveProjectPath(process.cwd(), options.project as string);
         if ('error' in resolved) {
           console.error(resolved.error);
           process.exit(1);
