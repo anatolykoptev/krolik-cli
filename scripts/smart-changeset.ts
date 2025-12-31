@@ -174,7 +174,7 @@ function createChangeset(analysis: CommitAnalysis): string {
   const summary = generateSummary(analysis);
 
   const content = `---
-"krolik-cli": ${analysis.bumpType}
+"@anatolykoptev/krolik-cli": ${analysis.bumpType}
 ---
 
 ${summary}
@@ -187,10 +187,33 @@ ${summary}
 }
 
 /**
+ * Show recent memories before release
+ */
+function showRecentMemories(): void {
+  try {
+    const result = execSync('krolik mem recent --limit 3 2>/dev/null || true', {
+      encoding: 'utf-8',
+      cwd: ROOT,
+    }).trim();
+
+    if (result && result.length > 0) {
+      console.log('🧠 Recent memories (check before release):');
+      console.log(result);
+      console.log('');
+    }
+  } catch {
+    // Ignore if krolik not available
+  }
+}
+
+/**
  * Main function
  */
 function main(): void {
   console.log('🔍 Analyzing commits since last release...\n');
+
+  // Check recent memories before release
+  showRecentMemories();
 
   const commits = getCommitsSinceLastRelease();
 
