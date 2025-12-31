@@ -49,6 +49,10 @@ jobs:
       - name: Version and Publish
         id: changesets
         run: |
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          NPM_VERSION=$(npm view @anatolykoptev/krolik-cli version 2>/dev/null || echo "0.0.0")
+          echo "Local version: $LOCAL_VERSION, npm version: $NPM_VERSION"
+
           # Check if there are changesets
           if [ -d ".changeset" ] && ls .changeset/*.md 2>/dev/null | grep -v README.md > /dev/null; then
             echo "Found changesets, running version..."
@@ -56,20 +60,21 @@ jobs:
             git add -A
             git commit -m "chore: release" --no-verify || true
             git push --no-verify
+            LOCAL_VERSION=$(node -p "require('./package.json').version")
+          fi
 
-            # Get version from package.json
-            VERSION=$(node -p "require('./package.json').version")
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-
+          # Publish if local version is higher than npm
+          if [ "$LOCAL_VERSION" != "$NPM_VERSION" ]; then
+            echo "version=$LOCAL_VERSION" >> $GITHUB_OUTPUT
             echo "Building..."
             pnpm build
 
-            echo "Publishing to npmjs.org (Trusted Publishers)..."
+            echo "Publishing v$LOCAL_VERSION to npmjs.org (Trusted Publishers)..."
             npm publish --access public
 
             echo "published=true" >> $GITHUB_OUTPUT
           else
-            echo "No changesets found"
+            echo "Version $LOCAL_VERSION already published"
             echo "published=false" >> $GITHUB_OUTPUT
           fi
         env:
