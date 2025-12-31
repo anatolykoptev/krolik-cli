@@ -1,5 +1,12 @@
 # @anatolykoptev/krolik-cli
 
+## 0.8.0
+
+### Minor Changes
+
+- ### Features
+  - feat(context): Smart Context v2 with PageRank ranking and domain filtering
+
 ## 0.7.0
 
 ### Minor Changes
