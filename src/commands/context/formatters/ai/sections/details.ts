@@ -103,14 +103,48 @@ function formatTestDetail(
 }
 
 /**
+ * Generic hint patterns to filter out (Phase 9.3)
+ *
+ * These hints apply to all projects and provide no domain-specific value.
+ * Filtering them reduces noise and token usage.
+ */
+const GENERIC_HINT_PATTERNS = [
+  /zero todos?/i,
+  /no todos?/i,
+  /responsive.*accessible/i,
+  /accessible.*responsive/i,
+  /follow.*best.*practices/i,
+  /use.*typescript/i,
+  /run.*tests?/i,
+  /write.*tests?/i,
+  /check.*lint/i,
+  /format.*code/i,
+] as const;
+
+/**
+ * Check if a hint is generic (applies to all projects, provides no value)
+ */
+function isGenericHint(value: string): boolean {
+  return GENERIC_HINT_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+/**
  * Format hints section
+ *
+ * Phase 9.3: Filters out generic hints that apply to all projects
+ * and provide no domain-specific value.
  */
 export function formatHintsSection(lines: string[], data: AiContextData): void {
   const { hints } = data;
   if (!hints || Object.keys(hints).length === 0) return;
 
+  // Phase 9.3: Filter out generic hints
+  const filteredHints = Object.entries(hints).filter(([, value]) => !isGenericHint(value));
+
+  if (filteredHints.length === 0) return;
+
   lines.push('  <context-hints>');
-  for (const [key, value] of Object.entries(hints)) {
+  for (const [key, value] of filteredHints) {
     lines.push(`    <hint key="${key}">${escapeXml(value)}</hint>`);
   }
   lines.push('  </context-hints>');

@@ -134,6 +134,31 @@ function xmlBranchContext(ctx: StatusResult['branchContext']): string[] {
   return lines;
 }
 
+/** Type abbreviations for compact output */
+const TYPE_ABBREV: Record<string, string> = {
+  decision: 'DEC',
+  pattern: 'PAT',
+  bugfix: 'BUG',
+  observation: 'OBS',
+  feature: 'FEAT',
+};
+
+/** Format XML memory section */
+function xmlMemory(memory: StatusResult['memory']): string[] {
+  if (!memory || memory.length === 0) return [];
+  const lines: string[] = [
+    '',
+    `  <memory n="${memory.length}" hint="krolik_mem_search for details">`,
+  ];
+  for (const m of memory) {
+    const typeAbbrev = TYPE_ABBREV[m.type] ?? m.type.toUpperCase().slice(0, 3);
+    const tags = m.tags?.length ? ` [${m.tags.slice(0, 2).join(',')}]` : '';
+    lines.push(`    <m t="${typeAbbrev}">${m.title}${tags}</m>`);
+  }
+  lines.push('  </memory>');
+  return lines;
+}
+
 /** Format XML AI rules section */
 function xmlAIRules(aiRules: StatusResult['aiRules']): string[] {
   if (!aiRules || aiRules.length === 0) return [];
@@ -266,6 +291,7 @@ export function formatAI(status: StatusResult): string {
     ...xmlCommits(status.recentCommits),
     ...xmlWorkspaces(status.workspaces),
     ...xmlBranchContext(status.branchContext),
+    ...xmlMemory(status.memory),
     ...xmlAIRules(status.aiRules),
     ...xmlNextAction(status),
     ...xmlDoNot(status),

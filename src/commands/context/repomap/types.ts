@@ -53,6 +53,8 @@ export interface Signature {
   name: string;
   /** Is exported */
   isExported: boolean;
+  /** Number of references to this symbol (for usage-based sorting) */
+  refs?: number;
 }
 
 // Ranked file with PageRank score

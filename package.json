@@ -58,6 +58,7 @@
     "test:coverage": "vitest run --coverage",
     "sync-version": "tsx scripts/sync-version.ts",
     "changeset": "changeset",
+    "changeset:smart": "tsx scripts/smart-changeset.ts",
     "changeset:version": "changeset version && pnpm sync-version",
     "changeset:publish": "pnpm build && changeset publish",
     "prepublishOnly": "pnpm build",

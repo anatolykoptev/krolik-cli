@@ -14,6 +14,7 @@ import {
 import { getSectionsByLibrary, searchDocs } from '@/lib/@storage/docs';
 import { type Memory, search as searchMemory } from '@/lib/@storage/memory';
 import { saveKrolikFile } from '../../lib/@core/fs';
+import { filterGeneratedFindings } from '../../lib/@detectors/noise-filter';
 import {
   getCurrentBranch,
   getDiff,
@@ -31,6 +32,8 @@ import type { KrolikConfig } from '../../types/config';
 import { analyzeRoutes } from '../routes';
 import { analyzeSchema } from '../schema';
 import { extractTodos } from '../status/todos';
+import { detectEntryPoints, generateDataFlows } from './collectors';
+import { matchesDomain, scanFeaturesDir } from './collectors/entrypoints';
 import { detectDomains, findRelatedFiles, generateChecklist, getApproaches } from './domains';
 import { formatAiPrompt, formatJson, formatMarkdown, printContext } from './formatters';
 import {
@@ -293,7 +296,34 @@ async function buildAiContextData(
     }
 
     // Extract TODO comments from codebase (included in all modes)
-    aiData.todos = extractTodos(projectRoot);
+    // Filter out generated files (Prisma, graphql-codegen, etc.)
+    const rawTodos = extractTodos(projectRoot);
+    const { passed: filteredTodos } = filterGeneratedFindings(rawTodos);
+    aiData.todos = filteredTodos;
+
+    // Entry points and data flow (Phase 6)
+    // Shows WHERE to start reading code and HOW data moves through the system
+    try {
+      const entryPoints = await detectEntryPoints(projectRoot, result.domains);
+      if (entryPoints.length > 0) {
+        aiData.entryPoints = entryPoints;
+        // Generate data flows for each domain with entry points
+        const dataFlows = result.domains.flatMap((domain) => {
+          const domainEntryPoints = entryPoints.filter((ep) =>
+            ep.file.toLowerCase().includes(domain.toLowerCase()),
+          );
+          return generateDataFlows(domain, domainEntryPoints);
+        });
+        if (dataFlows.length > 0) {
+          aiData.dataFlows = dataFlows;
+        }
+      }
+    } catch (error) {
+      // Entry points detection failed, continue without
+      if (process.env.DEBUG) {
+        console.error('[context] Entry points detection failed:', error);
+      }
+    }
   }
 
   // Lib modules from src/lib/@* (included in all modes)
@@ -403,7 +433,7 @@ function parseZodSchemasFromDirs(
 }
 
 /**
- * Parse components from standard directories
+ * Parse components from standard directories + dynamic feature discovery
  */
 function parseComponentsFromDirs(
   projectRoot: string,
@@ -423,6 +453,20 @@ function parseComponentsFromDirs(
       if (components.length > 0) {
         aiData.componentDetails = [...(aiData.componentDetails || []), ...components];
       }
+    }
+  }
+
+  // Dynamic discovery: feature components via scanFeaturesDir
+  // Scans apps/web/features/{domain}/ for .tsx files
+  const featureFiles = scanFeaturesDir(projectRoot, 'apps/web/features', domains, '', ['.tsx']);
+  for (const file of featureFiles) {
+    const fullPath = path.join(projectRoot, file);
+    const components = parseComponents(path.dirname(fullPath), ['*']);
+    if (components.length > 0) {
+      // Deduplicate by component name
+      const existingNames = new Set(aiData.componentDetails?.map((c) => c.name) || []);
+      const newComponents = components.filter((c) => !existingNames.has(c.name));
+      aiData.componentDetails = [...(aiData.componentDetails || []), ...newComponents];
     }
   }
 }
@@ -455,6 +499,34 @@ function parseTestsFromDirs(projectRoot: string, domains: string[], aiData: AiCo
 }
 
 /**
+ * Discover feature type files dynamically
+ * Scans apps/web/features/[domain]/types.ts pattern
+ */
+function discoverFeatureTypeFiles(projectRoot: string, domains: string[]): string[] {
+  const featuresDir = path.join(projectRoot, 'apps/web/features');
+  if (!fs.existsSync(featuresDir)) return [];
+
+  const typeFiles: string[] = [];
+  try {
+    const features = fs.readdirSync(featuresDir, { withFileTypes: true });
+    for (const feature of features) {
+      if (!feature.isDirectory()) continue;
+
+      // Use matchesDomain from entrypoints for consistent domain matching
+      if (domains.length > 0 && !matchesDomain(feature.name, domains)) continue;
+
+      const typesFile = path.join(featuresDir, feature.name, 'types.ts');
+      if (fs.existsSync(typesFile)) {
+        typeFiles.push(typesFile);
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+  return typeFiles;
+}
+
+/**
  * Parse TypeScript types and import graph
  */
 function parseTypesAndImports(projectRoot: string, domains: string[], aiData: AiContextData): void {
@@ -480,6 +552,15 @@ function parseTypesAndImports(projectRoot: string, domains: string[], aiData: Ai
       if (types.length > 0) {
         aiData.types = [...(aiData.types || []), ...types];
       }
+    }
+  }
+
+  // Dynamic discovery: feature type files (apps/web/features/*/types.ts)
+  const featureTypeFiles = discoverFeatureTypeFiles(projectRoot, domains);
+  for (const typeFile of featureTypeFiles) {
+    const types = parseTypesInDir(path.dirname(typeFile), ['types']);
+    if (types.length > 0) {
+      aiData.types = [...(aiData.types || []), ...types];
     }
   }
 

@@ -8,7 +8,7 @@
  * - deep/full: All sections
  *
  * Section priority for AI efficiency:
- * P0 (Critical): summary, task
+ * P0 (Critical): summary, constraints, task
  * P1 (High): changed-files, repo-map, schema, routes
  * P2 (Medium): memory, lib-modules, architecture
  * P3 (Low): tree, types, imports, env-vars
@@ -23,6 +23,8 @@ export {
 } from './advanced-analysis';
 // Note: Minimal mode formatters moved to lib/@context-optimizer
 export { formatArchitectureSection } from './architecture';
+// P0: Critical constraints - goes after summary
+export { formatConstraintsSection } from './constraints';
 export {
   formatApproachSection,
   formatComponentsSection,
@@ -35,9 +37,18 @@ export {
   formatTestsSection,
   formatTodosSection,
 } from './details';
+// P1: Entry points and data flow - shows WHERE to start reading code
+export { formatDataFlowSection, formatEntryPointsSection } from './entrypoints';
 export { formatFilesSection, formatIoSchemasSection } from './files';
 export { formatLibModulesSection } from './lib-modules';
-export { formatRoutesSection, formatSchemaSection } from './schema-routes';
+// P0: Quick reference - goes FIRST for immediate agent guidance
+export { formatQuickRefSection } from './quick-ref';
+export {
+  formatRoutesSection,
+  formatRoutesSummarySection,
+  formatSchemaHighlightsSection,
+  formatSchemaSection,
+} from './schema-routes';
 // P0: Executive summary - goes FIRST
 export { formatSummarySection } from './summary';
 export {

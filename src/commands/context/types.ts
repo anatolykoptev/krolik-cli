@@ -184,6 +184,52 @@ export interface LibModulesData {
 }
 
 /**
+ * Entry point layer in the application stack
+ */
+export type EntryPointLayer = 'backend' | 'frontend' | 'database';
+
+/**
+ * Entry point role within a layer
+ */
+export type EntryPointRole = 'router' | 'hooks' | 'components' | 'schema' | 'service';
+
+/**
+ * Entry point for a domain - shows WHERE to start reading code
+ */
+export interface EntryPoint {
+  /** Application layer (backend/frontend/database) */
+  layer: EntryPointLayer;
+  /** Role within the layer (router/hooks/components/schema/service) */
+  role: EntryPointRole;
+  /** Relative file path from project root */
+  file: string;
+}
+
+/**
+ * A single step in a data flow
+ */
+export interface DataFlowStep {
+  /** Step number in sequence */
+  step: number;
+  /** Description of what happens at this step */
+  description: string;
+  /** Optional file path where this step happens */
+  file?: string;
+}
+
+/**
+ * Data flow for a domain operation (create, list, update)
+ */
+export interface DataFlow {
+  /** Flow name (e.g., "Create Booking") */
+  name: string;
+  /** Domain this flow belongs to */
+  domain: string;
+  /** Steps in the flow from frontend to database */
+  steps: DataFlowStep[];
+}
+
+/**
  * Extended context data for AI output
  */
 export interface AiContextData {
@@ -233,4 +279,8 @@ export interface AiContextData {
   libModules?: LibModulesData;
   // Repository map from smart context (from --smart or --map-only)
   repoMap?: string;
+  // Entry points for domains - WHERE to start reading code
+  entryPoints?: EntryPoint[];
+  // Data flows for domains - HOW data moves through the system
+  dataFlows?: DataFlow[];
 }

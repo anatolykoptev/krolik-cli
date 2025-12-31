@@ -109,10 +109,17 @@ export {
   // Core function
   calculateSymbolWeight,
   GENERIC_DEFINITION_THRESHOLD,
+  GIT_MODIFICATION_SCORES,
+  GIT_MODIFICATION_THRESHOLDS,
+  // Git modification scoring
+  getGitModificationScore,
+  // Structured naming detection
+  hasStructuredNaming,
   MEANINGFUL_PATTERNS,
   MIN_MEANINGFUL_LENGTH,
   // Matching utilities
   matchesFeatureOrDomain,
+  STRUCTURED_NAMING_PATTERNS,
   // Constants
   WEIGHT_MULTIPLIERS,
 } from './weights.js';

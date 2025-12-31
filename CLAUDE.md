@@ -219,6 +219,9 @@ import { detectLintIssue, detectSecurityIssue } from '@/lib/@detectors';
 const issues = detectLintIssue(content, filePath, lineNumber);
 ```
 
+## Принцип: Zero False Positives > High Recall
+Google подход — лучше пропустить настоящую проблему, чем показать ложную.
+
 ## SWC Fast Parsing
 
 For performance-critical parsing (10-50x faster than ts-morph):

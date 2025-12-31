@@ -13,6 +13,9 @@ export { discoverFiles } from './discovery';
 export { findFilesMatching } from './files';
 // Re-export lib modules collection
 export { collectLibModules } from './lib-modules';
+// Re-export next-actions generation
+export type { NextAction, NextActionsContext } from './next-actions';
+export { generateNextActions } from './next-actions';
 // Re-export path finders
 export { findRoutersDir, findSchemaDir } from './paths';
 export type { DomainPatterns } from './patterns';

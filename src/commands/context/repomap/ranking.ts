@@ -25,6 +25,107 @@ import {
 import type { RankedFile, RepoMapOptions, SymbolGraph, Tag } from './types.js';
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/**
+ * Boost multiplier for symbols that directly match feature/domain identifiers
+ *
+ * Applied on top of the base feature/domain matching when a symbol
+ * is a strong identifier match (exact name or prominent position).
+ */
+const MENTIONED_IDENTIFIER_BOOST = 10;
+
+// ============================================================================
+// MENTIONED IDENTIFIERS DETECTION
+// ============================================================================
+
+/**
+ * Check if a symbol is a strong match for mentioned identifiers
+ *
+ * Returns true if the symbol:
+ * - Exactly equals the feature/domain name (case-insensitive)
+ * - Starts with the feature/domain name (e.g., `BookingService` for feature `booking`)
+ * - Ends with the feature/domain name (e.g., `createBooking` for feature `booking`)
+ *
+ * These are stronger matches than just "contains" and deserve additional boost.
+ *
+ * @param symbolName - Symbol name to check
+ * @param feature - Feature name to match
+ * @param domains - Domain names to match
+ * @returns True if symbol is a strong identifier match
+ */
+function isMentionedIdentifier(symbolName: string, feature?: string, domains?: string[]): boolean {
+  if (!feature && (!domains || domains.length === 0)) {
+    return false;
+  }
+
+  const lowerSymbol = symbolName.toLowerCase();
+  const identifiers = [
+    ...(feature ? [feature.toLowerCase()] : []),
+    ...(domains ?? []).map((d) => d.toLowerCase()),
+  ];
+
+  for (const identifier of identifiers) {
+    // Exact match
+    if (lowerSymbol === identifier) {
+      return true;
+    }
+
+    // Starts with identifier (e.g., BookingService, booking_utils)
+    if (lowerSymbol.startsWith(identifier)) {
+      // Check for word boundary (next char is uppercase or underscore)
+      const nextChar = symbolName[identifier.length];
+      if (
+        !nextChar ||
+        nextChar === '_' ||
+        nextChar === '-' ||
+        nextChar === nextChar.toUpperCase()
+      ) {
+        return true;
+      }
+    }
+
+    // Ends with identifier (e.g., createBooking, user_booking)
+    if (lowerSymbol.endsWith(identifier)) {
+      // Check for word boundary (prev char is lowercase with this uppercase, or underscore)
+      const prevIndex = symbolName.length - identifier.length - 1;
+      if (prevIndex < 0) {
+        return true;
+      }
+      const prevChar = symbolName[prevIndex];
+      if (
+        prevChar &&
+        (prevChar === '_' || prevChar === '-' || prevChar === prevChar.toLowerCase())
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Calculate mentioned identifier boost for a symbol
+ *
+ * @param symbolName - Symbol name to check
+ * @param feature - Feature name
+ * @param domains - Domain names
+ * @returns Boost multiplier (1.0 or MENTIONED_IDENTIFIER_BOOST)
+ */
+function getMentionedIdentifierBoost(
+  symbolName: string,
+  feature?: string,
+  domains?: string[],
+): number {
+  if (isMentionedIdentifier(symbolName, feature, domains)) {
+    return MENTIONED_IDENTIFIER_BOOST;
+  }
+  return 1.0;
+}
+
+// ============================================================================
 // GRAPH BUILDING
 // ============================================================================
 
@@ -75,11 +176,16 @@ function addSymbolEdges(
     options.domains,
   );
 
-  const weight = calculateSymbolWeight(symbolName, {
+  let weight = calculateSymbolWeight(symbolName, {
     definitionCount: definingFiles.length,
     matchesFeature,
     matchesDomain,
   });
+
+  // Apply additional boost for symbols that are strong identifier matches
+  // (e.g., "BookingService" when feature is "booking")
+  const mentionedBoost = getMentionedIdentifierBoost(symbolName, options.feature, options.domains);
+  weight *= mentionedBoost;
 
   // Create edges from each referencing file to each defining file
   for (const refFile of referencingFiles) {

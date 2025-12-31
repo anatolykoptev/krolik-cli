@@ -3,7 +3,14 @@
  * @description Smart Context / RepoMap system barrel exports
  */
 
-export { formatRepoMap, formatRepoMapXml, formatStats } from './formatter.js';
+export type { ImportanceLevel } from './formatter.js';
+export {
+  calculateImportance,
+  deduplicateSignatures,
+  formatRepoMap,
+  formatRepoMapXml,
+  formatStats,
+} from './formatter.js';
 export { pageRank, rankFiles } from './ranking.js';
 export type { ExtractorOptions } from './tag-extractor.js';
 export {

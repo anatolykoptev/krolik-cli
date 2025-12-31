@@ -18,6 +18,7 @@
  * ```
  */
 
+import { tryExec } from '@/lib/@core';
 import { detectNamingPattern } from '@/lib/@discovery/reusables/signals';
 import type { FeatureDomainMatch, SymbolWeightContext } from './types.js';
 
@@ -38,6 +39,14 @@ export const WEIGHT_MULTIPLIERS = {
    * Rewards well-named symbols that are likely to be important abstractions.
    */
   MEANINGFUL_NAME: 10,
+
+  /**
+   * Multiplier for identifiers with structured naming (camelCase, snake_case, kebab-case)
+   *
+   * Rewards well-structured identifiers that indicate intentional naming.
+   * Applied to 8+ char identifiers with structured naming patterns.
+   */
+  STRUCTURED_IDENTIFIER: 10,
 
   /**
    * Multiplier for private/internal symbols (starts with underscore)
@@ -104,6 +113,52 @@ export const MEANINGFUL_PATTERNS = new Set([
   'context',
   'hoc',
 ]);
+
+/**
+ * Regex patterns for detecting structured identifier naming conventions
+ */
+export const STRUCTURED_NAMING_PATTERNS = {
+  /** camelCase: lowercase followed by uppercase (e.g., getUserData) */
+  camelCase: /[a-z][A-Z]/,
+  /** snake_case: underscore followed by lowercase (e.g., get_user_data) */
+  snakeCase: /_[a-z]/,
+  /** kebab-case: hyphen followed by lowercase (e.g., get-user-data) */
+  kebabCase: /-[a-z]/,
+} as const;
+
+// ============================================================================
+// IDENTIFIER ANALYSIS
+// ============================================================================
+
+/**
+ * Check if an identifier uses a structured naming convention
+ *
+ * Detects camelCase, snake_case, or kebab-case patterns that indicate
+ * intentional, well-thought-out naming.
+ *
+ * @param identifier - The identifier to check
+ * @returns True if the identifier uses a structured naming pattern
+ *
+ * @example
+ * ```ts
+ * hasStructuredNaming('getUserBooking');  // true (camelCase)
+ * hasStructuredNaming('get_user_booking'); // true (snake_case)
+ * hasStructuredNaming('get-user-booking'); // true (kebab-case)
+ * hasStructuredNaming('getuserdata');      // false (no structure)
+ * hasStructuredNaming('id');               // false (too short)
+ * ```
+ */
+export function hasStructuredNaming(identifier: string): boolean {
+  if (identifier.length < MIN_MEANINGFUL_LENGTH) {
+    return false;
+  }
+
+  return (
+    STRUCTURED_NAMING_PATTERNS.camelCase.test(identifier) ||
+    STRUCTURED_NAMING_PATTERNS.snakeCase.test(identifier) ||
+    STRUCTURED_NAMING_PATTERNS.kebabCase.test(identifier)
+  );
+}
 
 // ============================================================================
 // FEATURE/DOMAIN MATCHING
@@ -184,12 +239,18 @@ export function matchesFeatureOrDomain(
 export function calculateSymbolWeight(symbol: string, context: SymbolWeightContext): number {
   let weight = 1.0;
 
-  // Check for meaningful naming pattern
+  // Check for meaningful naming pattern (hooks, utilities, services, etc.)
   const pattern = detectNamingPattern(symbol);
   const hasMeaningfulPattern = pattern !== null && MEANINGFUL_PATTERNS.has(pattern);
 
   if (hasMeaningfulPattern && symbol.length >= MIN_MEANINGFUL_LENGTH) {
     weight *= WEIGHT_MULTIPLIERS.MEANINGFUL_NAME;
+  }
+
+  // Check for structured identifier naming (camelCase, snake_case, kebab-case)
+  // Only apply if not already boosted by meaningful pattern
+  if (!hasMeaningfulPattern && hasStructuredNaming(symbol)) {
+    weight *= WEIGHT_MULTIPLIERS.STRUCTURED_IDENTIFIER;
   }
 
   // Private symbols get reduced weight
@@ -252,4 +313,83 @@ export function calculatePathBoost(filePath: string, feature?: string, domains?:
   }
 
   return boost;
+}
+
+// ============================================================================
+// GIT MODIFICATION SCORING
+// ============================================================================
+
+/**
+ * Git modification frequency thresholds
+ */
+export const GIT_MODIFICATION_THRESHOLDS = {
+  /** Files with 1-10 commits get baseline score */
+  LOW: 10,
+  /** Files with 11-50 commits get moderate boost */
+  MEDIUM: 50,
+} as const;
+
+/**
+ * Git modification score multipliers
+ */
+export const GIT_MODIFICATION_SCORES = {
+  /** Score for files with 1-10 commits */
+  LOW: 1.0,
+  /** Score for files with 11-50 commits */
+  MEDIUM: 1.5,
+  /** Score for files with 51+ commits */
+  HIGH: 2.0,
+} as const;
+
+/**
+ * Get git modification frequency score for a file
+ *
+ * Uses git log to count how many times a file has been modified.
+ * More frequently modified files are likely more important to the codebase.
+ *
+ * @param filePath - Absolute or relative path to the file
+ * @param cwd - Working directory for git commands
+ * @returns Score multiplier based on modification frequency:
+ *   - 1-10 commits: 1.0 (baseline)
+ *   - 11-50 commits: 1.5 (moderate importance)
+ *   - 51+ commits: 2.0 (high importance)
+ *   - Returns 1.0 if git fails or file has no history
+ *
+ * @example
+ * ```ts
+ * // Frequently modified core file
+ * const score1 = getGitModificationScore('src/core/auth.ts', '/project');
+ * // Returns: 2.0 (if 51+ commits)
+ *
+ * // Rarely modified utility
+ * const score2 = getGitModificationScore('src/utils/format.ts', '/project');
+ * // Returns: 1.0 (if 1-10 commits)
+ *
+ * // Non-git directory or new file
+ * const score3 = getGitModificationScore('src/new-file.ts', '/non-git');
+ * // Returns: 1.0 (fallback)
+ * ```
+ */
+export function getGitModificationScore(filePath: string, cwd: string): number {
+  const result = tryExec(`git log --oneline --follow -- "${filePath}" | wc -l`, { cwd });
+
+  if (!result.success) {
+    return GIT_MODIFICATION_SCORES.LOW;
+  }
+
+  const commitCount = parseInt(result.output.trim(), 10);
+
+  if (Number.isNaN(commitCount) || commitCount <= 0) {
+    return GIT_MODIFICATION_SCORES.LOW;
+  }
+
+  if (commitCount <= GIT_MODIFICATION_THRESHOLDS.LOW) {
+    return GIT_MODIFICATION_SCORES.LOW;
+  }
+
+  if (commitCount <= GIT_MODIFICATION_THRESHOLDS.MEDIUM) {
+    return GIT_MODIFICATION_SCORES.MEDIUM;
+  }
+
+  return GIT_MODIFICATION_SCORES.HIGH;
 }

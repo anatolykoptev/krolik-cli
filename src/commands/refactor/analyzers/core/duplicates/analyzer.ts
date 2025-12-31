@@ -5,11 +5,27 @@
 
 import type { Project } from '../../../../../lib/@ast';
 import { findFiles, readFile } from '../../../../../lib/@core/fs';
+import {
+  allRenderDifferentComponents,
+  areAllDifferentDomains,
+  detectIntent,
+} from '../../../../../lib/@detectors/noise-filter/extractors';
 import type { DuplicateInfo, DuplicateLocation, FunctionSignature } from '../../../core/types';
 import { SIMILARITY_THRESHOLDS } from '../../shared';
 import { isMeaningfulFunctionName, isNextJsConventionPattern } from './name-detection';
 import { findSourceFiles, parseFilesWithSwc, parseFilesWithTsMorph } from './parsing';
 import { calculateGroupSimilarity } from './similarity';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/**
+ * Minimum structural complexity for clone detection.
+ * Filters out simple wrappers like `return <Component />` (complexity ~15).
+ * Only functions with meaningful logic (complexity > 25) are considered clones.
+ */
+const MIN_STRUCTURAL_COMPLEXITY = 25;
 
 // ============================================================================
 // HELPERS
@@ -21,6 +37,33 @@ import { calculateGroupSimilarity } from './similarity';
  */
 function isLargeEnoughForDuplication(func: FunctionSignature): boolean {
   return func.normalizedBody.length >= SIMILARITY_THRESHOLDS.MIN_BODY_LENGTH;
+}
+
+/**
+ * Check if file is a Next.js page file (page.tsx or page.ts in app directory)
+ */
+function isNextJsPageFile(filePath: string): boolean {
+  return /\/page\.tsx?$/.test(filePath);
+}
+
+/**
+ * Check if all functions are in different Next.js route segments.
+ * Functions in different route segments (e.g., /panel/customers vs /panel/bookings)
+ * are intentional wrappers, not real duplicates.
+ */
+function areAllInDifferentRouteSegments(funcs: FunctionSignature[]): boolean {
+  // Only applies if ALL functions are in page.tsx files
+  if (!funcs.every((f) => isNextJsPageFile(f.file))) return false;
+
+  // Extract route segments (everything before /page.tsx)
+  const segments = funcs.map((f) => {
+    const match = f.file.match(/(.+)\/page\.tsx?$/);
+    return match?.[1] ?? f.file;
+  });
+
+  // If all segments are unique, these are different routes
+  const uniqueSegments = new Set(segments);
+  return uniqueSegments.size === funcs.length;
 }
 
 /**
@@ -184,6 +227,10 @@ export async function findDuplicates(
     if (!isLargeEnoughForDuplication(func)) continue;
     if (!func.fingerprint) continue;
 
+    // Skip low-complexity functions (simple wrappers like `return <X />`)
+    // These are intentional patterns, not real duplicates
+    if ((func.complexity ?? 0) < MIN_STRUCTURAL_COMPLEXITY) continue;
+
     // Skip if already reported in another duplicate group
     const locKey = `${func.file}:${func.line}`;
     if (reportedLocations.has(locKey)) continue;
@@ -208,6 +255,32 @@ export async function findDuplicates(
     const uniqueNames = new Set(funcs.map((f) => f.name));
     // Only report if names are actually different (otherwise would be caught by name matching)
     if (uniqueNames.size < 2) continue;
+
+    // Skip if all functions are in different Next.js route segments
+    // These are intentional page wrappers, not real duplicates
+    if (areAllInDifferentRouteSegments(funcs)) continue;
+
+    // Skip if all functions are in different domains
+    // Cross-domain structural similarity is intentional, not duplication
+    const filePaths = funcs.map((f) => f.file);
+    if (areAllDifferentDomains(filePaths)) continue;
+
+    // Skip if any function has a skippable intent (factory, wrapper, route-handler, schema-generator)
+    const hasSkippableIntent = funcs.some((f) => {
+      const { intent } = detectIntent({ file: f.file, name: f.name, text: f.normalizedBody });
+      return [
+        'factory-instance',
+        'component-wrapper',
+        'route-handler',
+        'schema-generator',
+      ].includes(intent);
+    });
+    if (hasSkippableIntent) continue;
+
+    // Skip if all functions render different JSX components
+    // These are intentional wrappers, not duplicates
+    const bodies = funcs.map((f) => f.normalizedBody);
+    if (allRenderDifferentComponents(bodies)) continue;
 
     const sortedNames = [...uniqueNames].sort((a, b) => {
       const aExported = funcs.some((f) => f.name === a && f.exported);

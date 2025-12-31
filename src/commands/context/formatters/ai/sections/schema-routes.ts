@@ -1,6 +1,17 @@
 /**
  * @module commands/context/formatters/ai/sections/schema-routes
  * @description Schema and Routes section formatters
+ *
+ * Includes:
+ * - Full formatters for detailed output
+ * - Summary formatters for compact output (routes-summary, schema-highlights)
+ *
+ * Mode-based optimization:
+ * | Mode  | Routes      | Schema      |
+ * |-------|-------------|-------------|
+ * | quick | summary     | highlights  |
+ * | deep  | top 5 full  | top 4 full  |
+ * | full  | both (10)   | both (8)    |
  */
 
 import type { InlineField } from '../../../../routes/inline-schema';
@@ -9,36 +20,149 @@ import type { AiContextData } from '../../../types';
 import { filterEnumsByModels, filterModelsByKeywords, filterRoutersByKeywords } from '../filters';
 import {
   DEFAULT_PAGE_SIZE,
+  getModeLimits,
   MAX_ITEMS_LARGE,
   MAX_ITEMS_MEDIUM,
   MAX_LIMIT,
   MAX_SIZE,
 } from '../helpers';
 
+// ============================================================================
+// SUMMARY SECTIONS (compact output for quick mode)
+// ============================================================================
+
 /**
- * Format schema section
+ * Format routes summary - top routers by procedure count
+ * Output: ~200 tokens vs ~800 tokens for full routes
+ */
+export function formatRoutesSummarySection(lines: string[], data: AiContextData, limit = 10): void {
+  const { routes } = data;
+  if (!routes || routes.routers.length === 0) return;
+
+  // Sort routers by procedure count (most first)
+  const sortedRouters = [...routes.routers].sort(
+    (a, b) => b.procedures.length - a.procedures.length,
+  );
+
+  const totalProcedures = routes.routers.reduce((sum, r) => sum + r.procedures.length, 0);
+
+  lines.push(
+    `  <routes-summary routers="${routes.routers.length}" procedures="${totalProcedures}">`,
+  );
+
+  for (const router of sortedRouters.slice(0, limit)) {
+    const routerName = router.file.replace(/\.ts$/, '');
+    const queries = router.procedures.filter((p) => p.type === 'query').length;
+    const mutations = router.procedures.filter((p) => p.type === 'mutation').length;
+
+    lines.push(
+      `    <router n="${routerName}" procs="${router.procedures.length}" q="${queries}" m="${mutations}"/>`,
+    );
+  }
+
+  if (routes.routers.length > limit) {
+    lines.push(`    <!-- +${routes.routers.length - limit} more routers -->`);
+  }
+
+  lines.push('  </routes-summary>');
+}
+
+/**
+ * Format schema highlights - top models by reference count
+ * Output: ~150 tokens vs ~600 tokens for full schema
+ */
+export function formatSchemaHighlightsSection(
+  lines: string[],
+  data: AiContextData,
+  limit = 8,
+): void {
+  const { schema, dbRelations } = data;
+  if (!schema || schema.models.length === 0) return;
+
+  // Build reference count map from relations
+  const refCounts = new Map<string, number>();
+  if (dbRelations) {
+    for (const rel of dbRelations.relations) {
+      refCounts.set(rel.to, (refCounts.get(rel.to) || 0) + 1);
+    }
+  }
+
+  // Sort models by reference count (most referenced first)
+  const sortedModels = [...schema.models].sort((a, b) => {
+    const aRefs = refCounts.get(a.name) || 0;
+    const bRefs = refCounts.get(b.name) || 0;
+    // If same refs, sort by field count (more complex models first)
+    if (aRefs === bRefs) return b.fields.length - a.fields.length;
+    return bRefs - aRefs;
+  });
+
+  const totalRelations = dbRelations?.relations.length || 0;
+
+  lines.push(
+    `  <schema-highlights models="${schema.models.length}" relations="${totalRelations}">`,
+  );
+
+  for (const model of sortedModels.slice(0, limit)) {
+    const refs = refCounts.get(model.name) || 0;
+    const relCount = model.relations?.length || 0;
+
+    lines.push(
+      `    <model n="${model.name}" fields="${model.fields.length}" refs="${refs}" rels="${relCount}"/>`,
+    );
+  }
+
+  if (schema.models.length > limit) {
+    lines.push(`    <!-- +${schema.models.length - limit} more models -->`);
+  }
+
+  lines.push('  </schema-highlights>');
+}
+
+// ============================================================================
+// FULL SECTIONS (detailed output)
+// ============================================================================
+
+/**
+ * Format schema section with mode-based limits
+ *
+ * Mode behavior:
+ * - quick: Uses schema-highlights only (handled in formatAiPrompt)
+ * - deep: Shows top 4 models with full details
+ * - full: Shows top 8 models plus highlights for overview
  */
 export function formatSchemaSection(
   lines: string[],
   data: AiContextData,
   keywords: { primary: string[]; secondary: string[] },
 ): void {
-  const { schema } = data;
+  const { schema, mode } = data;
   if (!schema || schema.models.length === 0) return;
+
+  // Get mode-based limits
+  const limits = getModeLimits(mode);
+  const { highlightsOnly, fullLimit } = limits.schema;
+
+  // In quick mode, use highlights only (called separately in formatAiPrompt)
+  if (highlightsOnly) {
+    return;
+  }
 
   const relevantModels = filterModelsByKeywords(schema.models, keywords);
   if (relevantModels.length === 0) return;
 
-  lines.push('  <schema>');
-  formatModels(lines, relevantModels);
+  // Apply mode-based limit
+  const modelsToShow = relevantModels.slice(0, fullLimit);
 
-  if (relevantModels.length > 10) {
-    lines.push(`    <!-- ${relevantModels.length - 10} more models in this domain -->`);
+  lines.push('  <schema>');
+  formatModels(lines, modelsToShow);
+
+  if (relevantModels.length > fullLimit) {
+    lines.push(`    <!-- ${relevantModels.length - fullLimit} more models in this domain -->`);
   }
   lines.push('  </schema>');
 
-  // Enums section
-  const relevantEnums = filterEnumsByModels(schema.enums, relevantModels);
+  // Enums section (only for shown models)
+  const relevantEnums = filterEnumsByModels(schema.enums, modelsToShow);
   if (relevantEnums.length > 0) {
     formatEnums(lines, relevantEnums);
   }
@@ -132,29 +256,44 @@ function formatEnums(lines: string[], enums: Array<{ name: string; values: strin
 }
 
 /**
- * Format routes section
+ * Format routes section with mode-based limits
+ *
+ * Mode behavior:
+ * - quick: Uses routes-summary only (handled in formatAiPrompt)
+ * - deep: Shows top 5 routers with full details
+ * - full: Shows top 10 routers plus summary for overview
  */
 export function formatRoutesSection(
   lines: string[],
   data: AiContextData,
   keywords: { primary: string[]; secondary: string[] },
 ): void {
-  const { routes } = data;
+  const { routes, mode } = data;
   if (!routes || routes.routers.length === 0) return;
+
+  // Get mode-based limits
+  const limits = getModeLimits(mode);
+  const { summaryOnly, fullLimit } = limits.routes;
+
+  // In quick mode, use summary only (called separately in formatAiPrompt)
+  if (summaryOnly) {
+    return;
+  }
 
   const relevantRouters = filterRoutersByKeywords(routes.routers, keywords);
   if (relevantRouters.length === 0) return;
 
+  // Apply mode-based limit
+  const routersToShow = relevantRouters.slice(0, fullLimit);
+
   lines.push('  <routes basePath="packages/api/src/routers">');
 
-  for (const router of relevantRouters.slice(0, MAX_ITEMS_LARGE)) {
+  for (const router of routersToShow) {
     formatRouter(lines, router);
   }
 
-  if (relevantRouters.length > MAX_ITEMS_LARGE) {
-    lines.push(
-      `    <!-- ${relevantRouters.length - MAX_ITEMS_LARGE} more routers in this domain -->`,
-    );
+  if (relevantRouters.length > fullLimit) {
+    lines.push(`    <!-- ${relevantRouters.length - fullLimit} more routers in this domain -->`);
   }
   lines.push('  </routes>');
 }

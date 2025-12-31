@@ -28,7 +28,7 @@ export function countTodos(
   },
 ): TodoCount {
   const {
-    exclude = ['node_modules', 'dist', '.next', '.git'],
+    exclude = ['node_modules', 'dist', '.next', '.git', 'generated', '__generated__'],
     extensions = ['ts', 'tsx'],
     limit = 100,
   } = options ?? {};
@@ -137,7 +137,7 @@ export function extractTodos(
   },
 ): TodoItem[] {
   const {
-    exclude = ['node_modules', 'dist', '.next', '.git'],
+    exclude = ['node_modules', 'dist', '.next', '.git', 'generated', '__generated__'],
     extensions = ['ts', 'tsx', 'js', 'jsx'],
     limit = 50,
     withContext = true,

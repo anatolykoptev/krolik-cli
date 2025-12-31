@@ -25,6 +25,8 @@ export const DEFAULT_SKIP_DIRS = [
   '.turbo',
   'coverage',
   '.pnpm',
+  'generated',
+  '__generated__',
 ] as const;
 
 /**

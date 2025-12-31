@@ -4,6 +4,7 @@
  */
 
 import type { Command } from 'commander';
+import { resolveProjectPath } from '../../mcp/tools/core/projects';
 import type { CommandOptions } from '../types';
 import { createContext } from './helpers';
 
@@ -23,11 +24,12 @@ Modes:
   --full         All sections + quality audit (~10s)
 
 Examples:
-  krolik context --feature auth    # Context for auth feature
-  krolik context --issue 42        # Context from GitHub issue
-  krolik context --quick           # Compact mode with repo-map
-  krolik context --minimal         # Ultra-compact for token-constrained AI`,
+  krolik context --feature auth              # Context for auth feature
+  krolik context --issue 42                  # Context from GitHub issue
+  krolik context --quick                     # Compact mode with repo-map
+  krolik context --project myapp --quick     # Context for specific project`,
     )
+    .option('-p, --project <name>', 'Project folder name (for multi-project workspaces)')
     .option('--issue <number>', 'Context for GitHub issue')
     .option('--feature <name>', 'Context for feature')
     .option('--file <path>', 'Context for file')
@@ -51,6 +53,17 @@ Examples:
       // --full enables --with-audit
       if (options.full) {
         options.withAudit = true;
+      }
+
+      // Handle --project option
+      if (options.project) {
+        const resolved = resolveProjectPath(process.cwd(), options.project);
+        if ('error' in resolved) {
+          console.error(resolved.error);
+          process.exit(1);
+        }
+        // Override project root via environment variable (used by loadConfig)
+        process.env.KROLIK_PROJECT_ROOT = resolved.path;
       }
 
       const ctx = await createContext(program, options);

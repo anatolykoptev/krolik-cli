@@ -6,6 +6,7 @@
 import chalk from 'chalk';
 import { createMissingSubDocs, DOCS_VERSION, needsSync, syncClaudeMd } from '../../lib/@claude';
 import { measureTime } from '../../lib/@core/time';
+import { recent as getRecentMemories } from '../../lib/@storage/memory';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type { StatusResult } from '../../types/commands/status';
 import { checkGit, checkLint, checkTypecheck, toStatusResult } from './checks';
@@ -34,7 +35,11 @@ export function getProjectStatus(projectRoot: string, options: StatusOptions = {
     const lint = checkLint(projectRoot, fast);
     const todoCount = countTodosSimple(projectRoot);
     const projectInfo = getProjectInfo(projectRoot, fast);
-    return { git, typecheck, lint, todoCount, projectInfo };
+
+    // Get recent memories (5 items, no project filter for cross-project visibility)
+    const memories = getRecentMemories(undefined, 5);
+
+    return { git, typecheck, lint, todoCount, projectInfo, memories };
   });
 
   const baseResult = toStatusResult(
@@ -96,6 +101,27 @@ export function getProjectStatus(projectRoot: string, options: StatusOptions = {
         ...(branchContext.issueNumber ? { issueNumber: branchContext.issueNumber } : {}),
         ...(branchContext.description ? { description: branchContext.description } : {}),
       },
+      ...(result.memories.length > 0
+        ? {
+            memory: result.memories.map((m) => ({
+              type: m.type,
+              title: m.title,
+              tags: m.tags,
+            })),
+          }
+        : {}),
+    };
+  }
+
+  // Add memory to base result if no rich project info
+  if (result.memories.length > 0) {
+    return {
+      ...baseResult,
+      memory: result.memories.map((m) => ({
+        type: m.type,
+        title: m.title,
+        tags: m.tags,
+      })),
     };
   }
 
