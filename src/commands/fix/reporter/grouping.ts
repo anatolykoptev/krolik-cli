@@ -5,6 +5,7 @@
 
 import * as path from 'node:path';
 import { groupBy } from '@/lib/@core';
+import { enrichIssueWithCodeContext } from '../../audit/enrichment';
 import type { QualityCategory, QualityIssue } from '../core';
 import { getFixDifficulty } from '../core';
 import { aggregateEffort, estimateEffort } from './effort';
@@ -130,8 +131,15 @@ function determinePriority(issue: QualityIssue): PriorityLevel {
 
 /**
  * Enrich a single issue with effort and priority
+ *
+ * @param issue - The quality issue to enrich
+ * @param options - Optional enrichment options
+ * @param options.includeCodeContext - Whether to include code snippets (default: false for perf)
  */
-export function enrichIssue(issue: QualityIssue): EnrichedIssue {
+export function enrichIssue(
+  issue: QualityIssue,
+  options: { includeCodeContext?: boolean } = {},
+): EnrichedIssue {
   const effort = estimateEffort(issue);
   const difficulty = getFixDifficulty(issue);
   const priority = determinePriority(issue);
@@ -149,7 +157,33 @@ export function enrichIssue(issue: QualityIssue): EnrichedIssue {
     enriched.fixSuggestion = issue.suggestion;
   }
 
+  // Add code context for high-priority or complexity issues
+  if (options.includeCodeContext && shouldIncludeCodeContext(issue, priority)) {
+    const codeContext = enrichIssueWithCodeContext(issue);
+    if (codeContext.snippet || codeContext.complexityBreakdown) {
+      enriched.codeContext = codeContext;
+    }
+  }
+
   return enriched;
+}
+
+/**
+ * Check if an issue should include code context
+ * Only for critical/high priority or complexity issues
+ */
+function shouldIncludeCodeContext(issue: QualityIssue, priority: PriorityLevel): boolean {
+  // Always include for critical/high priority
+  if (priority === 'critical' || priority === 'high') {
+    return true;
+  }
+
+  // Include for complexity issues
+  if (issue.category === 'complexity') {
+    return true;
+  }
+
+  return false;
 }
 
 // ============================================================================

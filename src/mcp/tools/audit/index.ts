@@ -17,6 +17,8 @@ import {
 
 const auditSchema: FlagSchema = {
   path: COMMON_FLAGS.path,
+  feature: COMMON_FLAGS.feature,
+  mode: { flag: '--mode' },
 };
 
 export const auditTool: MCPToolDefinition = {
@@ -30,6 +32,16 @@ export const auditTool: MCPToolDefinition = {
       path: {
         type: 'string',
         description: 'Specific subdirectory within project to audit (optional)',
+      },
+      feature: {
+        type: 'string',
+        description: 'Filter to specific feature/domain (e.g., "booking", "auth")',
+      },
+      mode: {
+        type: 'string',
+        enum: ['all', 'release', 'refactor'],
+        description:
+          'Filter by mode: all (default), release (security + type-safety), refactor (complexity + SRP)',
       },
     },
   },

@@ -4,13 +4,18 @@
  */
 
 import { escapeXml } from '../../../lib/@format';
+import { formatCodeContextAsXml, formatGitContextXml } from '../../audit/enrichment';
+import { formatProgressiveOutput, type OutputLevel } from '../../audit/output';
+import type { TypeContext } from '../../audit/suggestions';
 import { normalizePath } from './grouping';
 import type {
   ActionStep,
   AIReport,
   EnrichedIssue,
   FileContext,
+  IssueCluster,
   IssueGroup,
+  IssuePattern,
   PriorityLevel,
 } from './types';
 
@@ -410,6 +415,355 @@ export function formatAsJson(report: AIReport): string {
 }
 
 // ============================================================================
+// PROGRESSIVE XML FORMATTER
+// ============================================================================
+
+/**
+ * Format AI Report as progressive XML with token budgets
+ *
+ * Provides 3-level output:
+ * - 'summary': Executive summary only (~50 tokens)
+ * - 'default': Executive summary + top issues (~500 tokens)
+ * - 'full': Complete report
+ *
+ * @param report - The AI report to format
+ * @param level - Output level for token budget
+ * @returns Formatted XML string within token budget
+ *
+ * @example
+ * // Default output (~500 tokens)
+ * const xml = formatAsProgressiveXml(report, 'default');
+ *
+ * // Summary only (~50 tokens)
+ * const summary = formatAsProgressiveXml(report, 'summary');
+ */
+export function formatAsProgressiveXml(report: AIReport, level: OutputLevel = 'default'): string {
+  return formatProgressiveOutput(report, level);
+}
+
+// ============================================================================
+// ISSUE PATTERN FORMATTER
+// ============================================================================
+
+/**
+ * Format issue patterns as XML for smart audit output
+ *
+ * Creates the target format:
+ * ```xml
+ * <issue-group category="type-safety" pattern="any-usage" count="23">
+ *   <batch-fix available="true">
+ *     <command>krolik fix --pattern any-to-unknown</command>
+ *     <files-affected>8</files-affected>
+ *     <auto-fixable>15</auto-fixable>
+ *     <manual-required>8</manual-required>
+ *   </batch-fix>
+ *   <by-file>
+ *     <file path="utils.ts" count="6" auto="4"/>
+ *   </by-file>
+ * </issue-group>
+ * ```
+ */
+function formatIssuePatterns(patterns: IssuePattern[]): string[] {
+  const lines: string[] = [];
+
+  for (const pattern of patterns) {
+    lines.push(
+      `  <issue-group category="${pattern.category}" pattern="${pattern.pattern}" count="${pattern.issues.length}">`,
+    );
+
+    // Batch fix info
+    lines.push(`    <batch-fix available="${pattern.batchFix.available}">`);
+    if (pattern.batchFix.available && pattern.batchFix.command) {
+      lines.push(`      <command>${escapeXml(pattern.batchFix.command)}</command>`);
+    }
+    lines.push(`      <files-affected>${pattern.batchFix.filesAffected}</files-affected>`);
+    lines.push(`      <auto-fixable>${pattern.batchFix.autoFixable}</auto-fixable>`);
+    lines.push(`      <manual-required>${pattern.batchFix.manualRequired}</manual-required>`);
+    lines.push('    </batch-fix>');
+
+    // By-file breakdown (limit to top 10 files)
+    if (pattern.byFile.length > 0) {
+      lines.push('    <by-file>');
+      for (const file of pattern.byFile.slice(0, 10)) {
+        lines.push(
+          `      <file path="${escapeXml(file.path)}" count="${file.count}" auto="${file.auto}"/>`,
+        );
+      }
+      if (pattern.byFile.length > 10) {
+        lines.push(`      <!-- ... and ${pattern.byFile.length - 10} more files -->`);
+      }
+      lines.push('    </by-file>');
+    }
+
+    // Show sample issues with suggestions (limit to 3)
+    const issuesWithSuggestions = pattern.issues.filter((i) => i.suggestion).slice(0, 3);
+    if (issuesWithSuggestions.length > 0) {
+      lines.push('    <sample-issues>');
+      for (const enriched of issuesWithSuggestions) {
+        const loc = enriched.issue.line ? `:${enriched.issue.line}` : '';
+        lines.push(`      <issue file="${escapeXml(enriched.issue.file)}${loc}">`);
+        lines.push(`        <description>${escapeXml(enriched.issue.message)}</description>`);
+        if (enriched.suggestion) {
+          lines.push(...formatSuggestionXml(enriched.suggestion, 8));
+        }
+        lines.push('      </issue>');
+      }
+      lines.push('    </sample-issues>');
+    }
+
+    lines.push('  </issue-group>');
+  }
+
+  return lines;
+}
+
+// ============================================================================
+// ISSUE CLUSTER FORMATTER
+// ============================================================================
+
+/**
+ * Format issue clusters as XML for smart audit output
+ *
+ * Creates the target format:
+ * ```xml
+ * <issue-cluster file="utils.ts" category="any-type" count="4">
+ *   <root-cause>Functions lack proper generic types</root-cause>
+ *   <fix-together>true</fix-together>
+ *   <locations>97, 193, 232, 256</locations>
+ *   <suggested-approach>Add generic type parameters to functions</suggested-approach>
+ * </issue-cluster>
+ * ```
+ */
+function formatIssueClusters(clusters: IssueCluster[]): string[] {
+  const lines: string[] = [];
+
+  for (const cluster of clusters) {
+    lines.push(
+      `  <issue-cluster file="${escapeXml(cluster.file)}" category="${escapeXml(cluster.category)}" count="${cluster.count}">`,
+    );
+    lines.push(`    <root-cause>${escapeXml(cluster.rootCause)}</root-cause>`);
+    lines.push(`    <fix-together>${cluster.fixTogether}</fix-together>`);
+    lines.push(`    <locations>${cluster.locations.join(', ')}</locations>`);
+    lines.push(
+      `    <suggested-approach>${escapeXml(cluster.suggestedApproach)}</suggested-approach>`,
+    );
+
+    // Add file-level impact info if available (take from first issue)
+    const firstIssueWithImpact = cluster.issues.find((i) => i.impact);
+    if (firstIssueWithImpact?.impact) {
+      const imp = firstIssueWithImpact.impact;
+      lines.push(`    <impact dependents="${imp.dependents}" risk="${imp.riskLevel}">`);
+      if (imp.dependentFiles && imp.dependentFiles.length > 0) {
+        lines.push('      <top-dependents>');
+        for (const file of imp.dependentFiles.slice(0, 3)) {
+          lines.push(`        <file>${escapeXml(file)}</file>`);
+        }
+        lines.push('      </top-dependents>');
+      }
+      if (imp.riskReason) {
+        lines.push(`      <risk-reason>${escapeXml(imp.riskReason)}</risk-reason>`);
+      }
+      lines.push('    </impact>');
+    }
+
+    // Show sample issues (limit to 3)
+    if (cluster.issues.length > 0) {
+      const sampleIssues = cluster.issues.slice(0, 3);
+      lines.push('    <sample-issues>');
+      for (const enriched of sampleIssues) {
+        lines.push(`      <issue line="${enriched.issue.line ?? 0}">`);
+        lines.push(`        <description>${escapeXml(enriched.issue.message)}</description>`);
+        // Include git context for high-complexity or critical issues
+        if (enriched.gitContext) {
+          lines.push(...formatGitContextXml(enriched.gitContext, 8));
+        }
+        if (enriched.suggestion) {
+          lines.push(...formatSuggestionXml(enriched.suggestion, 8));
+        }
+        lines.push('      </issue>');
+      }
+      if (cluster.issues.length > 3) {
+        lines.push(`      <!-- ... and ${cluster.issues.length - 3} more issues -->`);
+      }
+      lines.push('    </sample-issues>');
+    }
+
+    lines.push('  </issue-cluster>');
+  }
+
+  return lines;
+}
+
+// ============================================================================
+// IMPACT FORMATTER
+// ============================================================================
+
+/**
+ * Format ImpactScore as XML for issue enrichment
+ *
+ * Supports two output modes:
+ * - Basic: dependents count, bug history, change frequency
+ * - Extended: includes top-dependents list and risk-reason
+ *
+ * @param impact - The impact score to format
+ * @param indent - Number of spaces to indent (default: 0)
+ * @returns Array of XML lines
+ *
+ * @example Basic output
+ * ```xml
+ * <impact>
+ *   <dependents count="50"/>
+ *   <bug-history count="4" period="30d"/>
+ *   <change-frequency rank="top-5%"/>
+ * </impact>
+ * <risk>critical</risk>
+ * ```
+ *
+ * @example Extended output (with dependentFiles and riskReason)
+ * ```xml
+ * <impact dependents="12" risk="high">
+ *   <top-dependents>
+ *     <file>routers/booking.ts</file>
+ *     <file>components/SlotPicker.tsx</file>
+ *   </top-dependents>
+ *   <risk-reason>Core booking logic, 95th percentile centrality</risk-reason>
+ * </impact>
+ * ```
+ */
+function formatImpactXml(
+  impact: {
+    dependents: number;
+    bugHistory: number;
+    changeFrequency: number;
+    percentile: number;
+    riskLevel: string;
+    dependentFiles?: string[];
+    riskReason?: string;
+  },
+  indent = 0,
+): string[] {
+  const pad = ' '.repeat(indent);
+  const lines: string[] = [];
+
+  // Use extended format if dependentFiles or riskReason is available
+  if (impact.dependentFiles || impact.riskReason) {
+    lines.push(`${pad}<impact dependents="${impact.dependents}" risk="${impact.riskLevel}">`);
+
+    // Top dependents
+    if (impact.dependentFiles && impact.dependentFiles.length > 0) {
+      lines.push(`${pad}  <top-dependents>`);
+      for (const file of impact.dependentFiles.slice(0, 5)) {
+        lines.push(`${pad}    <file>${escapeXml(file)}</file>`);
+      }
+      lines.push(`${pad}  </top-dependents>`);
+    }
+
+    // Risk reason
+    if (impact.riskReason) {
+      lines.push(`${pad}  <risk-reason>${escapeXml(impact.riskReason)}</risk-reason>`);
+    }
+
+    lines.push(`${pad}</impact>`);
+  } else {
+    // Basic format (backwards compatible)
+    const changeRank = formatChangeRank(impact.percentile);
+
+    lines.push(`${pad}<impact>`);
+    lines.push(`${pad}  <dependents count="${impact.dependents}"/>`);
+    lines.push(`${pad}  <bug-history count="${impact.bugHistory}" period="30d"/>`);
+    lines.push(`${pad}  <change-frequency rank="${changeRank}"/>`);
+    lines.push(`${pad}</impact>`);
+    lines.push(`${pad}<risk>${impact.riskLevel}</risk>`);
+  }
+
+  return lines;
+}
+
+/**
+ * Format percentile as human-readable rank
+ */
+function formatChangeRank(percentile: number): string {
+  if (percentile >= 95) return 'top-5%';
+  if (percentile >= 90) return 'top-10%';
+  if (percentile >= 80) return 'top-20%';
+  if (percentile >= 50) return 'top-50%';
+  return 'bottom-50%';
+}
+
+// ============================================================================
+// SUGGESTION FORMATTER
+// ============================================================================
+
+/**
+ * Format a Suggestion as XML with before/after and reasoning
+ *
+ * Includes type inference context when available for `any` type issues.
+ *
+ * @param suggestion - The suggestion to format
+ * @param indent - Number of spaces to indent (default: 0)
+ * @returns Array of XML lines
+ *
+ * @example
+ * ```xml
+ * <suggestion confidence="87%">
+ *   <before><![CDATA[const handler: any = (req) => ...]]></before>
+ *   <after><![CDATA[const handler: RequestHandler = (req) => ...]]></after>
+ *   <reasoning>Inferred RequestHandler from usage (high confidence)</reasoning>
+ *   <type-inference inferred="RequestHandler" confidence="87%">
+ *     <evidence>
+ *       <usage type="method-call" line="15">req.body accessed as object</usage>
+ *       <usage type="return" line="18">returns Promise&lt;Response&gt;</usage>
+ *     </evidence>
+ *   </type-inference>
+ * </suggestion>
+ * ```
+ */
+function formatSuggestionXml(
+  suggestion: {
+    before: string;
+    after: string;
+    reasoning: string;
+    confidence: number;
+    typeContext?: TypeContext | undefined;
+  },
+  indent = 0,
+): string[] {
+  const pad = ' '.repeat(indent);
+  const lines: string[] = [];
+
+  lines.push(`${pad}<suggestion confidence="${suggestion.confidence}%">`);
+  lines.push(`${pad}  <before><![CDATA[${suggestion.before}]]></before>`);
+  lines.push(`${pad}  <after><![CDATA[${suggestion.after}]]></after>`);
+  lines.push(`${pad}  <reasoning>${escapeXml(suggestion.reasoning)}</reasoning>`);
+
+  // Add type inference context for type-safety issues
+  if (suggestion.typeContext) {
+    const tc = suggestion.typeContext;
+    lines.push(
+      `${pad}  <type-inference inferred="${escapeXml(tc.inferredType)}" confidence="${tc.confidence}%">`,
+    );
+    if (tc.evidence.length > 0) {
+      lines.push(`${pad}    <evidence>`);
+      for (const e of tc.evidence.slice(0, 5)) {
+        const lineAttr = e.line ? ` line="${e.line}"` : '';
+        lines.push(
+          `${pad}      <usage type="${e.type}"${lineAttr}>${escapeXml(e.description)}</usage>`,
+        );
+      }
+      if (tc.evidence.length > 5) {
+        lines.push(`${pad}      <!-- ... and ${tc.evidence.length - 5} more usages -->`);
+      }
+      lines.push(`${pad}    </evidence>`);
+    }
+    lines.push(`${pad}  </type-inference>`);
+  }
+
+  lines.push(`${pad}</suggestion>`);
+
+  return lines;
+}
+
+// ============================================================================
 // XML FORMATTER
 // ============================================================================
 
@@ -439,8 +793,29 @@ export function formatAsXml(report: AIReport): string {
     lines.push('  <quick-wins>');
     for (const win of report.quickWins) {
       const loc = win.issue.line ? `:${win.issue.line}` : '';
-      lines.push(`    <issue file="${win.issue.file}${loc}" effort="${win.effort.timeLabel}">`);
-      lines.push(`      ${escapeXml(win.issue.message)}`);
+      lines.push(
+        `    <issue file="${win.issue.file}${loc}" effort="${win.effort.timeLabel}" priority="${win.priority}">`,
+      );
+      lines.push(`      <description>${escapeXml(win.issue.message)}</description>`);
+      // Include impact if available
+      if (win.impact) {
+        lines.push(...formatImpactXml(win.impact, 6));
+      }
+      // Include git context for high-complexity or critical issues
+      if (win.gitContext) {
+        lines.push(...formatGitContextXml(win.gitContext, 6));
+      }
+      // Include suggestion if available
+      if (win.suggestion) {
+        lines.push(...formatSuggestionXml(win.suggestion, 6));
+      }
+      // Include code context (snippet + complexity breakdown) if available
+      if (win.codeContext) {
+        const codeContextXml = formatCodeContextAsXml(win.codeContext, 6);
+        if (codeContextXml) {
+          lines.push(codeContextXml);
+        }
+      }
       lines.push('    </issue>');
     }
     lines.push('  </quick-wins>');
@@ -458,8 +833,36 @@ export function formatAsXml(report: AIReport): string {
       lines.push(`      <description>${escapeXml(step.description)}</description>`);
       if (step.suggestion) {
         lines.push(`      <suggestion reason="${escapeXml(step.suggestion.reason)}">`);
-        lines.push(`        ${escapeXml(step.suggestion.after)}`);
+        if (step.suggestion.before) {
+          lines.push(`        <before><![CDATA[${step.suggestion.before}]]></before>`);
+        }
+        lines.push(`        <after><![CDATA[${step.suggestion.after}]]></after>`);
+        // Add type inference context for type-safety issues
+        if (step.suggestion.typeContext) {
+          const tc = step.suggestion.typeContext;
+          lines.push(
+            `        <type-inference inferred="${escapeXml(tc.inferredType)}" confidence="${tc.confidence}%">`,
+          );
+          if (tc.evidence.length > 0) {
+            lines.push('          <evidence>');
+            for (const e of tc.evidence.slice(0, 5)) {
+              const lineAttr = e.line ? ` line="${e.line}"` : '';
+              lines.push(
+                `            <usage type="${e.type}"${lineAttr}>${escapeXml(e.description)}</usage>`,
+              );
+            }
+            lines.push('          </evidence>');
+          }
+          lines.push('        </type-inference>');
+        }
         lines.push('      </suggestion>');
+      }
+      // Add code context (snippet + complexity breakdown) for CRITICAL/HIGH
+      if (step.codeContext) {
+        const codeContextXml = formatCodeContextAsXml(step.codeContext, 6);
+        if (codeContextXml) {
+          lines.push(codeContextXml);
+        }
       }
       lines.push('    </step>');
     }
@@ -580,6 +983,22 @@ export function formatAsXml(report: AIReport): string {
       '    <hint>Run: krolik refactor --duplicates-only for full duplicate analysis</hint>',
     );
     lines.push('  </duplicates>');
+  }
+
+  // Issue patterns (smart grouping)
+  if (report.issuePatterns && report.issuePatterns.length > 0) {
+    lines.push('');
+    lines.push('  <!-- ISSUE-GROUPS - Pattern-based issue grouping for batch operations -->');
+    lines.push(...formatIssuePatterns(report.issuePatterns));
+  }
+
+  // Issue clusters (file-level grouping for same-category issues)
+  if (report.issueClusters && report.issueClusters.length > 0) {
+    lines.push('');
+    lines.push(
+      '  <!-- ISSUE-CLUSTERS - File-level grouping for related issues (3+ same category) -->',
+    );
+    lines.push(...formatIssueClusters(report.issueClusters));
   }
 
   lines.push('</ai-report>');

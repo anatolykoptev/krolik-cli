@@ -4,15 +4,22 @@
  *
  * Performs deep analysis of code quality and generates AUDIT.xml
  * with issues, priorities, hotspots, and action plan.
+ *
+ * Uses:
+ * - @cache/fileCache for efficient file reading
+ * - @core/time for performance measurement
  */
 
-import * as fs from 'node:fs';
+import { fileCache } from '../../lib/@cache';
 import { saveKrolikFile } from '../../lib/@core/fs';
+import { formatDuration, measureTimeAsync } from '../../lib/@core/time';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type { FixerRegistry } from '../fix/core/registry';
-import type { AIReport } from '../fix/reporter/types';
+import type { AIReport, EnrichedIssue, IssueGroup } from '../fix/reporter/types';
 import { getProjectStatus } from '../status';
 import { formatReportOutput, type ReportSummary } from '../status/output';
+import { type AuditIntent, filterByIntent, parseIntent } from './filters';
+import { formatProgressiveOutput, type OutputLevel } from './output';
 
 /**
  * Audit command options
@@ -23,6 +30,12 @@ export interface AuditOptions {
   verbose?: boolean;
   /** Show fix previews for quick wins */
   showFixes?: boolean;
+  /** Filter to specific feature/domain */
+  feature?: string;
+  /** Filter by mode: all, release, refactor */
+  mode?: string;
+  /** Output level: summary, default, full */
+  outputLevel?: OutputLevel;
 }
 
 /**
@@ -80,10 +93,14 @@ function extractReportSummary(report: AIReport, relativePath: string): ReportSum
 }
 
 /**
- * Read file content safely, returning empty string if file doesn't exist
+ * Read file content safely using cache, returning empty string if file doesn't exist
  */
 function readFileContent(filePath: string): string {
-  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : '';
+  try {
+    return fileCache.get(filePath);
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -170,6 +187,82 @@ async function tryGeneratePreview(
 }
 
 /**
+ * Apply intent filter to an AIReport
+ * Filters groups, quickWins, hotspots, and actionPlan
+ */
+function applyIntentFilter(report: AIReport, intent: AuditIntent): AIReport {
+  // Filter enriched issues within groups
+  const filterEnrichedIssues = (issues: EnrichedIssue[]): EnrichedIssue[] => {
+    const qualityIssues = issues.map((ei) => ei.issue);
+    const filtered = filterByIntent(qualityIssues, intent);
+    const filteredFiles = new Set(filtered.map((i) => `${i.file}:${i.line}`));
+    return issues.filter((ei) => filteredFiles.has(`${ei.issue.file}:${ei.issue.line}`));
+  };
+
+  // Filter groups
+  const filteredGroups: IssueGroup[] = report.groups
+    .map((group) => {
+      const filteredIssues = filterEnrichedIssues(group.issues);
+      if (filteredIssues.length === 0) return null;
+      return {
+        ...group,
+        issues: filteredIssues,
+        count: filteredIssues.length,
+        autoFixableCount: filteredIssues.filter((i) => i.autoFixable).length,
+      };
+    })
+    .filter((g): g is IssueGroup => g !== null);
+
+  // Filter quick wins
+  const filteredQuickWins = filterEnrichedIssues(report.quickWins);
+
+  // Filter hotspots (by file matching)
+  const filteredIssueFiles = new Set(
+    filteredGroups.flatMap((g) => g.issues.map((i) => i.issue.file)),
+  );
+  const filteredHotspots = report.hotspots.filter((h) => filteredIssueFiles.has(h.file));
+
+  // Filter action plan
+  const filteredActionPlan = report.actionPlan.filter((step) => filteredIssueFiles.has(step.file));
+
+  // Recalculate summary
+  const totalIssues = filteredGroups.reduce((sum, g) => sum + g.count, 0);
+  const autoFixableIssues = filteredGroups.reduce((sum, g) => sum + g.autoFixableCount, 0);
+
+  // Recalculate byPriority
+  const byPriority: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+  for (const group of filteredGroups) {
+    for (const issue of group.issues) {
+      byPriority[issue.priority] = (byPriority[issue.priority] ?? 0) + 1;
+    }
+  }
+
+  // Recalculate byCategory
+  const byCategory: Record<string, number> = {};
+  for (const group of filteredGroups) {
+    for (const issue of group.issues) {
+      byCategory[issue.issue.category] = (byCategory[issue.issue.category] ?? 0) + 1;
+    }
+  }
+
+  return {
+    ...report,
+    groups: filteredGroups,
+    quickWins: filteredQuickWins,
+    hotspots: filteredHotspots,
+    actionPlan: filteredActionPlan,
+    summary: {
+      ...report.summary,
+      totalIssues,
+      autoFixableIssues,
+      manualIssues: totalIssues - autoFixableIssues,
+      byPriority: byPriority as AIReport['summary']['byPriority'],
+      byCategory,
+    },
+  };
+}
+
+/**
  * Generate fix previews for quick wins
  */
 async function generateFixPreviews(
@@ -215,17 +308,42 @@ export async function runAudit(ctx: CommandContext & { options: AuditOptions }):
   const { config, logger, options } = ctx;
   const projectRoot = options.path || config.projectRoot;
 
-  // Generate AI-REPORT.md
-  const { relativePath, report } = await generateReport(projectRoot, logger);
+  // Generate AI-REPORT.md with timing
+  const { result: reportResult, durationMs } = await measureTimeAsync(() =>
+    generateReport(projectRoot, logger),
+  );
+  const { relativePath, report: rawReport } = reportResult;
 
-  // Get status for context
-  const status = getProjectStatus(projectRoot, { fast: false });
+  // Log analysis duration
+  logger.info(`Analysis completed in ${formatDuration(durationMs)}`);
 
-  // Extract summary from report
-  const summary = extractReportSummary(report, relativePath);
+  // Apply intent filter if specified
+  const intent = parseIntent({ feature: options.feature, mode: options.mode });
+  const report = intent ? applyIntentFilter(rawReport, intent) : rawReport;
 
-  // Output enhanced AI-friendly format with clear instructions
-  console.log(formatReportOutput(status, summary));
+  // Log filter info if applied
+  if (intent) {
+    const filterInfo: string[] = [];
+    if (intent.feature) filterInfo.push(`feature: ${intent.feature}`);
+    if (intent.mode !== 'all') filterInfo.push(`mode: ${intent.mode}`);
+    logger.info(`Filtering by ${filterInfo.join(', ')}`);
+  }
+
+  // Get output level
+  const outputLevel = options.outputLevel || 'default';
+
+  // For progressive output (summary or explicit level)
+  if (outputLevel === 'summary' || outputLevel === 'full') {
+    const progressiveOutput = formatProgressiveOutput(report, outputLevel);
+    console.log(progressiveOutput);
+  } else {
+    // Default: show status + summary + progressive top issues
+    const status = getProjectStatus(projectRoot, { fast: false });
+    const summary = extractReportSummary(report, relativePath);
+    console.log(formatReportOutput(status, summary));
+    console.log('');
+    console.log(formatProgressiveOutput(report, 'default'));
+  }
 
   // Show fix previews if requested
   if (options.showFixes) {
@@ -233,6 +351,17 @@ export async function runAudit(ctx: CommandContext & { options: AuditOptions }):
     if (previews) {
       console.log('');
       console.log(previews);
+    }
+  }
+
+  // Log cache stats in verbose mode
+  if (options.verbose) {
+    const cacheStats = fileCache.getStats();
+    if (cacheStats.hits > 0 || cacheStats.misses > 0) {
+      const hitRate = ((cacheStats.hits / (cacheStats.hits + cacheStats.misses)) * 100).toFixed(0);
+      logger.info(
+        `File cache: ${cacheStats.hits} hits, ${cacheStats.misses} misses (${hitRate}% hit rate)`,
+      );
     }
   }
 }

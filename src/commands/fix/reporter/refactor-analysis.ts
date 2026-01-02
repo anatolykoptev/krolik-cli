@@ -6,7 +6,34 @@
  * Uses dynamic imports to avoid circular dependencies.
  */
 
+import * as path from 'node:path';
+import { detectMonorepoPackages } from '../../../config/detect';
+import type { ImpactEnricher } from '../../audit/enrichment';
 import type { DuplicateSummary, RankingSummary, RecommendationSummary } from './types';
+
+// ============================================================================
+// LIB PATH DETECTION (with monorepo support)
+// ============================================================================
+
+/**
+ * Find lib path with monorepo support
+ *
+ * Uses dynamic detection for monorepos, falls back to findLibPath() for single projects.
+ * Returns absolute path to lib directory.
+ */
+async function findLibPathWithMonorepo(projectRoot: string): Promise<string | undefined> {
+  // First try monorepo detection
+  const packages = detectMonorepoPackages(projectRoot);
+  const firstPackage = packages[0];
+  if (firstPackage) {
+    // Return the first package's libPath as absolute path
+    return path.join(projectRoot, firstPackage.libPath);
+  }
+
+  // Fall back to findLibPath for non-monorepo projects
+  const { findLibPath } = await import('../../refactor/paths');
+  return findLibPath(projectRoot);
+}
 
 // ============================================================================
 // RANKING ANALYSIS
@@ -19,9 +46,8 @@ export async function computeRanking(projectRoot: string): Promise<RankingSummar
   try {
     const { analyzeArchHealth } = await import('../../refactor/analyzers/architecture');
     const { analyzeRanking } = await import('../../refactor/analyzers/ranking');
-    const { findLibPath } = await import('../../refactor/paths');
 
-    const libPath = findLibPath(projectRoot);
+    const libPath = await findLibPathWithMonorepo(projectRoot);
     if (!libPath) return undefined;
 
     const archHealth = analyzeArchHealth(libPath, projectRoot);
@@ -75,10 +101,9 @@ export async function computeRecommendations(
     const { generateRecommendations } = await import(
       '../../refactor/analyzers/metrics/recommendations'
     );
-    const { findLibPath } = await import('../../refactor/paths');
     const { findDuplicates } = await import('../../refactor/analyzers/core/duplicates');
 
-    const libPath = findLibPath(projectRoot);
+    const libPath = await findLibPathWithMonorepo(projectRoot);
     if (!libPath) return undefined;
 
     const archHealth = analyzeArchHealth(libPath, projectRoot);
@@ -124,10 +149,9 @@ export async function computeDuplicates(
   projectRoot: string,
 ): Promise<DuplicateSummary | undefined> {
   try {
-    const { findLibPath } = await import('../../refactor/paths');
     const { findDuplicates } = await import('../../refactor/analyzers/core/duplicates');
 
-    const libPath = findLibPath(projectRoot);
+    const libPath = await findLibPathWithMonorepo(projectRoot);
     if (!libPath) return undefined;
 
     const duplicates = await findDuplicates(libPath, projectRoot);
@@ -149,6 +173,38 @@ export async function computeDuplicates(
         files: d.locations.slice(0, 5).map((l) => l.file),
       })),
     };
+  } catch {
+    return undefined;
+  }
+}
+
+// ============================================================================
+// IMPACT ENRICHMENT
+// ============================================================================
+
+/**
+ * Create an ImpactEnricher for enriching issues with dependency impact data
+ *
+ * Reuses the same dependency graph used for ranking analysis.
+ * Uses monorepo detection to find lib paths dynamically.
+ * Returns undefined if no dependency graph is available.
+ */
+export async function createImpactEnricher(
+  projectRoot: string,
+): Promise<ImpactEnricher | undefined> {
+  try {
+    const { analyzeArchHealth } = await import('../../refactor/analyzers/architecture');
+    const { ImpactEnricher: Enricher } = await import('../../audit/enrichment');
+
+    const libPath = await findLibPathWithMonorepo(projectRoot);
+    if (!libPath) return undefined;
+
+    const archHealth = analyzeArchHealth(libPath, projectRoot);
+    if (!archHealth.dependencyGraph || Object.keys(archHealth.dependencyGraph).length === 0) {
+      return undefined;
+    }
+
+    return new Enricher(projectRoot, archHealth.dependencyGraph);
   } catch {
     return undefined;
   }

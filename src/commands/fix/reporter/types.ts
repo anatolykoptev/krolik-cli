@@ -4,6 +4,9 @@
  */
 
 import type { Priority } from '@/types/severity';
+import type { GitContext, IssueCodeContext } from '../../audit/enrichment';
+import type { ImpactScore } from '../../audit/impact';
+import type { Suggestion } from '../../audit/suggestions';
 import type { FixDifficulty, QualityCategory, QualityIssue } from '../core';
 
 // ============================================================================
@@ -60,6 +63,16 @@ export interface EnrichedIssue {
   autoFixable: boolean;
   /** Fix suggestion if available */
   fixSuggestion?: string;
+  /** Context-aware code suggestion with before/after and confidence */
+  suggestion?: Suggestion;
+  /** Impact score based on dependency analysis and git history */
+  impact?: ImpactScore;
+  /** Git context for high-complexity or critical issues */
+  gitContext?: GitContext;
+  /** Cyclomatic complexity if known (from parent function) */
+  complexity?: number;
+  /** Code context with snippet and complexity breakdown */
+  codeContext?: IssueCodeContext;
 }
 
 /**
@@ -79,6 +92,79 @@ export interface IssueGroup {
   autoFixableCount: number;
   /** Issues in this group */
   issues: EnrichedIssue[];
+}
+
+// ============================================================================
+// ISSUE PATTERN GROUPING (Smart Audit)
+// ============================================================================
+
+/**
+ * Pattern identifiers for batch operations
+ */
+export type IssuePatternId =
+  | 'any-usage'
+  | 'console-log'
+  | 'debugger'
+  | 'alert'
+  | 'ts-ignore'
+  | 'ts-nocheck'
+  | 'high-complexity'
+  | 'missing-return-type'
+  | 'hardcoded-url'
+  | 'hardcoded-number'
+  | 'hardcoded-string'
+  | 'path-traversal'
+  | 'command-injection'
+  | 'i18n-hardcoded'
+  | 'other';
+
+/**
+ * Batch fix information for a pattern
+ */
+export interface BatchFixInfo {
+  /** Whether a batch fix is available */
+  available: boolean;
+  /** CLI command to run batch fix */
+  command?: string;
+  /** Number of files affected */
+  filesAffected: number;
+  /** Number of issues that can be auto-fixed */
+  autoFixable: number;
+  /** Number of issues that require manual intervention */
+  manualRequired: number;
+}
+
+/**
+ * File-level issue summary within a pattern
+ */
+export interface PatternFileInfo {
+  /** Relative file path */
+  path: string;
+  /** Number of issues in this file for this pattern */
+  count: number;
+  /** Number of auto-fixable issues */
+  auto: number;
+}
+
+/**
+ * A pattern-based grouping of issues for smart audit output
+ *
+ * Groups issues by their underlying pattern (e.g., all `any` usages)
+ * to enable batch operations and reduce noise in output.
+ */
+export interface IssuePattern {
+  /** Issue category (e.g., 'type-safety', 'lint') */
+  category: QualityCategory;
+  /** Pattern identifier (e.g., 'any-usage', 'console-log') */
+  pattern: IssuePatternId;
+  /** Human-readable pattern name */
+  patternName: string;
+  /** All issues matching this pattern */
+  issues: EnrichedIssue[];
+  /** Batch fix information */
+  batchFix: BatchFixInfo;
+  /** Issues grouped by file */
+  byFile: PatternFileInfo[];
 }
 
 // ============================================================================
@@ -147,8 +233,24 @@ export interface ActionStep {
         before?: string | undefined;
         after: string;
         reason: string;
+        /** Type inference context (for type-safety issues) */
+        typeContext?:
+          | {
+              current: string;
+              inferredType: string;
+              confidence: number;
+              evidence: Array<{
+                type: string;
+                description: string;
+                line?: number | undefined;
+              }>;
+              suggestedFix: string;
+            }
+          | undefined;
       }
     | undefined;
+  /** Code context with snippet and complexity breakdown (for CRITICAL/HIGH) */
+  codeContext?: IssueCodeContext | undefined;
 }
 
 /**
@@ -242,6 +344,10 @@ export interface AIReport {
   recommendations?: RecommendationSummary[];
   /** Duplicate functions summary */
   duplicates?: DuplicateSummary;
+  /** Issues grouped by pattern for smart audit output */
+  issuePatterns?: IssuePattern[];
+  /** Clustered issues (3+ same category in same file) */
+  issueClusters?: IssueCluster[];
 }
 
 // ============================================================================
@@ -342,6 +448,52 @@ export interface RankingSummary {
     nodeCount: number;
     edgeCount: number;
     cycleCount: number;
+  };
+}
+
+// ============================================================================
+// ISSUE CLUSTERING
+// ============================================================================
+
+/**
+ * A cluster of related issues in the same file with the same category
+ *
+ * Used to group issues that can be addressed together, reducing noise
+ * in the audit output and enabling batch operations.
+ */
+export interface IssueCluster {
+  /** Normalized file path */
+  file: string;
+  /** Issue category (e.g., 'type-safety', 'lint') */
+  category: string;
+  /** Number of issues in this cluster */
+  count: number;
+  /** Line numbers where issues occur */
+  locations: number[];
+  /** Detected root cause pattern */
+  rootCause: string;
+  /** Whether issues can be fixed together in one operation */
+  fixTogether: boolean;
+  /** Suggested approach for fixing */
+  suggestedApproach: string;
+  /** Original issues (for access to full data) */
+  issues: EnrichedIssue[];
+}
+
+/**
+ * Result of issue clustering operation
+ */
+export interface ClusteringResult {
+  /** Clusters with 3+ issues (worth grouping) */
+  clusters: IssueCluster[];
+  /** Individual issues that didn't form clusters */
+  unclustered: EnrichedIssue[];
+  /** Statistics about clustering */
+  stats: {
+    totalIssues: number;
+    clusteredIssues: number;
+    unclusteredIssues: number;
+    clusterCount: number;
   };
 }
 

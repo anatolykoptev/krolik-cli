@@ -12,13 +12,26 @@
  * - summary: Report summary calculation
  */
 
+import type { ImpactEnricher } from '../../audit/enrichment';
+import {
+  enrichIssueWithCodeContext,
+  getGitContext,
+  shouldAttachGitContext,
+} from '../../audit/enrichment';
+import { clusterIssues } from '../../audit/grouping';
+import { generateSuggestion } from '../../audit/suggestions';
 import type { QualityIssue, QualityReport } from '../core';
 import { generateActionPlan } from './action-plan';
 import { buildContext, buildFileContexts } from './file-context';
 import { findAIRulesFiles, getGitInfo } from './git-context';
 import { enrichIssue, extractHotspots, extractQuickWins, groupByPriority } from './grouping';
 import { selectIssuesWithI18nHandling } from './issue-selection';
-import { computeDuplicates, computeRanking, computeRecommendations } from './refactor-analysis';
+import {
+  computeDuplicates,
+  computeRanking,
+  computeRecommendations,
+  createImpactEnricher,
+} from './refactor-analysis';
 import { determineNextAction, generateDoNotRules } from './rules';
 import { calculateSummary } from './summary';
 import type {
@@ -44,8 +57,9 @@ export function generateAIReport(
   ranking?: RankingSummary,
   recommendations?: RecommendationSummary[],
   duplicates?: DuplicateSummary,
+  impactEnricher?: ImpactEnricher,
 ): AIReport {
-  const { maxIssues = 100 } = options;
+  const { maxIssues = 100, includeSnippets = false } = options;
 
   // Collect all issues
   const allIssues: QualityIssue[] = [];
@@ -75,8 +89,61 @@ export function generateAIReport(
     maxIssues,
   );
 
-  // Enrich selected issues
-  const enrichedIssues = selectedIssues.map((issue) => enrichIssue(issue));
+  // Enrich selected issues with effort, priority, suggestions, impact, and code context
+  const enrichedIssues = selectedIssues.map((issue) => {
+    const enriched = enrichIssue(issue, { includeCodeContext: includeSnippets });
+
+    // Add AI-generated suggestion if available
+    const content = fileContents?.get(issue.file);
+    if (content) {
+      const suggestion = generateSuggestion(issue, content);
+      if (suggestion) {
+        enriched.suggestion = suggestion;
+      }
+    }
+
+    // Add impact data if enricher is available
+    if (impactEnricher) {
+      const impactData = impactEnricher.enrichIssue(issue);
+      enriched.impact = {
+        dependents: impactData.dependentsCount,
+        bugHistory: 0, // Not available at issue level
+        changeFrequency: 0, // Not available at issue level
+        pageRank: 0, // Not exposed in EnrichedImpact
+        percentile: impactData.pageRankPercentile,
+        riskLevel: impactData.riskLevel,
+        dependentFiles: impactData.dependents,
+        riskReason: impactData.riskReason,
+      };
+    }
+
+    // Extract complexity from message if available (e.g., "Cyclomatic complexity 18 > 15")
+    const complexityMatch = issue.message.match(/complexity[:\s]+(\d+)/i);
+    const complexity = complexityMatch ? parseInt(complexityMatch[1] ?? '0', 10) : undefined;
+    if (complexity !== undefined) {
+      enriched.complexity = complexity;
+    }
+
+    // Add git context for high-complexity or critical issues
+    // Get initial hotspot status (false initially, will be determined by git context)
+    const isHotspot = false;
+    if (shouldAttachGitContext(complexity, enriched.priority, isHotspot)) {
+      const gitContext = getGitContext(issue.file, {
+        projectRoot: qualityReport.projectRoot,
+      });
+      enriched.gitContext = gitContext;
+    }
+
+    // Add code context (snippet + complexity breakdown) for CRITICAL/HIGH issues
+    if (enriched.priority === 'critical' || enriched.priority === 'high') {
+      const codeContext = enrichIssueWithCodeContext(issue, 5);
+      if (codeContext.snippet || codeContext.complexityBreakdown) {
+        enriched.codeContext = codeContext;
+      }
+    }
+
+    return enriched;
+  });
 
   // Build context
   const context = buildContext(qualityReport.projectRoot);
@@ -86,6 +153,9 @@ export function generateAIReport(
 
   // Group by priority
   const groups = groupByPriority(enrichedIssues);
+
+  // Cluster related issues (3+ same category in same file)
+  const { clusters: issueClusters } = clusterIssues(enrichedIssues, 3);
 
   // Generate action plan
   const actionPlan = generateActionPlan(enrichedIssues, fileContents);
@@ -150,6 +220,7 @@ export function generateAIReport(
     ...(ranking && { ranking }),
     ...(recommendations && recommendations.length > 0 && { recommendations }),
     ...(duplicates && { duplicates }),
+    ...(issueClusters.length > 0 && { issueClusters }),
   };
 }
 
@@ -174,11 +245,12 @@ export async function generateAIReportFromAnalysis(
   }
 
   // Run all analyses in parallel
-  const [qualityResult, ranking, recommendations, duplicates] = await Promise.all([
+  const [qualityResult, ranking, recommendations, duplicates, impactEnricher] = await Promise.all([
     analyzeQuality(projectRoot, qualityOptions),
     computeRanking(projectRoot),
     computeRecommendations(projectRoot),
     computeDuplicates(projectRoot),
+    createImpactEnricher(projectRoot),
   ]);
 
   return generateAIReport(
@@ -188,5 +260,6 @@ export async function generateAIReportFromAnalysis(
     ranking,
     recommendations,
     duplicates,
+    impactEnricher,
   );
 }

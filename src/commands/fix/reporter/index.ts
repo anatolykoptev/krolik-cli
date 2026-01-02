@@ -19,13 +19,20 @@
  * ```
  */
 
+// Re-export code snippet and complexity types from enrichment
+export type {
+  BranchType,
+  CodeSnippet,
+  ComplexityBranch,
+  ComplexityBreakdown,
+  IssueCodeContext,
+} from '../../audit/enrichment';
 // Effort estimation
 export { aggregateEffort, estimateEffort } from './effort';
 // Formatters
-export { formatAsJson, formatAsMarkdown, formatAsXml } from './formatter';
+export { formatAsJson, formatAsMarkdown, formatAsProgressiveXml, formatAsXml } from './formatter';
 // Report generation
 export { generateAIReport, generateAIReportFromAnalysis } from './generator';
-
 // Issue grouping
 export {
   enrichIssue,
@@ -42,13 +49,17 @@ export type {
   AIReport,
   AIReportOptions,
   AIRuleFile,
+  BatchFixInfo,
   EffortEstimate,
   EffortLevel,
   EnrichedIssue,
   FileContext,
   GitInfo,
   IssueGroup,
+  IssuePattern,
+  IssuePatternId,
   NextActionItem,
+  PatternFileInfo,
   PriorityLevel,
   ReportContext,
   ReportSummary,

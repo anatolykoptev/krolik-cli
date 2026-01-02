@@ -110,7 +110,20 @@ export function generateActionPlan(
       step.snippet = issue.snippet;
     }
 
-    if (fixSuggestion) {
+    // Add code context (snippet + complexity breakdown) for CRITICAL/HIGH issues
+    if (enriched.codeContext) {
+      step.codeContext = enriched.codeContext;
+    }
+
+    // Use full suggestion if available (includes typeContext for type-safety issues)
+    if (enriched.suggestion) {
+      step.suggestion = {
+        before: enriched.suggestion.before,
+        after: enriched.suggestion.after,
+        reason: enriched.suggestion.reasoning,
+        typeContext: enriched.suggestion.typeContext,
+      };
+    } else if (fixSuggestion) {
       step.suggestion = {
         after: fixSuggestion,
         reason: `Fix ${issue.category} issue`,
