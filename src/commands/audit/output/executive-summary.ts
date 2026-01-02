@@ -80,9 +80,25 @@ export function generateExecutiveSummary(
 export function buildExecutiveSummaryElement(report: AIReport, previousScore?: number): XmlElement {
   const summary = generateExecutiveSummary(report, previousScore);
 
+  // Build health score attributes
+  const healthAttrs: Record<string, string | number> = {
+    score: summary.health.grade,
+    trend: summary.health.trend,
+  };
+
+  // Add numeric score for more precision
+  healthAttrs.numeric = summary.health.score;
+
+  // Add delta if comparing with previous
+  if (previousScore !== undefined) {
+    const delta = summary.health.score - previousScore;
+    healthAttrs.delta = delta >= 0 ? `+${delta}` : `${delta}`;
+    healthAttrs['vs-previous'] = previousScore;
+  }
+
   const children: XmlElement[] = [
     // Health score (always present)
-    { tag: 'health', attrs: { score: summary.health.grade, trend: summary.health.trend } },
+    { tag: 'health', attrs: healthAttrs },
     // Critical count (always present)
     { tag: 'critical', attrs: { count: summary.criticalCount } },
   ];

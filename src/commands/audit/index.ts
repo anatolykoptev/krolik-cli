@@ -19,7 +19,13 @@ import type { AIReport, EnrichedIssue, IssueGroup } from '../fix/reporter/types'
 import { getProjectStatus } from '../status';
 import { formatReportOutput, type ReportSummary } from '../status/output';
 import { type AuditIntent, filterByIntent, parseIntent } from './filters';
-import { formatProgressiveOutput, type OutputLevel } from './output';
+import {
+  calculateHealthScore,
+  formatProgressiveOutput,
+  getPreviousAudit,
+  type OutputLevel,
+  saveAuditEntry,
+} from './output';
 
 /**
  * Audit command options
@@ -327,6 +333,23 @@ export async function runAudit(ctx: CommandContext & { options: AuditOptions }):
     if (intent.feature) filterInfo.push(`feature: ${intent.feature}`);
     if (intent.mode !== 'all') filterInfo.push(`mode: ${intent.mode}`);
     logger.info(`Filtering by ${filterInfo.join(', ')}`);
+  }
+
+  // Calculate health score with trend tracking
+  const previousAudit = getPreviousAudit(projectRoot);
+  const healthScore = calculateHealthScore(report, previousAudit?.score);
+
+  // Save current audit to history (only if not filtered)
+  if (!intent) {
+    const status = getProjectStatus(projectRoot, { fast: true });
+    saveAuditEntry(projectRoot, {
+      timestamp: new Date().toISOString(),
+      branch: status.branch?.name,
+      score: healthScore.score,
+      grade: healthScore.grade,
+      issues: report.summary.byPriority,
+      totalIssues: report.summary.totalIssues,
+    });
   }
 
   // Get output level

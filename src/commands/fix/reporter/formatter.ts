@@ -777,7 +777,7 @@ export function formatAsXml(report: AIReport): string {
   lines.push(`  <meta version="${report.meta.version}" generated="${report.meta.generatedAt}" />`);
   lines.push('');
 
-  // Summary
+  // Summary with Google-style severity breakdown
   lines.push('  <summary>');
   lines.push(`    <total-issues>${report.summary.totalIssues}</total-issues>`);
   lines.push(`    <auto-fixable>${report.summary.autoFixableIssues}</auto-fixable>`);
@@ -785,6 +785,21 @@ export function formatAsXml(report: AIReport): string {
   lines.push(
     `    <total-effort minutes="${report.summary.totalEffortMinutes}">${report.summary.totalEffortLabel}</total-effort>`,
   );
+
+  // Google-style severity breakdown (priority → severity mapping)
+  const bySeverity = {
+    'must-fix': report.summary.byPriority.critical ?? 0,
+    'should-fix': report.summary.byPriority.high ?? 0,
+    nit: report.summary.byPriority.medium ?? 0,
+    optional: report.summary.byPriority.low ?? 0,
+  };
+  lines.push('    <by-severity google-style="true">');
+  lines.push(`      <must-fix blocking="true">${bySeverity['must-fix']}</must-fix>`);
+  lines.push(`      <should-fix>${bySeverity['should-fix']}</should-fix>`);
+  lines.push(`      <nit>${bySeverity.nit}</nit>`);
+  lines.push(`      <optional>${bySeverity.optional}</optional>`);
+  lines.push('    </by-severity>');
+
   lines.push('  </summary>');
   lines.push('');
 
@@ -793,8 +808,10 @@ export function formatAsXml(report: AIReport): string {
     lines.push('  <quick-wins>');
     for (const win of report.quickWins) {
       const loc = win.issue.line ? `:${win.issue.line}` : '';
+      const severityAttr = win.severity ? ` severity="${win.severity}"` : '';
+      const confidenceAttr = win.confidence ? ` confidence="${win.confidence.score}%"` : '';
       lines.push(
-        `    <issue file="${win.issue.file}${loc}" effort="${win.effort.timeLabel}" priority="${win.priority}">`,
+        `    <issue file="${win.issue.file}${loc}" effort="${win.effort.timeLabel}" priority="${win.priority}"${severityAttr}${confidenceAttr}>`,
       );
       lines.push(`      <description>${escapeXml(win.issue.message)}</description>`);
       // Include impact if available
@@ -822,13 +839,21 @@ export function formatAsXml(report: AIReport): string {
     lines.push('');
   }
 
-  // Action plan
+  // Action plan with Google-style severity
   if (report.actionPlan.length > 0) {
     lines.push('  <action-plan>');
     for (const step of report.actionPlan) {
       const loc = step.line ? `:${step.line}` : '';
+      // Map priority to Google-style severity
+      const severityMap: Record<string, string> = {
+        critical: 'must-fix',
+        high: 'should-fix',
+        medium: 'nit',
+        low: 'optional',
+      };
+      const severity = severityMap[step.priority] ?? 'nit';
       lines.push(
-        `    <step id="${step.id}" action="${step.action}" file="${step.file}${loc}" effort="${step.effort.timeLabel}">`,
+        `    <step id="${step.id}" action="${step.action}" file="${step.file}${loc}" effort="${step.effort.timeLabel}" severity="${severity}">`,
       );
       lines.push(`      <description>${escapeXml(step.description)}</description>`);
       if (step.suggestion) {
@@ -999,6 +1024,23 @@ export function formatAsXml(report: AIReport): string {
       '  <!-- ISSUE-CLUSTERS - File-level grouping for related issues (3+ same category) -->',
     );
     lines.push(...formatIssueClusters(report.issueClusters));
+  }
+
+  // Readability score (Chromium Tricorder-style)
+  if (report.readability) {
+    lines.push('');
+    lines.push('  <!-- READABILITY - Code readability analysis (Chromium Tricorder-style) -->');
+    lines.push(
+      `  <readability overall="${report.readability.overall}" grade="${report.readability.grade}">`,
+    );
+    lines.push(`    <naming>${report.readability.naming}</naming>`);
+    lines.push(`    <structure>${report.readability.structure}</structure>`);
+    lines.push(`    <comments>${report.readability.comments}</comments>`);
+    lines.push(`    <cognitive>${report.readability.cognitive}</cognitive>`);
+    if (report.readability.issueCount > 0) {
+      lines.push(`    <issue-count>${report.readability.issueCount}</issue-count>`);
+    }
+    lines.push('  </readability>');
   }
 
   lines.push('</ai-report>');

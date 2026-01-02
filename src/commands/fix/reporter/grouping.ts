@@ -5,6 +5,8 @@
 
 import * as path from 'node:path';
 import { groupBy } from '@/lib/@core';
+import { priorityToSeverity } from '@/types/severity';
+import { type ConfidenceOptions, calculateConfidence } from '../../audit/confidence';
 import { enrichIssueWithCodeContext } from '../../audit/enrichment';
 import type { QualityCategory, QualityIssue } from '../core';
 import { getFixDifficulty } from '../core';
@@ -145,12 +147,33 @@ export function enrichIssue(
   const priority = determinePriority(issue);
   const autoFixable = isAutoFixable(issue);
 
+  // Google-style severity (must-fix, should-fix, nit, optional)
+  const severity = priorityToSeverity(priority);
+
+  // Calculate confidence score
+  const confidenceOptions: ConfidenceOptions = {
+    category: issue.category,
+    pattern: detectPattern(issue),
+    method: {
+      ast: true, // Most detections are AST-based
+      typed: issue.category === 'type-safety',
+      contextual: issue.category === 'complexity' || issue.category === 'srp',
+    },
+    context: {
+      isTest: issue.file.includes('.test.') || issue.file.includes('__tests__'),
+      isGenerated: issue.file.includes('.generated.') || issue.file.includes('/generated/'),
+    },
+  };
+  const confidence = calculateConfidence(confidenceOptions);
+
   const enriched: EnrichedIssue = {
     issue,
     effort,
     difficulty,
     priority,
     autoFixable,
+    severity,
+    confidence,
   };
 
   if (issue.suggestion) {
@@ -166,6 +189,41 @@ export function enrichIssue(
   }
 
   return enriched;
+}
+
+/**
+ * Detect pattern from issue message for confidence calculation
+ */
+function detectPattern(issue: QualityIssue): string | undefined {
+  const msg = issue.message.toLowerCase();
+
+  // Lint patterns
+  if (msg.includes('console')) return 'console-log';
+  if (msg.includes('debugger')) return 'debugger';
+  if (msg.includes('alert')) return 'alert';
+
+  // Type safety patterns
+  if (msg.includes('any')) return 'any-usage';
+  if (msg.includes('@ts-ignore')) return 'ts-ignore';
+  if (msg.includes('@ts-nocheck')) return 'ts-nocheck';
+
+  // Security patterns
+  if (msg.includes('sql') && msg.includes('injection')) return 'sql-injection';
+  if (msg.includes('path traversal')) return 'path-traversal';
+  if (msg.includes('command injection')) return 'command-injection';
+
+  // Complexity
+  if (msg.includes('complexity')) return 'high-complexity';
+
+  // Hardcoded
+  if (msg.includes('hardcoded') && msg.includes('url')) return 'hardcoded-url';
+  if (msg.includes('hardcoded') && msg.includes('number')) return 'hardcoded-number';
+  if (msg.includes('hardcoded')) return 'hardcoded-string';
+
+  // Documentation
+  if (msg.includes('jsdoc') || msg.includes('documentation')) return 'missing-jsdoc';
+
+  return undefined;
 }
 
 /**

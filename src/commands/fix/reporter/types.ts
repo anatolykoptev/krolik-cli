@@ -3,7 +3,7 @@
  * @description Types for AI Report Generator
  */
 
-import type { Priority } from '@/types/severity';
+import type { ConfidenceScore, GoogleSeverity, Priority } from '@/types/severity';
 import type { GitContext, IssueCodeContext } from '../../audit/enrichment';
 import type { ImpactScore } from '../../audit/impact';
 import type { Suggestion } from '../../audit/suggestions';
@@ -73,6 +73,22 @@ export interface EnrichedIssue {
   complexity?: number;
   /** Code context with snippet and complexity breakdown */
   codeContext?: IssueCodeContext;
+
+  // ============================================================================
+  // GOOGLE-STYLE FIELDS (Phase 1)
+  // ============================================================================
+
+  /**
+   * Google-style severity level
+   * @see https://abseil.io/resources/swe-book/html/ch09.html
+   */
+  severity?: GoogleSeverity;
+
+  /**
+   * Confidence score for this issue detection
+   * Google principle: Zero False Positives > High Recall
+   */
+  confidence?: ConfidenceScore;
 }
 
 /**
@@ -348,6 +364,33 @@ export interface AIReport {
   issuePatterns?: IssuePattern[];
   /** Clustered issues (3+ same category in same file) */
   issueClusters?: IssueCluster[];
+  /** Readability score (Chromium Tricorder-style) */
+  readability?: ReadabilityScoreSummary;
+}
+
+// ============================================================================
+// READABILITY SCORE SUMMARY
+// ============================================================================
+
+/**
+ * Readability score summary for report
+ * Based on Chromium Tricorder analysis
+ */
+export interface ReadabilityScoreSummary {
+  /** Overall score (0-100) */
+  overall: number;
+  /** Letter grade (A-F) */
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  /** Naming quality score */
+  naming: number;
+  /** Code structure score */
+  structure: number;
+  /** Documentation coverage score */
+  comments: number;
+  /** Cognitive complexity score (inverse - higher = simpler) */
+  cognitive: number;
+  /** Number of readability issues found */
+  issueCount: number;
 }
 
 // ============================================================================

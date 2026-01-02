@@ -74,3 +74,20 @@ export {
   OUTPUT_LEVELS,
   validateTokenBudget,
 } from './progressive';
+
+// ============================================================================
+// Audit History (Trend Tracking)
+// ============================================================================
+
+export type {
+  AuditHistory,
+  AuditHistoryEntry,
+} from './history';
+
+export {
+  calculateScoreDelta,
+  getHistorySummary,
+  getPreviousAudit,
+  loadAuditHistory,
+  saveAuditEntry,
+} from './history';

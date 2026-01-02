@@ -42,13 +42,19 @@ export interface HealthScore {
 
 /**
  * Weight multipliers for each priority level
- * Critical issues hurt score more than low issues
+ * Based on Google Engineering Practices severity levels:
+ * - critical → must-fix (blocking, weight: 10)
+ * - high → should-fix (weight: 3)
+ * - medium → nit (weight: 1)
+ * - low → optional (weight: 0.1)
+ *
+ * @see https://abseil.io/resources/swe-book/html/ch09.html
  */
 const PRIORITY_WEIGHTS: Record<PriorityLevel, number> = {
-  critical: 10,
-  high: 5,
-  medium: 2,
-  low: 1,
+  critical: 10, // must-fix: security, correctness, crashes
+  high: 3, // should-fix: performance, maintainability
+  medium: 1, // nit: style, naming, formatting
+  low: 0.1, // optional: suggestions, alternatives
 };
 
 /**
@@ -84,17 +90,24 @@ const MIN_SCORE = 0;
  * console.log(`Grade: ${health.grade}, Score: ${health.score}`);
  */
 export function calculateHealthScore(report: AIReport, previousScore?: number): HealthScore {
-  const { byPriority } = report.summary;
+  const { byPriority, totalIssues } = report.summary;
 
-  // Calculate weighted penalty
-  const totalPenalty =
+  // Calculate weighted penalty using Google-style severity weights
+  const totalWeight =
     byPriority.critical * PRIORITY_WEIGHTS.critical +
     byPriority.high * PRIORITY_WEIGHTS.high +
     byPriority.medium * PRIORITY_WEIGHTS.medium +
     byPriority.low * PRIORITY_WEIGHTS.low;
 
-  // Score = 100 - penalty (clamped to 0-100)
-  const rawScore = MAX_SCORE - totalPenalty;
+  // Google-style formula: normalize by issue count
+  // maxWeight = if all issues were critical (worst case)
+  // ratio = 1 - (actualWeight / maxWeight)
+  // This means 100 low issues score better than 10 critical issues
+  const maxWeight = totalIssues * PRIORITY_WEIGHTS.critical;
+  const ratio = maxWeight > 0 ? 1 - totalWeight / maxWeight : 1;
+
+  // Score = ratio * 100 (clamped to 0-100)
+  const rawScore = Math.round(ratio * MAX_SCORE);
   const score = Math.max(MIN_SCORE, Math.min(MAX_SCORE, rawScore));
 
   // Determine grade
