@@ -1,5 +1,16 @@
 # @anatolykoptev/krolik-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- feat(agent): modular architecture + constants extraction
+  - Refactored agent command into modular structure (context/, orchestrator/)
+  - Extracted all magic numbers to centralized constants.ts
+  - Added smart memory search with relevance ranking
+  - Improved context enrichment with library docs
+  - Added execution history persistence
+
 ## 0.8.0
 
 ### Minor Changes
