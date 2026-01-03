@@ -76,6 +76,42 @@ export interface TemplateConfig {
 }
 
 /**
+ * Roadmap phase configuration
+ */
+export interface RoadmapPhase {
+  /** Label to match in GitHub issues (e.g., 'phase-1', 'milestone-mvp') */
+  label: string;
+  /** Display title (e.g., 'Phase 1: MVP') */
+  title: string;
+  /** Short description */
+  description?: string;
+  /** Emoji for display */
+  emoji?: string;
+}
+
+/**
+ * Roadmap auto-generation configuration
+ */
+export interface RoadmapConfig {
+  /** Enable auto-generation on status check */
+  auto?: boolean;
+  /** Output file path (relative to project root) */
+  output?: string;
+  /** Project title in generated roadmap */
+  projectTitle?: string;
+  /** Phase configurations (auto-detected if not set) */
+  phases?: RoadmapPhase[];
+  /** Label prefix for status (default: 'status:') */
+  statusPrefix?: string;
+  /** Label prefix for areas (default: 'area:') */
+  areaPrefix?: string;
+  /** Label prefix for priority (default: 'priority') */
+  priorityPrefix?: string;
+  /** Max age in hours before refresh (default: 24) */
+  maxAgeHours?: number;
+}
+
+/**
  * Domain configuration for context filtering
  */
 export interface DomainConfig {
@@ -119,6 +155,9 @@ export interface KrolikConfig {
   /** Custom domain definitions for context filtering */
   domains?: Record<string, DomainConfig>;
 
+  /** Roadmap auto-generation settings */
+  roadmap?: RoadmapConfig;
+
   /** Directories to exclude from analysis */
   exclude?: string[];
 
@@ -131,13 +170,14 @@ export type RabbitConfig = KrolikConfig;
 
 /**
  * Resolved configuration with all defaults applied
- * Note: domains remains optional as it's project-specific configuration
+ * Note: domains and roadmap remain optional as they're project-specific configuration
  */
-export interface ResolvedConfig extends Omit<Required<KrolikConfig>, 'domains'> {
+export interface ResolvedConfig extends Omit<Required<KrolikConfig>, 'domains' | 'roadmap'> {
   paths: Required<PathConfig>;
   features: Required<FeatureConfig>;
   prisma: Required<PrismaConfig>;
   trpc: Required<TrpcConfig>;
   templates: Required<TemplateConfig>;
   domains?: Record<string, DomainConfig>;
+  roadmap?: RoadmapConfig;
 }

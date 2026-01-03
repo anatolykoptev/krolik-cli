@@ -342,8 +342,8 @@ export async function runAudit(ctx: CommandContext & { options: AuditOptions }):
   // Save current audit to history (only if not filtered)
   if (!intent) {
     const status = getProjectStatus(projectRoot, { fast: true });
-    saveAuditEntry(projectRoot, {
-      timestamp: new Date().toISOString(),
+    saveAuditEntry({
+      projectRoot,
       branch: status.branch?.name,
       score: healthScore.score,
       grade: healthScore.grade,

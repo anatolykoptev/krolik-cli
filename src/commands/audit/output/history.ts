@@ -2,129 +2,101 @@
  * @module commands/audit/output/history
  * @description Audit history tracking for trend analysis
  *
- * Stores audit results in .krolik/audit-history.json to enable
- * trend comparison between audits (improving, stable, declining).
+ * Uses SQLite database in ~/.krolik/memory/memories.db for persistence.
+ * Tracks audit results over time for trend comparison.
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { ensureDir } from '@/lib/@core/fs';
+import {
+  type AuditHistoryEntry,
+  type AuditTrend,
+  calculateTrend as dbCalculateTrend,
+  getAuditHistory as dbGetHistory,
+  getLatestAudit as dbGetLatest,
+  getPreviousAudit as dbGetPrevious,
+  saveAuditEntry as dbSaveEntry,
+} from '@/lib/@storage';
 import type { PriorityLevel } from '../../fix/reporter/types';
 import type { HealthGrade } from './health-score';
 
 // ============================================================================
-// TYPES
+// RE-EXPORT TYPES
+// ============================================================================
+
+export type { AuditHistoryEntry, AuditTrend };
+
+// ============================================================================
+// SIMPLIFIED API (for audit command)
 // ============================================================================
 
 /**
- * A single audit history entry
+ * Input for saving audit entry (simplified for command use)
  */
-export interface AuditHistoryEntry {
-  /** ISO timestamp of the audit */
-  timestamp: string;
-  /** Git commit hash if available */
-  commit?: string;
-  /** Git branch name */
-  branch?: string;
+export interface SaveAuditInput {
+  /** Project root path */
+  projectRoot: string;
   /** Health score (0-100) */
   score: number;
   /** Letter grade */
   grade: HealthGrade;
-  /** Issue counts by priority */
+  /** Issues by priority */
   issues: Record<PriorityLevel, number>;
   /** Total issue count */
   totalIssues: number;
+  /** Git branch (optional) */
+  branch?: string;
+  /** Git commit hash (optional) */
+  commit?: string;
+  /** Files analyzed (optional) */
+  filesAnalyzed?: number;
+  /** Duration in ms (optional) */
+  durationMs?: number;
 }
 
 /**
- * Complete audit history file structure
+ * Save audit entry to history (simplified API)
  */
-export interface AuditHistory {
-  /** Schema version for migrations */
-  version: '1.0';
-  /** Array of audit entries (newest first) */
-  entries: AuditHistoryEntry[];
-}
+export function saveAuditEntry(input: SaveAuditInput): void {
+  const now = new Date();
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-const HISTORY_FILE = '.krolik/audit-history.json';
-const MAX_ENTRIES = 50; // Keep last 50 audits
-
-// ============================================================================
-// PUBLIC API
-// ============================================================================
-
-/**
- * Load audit history from file
- */
-export function loadAuditHistory(projectRoot: string): AuditHistory {
-  const historyPath = path.join(projectRoot, HISTORY_FILE);
-
-  try {
-    if (fs.existsSync(historyPath)) {
-      const content = fs.readFileSync(historyPath, 'utf-8');
-      const history = JSON.parse(content) as AuditHistory;
-
-      // Validate structure
-      if (history.version === '1.0' && Array.isArray(history.entries)) {
-        return history;
-      }
-    }
-  } catch {
-    // Return empty history on error
-  }
-
-  return { version: '1.0', entries: [] };
-}
-
-/**
- * Save audit entry to history
- */
-export function saveAuditEntry(projectRoot: string, entry: AuditHistoryEntry): void {
-  const historyPath = path.join(projectRoot, HISTORY_FILE);
-  const history = loadAuditHistory(projectRoot);
-
-  // Add new entry at the beginning
-  history.entries.unshift(entry);
-
-  // Trim to max entries
-  if (history.entries.length > MAX_ENTRIES) {
-    history.entries = history.entries.slice(0, MAX_ENTRIES);
-  }
-
-  // Ensure .krolik directory exists
-  ensureDir(path.dirname(historyPath));
-
-  // Write history
-  fs.writeFileSync(historyPath, JSON.stringify(history, null, 2), 'utf-8');
+  dbSaveEntry({
+    project: normalizeProjectPath(input.projectRoot),
+    timestamp: now.toISOString(),
+    timestamp_epoch: now.getTime(),
+    commit_hash: input.commit,
+    branch: input.branch,
+    score: input.score,
+    grade: input.grade,
+    total_issues: input.totalIssues,
+    critical_issues: input.issues.critical ?? 0,
+    high_issues: input.issues.high ?? 0,
+    medium_issues: input.issues.medium ?? 0,
+    low_issues: input.issues.low ?? 0,
+    files_analyzed: input.filesAnalyzed,
+    duration_ms: input.durationMs,
+  });
 }
 
 /**
  * Get the previous audit entry (for trend comparison)
  */
 export function getPreviousAudit(projectRoot: string): AuditHistoryEntry | undefined {
-  const history = loadAuditHistory(projectRoot);
-  // Return the most recent entry (first in array)
-  return history.entries[0];
+  return dbGetPrevious(normalizeProjectPath(projectRoot));
 }
 
 /**
- * Get audit history summary
+ * Get audit history summary (for display)
  */
 export function getHistorySummary(
   projectRoot: string,
   limit = 5,
 ): Array<{ date: string; score: number; grade: HealthGrade; issues: number }> {
-  const history = loadAuditHistory(projectRoot);
+  const entries = dbGetHistory(normalizeProjectPath(projectRoot), limit);
 
-  return history.entries.slice(0, limit).map((entry) => ({
+  return entries.map((entry) => ({
     date: new Date(entry.timestamp).toLocaleDateString(),
     score: entry.score,
     grade: entry.grade,
-    issues: entry.totalIssues,
+    issues: entry.total_issues,
   }));
 }
 
@@ -135,7 +107,7 @@ export function calculateScoreDelta(
   currentScore: number,
   projectRoot: string,
 ): { delta: number; previous?: number } {
-  const previous = getPreviousAudit(projectRoot);
+  const previous = dbGetLatest(normalizeProjectPath(projectRoot));
 
   if (!previous) {
     return { delta: 0 };
@@ -145,4 +117,36 @@ export function calculateScoreDelta(
     delta: currentScore - previous.score,
     previous: previous.score,
   };
+}
+
+/**
+ * Get full trend analysis
+ */
+export function getTrend(projectRoot: string): AuditTrend {
+  return dbCalculateTrend(normalizeProjectPath(projectRoot));
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Normalize project path for consistent storage
+ * Removes trailing slashes, resolves ~, etc.
+ */
+function normalizeProjectPath(projectRoot: string): string {
+  // Remove trailing slashes
+  const normalized = projectRoot.replace(/\/+$/, '');
+
+  // Extract just the project name for brevity
+  const parts = normalized.split('/');
+  const projectName = parts[parts.length - 1] ?? normalized;
+
+  // If it's a typical project path, use just the project name
+  // Otherwise keep the full path for uniqueness
+  if (normalized.includes('/CascadeProjects/') || normalized.includes('/Projects/')) {
+    return projectName;
+  }
+
+  return normalized;
 }

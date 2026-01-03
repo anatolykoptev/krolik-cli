@@ -31,7 +31,7 @@ export type FixCategory = (typeof FIX_CATEGORIES)[number];
  * Common flag definitions for use with buildFlags()
  */
 export const COMMON_FLAGS = {
-  path: { flag: '--path', sanitize: 'feature' } as const,
+  path: { flag: '--path', sanitize: 'path' } as const,
   feature: { flag: '--feature', sanitize: 'feature' } as const,
   issue: { flag: '--issue', sanitize: 'issue' } as const,
   pr: { flag: '--pr', sanitize: 'issue' } as const,

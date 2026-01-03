@@ -11,6 +11,7 @@ import type { SectionRegistry } from '../types';
 import { contextCacheProvider } from './context-cache';
 import { libModulesProvider } from './lib-modules';
 import { recentMemoriesProvider } from './recent-memories';
+import { roadmapProvider } from './roadmap';
 import { sessionStartupProvider } from './session-startup';
 import { subDocsProvider } from './sub-docs';
 import { toolsTableProvider } from './tools-table';
@@ -19,6 +20,7 @@ import { toolsTableProvider } from './tools-table';
 export { contextCacheProvider } from './context-cache';
 export { libModulesProvider } from './lib-modules';
 export { recentMemoriesProvider } from './recent-memories';
+export { roadmapProvider } from './roadmap';
 export { sessionStartupProvider } from './session-startup';
 export { subDocsProvider } from './sub-docs';
 export { toolsTableProvider } from './tools-table';
@@ -30,6 +32,7 @@ export const BUILTIN_PROVIDERS = [
   sessionStartupProvider,
   recentMemoriesProvider,
   contextCacheProvider,
+  roadmapProvider,
   subDocsProvider,
   libModulesProvider,
   toolsTableProvider,

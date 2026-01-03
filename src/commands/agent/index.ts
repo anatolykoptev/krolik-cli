@@ -7,11 +7,9 @@
  * 2. Orchestration mode: Analyze task and coordinate multiple agents
  */
 
-import { measureTime } from '../../lib/@core/time';
-import { escapeXml } from '../../lib/@format';
 import type { CommandContext } from '../../types/commands/base';
 import { AGENT_CATEGORIES, resolveCategory } from './categories';
-import { buildAgentContext, formatContextForPrompt } from './context';
+import { LIMITS } from './constants';
 import {
   cloneAgentsRepo,
   findAgentsPath,
@@ -23,15 +21,9 @@ import {
   loadAllAgents,
   updateAgentsRepo,
 } from './loader';
-import {
-  formatOrchestrationJSON,
-  formatOrchestrationText,
-  formatOrchestrationXML,
-  type OrchestrateOptions,
-  orchestrate,
-} from './orchestrator';
-import { formatAgentListAI, formatAgentListText, formatResultText } from './output';
-import type { AgentCategory, AgentDefinition, AgentOptions, AgentResult } from './types';
+import { formatAgentListAI, formatAgentListText } from './output';
+import { runOrchestration, runSingleAgent } from './runners';
+import type { AgentCategory, AgentOptions } from './types';
 
 /**
  * Agent command options (extended)
@@ -124,7 +116,7 @@ function handleAgentNotFound(
   if (similar.length > 0) {
     logger.info(
       `\nDid you mean: ${similar
-        .slice(0, 5)
+        .slice(0, LIMITS.SIMILAR_AGENTS)
         .map((a) => a.name)
         .join(', ')}`,
     );
@@ -236,7 +228,8 @@ async function runCategoryAgents(
 
   // Filter to primary agents only
   const primaryAgents = agents.filter((a) => categoryInfo.primaryAgents.includes(a.name));
-  const agentsToRun = primaryAgents.length > 0 ? primaryAgents : agents.slice(0, 3);
+  const agentsToRun =
+    primaryAgents.length > 0 ? primaryAgents : agents.slice(0, LIMITS.DEFAULT_AGENTS_TO_RUN);
 
   console.log(`<agent-category name="${category}">`);
   console.log(`  <label>${categoryInfo.label}</label>`);
@@ -249,99 +242,6 @@ async function runCategoryAgents(
   }
 
   console.log('</agent-category>');
-}
-
-/**
- * Run a single agent
- */
-async function runSingleAgent(
-  agent: AgentDefinition,
-  projectRoot: string,
-  options: AgentOptions,
-  nested = false,
-): Promise<void> {
-  const { result: context, durationMs: contextDurationMs } = measureTime(() =>
-    buildAgentContext(projectRoot, options),
-  );
-
-  const awaitedContext = await context;
-  const contextPrompt = formatContextForPrompt(awaitedContext);
-
-  // Build full prompt
-  const fullPrompt = `${agent.content}
-
-${contextPrompt}
-
-Please analyze the project and provide your findings.`;
-
-  // Create result
-  const result: AgentResult = {
-    agent: agent.name,
-    category: agent.category,
-    success: true,
-    output: '', // Will be filled by Claude
-    durationMs: contextDurationMs,
-  };
-
-  const format = options.format ?? 'ai';
-  const indent = nested ? '  ' : '';
-
-  // Output agent prompt for Claude to execute
-  if (format === 'text') {
-    console.log(`${indent}${formatResultText(result)}`);
-    console.log(`${indent}--- Agent Prompt ---`);
-    console.log(fullPrompt);
-  } else {
-    console.log(`${indent}<agent-execution name="${agent.name}" category="${agent.category}">`);
-    console.log(`${indent}  <description>${escapeXml(agent.description)}</description>`);
-    if (agent.model) {
-      console.log(`${indent}  <model>${agent.model}</model>`);
-    }
-    console.log(`${indent}  <prompt>`);
-    console.log(escapeXml(fullPrompt));
-    console.log(`${indent}  </prompt>`);
-    console.log(`${indent}  <context-duration-ms>${contextDurationMs}</context-duration-ms>`);
-    console.log(`${indent}</agent-execution>`);
-  }
-}
-
-/**
- * Run orchestration mode - analyze task and coordinate multiple agents
- */
-async function runOrchestration(
-  projectRoot: string,
-  task: string,
-  options: AgentCommandOptions,
-): Promise<void> {
-  const orchestrateOptions: OrchestrateOptions = {
-    maxAgents: options.maxAgents,
-    preferParallel: options.preferParallel,
-    includeContext: true,
-    file: options.file,
-    feature: options.feature,
-    dryRun: options.dryRun,
-    format: options.format === 'text' ? 'text' : options.format === 'json' ? 'json' : 'xml',
-  };
-
-  try {
-    const result = await orchestrate(task, projectRoot, orchestrateOptions);
-
-    // Output based on format
-    const format = options.format ?? 'ai';
-
-    if (format === 'text') {
-      console.log(formatOrchestrationText(result));
-    } else if (format === 'json') {
-      console.log(formatOrchestrationJSON(result));
-    } else {
-      // Default: AI-friendly XML
-      console.log(formatOrchestrationXML(result));
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`Orchestration failed: ${message}`);
-    process.exit(1);
-  }
 }
 
 export { AGENT_CATEGORIES, resolveCategory } from './categories';

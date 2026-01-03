@@ -46,7 +46,7 @@ export function clearStatementCache(): void {
 /**
  * Current schema version
  */
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 4;
 
 /**
  * Ensure memory directory exists
@@ -261,6 +261,112 @@ function runMigrations(db: Database.Database): void {
     // Record migration
     const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
     prepareStatement<[number, string]>(db, insertVersionSql).run(2, new Date().toISOString());
+  }
+
+  // Migration 3: Audit history table
+  if (currentVersion < 3) {
+    db.exec(`
+      -- Audit history for trend tracking
+      CREATE TABLE IF NOT EXISTS audit_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        timestamp_epoch INTEGER NOT NULL,
+        commit_hash TEXT,
+        branch TEXT,
+        score INTEGER NOT NULL,
+        grade TEXT NOT NULL CHECK(grade IN ('A', 'B', 'C', 'D', 'F')),
+        total_issues INTEGER NOT NULL,
+        critical_issues INTEGER NOT NULL DEFAULT 0,
+        high_issues INTEGER NOT NULL DEFAULT 0,
+        medium_issues INTEGER NOT NULL DEFAULT 0,
+        low_issues INTEGER NOT NULL DEFAULT 0,
+        files_analyzed INTEGER,
+        duration_ms INTEGER
+      );
+
+      -- Indexes for audit history
+      CREATE INDEX IF NOT EXISTS idx_audit_history_project ON audit_history(project);
+      CREATE INDEX IF NOT EXISTS idx_audit_history_timestamp ON audit_history(timestamp_epoch DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_history_project_timestamp ON audit_history(project, timestamp_epoch DESC);
+    `);
+
+    // Record migration
+    const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
+    prepareStatement<[number, string]>(db, insertVersionSql).run(3, new Date().toISOString());
+  }
+
+  // Migration 4: Progress tracking (tasks, epics, sessions)
+  if (currentVersion < 4) {
+    db.exec(`
+      -- Tasks table (GitHub issues + local + AI-generated)
+      CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        source TEXT NOT NULL CHECK(source IN ('github', 'local', 'ai-generated')),
+        external_id TEXT,
+        project TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'backlog' CHECK(status IN ('backlog', 'in_progress', 'blocked', 'done', 'cancelled')),
+        epic TEXT,
+        priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('critical', 'high', 'medium', 'low')),
+        blocked_by TEXT,
+        labels TEXT DEFAULT '[]',
+        assigned_session TEXT,
+        linked_memories TEXT DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+
+      -- Task indexes
+      CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
+      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+      CREATE INDEX IF NOT EXISTS idx_tasks_epic ON tasks(epic);
+      CREATE INDEX IF NOT EXISTS idx_tasks_project_status ON tasks(project, status);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_external ON tasks(project, source, external_id) WHERE external_id IS NOT NULL;
+
+      -- Epics table (task groups)
+      CREATE TABLE IF NOT EXISTS epics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        project TEXT NOT NULL,
+        description TEXT,
+        progress INTEGER DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'planning' CHECK(status IN ('planning', 'in_progress', 'done', 'on_hold')),
+        total_tasks INTEGER DEFAULT 0,
+        completed_tasks INTEGER DEFAULT 0,
+        started_at TEXT,
+        completed_at TEXT,
+        UNIQUE(project, name)
+      );
+
+      -- Epic indexes
+      CREATE INDEX IF NOT EXISTS idx_epics_project ON epics(project);
+      CREATE INDEX IF NOT EXISTS idx_epics_status ON epics(status);
+
+      -- Sessions table (AI work sessions)
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        project TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        summary TEXT,
+        tasks_worked_on TEXT DEFAULT '[]',
+        tasks_completed TEXT DEFAULT '[]',
+        commits TEXT DEFAULT '[]',
+        memories_created TEXT DEFAULT '[]',
+        files_modified TEXT DEFAULT '[]'
+      );
+
+      -- Session indexes
+      CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project);
+      CREATE INDEX IF NOT EXISTS idx_sessions_started ON sessions(started_at DESC);
+    `);
+
+    // Record migration
+    const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
+    prepareStatement<[number, string]>(db, insertVersionSql).run(4, new Date().toISOString());
   }
 }
 

@@ -24,6 +24,7 @@ import './fix';
 import './issue';
 import './memory';
 import './modules';
+import './progress';
 import './refactor';
 import './review';
 import './routes';

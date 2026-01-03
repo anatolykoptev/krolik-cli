@@ -118,6 +118,9 @@ function resolveConfig(
     templates: { ...base.templates, ...userConfig?.templates },
     exclude: userConfig?.exclude ?? base.exclude,
     extensions: userConfig?.extensions ?? base.extensions,
+    // Optional project-specific configs
+    ...(userConfig?.domains ? { domains: userConfig.domains } : {}),
+    ...(userConfig?.roadmap ? { roadmap: userConfig.roadmap } : {}),
   };
 }
 

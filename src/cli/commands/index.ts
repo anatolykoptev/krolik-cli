@@ -14,6 +14,7 @@ import { registerInitCommand } from './init';
 import { registerIssueCommand } from './issue';
 import { registerMcpCommand } from './mcp';
 import { registerMemCommand } from './mem';
+import { registerProgressCommand } from './progress';
 import { registerQualityCommand } from './quality';
 import { registerRefactorCommand } from './refactor';
 import { registerReviewCommand } from './review';
@@ -55,6 +56,9 @@ export function registerCommands(program: Command): void {
   registerDocsCommand(program);
   registerSetupCommand(program);
   registerAgentCommand(program);
+
+  // Progress tracking
+  registerProgressCommand(program);
 
   // Deprecated commands
   registerQualityCommand(program);

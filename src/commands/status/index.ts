@@ -6,9 +6,11 @@
 import chalk from 'chalk';
 import { createMissingSubDocs, DOCS_VERSION, needsSync, syncClaudeMd } from '../../lib/@claude';
 import { measureTime } from '../../lib/@core/time';
+import { generateRoadmap, needsRoadmapRefresh } from '../../lib/@roadmap';
 import { recent as getRecentMemories } from '../../lib/@storage/memory';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type { StatusResult } from '../../types/commands/status';
+import type { RoadmapConfig } from '../../types/config';
 import { checkGit, checkLint, checkTypecheck, toStatusResult } from './checks';
 import { formatAI, formatJson, formatMarkdown, printStatus } from './output';
 import { getProjectInfo } from './project-info';
@@ -190,6 +192,48 @@ function autoCreateSubDocs(projectRoot: string, isTextFormat: boolean): void {
 }
 
 /**
+ * Auto-refresh roadmap if configured and stale
+ * Runs when roadmap.auto is enabled in config
+ */
+function autoRefreshRoadmap(
+  projectRoot: string,
+  roadmapConfig: RoadmapConfig | undefined,
+  isTextFormat: boolean,
+): void {
+  if (!roadmapConfig?.auto) {
+    return;
+  }
+
+  if (!needsRoadmapRefresh(projectRoot, roadmapConfig)) {
+    return;
+  }
+
+  const result = generateRoadmap(projectRoot, roadmapConfig);
+
+  if (!result.generated) {
+    if (isTextFormat) {
+      console.log(chalk.yellow(`\n⚠️  Roadmap: ${result.error ?? 'Generation failed'}`));
+    } else {
+      console.log(`\n<!-- roadmap-error: ${result.error ?? 'Generation failed'} -->`);
+    }
+    return;
+  }
+
+  if (isTextFormat) {
+    console.log(
+      chalk.green(
+        `\n📊 Roadmap refreshed: ${result.stats.done}/${result.stats.total} done (${result.stats.progress}%)`,
+      ),
+    );
+    console.log(chalk.dim(`   → ${result.path}`));
+  } else {
+    console.log(
+      `\n<!-- roadmap-refreshed: ${result.stats.done}/${result.stats.total} (${result.stats.progress}%) → ${result.path} -->`,
+    );
+  }
+}
+
+/**
  * Run status command
  */
 export async function runStatus(ctx: CommandContext & { options: StatusOptions }): Promise<void> {
@@ -204,6 +248,7 @@ export async function runStatus(ctx: CommandContext & { options: StatusOptions }
     console.log(formatJson(status));
     autoSyncClaudeMd(config.projectRoot, false);
     autoCreateSubDocs(config.projectRoot, false);
+    autoRefreshRoadmap(config.projectRoot, config.roadmap, false);
     return;
   }
 
@@ -211,6 +256,7 @@ export async function runStatus(ctx: CommandContext & { options: StatusOptions }
     console.log(formatMarkdown(status));
     autoSyncClaudeMd(config.projectRoot, false);
     autoCreateSubDocs(config.projectRoot, false);
+    autoRefreshRoadmap(config.projectRoot, config.roadmap, false);
     return;
   }
 
@@ -218,6 +264,7 @@ export async function runStatus(ctx: CommandContext & { options: StatusOptions }
     printStatus(status, logger, options.verbose);
     autoSyncClaudeMd(config.projectRoot, true);
     autoCreateSubDocs(config.projectRoot, true);
+    autoRefreshRoadmap(config.projectRoot, config.roadmap, true);
     return;
   }
 
@@ -225,6 +272,7 @@ export async function runStatus(ctx: CommandContext & { options: StatusOptions }
   console.log(formatAI(status));
   autoSyncClaudeMd(config.projectRoot, false);
   autoCreateSubDocs(config.projectRoot, false);
+  autoRefreshRoadmap(config.projectRoot, config.roadmap, false);
 }
 
 // Re-export types for external use

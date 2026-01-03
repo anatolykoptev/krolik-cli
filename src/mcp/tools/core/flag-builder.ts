@@ -4,13 +4,13 @@
  */
 
 import { escapeShellArg } from '@/lib/@security';
-import { sanitizeFeatureName, sanitizeIssueNumber } from './utils';
+import { sanitizeFeatureName, sanitizeIssueNumber, sanitizePath } from './utils';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export type SanitizeType = 'feature' | 'issue' | 'none';
+export type SanitizeType = 'feature' | 'issue' | 'path' | 'none';
 
 export interface FlagDef {
   flag: string;
@@ -39,7 +39,7 @@ export type BuildResult = { ok: true; flags: string } | { ok: false; error: stri
  * ```ts
  * const schema = {
  *   dryRun: { flag: '--dry-run' },
- *   path: { flag: '--path', sanitize: 'feature' },
+ *   path: { flag: '--path', sanitize: 'path' },
  *   category: {
  *     flag: '--category',
  *     validate: (val) => ['lint', 'type-safety'].includes(String(val))
@@ -81,6 +81,15 @@ export function buildFlags(args: Record<string, unknown>, schema: FlagSchema): B
         return {
           ok: false,
           error: `Invalid ${key}: Only alphanumeric, hyphens, underscores, dots allowed.`,
+        };
+      }
+      strVal = sanitized;
+    } else if (def.sanitize === 'path') {
+      const sanitized = sanitizePath(val);
+      if (!sanitized) {
+        return {
+          ok: false,
+          error: `Invalid ${key}: Only alphanumeric, hyphens, underscores, dots, slashes allowed. No path traversal (..).`,
         };
       }
       strVal = sanitized;

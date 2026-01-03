@@ -8,11 +8,35 @@
  * - converters.ts - Row to object converters
  * - crud.ts - Save, getById, remove, update operations
  * - search.ts - FTS5 full-text search with LIKE fallback
+ * - smart-search.ts - Google-style context-aware ranking
+ * - auto-tag.ts - Automatic tag extraction
+ * - consolidation.ts - Duplicate detection and cleanup
  * - feature-search.ts - Semantic feature-based search for context injection
  * - query.ts - Recent memories and project listing
  * - stats.ts - Memory statistics
  */
 
+// Auto-tagging
+export {
+  type EnrichedMemoryOptions,
+  enrichMemoryOptions,
+  extractFeatures,
+  extractFiles,
+  extractTags,
+  suggestImportance,
+  suggestMemoryType,
+} from './auto-tag';
+// Consolidation
+export {
+  analyzeConsolidation,
+  type ConsolidationResult,
+  cleanupStaleMemories,
+  deleteMemory,
+  findSimilarMemories,
+  findStaleMemories,
+  mergeMemories,
+  type SimilarityMatch,
+} from './consolidation';
 // Constants
 export {
   BM25_RELEVANCE_MULTIPLIER,
@@ -32,6 +56,16 @@ export { searchByFeatures } from './feature-search';
 export { getProjects, recent } from './query';
 // Search operations
 export { search, searchWithLike } from './search';
+// Smart search
+export {
+  getContextMemories,
+  getCriticalMemories,
+  getRecentDecisions,
+  type RelevanceBreakdown,
+  type SmartSearchOptions,
+  type SmartSearchResult,
+  smartSearch,
+} from './smart-search';
 // Stats operations
 export type { MemoryStats } from './stats';
 export { stats } from './stats';

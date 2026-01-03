@@ -122,6 +122,10 @@ export function detectDomainsFromText(text: string, config?: KrolikConfig): stri
   };
 
   for (const [domainName, domainConfig] of Object.entries(allDomains)) {
+    // Skip domains without proper keyword structure (e.g., path-only configs)
+    if (!Array.isArray(domainConfig.primary)) {
+      continue;
+    }
     const allKeywords = [...domainConfig.primary, ...(domainConfig.secondary || [])];
 
     for (const keyword of allKeywords) {

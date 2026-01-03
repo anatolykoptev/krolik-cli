@@ -44,6 +44,8 @@ export const SectionPriority = {
   SESSION_STARTUP: 100,
   /** Context cache information */
   CONTEXT_CACHE: 200,
+  /** Roadmap link (auto-generated from GitHub issues) */
+  ROADMAP: 250,
   /** Sub-documentation links */
   SUB_DOCS: 300,
   /** Lib modules documentation */

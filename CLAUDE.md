@@ -42,7 +42,7 @@ if (parent.getKind() === SyntaxKind.PropertyAssignment) { /* definitely object p
 **See:** [ast-transformer.ts](src/lib/@i18n/ast-transformer.ts) for reference implementation.
 
 <!-- krolik:start -->
-<!-- version: 6.0.0 | auto-updated -->
+<!-- version: 6.1.0 | auto-updated -->
 
 ## 🐰 Krolik
 
@@ -74,6 +74,7 @@ if (parent.getKind() === SyntaxKind.PropertyAssignment) { /* definitely object p
 
 | When | Tool | Params |
 |------|------|--------|
+| **Need progress overview** | `krolik_progress` |  |
 | **Session start** | `krolik_status` | `fast: true` |
 | **Before feature/issue work** | `krolik_context` | `feature: "..."` or `issue: "123"` |
 | **Need library API docs** | `krolik_docs` | `action: "search", query: "..."` |

@@ -39,6 +39,22 @@ export function sanitizeFeatureName(input: unknown): string | null {
 }
 
 /**
+ * Validate and sanitize a file/directory path
+ * Allows alphanumeric, hyphens, underscores, dots, and forward slashes
+ * Prevents path traversal attacks (../)
+ */
+export function sanitizePath(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const sanitized = input.trim();
+  if (sanitized.length === 0 || sanitized.length > 500) return null;
+  // Prevent path traversal
+  if (sanitized.includes('..')) return null;
+  // Only allow safe path characters: alphanumeric, hyphen, underscore, dot, slash
+  if (!/^[a-zA-Z0-9_\-./]+$/.test(sanitized)) return null;
+  return sanitized;
+}
+
+/**
  * Validate and sanitize an issue/PR number
  * Only allows positive integers
  */

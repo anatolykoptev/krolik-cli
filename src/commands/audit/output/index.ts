@@ -80,14 +80,15 @@ export {
 // ============================================================================
 
 export type {
-  AuditHistory,
   AuditHistoryEntry,
+  AuditTrend,
+  SaveAuditInput,
 } from './history';
 
 export {
   calculateScoreDelta,
   getHistorySummary,
   getPreviousAudit,
-  loadAuditHistory,
+  getTrend,
   saveAuditEntry,
 } from './history';
