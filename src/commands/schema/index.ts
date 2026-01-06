@@ -7,7 +7,15 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { saveKrolikFile } from '../../lib/@core/fs';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
-import { formatAI, formatJson, formatMarkdown, printSchema, type SchemaOutput } from './output';
+import { groupByDomain } from './grouping';
+import {
+  formatAI,
+  formatCompact,
+  formatJson,
+  formatMarkdown,
+  printSchema,
+  type SchemaOutput,
+} from './output';
 import { parseSchemaDirectory } from './parser';
 
 /**
@@ -17,6 +25,12 @@ export interface SchemaOptions {
   format?: OutputFormat;
   save?: boolean;
   groupBy?: 'file' | 'domain';
+  /** Filter by model name (case-insensitive, supports partial match) */
+  model?: string;
+  /** Filter by domain name */
+  domain?: string;
+  /** Compact output - models with relations only, no field details */
+  compact?: boolean;
 }
 
 /**
@@ -62,6 +76,38 @@ function findSchemaDir(projectRoot: string, configSchemaDir?: string): string | 
 }
 
 /**
+ * Filter schema by model/domain
+ */
+function filterSchema(result: SchemaOutput, options: SchemaOptions): SchemaOutput {
+  let { models, enums } = result;
+
+  // Filter by domain
+  if (options.domain) {
+    const domainLower = options.domain.toLowerCase();
+    const byDomain = groupByDomain(models);
+    const matchingDomain = Array.from(byDomain.keys()).find((d) => d.toLowerCase() === domainLower);
+    if (matchingDomain) {
+      models = byDomain.get(matchingDomain) ?? [];
+    } else {
+      models = [];
+    }
+  }
+
+  // Filter by model name (partial match, case-insensitive)
+  if (options.model) {
+    const modelLower = options.model.toLowerCase();
+    models = models.filter((m) => m.name.toLowerCase().includes(modelLower));
+  }
+
+  return {
+    models,
+    enums,
+    modelCount: models.length,
+    enumCount: enums.length,
+  };
+}
+
+/**
  * Run schema command
  */
 export async function runSchema(ctx: CommandContext & { options: SchemaOptions }): Promise<void> {
@@ -76,11 +122,16 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
     return;
   }
 
-  const result = analyzeSchema(schemaDir);
+  const fullResult = analyzeSchema(schemaDir);
+
+  // Apply filters if specified
+  const hasFilters = options.model || options.domain;
+  const result = hasFilters ? filterSchema(fullResult, options) : fullResult;
+
   const format = options.format ?? 'ai';
 
-  // Generate XML output for auto-saving
-  const xmlOutput = formatAI(result);
+  // Generate XML output for auto-saving (full schema, not filtered)
+  const xmlOutput = formatAI(fullResult);
 
   // Always save to .krolik/SCHEMA.xml for AI access
   saveKrolikFile(config.projectRoot, 'SCHEMA.xml', xmlOutput);
@@ -109,8 +160,14 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
     return;
   }
 
-  // Default: AI-friendly XML
-  console.log(xmlOutput);
+  // Compact mode - models with relations only
+  if (options.compact) {
+    console.log(formatCompact(result, fullResult));
+    return;
+  }
+
+  // Default: AI-friendly XML (filtered if filters specified)
+  console.log(hasFilters ? formatAI(result) : xmlOutput);
 }
 
 export type { SchemaOutput } from './output';

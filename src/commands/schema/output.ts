@@ -180,3 +180,77 @@ export function formatMarkdown(data: SchemaOutput): string {
 
   return lines.join('\n');
 }
+
+/**
+ * Format schema as compact XML (no field details, just structure)
+ * For large schemas - shows models with relations only
+ */
+export function formatCompact(data: SchemaOutput, fullData?: SchemaOutput): string {
+  const lines: string[] = [];
+  const total = fullData ?? data;
+  const isFiltered = fullData && data.modelCount !== fullData.modelCount;
+
+  lines.push('<prisma-schema mode="compact">');
+
+  if (isFiltered) {
+    lines.push(
+      `  <stats models="${data.modelCount}" enums="${data.enumCount}" filtered="true" total-models="${total.modelCount}" total-enums="${total.enumCount}" />`,
+    );
+  } else {
+    lines.push(`  <stats models="${data.modelCount}" enums="${data.enumCount}" />`);
+  }
+
+  // List available domains for navigation
+  const byDomain = groupByDomain(data.models);
+  const domains = Array.from(byDomain.keys()).sort();
+  lines.push(`  <domains>${domains.join(', ')}</domains>`);
+  lines.push('');
+
+  for (const [domain, models] of byDomain) {
+    const modelCount = models.length;
+    lines.push(`  <domain name="${domain}" models="${modelCount}">`);
+
+    for (const model of models) {
+      const relStr = model.relations.length > 0 ? ` relations="${model.relations.join(', ')}"` : '';
+      // Show key fields only: id fields, unique fields, foreign keys
+      const keyFields = model.fields.filter((f) => f.isId || f.isUnique || f.name.endsWith('Id'));
+      const keyFieldNames = keyFields.map((f) => f.name).slice(0, 5);
+      const keyStr = keyFieldNames.length > 0 ? ` keys="${keyFieldNames.join(', ')}"` : '';
+
+      lines.push(
+        `    <model name="${model.name}" fields="${model.fields.length}"${relStr}${keyStr} />`,
+      );
+    }
+
+    lines.push('  </domain>');
+  }
+
+  // Compact enum list (just names grouped)
+  if (data.enums.length > 0) {
+    lines.push('');
+    lines.push(`  <enums count="${data.enums.length}">`);
+    const enumNames = data.enums.map((e) => e.name).sort();
+    // Group by prefix if many enums
+    if (enumNames.length > 20) {
+      const byPrefix = new Map<string, string[]>();
+      for (const name of enumNames) {
+        const prefix =
+          name.replace(/[A-Z][a-z]+$/, '').replace(/Status$|Type$|Role$|State$/, '') || 'General';
+        if (!byPrefix.has(prefix)) byPrefix.set(prefix, []);
+        byPrefix.get(prefix)!.push(name);
+      }
+      for (const [prefix, names] of byPrefix) {
+        lines.push(`    <group prefix="${prefix}">${names.join(', ')}</group>`);
+      }
+    } else {
+      lines.push(`    ${enumNames.join(', ')}`);
+    }
+    lines.push('  </enums>');
+  }
+
+  lines.push('');
+  lines.push('  <hint>Use --model "Name" or --domain "Domain" for details</hint>');
+  lines.push('</prisma-schema>');
+
+  return lines.join('\n');
+}

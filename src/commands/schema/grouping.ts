@@ -7,23 +7,9 @@ import { groupBy, groupByProperty } from '@/lib/@core';
 import type { PrismaModel } from './parser';
 
 /**
- * Default domain mapping based on filename
+ * Known abbreviations that should stay uppercase
  */
-const DEFAULT_DOMAINS: Record<string, string> = {
-  auth: 'Authentication',
-  user: 'Users',
-  content: 'Content',
-  booking: 'Bookings',
-  event: 'Events',
-  ticket: 'Ticketing',
-  business: 'Business',
-  social: 'Social',
-  gamification: 'Gamification',
-  payment: 'Payments',
-  notification: 'Notifications',
-  integration: 'Integrations',
-  system: 'System',
-};
+const UPPERCASE_ABBREVS = ['crm', 'api', 'ugc', 'sso', 'oauth', 'jwt', 'sql'];
 
 /**
  * Group models by file
@@ -40,18 +26,32 @@ export function groupByDomain(models: PrismaModel[]): Map<string, PrismaModel[]>
 }
 
 /**
- * Infer domain from filename
+ * Infer domain from filename (dynamic)
+ * Converts filename to readable domain name:
+ * - "auth.prisma" -> "Auth"
+ * - "booking.prisma" -> "Booking"
+ * - "services-ugc.prisma" -> "Services UGC"
+ * - "crm.prisma" -> "CRM"
  */
 function inferDomain(filename: string): string {
-  const base = filename.replace('.prisma', '').toLowerCase();
+  // Remove extension and path
+  const base = filename.replace(/\.prisma$/, '').replace(/^.*\//, '');
 
-  for (const [key, label] of Object.entries(DEFAULT_DOMAINS)) {
-    if (base.includes(key)) {
-      return label;
+  if (!base) return 'Other';
+
+  // Split by hyphen or underscore
+  const parts = base.split(/[-_]/);
+
+  // Capitalize each part, handling abbreviations
+  const formatted = parts.map((part) => {
+    const lower = part.toLowerCase();
+    if (UPPERCASE_ABBREVS.includes(lower)) {
+      return lower.toUpperCase();
     }
-  }
+    return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+  });
 
-  return 'Other';
+  return formatted.join(' ');
 }
 
 /**
