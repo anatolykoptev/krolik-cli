@@ -84,7 +84,7 @@ export function formatJson(data: RoutesOutput): string {
 }
 
 /**
- * Format routes as AI-friendly XML
+ * Format routes as AI-friendly XML (legacy verbose format)
  */
 export function formatAI(data: RoutesOutput): string {
   const lines: string[] = [];
@@ -95,9 +95,9 @@ export function formatAI(data: RoutesOutput): string {
   );
   lines.push('');
 
-  const grouped = groupByDomain(data.routers);
+  const grouped = groupByDomainDynamic(data.routers);
 
-  for (const [domain, routers] of Object.entries(grouped)) {
+  for (const [domain, routers] of grouped) {
     if (routers.length === 0) continue;
 
     lines.push(`  <domain name="${domain}">`);
@@ -118,6 +118,119 @@ export function formatAI(data: RoutesOutput): string {
 
   lines.push('</trpc-routes>');
 
+  return lines.join('\n');
+}
+
+// ============================================================================
+// SMART FORMAT (default for AI)
+// ============================================================================
+
+/**
+ * Format routes as smart XML - optimized for AI consumption
+ * - Groups procedures by type (queries/mutations) on single line
+ * - Shows only unprotected as exceptions (most are protected)
+ * - Compact router representation
+ */
+export function formatSmart(data: RoutesOutput): string {
+  const lines: string[] = [];
+  const protectedRatio = data.protectedCount / data.totalProcedures;
+  const mostProtected = protectedRatio > 0.6;
+
+  lines.push('<trpc-routes>');
+  lines.push(
+    `  <stats routers="${data.routers.length}" procedures="${data.totalProcedures}" queries="${data.queries}" mutations="${data.mutations}" />`,
+  );
+
+  // Show protection note
+  if (mostProtected) {
+    lines.push(
+      `  <note>Most procedures are protected (${Math.round(protectedRatio * 100)}%). Unprotected shown explicitly.</note>`,
+    );
+  }
+
+  const grouped = groupByDomainDynamic(data.routers);
+  const domains = Array.from(grouped.keys());
+  lines.push(`  <domains>${domains.join(', ')}</domains>`);
+  lines.push('');
+
+  for (const [domain, routers] of grouped) {
+    if (routers.length === 0) continue;
+
+    lines.push(`  <domain name="${domain}">`);
+
+    for (const router of routers) {
+      const queries = router.procedures.filter((p) => p.type === 'query').map((p) => p.name);
+      const mutations = router.procedures.filter((p) => p.type === 'mutation').map((p) => p.name);
+      const unprotected = router.procedures.filter((p) => !p.isProtected).map((p) => p.name);
+
+      lines.push(`    <router file="${router.file}">`);
+
+      if (queries.length > 0) {
+        lines.push(`      <queries>${queries.join(', ')}</queries>`);
+      }
+      if (mutations.length > 0) {
+        lines.push(`      <mutations>${mutations.join(', ')}</mutations>`);
+      }
+      // Only show unprotected if most are protected (exception-based)
+      if (mostProtected && unprotected.length > 0) {
+        lines.push(`      <public>${unprotected.join(', ')}</public>`);
+      }
+      // Show protected if most are unprotected
+      if (!mostProtected) {
+        const protectedProcs = router.procedures.filter((p) => p.isProtected).map((p) => p.name);
+        if (protectedProcs.length > 0) {
+          lines.push(`      <protected>${protectedProcs.join(', ')}</protected>`);
+        }
+      }
+
+      lines.push('    </router>');
+    }
+
+    lines.push('  </domain>');
+    lines.push('');
+  }
+
+  lines.push('</trpc-routes>');
+  return lines.join('\n');
+}
+
+// ============================================================================
+// COMPACT FORMAT
+// ============================================================================
+
+/**
+ * Format routes as compact XML - minimal overview
+ */
+export function formatCompact(data: RoutesOutput): string {
+  const lines: string[] = [];
+
+  lines.push('<trpc-routes mode="compact">');
+  lines.push(
+    `  <stats routers="${data.routers.length}" procedures="${data.totalProcedures}" queries="${data.queries}" mutations="${data.mutations}" />`,
+  );
+
+  const grouped = groupByDomainDynamic(data.routers);
+  const domains = Array.from(grouped.keys());
+  lines.push(`  <domains>${domains.join(', ')}</domains>`);
+  lines.push('');
+
+  for (const [domain, routers] of grouped) {
+    if (routers.length === 0) continue;
+
+    const routerSummaries = routers.map((r) => {
+      const q = r.procedures.filter((p) => p.type === 'query').length;
+      const m = r.procedures.filter((p) => p.type === 'mutation').length;
+      return `${r.file}(${q}Q/${m}M)`;
+    });
+
+    lines.push(`  <domain name="${domain}">`);
+    lines.push(`    ${routerSummaries.join(', ')}`);
+    lines.push('  </domain>');
+  }
+
+  lines.push('');
+  lines.push('  <hint>Use --full for procedure details</hint>');
+  lines.push('</trpc-routes>');
   return lines.join('\n');
 }
 
@@ -173,35 +286,64 @@ export function formatMarkdown(data: RoutesOutput): string {
   return lines.join('\n');
 }
 
+// ============================================================================
+// DOMAIN GROUPING
+// ============================================================================
+
 /**
- * Group routers by domain
+ * Group routers by domain - dynamic detection from file paths
+ * Extracts domain from router file path:
+ * - "businessBookings/crud" → "Business"
+ * - "places/search" → "Places"
+ * - "user/profile" → "User"
  */
-function groupByDomain(routers: TrpcRouter[]): Record<string, TrpcRouter[]> {
-  const domains: Record<string, TrpcRouter[]> = {
-    Business: [],
-    User: [],
-    Content: [],
-    Social: [],
-    System: [],
-  };
+function groupByDomainDynamic(routers: TrpcRouter[]): Map<string, TrpcRouter[]> {
+  const result = new Map<string, TrpcRouter[]>();
 
   for (const router of routers) {
-    if (router.file.startsWith('business')) {
-      domains.Business?.push(router);
-    } else if (
-      ['user', 'favorites', 'userLists', 'userTodos'].some((k) => router.file.includes(k))
-    ) {
-      domains.User?.push(router);
-    } else if (['places', 'events', 'reviews', 'search'].some((k) => router.file.includes(k))) {
-      domains.Content?.push(router);
-    } else if (
-      ['social', 'activity', 'referral', 'interactions'].some((k) => router.file.includes(k))
-    ) {
-      domains.Social?.push(router);
-    } else {
-      domains.System?.push(router);
+    const domain = inferDomainFromPath(router.file);
+    if (!result.has(domain)) {
+      result.set(domain, []);
     }
+    result.get(domain)!.push(router);
   }
 
-  return domains;
+  // Sort by domain name
+  return new Map([...result.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+}
+
+/**
+ * Infer domain from router file path
+ * "businessBookings/crud" → "Business"
+ * "places/search" → "Places"
+ * "admin/users" → "Admin"
+ */
+function inferDomainFromPath(filePath: string): string {
+  // Get first path segment
+  const firstSegment = filePath.split('/')[0] ?? filePath;
+
+  // Handle "businessXxx" pattern → "Business"
+  if (firstSegment.startsWith('business')) {
+    return 'Business';
+  }
+
+  // Handle "adminXxx" pattern → "Admin"
+  if (firstSegment.startsWith('admin')) {
+    return 'Admin';
+  }
+
+  // Capitalize first letter
+  return firstSegment.charAt(0).toUpperCase() + firstSegment.slice(1);
+}
+
+/**
+ * Group routers by domain (legacy - for backward compatibility)
+ */
+function groupByDomain(routers: TrpcRouter[]): Record<string, TrpcRouter[]> {
+  const grouped = groupByDomainDynamic(routers);
+  const result: Record<string, TrpcRouter[]> = {};
+  for (const [domain, routerList] of grouped) {
+    result[domain] = routerList;
+  }
+  return result;
 }

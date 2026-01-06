@@ -10,8 +10,10 @@ import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import {
   calculateStats,
   formatAI,
+  formatCompact,
   formatJson,
   formatMarkdown,
+  formatSmart,
   printRoutes,
   type RoutesOutput,
 } from './output';
@@ -23,6 +25,10 @@ import { parseRoutersDirectory } from './parser';
 export interface RoutesOptions {
   format?: OutputFormat;
   save?: boolean;
+  /** Compact output - routers with procedure counts only */
+  compact?: boolean | undefined;
+  /** Full output - all procedures with all attributes (legacy format) */
+  full?: boolean | undefined;
 }
 
 /**
@@ -110,8 +116,21 @@ export async function runRoutes(ctx: CommandContext & { options: RoutesOptions }
     return;
   }
 
-  // Default: AI-friendly XML
-  console.log(xmlOutput);
+  // Compact mode - routers with procedure counts only
+  if (options.compact) {
+    console.log(formatCompact(result));
+    return;
+  }
+
+  // Full mode - legacy verbose format
+  if (options.full) {
+    console.log(xmlOutput);
+    return;
+  }
+
+  // Default: Smart format - optimized for AI
+  // Groups procedures by type, shows only unprotected as exceptions
+  console.log(formatSmart(result));
 }
 
 export type { RoutesOutput } from './output';
