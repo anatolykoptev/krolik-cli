@@ -1,5 +1,20 @@
 # @anatolykoptev/krolik-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- [`2d94267`](https://github.com/anatolykoptev/krolik-cli/commit/2d94267671f15bd244baf729b56a3221e6087051) - feat(schema): Add filters, compact mode, and smart domain detection
+
+  **New features:**
+  - `--model <name>` - Filter by model name (partial match, case-insensitive)
+  - `--domain <name>` - Filter by domain name
+  - `--compact` - Compact output showing only model names and relations (86% size reduction)
+
+  **Improvements:**
+  - Dynamic domain inference from filenames (works with any schema structure)
+  - Foundation for smart relation-based domain detection (#28)
+
 ## 0.10.1
 
 ### Patch Changes
