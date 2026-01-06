@@ -39,12 +39,14 @@ One command replaces 10+ manual searches. AI gets complete project context insta
 ```bash
 krolik context --feature auth      # Everything about auth feature
 krolik context --issue 42          # Context from GitHub issue
+krolik context --search "tRPC"     # Find code matching pattern
+krolik context --changed-only      # Only git-changed files
 krolik context --minimal           # Ultra-compact (~1500 tokens)
 krolik context --quick             # Compact with repo-map (~3500 tokens)
 krolik context --deep              # Full analysis (~5s)
 ```
 
-**What it collects**: git state, database schema, API routes, project structure, types, past decisions, library docs.
+**What it collects**: git state, database schema, API routes, project structure, types, past decisions, library docs, lib modules with signatures.
 
 ---
 
@@ -69,7 +71,10 @@ Memories are automatically included in context — AI sees what was decided befo
 Analyzes entire codebase and creates a prioritized report.
 
 ```bash
-krolik audit
+krolik audit                       # All issues
+krolik audit --mode release        # Security + type-safety
+krolik audit --mode queries        # Duplicate Prisma/tRPC queries
+krolik audit --mode pre-commit     # Quick check before commit
 ```
 
 **Output**: `.krolik/AI-REPORT.md` with issues ranked by severity, files with most problems, and quick wins that can be auto-fixed.
@@ -130,6 +135,21 @@ krolik docs fetch next.js          # Fetch docs for a library
 krolik docs detect                 # Auto-detect from package.json
 krolik docs list                   # List cached libraries
 ```
+
+---
+
+### `krolik modules` — Query Lib Modules
+
+Discover reusable utilities in your codebase before writing new code.
+
+```bash
+krolik modules                     # List all lib modules
+krolik modules --search parse      # Search exports by name
+krolik modules --get fs            # Details of specific module
+krolik modules --paths             # Show where modules are found
+```
+
+**What it shows**: functions with signatures, types, constants — everything exported from `lib/@*` directories.
 
 ---
 
