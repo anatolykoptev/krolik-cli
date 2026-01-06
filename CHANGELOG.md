@@ -1,5 +1,41 @@
 # @anatolykoptev/krolik-cli
 
+## 0.10.0
+
+### Minor Changes
+
+- [`ba502cd`](https://github.com/anatolykoptev/krolik-cli/commit/ba502cd93f23d241e77911f3f9b46ac13260b4b7) - ### New Features
+
+  **Context command improvements:**
+  - Add `--search <pattern>` option to find files/code matching pattern (uses ripgrep or grep)
+  - Add `--changed-only` option to include only files changed in git
+  - Improved lib-modules section with function signatures for all modules
+
+  **Modules command:**
+  - Fixed signature extraction for files with UTF-8/Russian text (byte offset vs char index bug)
+  - AST-based type reconstruction via `typeNodeToString()` function
+  - Proper handling of complex TypeScript types
+
+  **Audit command:**
+  - New `mode=queries` to detect duplicate Prisma/tRPC queries
+  - Pattern-based detection for consolidation opportunities
+
+- [`fc18455`](https://github.com/anatolykoptev/krolik-cli/commit/fc184552bfabfcab60c84e9b61a0400556d557ef) - ### New Features
+
+  **Context command improvements:**
+  - Add `--search <pattern>` option to find files/code matching pattern (uses ripgrep or grep)
+  - Add `--changed-only` option to include only files changed in git
+  - Improved lib-modules section with function signatures for all modules
+
+  **Modules command:**
+  - Fixed signature extraction for files with UTF-8/Russian text (byte offset vs char index bug)
+  - AST-based type reconstruction via `typeNodeToString()` function
+  - Proper handling of complex TypeScript types
+
+  **Audit command:**
+  - New `mode=queries` to detect duplicate Prisma/tRPC queries
+  - Pattern-based detection for consolidation opportunities
+
 ## 0.9.0
 
 ### Minor Changes
