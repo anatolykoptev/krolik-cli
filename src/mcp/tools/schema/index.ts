@@ -19,14 +19,19 @@ const schemaFlagSchema: FlagSchema = {
   model: { flag: '--model' },
   domain: { flag: '--domain' },
   compact: { flag: '--compact' },
+  full: { flag: '--full' },
 };
 
 export const schemaTool: MCPToolDefinition = {
   name: 'krolik_schema',
   description: `Analyze Prisma database schema. Returns models, fields, relations, and enums.
 
-**For large schemas**, use compact mode or filters to reduce output:
-- compact: true - shows only model names with relations (no field details)
+**Output modes:**
+- (default) Smart format - AI-optimized, hides standard fields (id, createdAt, updatedAt), obvious defaults
+- compact: true - overview only, models with relations (smallest output)
+- full: true - verbose legacy format with all fields and attributes
+
+**Filters:**
 - model: "User" - filter by model name (partial match)
 - domain: "Auth" - filter by domain (derived from schema filename)`,
   inputSchema: {
@@ -50,7 +55,12 @@ export const schemaTool: MCPToolDefinition = {
       compact: {
         type: 'boolean',
         description:
-          'Compact output - models with relations only, no field details. Recommended for large schemas.',
+          'Compact output - models with relations only, no field details. Smallest output.',
+      },
+      full: {
+        type: 'boolean',
+        description:
+          'Full verbose output - all fields with all attributes. Use only when you need complete details.',
       },
     },
   },

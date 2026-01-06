@@ -13,6 +13,7 @@ import {
   formatCompact,
   formatJson,
   formatMarkdown,
+  formatSmart,
   printSchema,
   type SchemaOutput,
 } from './output';
@@ -31,6 +32,8 @@ export interface SchemaOptions {
   domain?: string | undefined;
   /** Compact output - models with relations only, no field details */
   compact?: boolean | undefined;
+  /** Full output - all fields with all attributes (legacy format) */
+  full?: boolean | undefined;
 }
 
 /**
@@ -166,8 +169,15 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
     return;
   }
 
-  // Default: AI-friendly XML (filtered if filters specified)
-  console.log(hasFilters ? formatAI(result) : xmlOutput);
+  // Full mode - legacy verbose format
+  if (options.full) {
+    console.log(hasFilters ? formatAI(result) : xmlOutput);
+    return;
+  }
+
+  // Default: Smart format - optimized for AI
+  // Hides: standard fields, obvious defaults, relation arrays as separate fields
+  console.log(formatSmart(result, hasFilters ? fullResult : undefined));
 }
 
 export type { SchemaOutput } from './output';

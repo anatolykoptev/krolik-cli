@@ -6,7 +6,7 @@
 import { formatJson as formatJsonBase } from '@/lib/@format';
 import type { Logger } from '../../types/commands/base';
 import { groupByDomain, groupByFile } from './grouping';
-import type { PrismaEnum, PrismaModel } from './parser';
+import type { PrismaEnum, PrismaField, PrismaModel } from './parser';
 
 /**
  * Schema result type
@@ -180,6 +180,248 @@ export function formatMarkdown(data: SchemaOutput): string {
 
   return lines.join('\n');
 }
+
+// ============================================================================
+// FIELD CLASSIFICATION
+// ============================================================================
+
+/** Standard fields that AI knows exist in every model */
+const STANDARD_FIELDS = new Set(['id', 'createdAt', 'updatedAt']);
+
+/** Obvious defaults that don't need to be shown */
+const OBVIOUS_DEFAULTS = new Set([
+  'cuid(',
+  'uuid(',
+  'now(',
+  'autoincrement(',
+  'false',
+  'true',
+  '0',
+  '1',
+  '""',
+]);
+
+/** Check if a default value is obvious and can be hidden */
+function isObviousDefault(value: string | undefined): boolean {
+  if (!value) return false;
+  return OBVIOUS_DEFAULTS.has(value) || value.startsWith('"') || value.startsWith("'");
+}
+
+/** Check if field is a relation array (duplicates <relations> block) */
+function isRelationArray(field: PrismaField): boolean {
+  return (
+    field.isArray &&
+    field.type.charAt(0) === field.type.charAt(0).toUpperCase() &&
+    ![
+      'String',
+      'Int',
+      'Float',
+      'Boolean',
+      'DateTime',
+      'Json',
+      'Bytes',
+      'BigInt',
+      'Decimal',
+    ].includes(field.type)
+  );
+}
+
+/** Classify field importance for AI */
+function classifyField(field: PrismaField): 'key' | 'business' | 'meta' | 'skip' {
+  // Skip standard fields
+  if (STANDARD_FIELDS.has(field.name)) return 'skip';
+
+  // Skip relation arrays (shown in relations block)
+  if (isRelationArray(field)) return 'skip';
+
+  // Key fields: FK, unique, id-like
+  if (field.name.endsWith('Id') || field.isUnique || field.isId) return 'key';
+
+  // Meta fields: timestamps, audit
+  if (
+    field.name.includes('At') ||
+    field.name.includes('Date') ||
+    field.name.startsWith('created') ||
+    field.name.startsWith('updated')
+  ) {
+    return 'meta';
+  }
+
+  // Everything else is business data
+  return 'business';
+}
+
+// ============================================================================
+// SMART FORMAT (default for AI)
+// ============================================================================
+
+/**
+ * Format schema as smart XML - optimized for AI consumption
+ * - Hides standard fields (id, createdAt, updatedAt)
+ * - Hides obvious defaults
+ * - Groups fields by importance
+ * - Shows relation arrays in relations block
+ */
+export function formatSmart(data: SchemaOutput, fullData?: SchemaOutput): string {
+  const lines: string[] = [];
+  const total = fullData ?? data;
+  const isFiltered = fullData && data.modelCount !== fullData.modelCount;
+
+  lines.push('<prisma-schema>');
+
+  if (isFiltered) {
+    lines.push(
+      `  <stats models="${data.modelCount}" enums="${data.enumCount}" filtered="true" total="${total.modelCount}" />`,
+    );
+  } else {
+    lines.push(`  <stats models="${data.modelCount}" enums="${data.enumCount}" />`);
+  }
+
+  const byDomain = groupByDomain(data.models);
+  const domains = Array.from(byDomain.keys()).sort();
+  lines.push(`  <domains>${domains.join(', ')}</domains>`);
+  lines.push('');
+
+  for (const [domain, models] of byDomain) {
+    lines.push(`  <domain name="${domain}">`);
+
+    for (const model of models) {
+      // Classify fields
+      const keyFields: string[] = [];
+      const businessFields: string[] = [];
+      const metaFields: string[] = [];
+      const relationArrays: string[] = [];
+
+      for (const field of model.fields) {
+        // Collect relation arrays for relations block
+        if (isRelationArray(field)) {
+          relationArrays.push(`${field.name}→${field.type}[]`);
+          continue;
+        }
+
+        const category = classifyField(field);
+        if (category === 'skip') continue;
+
+        // Format field compactly
+        const formatted = formatFieldSmart(field);
+
+        switch (category) {
+          case 'key':
+            keyFields.push(formatted);
+            break;
+          case 'business':
+            businessFields.push(formatted);
+            break;
+          case 'meta':
+            metaFields.push(formatted);
+            break;
+        }
+      }
+
+      // Build model output
+      lines.push(`    <model name="${model.name}">`);
+
+      // Relations (direct + arrays)
+      const allRelations = [
+        ...model.relations,
+        ...(relationArrays.length > 0 ? relationArrays : []),
+      ];
+      if (allRelations.length > 0) {
+        lines.push(`      <relations>${allRelations.join(', ')}</relations>`);
+      }
+
+      // Key fields (FK, unique)
+      if (keyFields.length > 0) {
+        lines.push(`      <keys>${keyFields.join(', ')}</keys>`);
+      }
+
+      // Business fields
+      if (businessFields.length > 0) {
+        lines.push(`      <data>${businessFields.join(', ')}</data>`);
+      }
+
+      // Meta fields (optional, less important)
+      if (metaFields.length > 0) {
+        lines.push(`      <meta>${metaFields.join(', ')}</meta>`);
+      }
+
+      lines.push('    </model>');
+    }
+
+    lines.push('  </domain>');
+    lines.push('');
+  }
+
+  // Enums - just names grouped by prefix
+  if (data.enums.length > 0) {
+    lines.push('  <enums>');
+    const enumsByPrefix = groupEnumsByPrefix(data.enums);
+    for (const [prefix, names] of enumsByPrefix) {
+      if (names.length === 1) {
+        lines.push(`    ${names[0]}`);
+      } else {
+        lines.push(`    ${prefix}*: ${names.join(', ')}`);
+      }
+    }
+    lines.push('  </enums>');
+  }
+
+  lines.push('</prisma-schema>');
+  return lines.join('\n');
+}
+
+/**
+ * Format a single field in smart compact format
+ * Examples:
+ * - "name" (plain string)
+ * - "email?" (optional)
+ * - "status:BookingStatus" (enum type)
+ * - "phone!" (unique)
+ */
+function formatFieldSmart(field: PrismaField): string {
+  let result = field.name;
+
+  // Type suffix for non-obvious types
+  const simpleTypes = ['String', 'Int', 'Float', 'Boolean', 'DateTime', 'Json'];
+  if (!simpleTypes.includes(field.type)) {
+    result += `:${field.type}`;
+  }
+
+  // Modifiers
+  if (!field.isRequired) result += '?';
+  if (field.isUnique && !field.name.endsWith('Id')) result += '!';
+  if (field.isArray) result += '[]';
+
+  // Non-obvious default
+  if (field.default && !isObviousDefault(field.default)) {
+    result += `=${field.default}`;
+  }
+
+  return result;
+}
+
+/**
+ * Group enums by common prefix for compact display
+ */
+function groupEnumsByPrefix(enums: PrismaEnum[]): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+
+  for (const e of enums) {
+    // Extract prefix (e.g., "Booking" from "BookingStatus")
+    const match = e.name.match(/^([A-Z][a-z]+)/);
+    const prefix = match?.[1] ?? 'Other';
+
+    if (!result.has(prefix)) result.set(prefix, []);
+    result.get(prefix)!.push(e.name);
+  }
+
+  // Sort by prefix
+  return new Map([...result.entries()].sort((a, b) => a[0].localeCompare(b[0])));
+}
+
+// ============================================================================
+// COMPACT FORMAT
+// ============================================================================
 
 /**
  * Format schema as compact XML (no field details, just structure)
