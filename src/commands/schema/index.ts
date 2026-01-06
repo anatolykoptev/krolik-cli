@@ -26,11 +26,11 @@ export interface SchemaOptions {
   save?: boolean;
   groupBy?: 'file' | 'domain';
   /** Filter by model name (case-insensitive, supports partial match) */
-  model?: string;
+  model?: string | undefined;
   /** Filter by domain name */
-  domain?: string;
+  domain?: string | undefined;
   /** Compact output - models with relations only, no field details */
-  compact?: boolean;
+  compact?: boolean | undefined;
 }
 
 /**
