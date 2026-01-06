@@ -1,5 +1,14 @@
 # @anatolykoptev/krolik-cli
 
+## 0.10.1
+
+### Patch Changes
+
+- [`3702c6f`](https://github.com/anatolykoptev/krolik-cli/commit/3702c6f60b0a418851162b90b79143602db2f506) - docs: Update README with new v0.10.0 features
+  - Added `--search` and `--changed-only` options to context command examples
+  - Added `krolik modules` command section
+  - Added audit modes (release, queries, pre-commit)
+
 ## 0.10.0
 
 ### Minor Changes
