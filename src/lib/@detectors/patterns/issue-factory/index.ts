@@ -99,3 +99,19 @@ export {
   createHighComplexityIssue,
   createLongFunctionIssue,
 } from './complexity';
+
+// ============================================================================
+// DUPLICATE QUERY ISSUES
+// ============================================================================
+
+export type { DuplicateQueryGroup } from './duplicate-query';
+
+export {
+  createDuplicateQueryIssue,
+  createDuplicateQueryIssues,
+  createPrismaQueryIssue,
+  createTrpcQueryIssue,
+  DUPLICATE_QUERY_FIXER_ID,
+  groupQueryDetections,
+  MIN_DUPLICATE_OCCURRENCES,
+} from './duplicate-query';

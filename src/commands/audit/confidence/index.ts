@@ -50,6 +50,7 @@ const CATEGORY_CONFIDENCE: Record<QualityCategory, number> = {
   composite: 70, // multi-file operations
   agent: 75, // AI operations
   refine: 70, // @namespace structure
+  'duplicate-query': 85, // AST-based, clear patterns
 };
 
 // ============================================================================

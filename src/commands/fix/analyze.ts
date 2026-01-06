@@ -194,6 +194,7 @@ export async function analyzeQuality(
       modernization: filteredIssues.filter((i) => i.category === 'modernization').length,
       i18n: filteredIssues.filter((i) => i.category === 'i18n').length,
       'backwards-compat': filteredIssues.filter((i) => i.category === 'backwards-compat').length,
+      'duplicate-query': filteredIssues.filter((i) => i.category === 'duplicate-query').length,
     },
   };
 

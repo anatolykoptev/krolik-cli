@@ -193,12 +193,15 @@ export {
 // Issue factory (detection to QualityIssue conversion)
 export type {
   ComplexityIssueContext,
+  DuplicateQueryGroup,
   FunctionComplexityInfo,
   IssueFactoryContext,
   TsDirectiveType,
 } from './patterns/issue-factory';
 export {
   createComplexityIssues,
+  createDuplicateQueryIssue,
+  createDuplicateQueryIssues,
   createHardcodedValue,
   createHardcodedValues,
   createHighComplexityIssue,
@@ -207,14 +210,19 @@ export {
   createLongFunctionIssue,
   createModernizationIssue,
   createModernizationIssues,
+  createPrismaQueryIssue,
   createReturnTypeIssue,
   createReturnTypeIssues,
   createSecurityIssue,
   createSecurityIssues,
+  createTrpcQueryIssue,
   createTsDirectiveIssue,
   createTypeSafetyIssue,
   createTypeSafetyIssues,
+  DUPLICATE_QUERY_FIXER_ID,
   getHardcodedSuggestion,
+  groupQueryDetections,
+  MIN_DUPLICATE_OCCURRENCES,
 } from './patterns/issue-factory';
 // Quality detectors (complexity AST tracker, hardcoded, env-config)
 export {

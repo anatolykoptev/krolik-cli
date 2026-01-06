@@ -26,6 +26,8 @@ const contextSchema: FlagSchema = {
   budget: { flag: '--budget' },
   signatures: { flag: '--signatures' },
   mapOnly: { flag: '--map-only' },
+  search: { flag: '--search' },
+  changedOnly: { flag: '--changed-only' },
 };
 
 export const contextTool: MCPToolDefinition = {
@@ -76,6 +78,14 @@ export const contextTool: MCPToolDefinition = {
       mapOnly: {
         type: 'boolean',
         description: 'Output only repo map',
+      },
+      search: {
+        type: 'string',
+        description: 'Search pattern - include files/code matching pattern',
+      },
+      changedOnly: {
+        type: 'boolean',
+        description: 'Include only changed files (from git status)',
       },
     },
   },

@@ -3,20 +3,17 @@
  * @description Lib modules section formatter
  *
  * Formats lib/@* modules with their exports for AI context.
- * Key modules (fs, discovery, ast-analysis, swc) include top 5 functions.
+ * All modules include top functions with signatures.
  */
 
 import type { AiContextData } from '../../../types';
 import { escapeXml } from '../helpers';
 
-/** Key modules that should include function details */
-const KEY_MODULES = ['fs', 'discovery', 'ast-analysis', 'swc', 'git'];
-
-/** Max functions to show for key modules */
-const MAX_FUNCTIONS = 5;
-
 /**
  * Format lib-modules section
+ *
+ * Shows all lib modules with their function signatures.
+ * This helps AI understand what utilities are available.
  */
 export function formatLibModulesSection(lines: string[], data: AiContextData): void {
   const { libModules } = data;
@@ -27,27 +24,22 @@ export function formatLibModulesSection(lines: string[], data: AiContextData): v
   );
 
   for (const mod of libModules.modules) {
-    const isKeyModule = KEY_MODULES.includes(mod.name);
     const functions = mod.functions ?? [];
     const hasFunctions = functions.length > 0;
 
-    if (isKeyModule && hasFunctions) {
-      // Key modules: show with nested functions
+    if (hasFunctions) {
+      // Modules with functions: show nested function list
       lines.push(
         `    <module name="${mod.name}" import="${mod.importPath}" exports="${mod.exportCount}">`,
       );
 
-      for (const fn of functions.slice(0, MAX_FUNCTIONS)) {
+      for (const fn of functions) {
         lines.push(`      <function>${escapeXml(fn.name)}${escapeXml(fn.signature)}</function>`);
-      }
-
-      if (functions.length > MAX_FUNCTIONS) {
-        lines.push(`      <!-- +${functions.length - MAX_FUNCTIONS} more functions -->`);
       }
 
       lines.push('    </module>');
     } else {
-      // Regular modules: single-line format
+      // Modules without functions (types only, etc.): single-line format
       lines.push(
         `    <module name="${mod.name}" import="${mod.importPath}" exports="${mod.exportCount}"/>`,
       );

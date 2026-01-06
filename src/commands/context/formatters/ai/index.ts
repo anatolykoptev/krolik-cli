@@ -63,6 +63,7 @@ import {
   formatRoutesSummarySection,
   formatSchemaHighlightsSection,
   formatSchemaSection,
+  formatSearchResultsSection,
   formatSummarySection,
   formatTaskSection,
   formatTestsSection,
@@ -205,6 +206,9 @@ export function formatAiPrompt(data: AiContextData): string {
 
   // Git status - changed files list (critical for understanding scope)
   formatGitSection(lines, filteredData);
+
+  // Search results - from --search option (shows code matching pattern)
+  formatSearchResultsSection(lines, filteredData);
 
   // Smart context: PageRank-ranked files (key for understanding codebase)
   formatRepoMapSection(lines, filteredData);

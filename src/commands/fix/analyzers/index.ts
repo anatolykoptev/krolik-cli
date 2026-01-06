@@ -72,6 +72,7 @@ export function analyzeFile(
     hardcodedValues,
     returnTypeIssues,
     complexityIssues,
+    queryIssues,
     functions,
   } = analyzeFileUnified(content, relativePath);
 
@@ -108,6 +109,7 @@ export function analyzeFile(
   analysis.issues.push(...modernizationIssues);
   analysis.issues.push(...returnTypeIssues);
   analysis.issues.push(...complexityIssues);
+  analysis.issues.push(...queryIssues);
 
   // Convert hardcoded values to quality issues
   for (const hv of hardcodedValues) {

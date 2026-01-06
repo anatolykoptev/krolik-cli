@@ -240,3 +240,92 @@ export interface SecretDetectorContext {
   /** Minimum entropy threshold (default: 3.5) */
   entropyThreshold?: number;
 }
+
+// ============================================================================
+// DUPLICATE QUERY DETECTION TYPES
+// ============================================================================
+
+/** Query types that can be detected */
+export type QueryType = 'prisma' | 'trpc';
+
+/** Prisma operation types */
+export type PrismaOperationType =
+  | 'findMany'
+  | 'findFirst'
+  | 'findUnique'
+  | 'findUniqueOrThrow'
+  | 'findFirstOrThrow'
+  | 'create'
+  | 'createMany'
+  | 'update'
+  | 'updateMany'
+  | 'delete'
+  | 'deleteMany'
+  | 'upsert'
+  | 'count'
+  | 'aggregate'
+  | 'groupBy';
+
+/** tRPC hook types */
+export type TrpcHookType = 'useQuery' | 'useMutation' | 'useInfiniteQuery' | 'useSuspenseQuery';
+
+/** Base query detection (common fields) */
+interface QueryDetectionBase {
+  /** Detection type */
+  type: QueryType;
+  /** SWC AST offset */
+  offset: number;
+  /** Structural fingerprint for deduplication */
+  fingerprint: string;
+}
+
+/** Prisma query detection */
+export interface PrismaQueryDetection extends QueryDetectionBase {
+  type: 'prisma';
+  /** Prisma model name (e.g., "user", "booking") */
+  model: string;
+  /** Operation (findMany, findUnique, etc.) */
+  operation: PrismaOperationType;
+  /** Normalized where clause structure */
+  whereStructure: string;
+  /** Normalized select/include structure */
+  selectStructure: string;
+  /** tRPC procedure name (if in router) */
+  procedureName?: string | undefined;
+  /** Router name (if in router file) */
+  routerName?: string | undefined;
+}
+
+/** tRPC query hook detection */
+export interface TrpcQueryDetection extends QueryDetectionBase {
+  type: 'trpc';
+  /** Full procedure path (e.g., "users.getById") */
+  procedurePath: string;
+  /** Router name */
+  router: string;
+  /** Procedure name */
+  procedure: string;
+  /** Hook type */
+  hook: TrpcHookType;
+  /** Normalized input structure */
+  inputStructure: string;
+  /** Component name where it's used */
+  componentName?: string | undefined;
+}
+
+/** Union type for query detection */
+export type QueryDetection = PrismaQueryDetection | TrpcQueryDetection;
+
+/** Context for query detection */
+export interface QueryDetectorContext {
+  /** Current function/component name */
+  functionName?: string;
+  /** Current router name */
+  routerName?: string;
+  /** Current procedure name */
+  procedureName?: string;
+  /** Whether inside a tRPC router */
+  inTrpcRouter?: boolean;
+  /** Whether inside a React component */
+  inReactComponent?: boolean;
+}

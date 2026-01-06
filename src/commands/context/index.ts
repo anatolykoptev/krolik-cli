@@ -44,6 +44,7 @@ import {
   findRoutersDir,
   findSchemaDir,
   generateProjectTree,
+  searchInProject,
 } from './helpers';
 import {
   buildImportGraph,
@@ -129,6 +130,23 @@ export async function runContext(ctx: CommandContext & { options: ContextOptions
   }
 
   const result = generateContext(task, projectRoot, issueData, config);
+
+  // Handle --changed-only: override relatedFiles with git changed files
+  if (options.changedOnly && isGitRepo(projectRoot)) {
+    const status = getStatus(projectRoot);
+    const changedFiles = [
+      ...status.modified,
+      ...status.staged.filter((f) => !status.modified.includes(f)),
+      ...status.untracked,
+    ];
+    if (changedFiles.length > 0) {
+      result.relatedFiles = changedFiles;
+      result.domains = ['changed-files'];
+    } else {
+      logger.info('No changed files found in git status.');
+    }
+  }
+
   const format = options.format ?? 'ai';
 
   // JSON output
@@ -223,6 +241,16 @@ async function buildAiContextData(
   // Git information - essential for knowing what's changed
   if (isGitRepo(projectRoot)) {
     aiData.git = buildGitInfo(projectRoot);
+  }
+
+  // =====================================================
+  // SEARCH RESULTS (from --search option)
+  // =====================================================
+  if (options.search) {
+    const searchResults = searchInProject(projectRoot, options.search);
+    if (searchResults) {
+      aiData.searchResults = searchResults;
+    }
   }
 
   // =====================================================

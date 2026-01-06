@@ -55,6 +55,10 @@ export interface ContextOptions {
   withIssues?: boolean;
   /** Token budget for smart context (default: 4000) */
   budget?: number;
+  /** Search pattern - include only files/code matching pattern */
+  search?: string;
+  /** Include only changed files (from git status) */
+  changedOnly?: boolean;
 }
 
 /**
@@ -184,6 +188,32 @@ export interface LibModulesData {
 }
 
 /**
+ * Search match result
+ */
+export interface SearchMatch {
+  /** File path relative to project root */
+  file: string;
+  /** Line number of the match */
+  line: number;
+  /** Matched line content */
+  content: string;
+}
+
+/**
+ * Search results for context (from --search)
+ */
+export interface SearchResults {
+  /** Search pattern used */
+  pattern: string;
+  /** Total number of matches */
+  matchCount: number;
+  /** Files with matches */
+  fileCount: number;
+  /** Top matches (limited for token budget) */
+  matches: SearchMatch[];
+}
+
+/**
  * Entry point layer in the application stack
  */
 export type EntryPointLayer = 'backend' | 'frontend' | 'database';
@@ -283,4 +313,6 @@ export interface AiContextData {
   entryPoints?: EntryPoint[];
   // Data flows for domains - HOW data moves through the system
   dataFlows?: DataFlow[];
+  // Search results (from --search)
+  searchResults?: SearchResults;
 }

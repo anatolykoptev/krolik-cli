@@ -34,6 +34,7 @@ import { calculateLineOffsets, getSnippet, offsetToLine } from '@/lib/@ast/swc';
 import {
   COMPLEXITY_FIXER_ID,
   checkTsDirectives,
+  createDuplicateQueryIssue,
   createHardcodedValue,
   createLintIssue,
   createModernizationIssue,
@@ -50,6 +51,7 @@ import {
   detectHardcodedValue,
   detectLintIssue,
   detectModernizationIssue,
+  detectQuery,
   detectReturnTypeIssue,
   detectSecurityIssue,
   detectTypeSafetyIssue,
@@ -59,6 +61,8 @@ import {
   isInConstDeclaration,
   type LintDetection,
   type ModernizationDetection,
+  type QueryDetection,
+  type QueryDetectorContext,
   type ReturnTypeDetection,
   type SecurityDetection,
   type TypeSafetyDetection,
@@ -95,6 +99,8 @@ export interface UnifiedAnalysisResult {
   returnTypeIssues: QualityIssue[];
   /** Complexity issues (high cyclomatic complexity, long functions) */
   complexityIssues: QualityIssue[];
+  /** Duplicate query issues (Prisma/tRPC) */
+  queryIssues: QualityIssue[];
   /** Extracted function information with complexity metrics */
   functions: FunctionInfo[];
 }
@@ -132,6 +138,7 @@ interface SkipOptions {
   skipHardcoded: boolean;
   skipReturnTypes: boolean;
   skipComplexity: boolean;
+  skipQueries: boolean;
 }
 
 // ============================================================================
@@ -168,6 +175,7 @@ export function analyzeFileUnified(
     hardcodedValues: [],
     returnTypeIssues: [],
     complexityIssues: [],
+    queryIssues: [],
     functions: [],
   };
 
@@ -238,6 +246,16 @@ function buildSkipOptions(filepath: string): SkipOptions {
     filepath.includes('.spec.') ||
     shouldSkipForAnalysis(filepath);
 
+  // Skip query detection for test files, migrations, seeds, service layers (expected to have queries)
+  const shouldSkipQueries =
+    filepath.includes('.test.') ||
+    filepath.includes('.spec.') ||
+    filepath.includes('__tests__') ||
+    filepath.includes('/migrations/') ||
+    filepath.includes('/seed') ||
+    filepath.includes('/lib/queries/') || // Don't flag files that ARE extracted queries
+    filepath.includes('/services/'); // Service layers are expected to have queries
+
   return {
     skipLint: shouldSkipLint,
     skipTypeSafety: shouldSkipTypeSafety,
@@ -246,6 +264,7 @@ function buildSkipOptions(filepath: string): SkipOptions {
     skipHardcoded: shouldSkipFile(filepath),
     skipReturnTypes: shouldSkipTypeSafety,
     skipComplexity: false, // Always run for function extraction
+    skipQueries: shouldSkipQueries,
   };
 }
 
@@ -257,7 +276,8 @@ function shouldSkipAll(options: SkipOptions): boolean {
     options.skipModernization &&
     options.skipHardcoded &&
     options.skipReturnTypes &&
-    options.skipComplexity
+    options.skipComplexity &&
+    options.skipQueries
   );
 }
 
@@ -300,6 +320,7 @@ interface DetectionResult {
   modernizationDetections: ModernizationDetection[];
   hardcodedDetections: HardcodedDetection[];
   returnTypeDetections: ReturnTypeDetection[];
+  queryDetections: QueryDetection[];
   complexityState: ComplexityState;
 }
 
@@ -318,6 +339,7 @@ function collectDetections(
     modernizationDetections: [],
     hardcodedDetections: [],
     returnTypeDetections: [],
+    queryDetections: [],
     complexityState: {
       functionStack: [],
       functions: [],
@@ -476,6 +498,21 @@ function runDetectors(
   if (!skipOptions.skipReturnTypes) {
     const returnType = detectReturnTypeIssue(node);
     if (returnType) detections.returnTypeDetections.push(returnType);
+  }
+
+  if (!skipOptions.skipQueries) {
+    // Create query detector context from current state
+    const currentFunc =
+      detections.complexityState.functionStack.length > 0
+        ? detections.complexityState.functionStack[
+            detections.complexityState.functionStack.length - 1
+          ]
+        : null;
+    const queryContext: QueryDetectorContext = currentFunc?.name
+      ? { functionName: currentFunc.name }
+      : {};
+    const query = detectQuery(node, content, queryContext);
+    if (query) detections.queryDetections.push(query);
   }
 }
 
@@ -752,6 +789,28 @@ function convertDetectionsToIssues(
     for (const detection of detections.returnTypeDetections) {
       const issue = createReturnTypeIssue(detection, ctx);
       if (issue) result.returnTypeIssues.push(issue);
+    }
+  }
+
+  // Query issues (Prisma/tRPC duplicates)
+  if (!skipOptions.skipQueries && detections.queryDetections.length > 0) {
+    // Group detections by fingerprint to count duplicates within this file
+    const fingerprints = new Map<string, { count: number; first: QueryDetection }>();
+    for (const detection of detections.queryDetections) {
+      const existing = fingerprints.get(detection.fingerprint);
+      if (existing) {
+        existing.count++;
+      } else {
+        fingerprints.set(detection.fingerprint, { count: 1, first: detection });
+      }
+    }
+
+    // Create issues for queries that appear multiple times in this file
+    for (const { count, first } of fingerprints.values()) {
+      if (count >= 2) {
+        const issue = createDuplicateQueryIssue(first, ctx, count);
+        if (issue) result.queryIssues.push(issue);
+      }
     }
   }
 }

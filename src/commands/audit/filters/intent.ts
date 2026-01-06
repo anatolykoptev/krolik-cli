@@ -19,7 +19,16 @@ import type { QualityCategory, QualityIssue } from '@/commands/fix/core';
 /**
  * Audit mode determines which categories are relevant
  */
-export type AuditMode = 'all' | 'release' | 'refactor';
+export type AuditMode =
+  | 'all'
+  | 'release'
+  | 'refactor'
+  | 'hardcoded'
+  | 'lint'
+  | 'types'
+  | 'security'
+  | 'pre-commit'
+  | 'queries';
 
 /**
  * Intent configuration for filtering
@@ -40,14 +49,26 @@ export interface AuditIntent {
 /**
  * Categories relevant to each audit mode
  *
+ * - all: No category filter (show everything)
  * - release: Issues that could cause production bugs
  * - refactor: Issues about code structure/maintainability
- * - all: No category filter
+ * - hardcoded: Hardcoded strings, magic numbers, URLs, colors
+ * - lint: Console.log, debugger, alert - 100% auto-fixable
+ * - types: Type-safety issues (any, ts-ignore)
+ * - security: Security vulnerabilities only
+ * - pre-commit: Combined check before committing
+ * - queries: Duplicate database/API queries
  */
 const MODE_CATEGORIES: Record<AuditMode, QualityCategory[]> = {
   all: [], // Empty = no filtering
   release: ['security', 'type-safety', 'circular-dep'],
   refactor: ['complexity', 'srp', 'mixed-concerns', 'size'],
+  hardcoded: ['hardcoded', 'i18n'],
+  lint: ['lint'],
+  types: ['type-safety'],
+  security: ['security'],
+  'pre-commit': ['lint', 'security', 'type-safety'],
+  queries: ['duplicate-query'],
 };
 
 // ============================================================================
@@ -125,7 +146,21 @@ export function parseIntent(options: {
  */
 function validateMode(mode?: string): AuditMode {
   if (!mode || mode === 'all') return 'all';
-  if (mode === 'release' || mode === 'refactor') return mode;
+
+  const validModes: AuditMode[] = [
+    'release',
+    'refactor',
+    'hardcoded',
+    'lint',
+    'types',
+    'security',
+    'pre-commit',
+    'queries',
+  ];
+
+  if (validModes.includes(mode as AuditMode)) {
+    return mode as AuditMode;
+  }
 
   // Invalid mode, default to 'all'
   return 'all';

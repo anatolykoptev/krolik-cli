@@ -31,6 +31,7 @@ const CATEGORY_BASE_EFFORT: Record<QualityCategory, number> = {
   security: 15, // Security vulnerability fix
   modernization: 10, // Legacy pattern update
   i18n: 15, // Extract to translation key
+  'duplicate-query': 10, // Extract to shared hook/function
 };
 
 /**

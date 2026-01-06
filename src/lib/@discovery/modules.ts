@@ -28,6 +28,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { detectMonorepo } from './project';
 import { analyzeSourceFile, type ExportedMember } from './source-analyzer';
 
 // ============================================================================
@@ -199,6 +200,139 @@ const EXPORT_KIND_ORDER: Record<ModuleExport['kind'], number> = {
   enum: 4,
   const: 5,
 };
+
+// ============================================================================
+// LIB PATH DETECTION
+// ============================================================================
+
+/**
+ * Result of lib path detection
+ */
+export interface LibPathsResult {
+  /** All detected lib paths (absolute) */
+  paths: string[];
+  /** Detection summary for each path */
+  detected: Array<{
+    path: string;
+    type: 'standard' | 'monorepo-app' | 'monorepo-package' | 'custom';
+    packageName?: string;
+  }>;
+}
+
+/**
+ * Detect all lib directories in the project.
+ *
+ * Checks common patterns in order:
+ * 1. Standard: src/lib, lib
+ * 2. Monorepo apps: apps/* /lib (web apps with @-prefixed modules)
+ * 3. Monorepo packages: packages/* /src (shared utilities)
+ * 4. tsconfig baseUrl-based paths
+ *
+ * @param projectRoot - Project root directory
+ * @returns All detected lib paths
+ */
+export function detectLibPaths(projectRoot: string): LibPathsResult {
+  const result: LibPathsResult = { paths: [], detected: [] };
+  const seen = new Set<string>();
+
+  function addPath(
+    p: string,
+    type: LibPathsResult['detected'][0]['type'],
+    packageName?: string,
+  ): void {
+    if (!fs.existsSync(p) || seen.has(p)) return;
+    seen.add(p);
+    result.paths.push(p);
+    result.detected.push({ path: p, type, ...(packageName && { packageName }) });
+  }
+
+  // 1. Standard paths
+  const standardPaths = ['src/lib', 'lib', 'src/libs', 'libs'];
+  for (const rel of standardPaths) {
+    addPath(path.join(projectRoot, rel), 'standard');
+  }
+
+  // 2. Monorepo detection
+  const monorepo = detectMonorepo(projectRoot);
+  if (monorepo) {
+    // Check apps for lib directories (web apps)
+    const appsDir = path.join(projectRoot, 'apps');
+    if (fs.existsSync(appsDir)) {
+      try {
+        const apps = fs.readdirSync(appsDir, { withFileTypes: true });
+        for (const app of apps) {
+          if (!app.isDirectory()) continue;
+
+          // Check apps/{name}/lib (common in Next.js apps)
+          const appLibPath = path.join(appsDir, app.name, 'lib');
+          addPath(appLibPath, 'monorepo-app', app.name);
+
+          // Check apps/{name}/src/lib
+          const appSrcLibPath = path.join(appsDir, app.name, 'src', 'lib');
+          addPath(appSrcLibPath, 'monorepo-app', app.name);
+        }
+      } catch {
+        // Ignore read errors
+      }
+    }
+
+    // Check packages for src directories (shared utilities)
+    for (const pkgPath of monorepo.packages) {
+      const pkgName = path.basename(pkgPath);
+
+      // packages/{name}/src (treat as lib for shared packages)
+      const pkgSrcPath = path.join(pkgPath, 'src');
+      if (fs.existsSync(pkgSrcPath)) {
+        // Only add if it has @-prefixed dirs OR exports types/functions
+        const hasModules = hasLibModuleStructure(pkgSrcPath);
+        if (hasModules) {
+          addPath(pkgSrcPath, 'monorepo-package', pkgName);
+        }
+      }
+
+      // packages/{name}/lib
+      const pkgLibPath = path.join(pkgPath, 'lib');
+      addPath(pkgLibPath, 'monorepo-package', pkgName);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Check if a directory has lib-module-like structure
+ * (has @-prefixed subdirs or index.ts with exports)
+ */
+function hasLibModuleStructure(dir: string): boolean {
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    // Check for @-prefixed directories
+    const hasAtPrefixed = entries.some(
+      (e) => e.isDirectory() && e.name.startsWith('@') && !e.name.startsWith('@types'),
+    );
+    if (hasAtPrefixed) return true;
+
+    // Check for index.ts that exports things
+    const hasIndex = entries.some((e) => e.isFile() && e.name === 'index.ts');
+    if (hasIndex) {
+      const indexPath = path.join(dir, 'index.ts');
+      const content = fs.readFileSync(indexPath, 'utf-8');
+      // Has exports?
+      return content.includes('export ');
+    }
+
+    // Check for subdirs with index.ts (non-@-prefixed modules)
+    const hasModuleDirs = entries.some((e) => {
+      if (!e.isDirectory() || e.name.startsWith('.') || e.name.startsWith('__')) return false;
+      return fs.existsSync(path.join(dir, e.name, 'index.ts'));
+    });
+
+    return hasModuleDirs;
+  } catch {
+    return false;
+  }
+}
 
 // ============================================================================
 // MODULE SCANNING
@@ -471,12 +605,16 @@ function compareModules(a: ModuleInfo, b: ModuleInfo): number {
  * Options for scanning lib modules
  */
 export interface ScanLibModulesOptions {
-  /** Custom lib path (default: src/lib) */
+  /** Custom lib path (default: auto-detect) */
   libPath?: string;
+  /** Multiple lib paths to scan (overrides libPath and auto-detect) */
+  libPaths?: string[];
   /** Maximum depth to scan (default: 3) */
   maxDepth?: number;
   /** Include modules with 0 exports that have children (default: true) */
   includeWrapperModules?: boolean;
+  /** Disable auto-detection (default: false) */
+  disableAutoDetect?: boolean;
 }
 
 /**
@@ -521,39 +659,69 @@ export function scanLibModules(
   const options: ScanLibModulesOptions =
     typeof optionsOrLibPath === 'string' ? { libPath: optionsOrLibPath } : (optionsOrLibPath ?? {});
 
-  const libDir = options.libPath ?? path.join(projectRoot, 'src', 'lib');
   const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
   const includeWrapperModules = options.includeWrapperModules ?? true;
 
-  // Check if lib directory exists
-  if (!fs.existsSync(libDir)) {
+  // Determine which lib directories to scan
+  let libDirs: string[] = [];
+
+  if (options.libPaths && options.libPaths.length > 0) {
+    // Explicit multiple paths provided
+    libDirs = options.libPaths.filter((p) => fs.existsSync(p));
+  } else if (options.libPath) {
+    // Single explicit path provided
+    const explicitPath = path.isAbsolute(options.libPath)
+      ? options.libPath
+      : path.join(projectRoot, options.libPath);
+    if (fs.existsSync(explicitPath)) {
+      libDirs = [explicitPath];
+    }
+  } else if (!options.disableAutoDetect) {
+    // Auto-detect lib paths
+    const detected = detectLibPaths(projectRoot);
+    libDirs = detected.paths;
+  } else {
+    // Fallback to default
+    const defaultPath = path.join(projectRoot, 'src', 'lib');
+    if (fs.existsSync(defaultPath)) {
+      libDirs = [defaultPath];
+    }
+  }
+
+  // No lib directories found
+  if (libDirs.length === 0) {
     return { modules: [], totalExports: 0, durationMs: Date.now() - startTime };
   }
 
-  // Scan recursively starting from lib directory
-  const scanOptions: ScanOptions = {
-    maxDepth,
-    currentDepth: 0,
-    parentSegments: [],
-    libDir,
-    projectRoot,
-  };
+  // Scan all lib directories
+  let allModules: ModuleInfo[] = [];
 
-  let modules = scanDirectoryRecursive(libDir, scanOptions);
+  for (const libDir of libDirs) {
+    const scanOptions: ScanOptions = {
+      maxDepth,
+      currentDepth: 0,
+      parentSegments: [],
+      libDir,
+      projectRoot,
+    };
+
+    const modules = scanDirectoryRecursive(libDir, scanOptions);
+    allModules.push(...modules);
+  }
 
   // Filter out wrapper modules if requested
   if (!includeWrapperModules) {
-    modules = modules.filter((mod) => mod.exports.length > 0);
+    allModules = allModules.filter((mod) => mod.exports.length > 0);
   }
 
   // Sort modules
-  modules.sort(compareModules);
+  allModules.sort(compareModules);
 
   // Calculate total exports
-  const totalExports = modules.reduce((sum, mod) => sum + mod.exports.length, 0);
+  const totalExports = allModules.reduce((sum, mod) => sum + mod.exports.length, 0);
 
   return {
-    modules,
+    modules: allModules,
     totalExports,
     durationMs: Date.now() - startTime,
   };

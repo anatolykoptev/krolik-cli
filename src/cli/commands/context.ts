@@ -23,11 +23,16 @@ Modes:
   -d, --deep     Heavy analysis: imports, types, env, contracts (~5s)
   --full         All sections + quality audit (~10s)
 
+Filters:
+  -s, --search <pattern>  Include files/code matching pattern
+  --changed-only          Include only changed files (from git status)
+
 Examples:
   krolik context --feature auth              # Context for auth feature
   krolik context --issue 42                  # Context from GitHub issue
   krolik context --quick                     # Compact mode with repo-map
-  krolik context --project myapp --quick     # Context for specific project`,
+  krolik context --search "tRPC"             # Context with search for tRPC
+  krolik context --changed-only              # Only context from changed files`,
     )
     .option('-p, --project <name>', 'Project folder name (for multi-project workspaces)')
     .option('--issue <number>', 'Context for GitHub issue')
@@ -44,6 +49,8 @@ Examples:
     .option('--budget <number>', 'Token budget for smart context (default: 4000)', (val) =>
       parseInt(val, 10),
     )
+    .option('-s, --search <pattern>', 'Search pattern - include files/code matching pattern')
+    .option('--changed-only', 'Include only changed files (from git status)')
     .action(async (options: CommandOptions) => {
       const { runContext } = await import('../../commands/context');
 

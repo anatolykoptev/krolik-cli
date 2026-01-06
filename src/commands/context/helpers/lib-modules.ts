@@ -6,17 +6,38 @@
 import { scanLibModules } from '../../../lib/@discovery';
 import type { LibModulesData } from '../types';
 
-/** Key modules that should include function details */
-const KEY_MODULES = ['fs', 'discovery', 'ast-analysis', 'swc', 'git'];
+/**
+ * Key modules that should include more function details
+ * These are the most commonly used modules in the codebase
+ */
+const KEY_MODULES = [
+  'fs',
+  'discovery',
+  'ast-analysis',
+  'swc',
+  'git',
+  'shell',
+  'format',
+  'vcs',
+  'storage',
+  'detectors',
+  'utils',
+  'cache',
+];
 
 /** Max functions to show for key modules */
-const MAX_FUNCTIONS = 5;
+const MAX_FUNCTIONS_KEY = 8;
+
+/** Max functions to show for regular modules */
+const MAX_FUNCTIONS_REGULAR = 3;
 
 /**
  * Collect lib modules for AI context
  *
  * Scans src/lib/@* modules and returns structured data for AI context.
- * Key modules (fs, discovery, etc.) include top function signatures.
+ * All modules include top functions with signatures:
+ * - Key modules: up to 8 functions
+ * - Regular modules: up to 3 functions
  */
 export function collectLibModules(projectRoot: string): LibModulesData | undefined {
   try {
@@ -31,9 +52,10 @@ export function collectLibModules(projectRoot: string): LibModulesData | undefin
       totalExports: result.totalExports,
       modules: result.modules.map((mod) => {
         const isKeyModule = KEY_MODULES.includes(mod.name);
+        const maxFunctions = isKeyModule ? MAX_FUNCTIONS_KEY : MAX_FUNCTIONS_REGULAR;
         const functions = mod.exports
           .filter((e) => e.kind === 'function')
-          .slice(0, isKeyModule ? MAX_FUNCTIONS : 0)
+          .slice(0, maxFunctions)
           .map((fn) => ({
             name: fn.name,
             signature: fn.signature ?? '()',

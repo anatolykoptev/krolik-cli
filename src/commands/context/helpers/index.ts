@@ -21,5 +21,7 @@ export { findRoutersDir, findSchemaDir } from './paths';
 export type { DomainPatterns } from './patterns';
 // Re-export patterns
 export { DOMAIN_FILE_PATTERNS, getDomainPatterns } from './patterns';
+// Re-export search functionality
+export { searchInProject } from './search';
 // Re-export tree generation
 export { generateProjectTree } from './tree';

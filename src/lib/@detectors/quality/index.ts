@@ -114,3 +114,58 @@ export {
   shouldSkipFile as shouldSkipEnvConfigFile,
   suggestEnvVarName,
 } from './env-config/validators';
+
+// ============================================================================
+// DUPLICATE-QUERY
+// ============================================================================
+
+// Detector
+export {
+  detectQuery,
+  detectReactComponentContext,
+  detectTrpcRouterContext,
+} from './duplicate-query/detector';
+
+// Normalizer
+export {
+  calculateQuerySimilarity,
+  generatePrismaFingerprint,
+  generateTrpcFingerprint,
+  type NormalizedQuery,
+  type NormalizedTrpcInput,
+  normalizeQueryStructure,
+  normalizeTrpcInput,
+} from './duplicate-query/normalizer';
+
+// Patterns
+export {
+  ALL_PRISMA_OPERATIONS,
+  ALL_TRPC_HOOKS,
+  COMPONENT_FILE_PATTERNS,
+  HOOK_NAME_SUGGESTIONS,
+  MAX_QUERIES_TO_ANALYZE,
+  MIN_DUPLICATE_OCCURRENCES,
+  PRISMA_CLIENT_IDENTIFIERS,
+  PRISMA_READ_OPERATIONS,
+  PRISMA_WRITE_OPERATIONS,
+  ROUTER_FILE_PATTERNS,
+  SIMILARITY_THRESHOLD,
+  SKIP_FILE_PATTERNS as DUPLICATE_QUERY_SKIP_FILE_PATTERNS,
+  SUGGESTED_FILE_LOCATIONS,
+  TRPC_CLIENT_IDENTIFIERS,
+  TRPC_MUTATION_HOOKS,
+  TRPC_QUERY_HOOKS,
+} from './duplicate-query/patterns';
+
+// Types
+export type {
+  DuplicatePrismaQueryGroup,
+  DuplicateTrpcQueryGroup,
+  PrismaOperation,
+  PrismaQueryInfo,
+  QueryDetection,
+  QueryDetectorContext,
+  RefactoringSuggestion,
+  TrpcHook,
+  TrpcQueryInfo,
+} from './duplicate-query/types';

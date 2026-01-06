@@ -24,9 +24,15 @@
 export * from './architecture';
 // Simple regex-based code extraction (for reporting)
 export { extractCodeStructure, extractExportNames, extractImportPaths } from './code-extraction';
-export type { ModuleExport, ModuleInfo, ModuleScanResult } from './modules';
+export type { LibPathsResult, ModuleExport, ModuleInfo, ModuleScanResult } from './modules';
 // Module scanning (lib/@* modules)
-export { formatModulesMarkdown, getModule, scanLibModules, searchExports } from './modules';
+export {
+  detectLibPaths,
+  formatModulesMarkdown,
+  getModule,
+  scanLibModules,
+  searchExports,
+} from './modules';
 // Dynamic path resolution (tsconfig.json aliases)
 export type { PathResolver, TsConfigPaths } from './paths';
 export {

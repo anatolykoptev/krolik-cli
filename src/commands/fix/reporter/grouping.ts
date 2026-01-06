@@ -71,6 +71,7 @@ const CATEGORY_PRIORITY: Record<QualityCategory, PriorityLevel> = {
   modernization: 'low', // Legacy patterns (require, sync fs)
   i18n: 'medium', // Localization improvements
   'backwards-compat': 'medium', // Backwards compatibility shims
+  'duplicate-query': 'medium', // Duplicate Prisma/tRPC queries
 };
 
 // ============================================================================
@@ -352,6 +353,7 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     modernization: 'Legacy Code Patterns',
     i18n: 'Hardcoded Text (I18n)',
     'backwards-compat': 'Backwards Compatibility Shims',
+    'duplicate-query': 'Duplicate Query Issues',
   };
 
   const descriptions: Record<QualityCategory, string> = {
@@ -371,6 +373,7 @@ function createCategoryGroup(category: QualityCategory, issues: EnrichedIssue[])
     modernization: 'Update require() to import and sync fs to async',
     i18n: 'Extract hardcoded text to translation keys',
     'backwards-compat': 'Delete deprecated shim files and update imports',
+    'duplicate-query': 'Extract duplicate queries to shared hooks/functions',
   };
 
   const group = createGroup(`category:${category}`, issues, titles[category]);

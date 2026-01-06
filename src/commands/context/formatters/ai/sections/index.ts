@@ -49,6 +49,8 @@ export {
   formatSchemaHighlightsSection,
   formatSchemaSection,
 } from './schema-routes';
+// Search results - from --search option
+export { formatSearchResultsSection } from './search-results';
 // P0: Executive summary - goes FIRST
 export { formatSummarySection } from './summary';
 export {

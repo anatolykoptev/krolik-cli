@@ -32,6 +32,12 @@ export type {
   LintIssueType,
   ModernizationDetection,
   ModernizationIssueType,
+  // Query detection types
+  PrismaOperationType,
+  PrismaQueryDetection,
+  QueryDetection,
+  QueryDetectorContext,
+  QueryType,
   ReturnTypeDetection,
   ReturnTypeIssueType,
   SecretDetection,
@@ -40,6 +46,8 @@ export type {
   SecretType,
   SecurityDetection,
   SecurityIssueType,
+  TrpcHookType,
+  TrpcQueryDetection,
   TypeSafetyDetection,
   TypeSafetyIssueType,
 } from './types';
@@ -193,3 +201,13 @@ export {
   getComplexityWeight,
   isComplexityNode,
 } from '../../quality/complexity/detector';
+
+// ============================================================================
+// DUPLICATE QUERY DETECTORS
+// ============================================================================
+
+export {
+  detectQuery,
+  detectReactComponentContext,
+  detectTrpcRouterContext,
+} from '../../quality/duplicate-query/detector';

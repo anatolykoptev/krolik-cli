@@ -14,6 +14,7 @@ import { registerInitCommand } from './init';
 import { registerIssueCommand } from './issue';
 import { registerMcpCommand } from './mcp';
 import { registerMemCommand } from './mem';
+import { registerModulesCommand } from './modules';
 import { registerProgressCommand } from './progress';
 import { registerQualityCommand } from './quality';
 import { registerRefactorCommand } from './refactor';
@@ -37,6 +38,7 @@ export function registerCommands(program: Command): void {
   // Analysis commands
   registerSchemaCommand(program);
   registerRoutesCommand(program);
+  registerModulesCommand(program);
   registerContextCommand(program);
   registerIssueCommand(program);
 

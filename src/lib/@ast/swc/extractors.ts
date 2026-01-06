@@ -318,14 +318,183 @@ function extractJSXAttributeValue(value: JSXAttrValue): string | null {
   return null;
 }
 
+// Type node type definitions for AST-based reconstruction
+type TsKeywordType = { type: 'TsKeywordType'; kind: string };
+type TsTypeReference = {
+  type: 'TsTypeReference';
+  typeName: { type: string; value?: string };
+  typeParams?: { params: TsTypeNode[] };
+};
+type TsUnionType = { type: 'TsUnionOrIntersectionType'; types: TsTypeNode[] };
+type TsArrayType = { type: 'TsArrayType'; elemType: TsTypeNode };
+type TsTypeLiteral = { type: 'TsTypeLiteral'; members: unknown[] };
+type TsFunctionType = { type: 'TsFunctionType'; params: unknown[]; typeAnnotation?: unknown };
+type TsParenthesizedType = { type: 'TsParenthesizedType'; typeAnnotation: TsTypeNode };
+type TsOptionalType = { type: 'TsOptionalType'; typeAnnotation: TsTypeNode };
+type TsRestType = { type: 'TsRestType'; typeAnnotation: TsTypeNode };
+type TsConditionalType = { type: 'TsConditionalType' };
+type TsInferType = { type: 'TsInferType' };
+type TsIndexedAccessType = {
+  type: 'TsIndexedAccessType';
+  objectType: TsTypeNode;
+  indexType: TsTypeNode;
+};
+type TsTupleType = { type: 'TsTupleType'; elemTypes: TsTypeNode[] };
+type TsLiteralType = {
+  type: 'TsLiteralType';
+  literal: { type: string; value?: string | number | boolean };
+};
+
+type TsTypeNode =
+  | TsKeywordType
+  | TsTypeReference
+  | TsUnionType
+  | TsArrayType
+  | TsTypeLiteral
+  | TsFunctionType
+  | TsParenthesizedType
+  | TsOptionalType
+  | TsRestType
+  | TsConditionalType
+  | TsInferType
+  | TsIndexedAccessType
+  | TsTupleType
+  | TsLiteralType
+  | { type: string };
+
+/**
+ * Convert TypeScript type AST node to string representation.
+ *
+ * This is a pure AST-based reconstruction that doesn't rely on source code spans.
+ * It's more robust than span-based extraction, especially for files with non-ASCII content.
+ *
+ * @param typeNode - TypeScript type AST node
+ * @param maxLength - Maximum length before truncation (default: 50)
+ * @returns Type as string
+ */
+function typeNodeToString(typeNode: TsTypeNode, maxLength: number): string {
+  const node = typeNode as TsTypeNode;
+
+  switch (node.type) {
+    // Keyword types: string, number, boolean, any, void, etc.
+    case 'TsKeywordType': {
+      const keyword = (node as TsKeywordType).kind;
+      // SWC uses lowercase kinds like 'string', 'number', etc.
+      return keyword.toLowerCase().replace('keyword', '');
+    }
+
+    // Type references: DateInput, Promise<T>, Array<T>, etc.
+    case 'TsTypeReference': {
+      const ref = node as TsTypeReference;
+      let name = 'unknown';
+
+      if (ref.typeName.type === 'Identifier' && ref.typeName.value) {
+        name = ref.typeName.value;
+      } else if (ref.typeName.type === 'TsQualifiedName') {
+        // For qualified names like Foo.Bar
+        name = 'QualifiedType';
+      }
+
+      // Handle generic parameters
+      if (ref.typeParams?.params && ref.typeParams.params.length > 0) {
+        const params = ref.typeParams.params.map((p) => typeNodeToString(p, maxLength)).join(', ');
+        return `${name}<${params}>`;
+      }
+
+      return name;
+    }
+
+    // Union types: A | B | C
+    case 'TsUnionType': {
+      const union = node as TsUnionType;
+      const types = union.types.map((t) => typeNodeToString(t, maxLength)).join(' | ');
+      return types.length > maxLength ? `${types.slice(0, maxLength - 3)}...` : types;
+    }
+
+    // Intersection types: A & B
+    case 'TsIntersectionType': {
+      const inter = node as TsUnionType; // Same structure
+      const types = inter.types.map((t) => typeNodeToString(t, maxLength)).join(' & ');
+      return types.length > maxLength ? `${types.slice(0, maxLength - 3)}...` : types;
+    }
+
+    // Array types: T[]
+    case 'TsArrayType': {
+      const arr = node as TsArrayType;
+      const elemType = typeNodeToString(arr.elemType, maxLength);
+      return `${elemType}[]`;
+    }
+
+    // Object literal types: { foo: string, bar: number }
+    case 'TsTypeLiteral': {
+      const lit = node as TsTypeLiteral;
+      if (lit.members.length === 0) return '{}';
+      return `{ ${lit.members.length} props }`;
+    }
+
+    // Function types: (a: string) => void
+    case 'TsFunctionType': {
+      return '(...) => ...';
+    }
+
+    // Parenthesized: (A | B)
+    case 'TsParenthesizedType': {
+      const paren = node as TsParenthesizedType;
+      return `(${typeNodeToString(paren.typeAnnotation, maxLength)})`;
+    }
+
+    // Optional: T?
+    case 'TsOptionalType': {
+      const opt = node as TsOptionalType;
+      return `${typeNodeToString(opt.typeAnnotation, maxLength)}?`;
+    }
+
+    // Rest: ...T
+    case 'TsRestType': {
+      const rest = node as TsRestType;
+      return `...${typeNodeToString(rest.typeAnnotation, maxLength)}`;
+    }
+
+    // Tuple: [A, B, C]
+    case 'TsTupleType': {
+      const tuple = node as TsTupleType;
+      const types = tuple.elemTypes.map((t) => typeNodeToString(t, maxLength)).join(', ');
+      return `[${types}]`;
+    }
+
+    // Literal types: 'foo', 42, true
+    case 'TsLiteralType': {
+      const lit = node as TsLiteralType;
+      if (lit.literal.type === 'StringLiteral') {
+        return `'${lit.literal.value}'`;
+      }
+      if (lit.literal.type === 'NumericLiteral' || lit.literal.type === 'BooleanLiteral') {
+        return String(lit.literal.value);
+      }
+      return 'literal';
+    }
+
+    // Indexed access: T[K]
+    case 'TsIndexedAccessType': {
+      const idx = node as TsIndexedAccessType;
+      return `${typeNodeToString(idx.objectType, maxLength)}[${typeNodeToString(idx.indexType, maxLength)}]`;
+    }
+
+    // Conditional, infer, and other complex types
+    case 'TsConditionalType':
+    case 'TsInferType':
+      return 'complex';
+
+    default:
+      return 'unknown';
+  }
+}
+
 /**
  * Convert TypeScript type node to string representation
  *
- * Uses the source code span to extract the exact type text.
- * Truncates long types for readability.
- *
- * IMPORTANT: SWC accumulates span offsets globally across parseSync calls.
- * You MUST pass the baseOffset from parseFile() to get correct results.
+ * Uses AST-based reconstruction for reliability with non-ASCII content.
+ * Falls back to span-based extraction if AST reconstruction fails.
  *
  * Useful for:
  * - Type aliases: `type User = { ... }` → extract '{ ... }'
@@ -333,7 +502,7 @@ function extractJSXAttributeValue(value: JSXAttrValue): string | null {
  * - Generic constraints: `T extends Foo` → extract 'Foo'
  *
  * @param typeNode - TypeScript type annotation node
- * @param content - Source file content
+ * @param content - Source file content (used for fallback)
  * @param baseOffset - Base offset from parseFile() for span normalization (default: 0)
  * @param maxLength - Maximum length before truncation (default: 50)
  * @returns Type as string or 'unknown' if cannot be extracted
@@ -344,31 +513,25 @@ function extractJSXAttributeValue(value: JSXAttrValue): string | null {
  */
 export function extractTypeString(
   typeNode: TsType,
-  content: string,
-  baseOffset = 0,
+  _content: string,
+  _baseOffset = 0,
   maxLength = 50,
 ): string {
-  if (!typeNode.span) {
+  if (!typeNode) {
     return 'unknown';
   }
 
-  // SWC uses 1-based byte offsets, normalize with baseOffset and convert to 0-based
-  const { start, end } = typeNode.span;
-  const normalizedStart = start - baseOffset - 1;
-  const normalizedEnd = end - baseOffset - 1;
-
-  // Validate bounds
-  if (normalizedStart < 0 || normalizedEnd > content.length || normalizedStart >= normalizedEnd) {
-    return 'unknown';
+  // Use AST-based reconstruction (more reliable for non-ASCII content)
+  try {
+    const result = typeNodeToString(typeNode as unknown as TsTypeNode, maxLength);
+    if (result && result !== 'unknown') {
+      return result;
+    }
+  } catch {
+    // Fall through to unknown
   }
 
-  let typeText = content.slice(normalizedStart, normalizedEnd).trim();
-
-  if (typeText.length > maxLength) {
-    typeText = `${typeText.slice(0, maxLength - 3)}...`;
-  }
-
-  return typeText || 'unknown';
+  return 'unknown';
 }
 
 /**

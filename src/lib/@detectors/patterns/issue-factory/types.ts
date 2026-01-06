@@ -28,7 +28,8 @@ export type QualityCategory =
   | 'security'
   | 'modernization'
   | 'i18n'
-  | 'backwards-compat';
+  | 'backwards-compat'
+  | 'duplicate-query';
 
 /**
  * A single quality issue found in a file
