@@ -1,5 +1,5 @@
 ---
-"krolik-cli": minor
+"@anatolykoptev/krolik-cli": minor
 ---
 
 ### New Features
