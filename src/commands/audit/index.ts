@@ -11,7 +11,7 @@
  */
 
 import { fileCache } from '../../lib/@cache';
-import { saveKrolikFile } from '../../lib/@core/fs';
+import { saveToKrolik } from '../../lib/@core/krolik-paths';
 import { formatDuration, measureTimeAsync } from '../../lib/@core/time';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type { FixerRegistry } from '../fix/core/registry';
@@ -68,10 +68,10 @@ async function generateReport(
   const xmlContent = formatAsXml(report);
 
   // Save XML report using shared utility
-  saveKrolikFile(projectRoot, 'AUDIT.xml', xmlContent);
+  saveToKrolik('AUDIT.xml', xmlContent, { projectRoot });
 
   // Save JSON version for --from-audit integration in fix command
-  saveKrolikFile(projectRoot, 'audit-data.json', JSON.stringify(report, null, 2));
+  saveToKrolik('audit-data.json', JSON.stringify(report, null, 2), { projectRoot });
 
   return {
     reportPath: '.krolik/AUDIT.xml',

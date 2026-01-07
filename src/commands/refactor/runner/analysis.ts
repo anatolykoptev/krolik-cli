@@ -3,7 +3,8 @@
  * @description Analysis orchestration for refactor command
  */
 
-import { exists, saveKrolikFile } from '../../../lib/@core/fs';
+import { exists } from '../../../lib/@core/fs';
+import { saveToKrolik } from '../../../lib/@core/krolik-paths';
 import {
   analyzeStructure,
   createEnhancedAnalysis,
@@ -285,7 +286,7 @@ export async function printAnalysis(
     const xmlOutput = formatAiNativeXml(enhanced, { mode });
 
     // Save to .krolik/REFACTOR.xml for AI access
-    saveKrolikFile(projectRoot, 'REFACTOR.xml', xmlOutput);
+    saveToKrolik('REFACTOR.xml', xmlOutput, { projectRoot });
 
     // For XML format, output XML
     if (format === 'xml') {

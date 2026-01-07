@@ -4,8 +4,8 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { detectFeatures, detectMonorepoPackages } from '../../config';
+import { ensureKrolikDir, getKrolikFilePath } from '../../lib/@core/krolik-paths';
 import { createEnhancedAnalysis } from './analyzers/enhanced';
 import type { RefactorOptions } from './core/options';
 import { getModeFlags, resolveMode } from './core/options';
@@ -25,8 +25,6 @@ import { printSummaryReport, runTypecheck } from './utils';
 // RECOMMENDATION CACHING
 // ============================================================================
 
-const REFACTOR_DATA_FILE = '.krolik/refactor-data.json';
-
 interface RefactorDataCache {
   timestamp: string;
   path: string;
@@ -45,13 +43,9 @@ function cacheRecommendations(
   targetPath: string,
   recommendations: Recommendation[],
 ): void {
-  const krolikDir = path.join(projectRoot, '.krolik');
-  const cachePath = path.join(projectRoot, REFACTOR_DATA_FILE);
-
-  // Ensure .krolik directory exists
-  if (!fs.existsSync(krolikDir)) {
-    fs.mkdirSync(krolikDir, { recursive: true });
-  }
+  // Ensure .krolik directory exists and get cache file path
+  ensureKrolikDir('project', { projectRoot });
+  const cachePath = getKrolikFilePath('refactor-data.json', 'project', { projectRoot });
 
   const cache: RefactorDataCache = {
     timestamp: new Date().toISOString(),

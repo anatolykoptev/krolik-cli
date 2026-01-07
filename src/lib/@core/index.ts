@@ -17,6 +17,8 @@
 export * from './constants';
 // File system utilities
 export * from './fs';
+// Krolik paths and directory management
+export * from './krolik-paths';
 // Logger utilities
 export * from './logger';
 // Registry pattern

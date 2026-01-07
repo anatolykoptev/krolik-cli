@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { saveKrolikFile } from '../../lib/@core/fs';
+import { saveToKrolik } from '../../lib/@core/krolik-paths';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import { groupByDomain } from './grouping';
 import {
@@ -137,7 +137,7 @@ export async function runSchema(ctx: CommandContext & { options: SchemaOptions }
   const xmlOutput = formatAI(fullResult);
 
   // Always save to .krolik/SCHEMA.xml for AI access
-  saveKrolikFile(config.projectRoot, 'SCHEMA.xml', xmlOutput);
+  saveToKrolik('SCHEMA.xml', xmlOutput, { projectRoot: config.projectRoot });
 
   // Handle --save option separately
   if (options.save) {

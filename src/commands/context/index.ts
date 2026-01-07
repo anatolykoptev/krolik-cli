@@ -13,7 +13,7 @@ import {
 } from '@/lib/@integrations/context7';
 import { getSectionsByLibrary, searchDocs } from '@/lib/@storage/docs';
 import { type Memory, search as searchMemory } from '@/lib/@storage/memory';
-import { saveKrolikFile } from '../../lib/@core/fs';
+import { saveToKrolik } from '../../lib/@core/krolik-paths';
 import { filterGeneratedFindings } from '../../lib/@detectors/noise-filter';
 import {
   getCurrentBranch,
@@ -172,7 +172,7 @@ export async function runContext(ctx: CommandContext & { options: ContextOptions
   const xmlOutput = formatAiPrompt(aiData);
 
   // Save to .krolik/CONTEXT.xml for AI reference
-  saveKrolikFile(projectRoot, 'CONTEXT.xml', xmlOutput);
+  saveToKrolik('CONTEXT.xml', xmlOutput, { projectRoot });
 
   console.log(xmlOutput);
 }
