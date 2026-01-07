@@ -3,8 +3,8 @@
  * @description Configuration loading and resolution
  */
 
-import * as path from 'node:path';
 import { cosmiconfig } from 'cosmiconfig';
+import { findProjectRoot } from '../lib/@discovery/project';
 import type { KrolikConfig, ResolvedConfig } from '../types/config';
 import { createDefaultConfig } from './defaults';
 import { detectAll } from './detect';
@@ -19,28 +19,6 @@ const CONFIG_MODULE_NAME = 'krolik';
  */
 let cachedConfig: ResolvedConfig | null = null;
 let cachedProjectRoot: string | null = null;
-
-/**
- * Find project root by looking for package.json
- */
-export function findProjectRoot(startDir: string = process.cwd()): string {
-  let currentDir = startDir;
-
-  while (currentDir !== path.dirname(currentDir)) {
-    const pkgPath = path.join(currentDir, 'package.json');
-    try {
-      const fs = require('node:fs');
-      if (fs.existsSync(pkgPath)) {
-        return currentDir;
-      }
-    } catch {
-      // Continue searching
-    }
-    currentDir = path.dirname(currentDir);
-  }
-
-  return startDir;
-}
 
 /**
  * Load config from file using cosmiconfig

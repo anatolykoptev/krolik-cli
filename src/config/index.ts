@@ -3,6 +3,7 @@
  * @description Configuration exports
  */
 
+export { findProjectRoot } from '../lib/@discovery/project';
 export {
   createDefaultConfig,
   DEFAULT_EXCLUDE,
@@ -30,4 +31,4 @@ export {
   getApproaches,
   getRelatedFiles,
 } from './domains';
-export { clearConfigCache, defineConfig, findProjectRoot, getConfig, loadConfig } from './loader';
+export { clearConfigCache, defineConfig, getConfig, loadConfig } from './loader';
