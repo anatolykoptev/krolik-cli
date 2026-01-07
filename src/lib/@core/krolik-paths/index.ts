@@ -17,7 +17,8 @@
 import { homedir } from 'node:os';
 import * as path from 'node:path';
 import { findProjectRoot } from '../../@discovery/project';
-import { ensureDir, exists, writeFile } from '../fs';
+import { ensureDir, exists, isDirectory, writeFile } from '../fs';
+import { logger } from '../logger';
 
 // ============================================================================
 // TYPES
@@ -43,14 +44,16 @@ export interface SaveOptions extends ResolveOptions {
 // PATH CACHE (Performance optimization)
 // ============================================================================
 
-let cachedProjectRoot: string | null = null;
+/**
+ * User .krolik directory cache
+ * Cached permanently since homedir() rarely changes
+ */
 let cachedUserKrolikDir: string | null = null;
 
 /**
  * Clear cached paths (useful for testing)
  */
 export function clearKrolikPathCache(): void {
-  cachedProjectRoot = null;
   cachedUserKrolikDir = null;
 }
 
@@ -62,42 +65,39 @@ export function clearKrolikPathCache(): void {
  * Resolve project root directory
  *
  * Uses @discovery/findProjectRoot as single source of truth.
- * Caches result for performance.
+ * Delegates caching to @discovery layer (5-second TTL with mtime checks).
  *
  * @param options - Resolution options
  * @returns Absolute path to project root
  * @throws Error if project root cannot be found and validate=true
  */
 export function resolveProjectRoot(options: ResolveOptions = {}): string {
-  const { startDir = process.cwd(), projectRoot: explicit, validate = true } = options;
+  const { startDir, projectRoot: explicit, validate = true } = options;
 
   // Use explicit override if provided
   if (explicit) {
     const resolved = path.resolve(explicit);
     if (validate && !isValidProjectRoot(resolved)) {
-      throw new Error(`Invalid project root: ${resolved} (no package.json or .git found)`);
+      throw new Error(
+        `Invalid project root: ${resolved} ` + `(not a directory or missing package.json/.git)`,
+      );
     }
     return resolved;
   }
 
-  // Use cached value if searching from cwd
-  if (startDir === process.cwd() && cachedProjectRoot) {
-    return cachedProjectRoot;
-  }
-
-  // Auto-detect using @discovery
+  // Auto-detect using @discovery (has built-in caching)
   const detected = findProjectRoot(startDir);
 
-  if (validate && !isValidProjectRoot(detected)) {
-    throw new Error(
-      `Project root not found from ${startDir}. ` +
-        `Ensure you're inside a project with package.json or .git`,
-    );
-  }
-
-  // Cache if searching from cwd
-  if (startDir === process.cwd()) {
-    cachedProjectRoot = detected;
+  // Only validate if findProjectRoot returned fallback (startDir)
+  // If it found package.json/.git, validation is redundant
+  if (validate && detected === (startDir || process.cwd())) {
+    // Fallback was returned, verify it's actually valid
+    if (!isValidProjectRoot(detected)) {
+      throw new Error(
+        `Project root not found from ${startDir || process.cwd()}. ` +
+          `No package.json or .git found in any parent directory.`,
+      );
+    }
   }
 
   return detected;
@@ -105,8 +105,15 @@ export function resolveProjectRoot(options: ResolveOptions = {}): string {
 
 /**
  * Validate that a directory is a valid project root
+ *
+ * Checks:
+ * 1. Path exists and is a directory
+ * 2. Contains package.json OR .git
  */
 function isValidProjectRoot(dir: string): boolean {
+  if (!exists(dir) || !isDirectory(dir)) {
+    return false;
+  }
   return exists(path.join(dir, 'package.json')) || exists(path.join(dir, '.git'));
 }
 
@@ -188,10 +195,16 @@ export function ensureKrolikDir(scope: KrolikScope, options: ResolveOptions = {}
  *
  * Auto-detects project root and creates .krolik directory if needed.
  *
+ * **Error Handling:**
+ * - Errors are logged but NOT thrown
+ * - Returns `false` on failure
+ * - Use for fire-and-forget caching (context, schema, routes)
+ * - Check return value if save is critical
+ *
  * @param filename - Filename to save (e.g., 'CONTEXT.xml', 'SCHEMA.xml')
  * @param content - File content
  * @param options - Save options
- * @returns true if saved successfully, false otherwise
+ * @returns true if saved successfully, false on any error
  *
  * @example
  * // Save to project .krolik (auto-detected)
@@ -202,6 +215,11 @@ export function ensureKrolikDir(scope: KrolikScope, options: ResolveOptions = {}
  *
  * // Save with explicit project root
  * saveToKrolik('SCHEMA.xml', schemaXml, { projectRoot: '/path/to/project' });
+ *
+ * // Check if save succeeded (for critical files)
+ * if (!saveToKrolik('critical.xml', data)) {
+ *   throw new Error('Failed to save critical data');
+ * }
  */
 export function saveToKrolik(
   filename: string,
@@ -215,8 +233,8 @@ export function saveToKrolik(
     const filePath = path.join(krolikDir, filename);
     return writeFile(filePath, content);
   } catch (error) {
-    // Log error but don't throw (maintains backward compatibility)
-    console.error(`Failed to save to .krolik: ${error}`);
+    // Log error but don't throw - allows graceful degradation
+    logger.error(`Failed to save to .krolik/${filename}: ${error}`);
     return false;
   }
 }
