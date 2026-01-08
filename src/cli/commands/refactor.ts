@@ -56,6 +56,9 @@ function buildRefactorOptions(
   if (options.fixTypes) opts.fixTypes = true;
   if (globalOpts.verbose) opts.verbose = true;
 
+  // Typecheck timeout
+  if (options.typecheckTimeout) opts.typecheckTimeout = options.typecheckTimeout;
+
   // Mode handling - resolveMode in analysis.ts will handle the rest
   const mode = determineMode(options);
   if (mode) {
@@ -94,6 +97,11 @@ Examples:
     .option('--dry-run', 'Show migration plan without applying')
     .option('--apply', 'Apply migrations (creates backup, commits first)')
     .option('--fix-types', 'Auto-fix 100% identical type duplicates')
+    .option(
+      '--typecheck-timeout <ms>',
+      'Typecheck timeout in milliseconds (default: 30000)',
+      parseInt,
+    )
     .action(async (options: CommandOptions) => {
       const { refactorCommand } = await import('../../commands/refactor');
       const globalOpts = program.opts() as GlobalOptions;

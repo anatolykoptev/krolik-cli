@@ -1,11 +1,16 @@
 /**
  * @module commands/agent/orchestrator/execution-plan
  * @description Execution plan creation for agent orchestration
+ *
+ * Supports two selection modes:
+ * - Legacy: Hardcoded primaryAgents lists (default)
+ * - Smart: Context-aware scoring with history (--smart-selection flag)
  */
 
 import { AGENT_CATEGORIES } from '../categories';
 import { LIMITS } from '../constants';
 import { loadAgentsByCategory } from '../loader';
+import { type ScoredAgent, selectAgents } from '../selection';
 import type {
   AgentRecommendation,
   ExecutionPhase,
@@ -61,6 +66,75 @@ export function getAgentRecommendations(
   }
 
   return recommendations;
+}
+
+/**
+ * Get agent recommendations using smart scoring
+ *
+ * Uses three-stage pipeline:
+ * 1. Keyword pre-filtering
+ * 2. Context boosting (project profile)
+ * 3. History boosting (memory)
+ */
+export async function getSmartAgentRecommendations(
+  analysis: TaskAnalysis,
+  projectRoot: string,
+  agentsPath: string,
+  options: OrchestrateOptions = {},
+): Promise<{ recommendations: AgentRecommendation[]; scoredAgents: ScoredAgent[] }> {
+  const maxAgents = options.maxAgents ?? 5;
+
+  // Use smart selection
+  const result = await selectAgents(analysis.task, projectRoot, agentsPath, {
+    currentFeature: options.feature,
+    maxAgents,
+    minScore: 15, // Lower threshold to get more candidates
+  });
+
+  // Convert scored agents to recommendations
+  const recommendations: AgentRecommendation[] = result.agents.map((scored, index) => ({
+    agent: {
+      name: scored.agent.name,
+      description: scored.agent.description,
+      content: '', // Not needed for recommendations
+      category: scored.agent.category,
+      plugin: scored.agent.plugin,
+      filePath: scored.agent.filePath,
+      componentType: 'agent' as const,
+      model: scored.agent.model,
+    },
+    priority: index + 1,
+    reason: formatSmartReason(scored),
+    parallel: options.preferParallel ?? true,
+  }));
+
+  return { recommendations, scoredAgents: result.agents };
+}
+
+/**
+ * Format smart selection reason from score breakdown
+ */
+function formatSmartReason(scored: ScoredAgent): string {
+  const parts: string[] = [];
+  const { breakdown } = scored;
+
+  if (breakdown.matchedKeywords.length > 0) {
+    parts.push(`Keywords: ${breakdown.matchedKeywords.slice(0, 3).join(', ')}`);
+  }
+
+  if (breakdown.matchedTechStack.length > 0) {
+    parts.push(`Tech: ${breakdown.matchedTechStack.join(', ')}`);
+  }
+
+  if (breakdown.historyBoost > 0) {
+    parts.push('Has history');
+  }
+
+  if (parts.length === 0) {
+    parts.push(`Score: ${scored.score}`);
+  }
+
+  return parts.join(' | ');
 }
 
 /**

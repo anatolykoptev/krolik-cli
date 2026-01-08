@@ -22,7 +22,7 @@ import {
  */
 export const metadata = createFixerMetadata('debugger', 'Debugger Statements', 'lint', {
   description: 'Remove debugger statements',
-  difficulty: 'risky', // TODO: not production-ready
+  difficulty: 'trivial', // Safe to auto-apply - just removes debugger statements
   cliFlag: '--fix-debugger',
   negateFlag: '--no-debugger',
   tags: ['trivial', 'safe-to-autofix', 'debugging'],

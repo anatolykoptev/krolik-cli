@@ -9,6 +9,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileCache } from '@/lib';
+import { validateSyntax } from '@/lib/@ast/swc/parser';
 import type { FixOperation, FixResult, QualityIssue } from './core';
 
 // ============================================================================
@@ -229,6 +230,45 @@ function createInsertAfterPatch(
 }
 
 // ============================================================================
+// SYNTAX VALIDATION
+// ============================================================================
+
+/**
+ * Check if file should be syntax-validated based on extension
+ */
+function shouldValidateSyntax(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts'].includes(ext);
+}
+
+/**
+ * Validate syntax of modified content
+ *
+ * @param filePath - File path (used for extension detection)
+ * @param content - Modified content to validate
+ * @returns Object with valid flag and error message if invalid
+ */
+function validateModifiedSyntax(
+  filePath: string,
+  content: string,
+): { valid: true } | { valid: false; error: string } {
+  // Skip validation for non-JS/TS files
+  if (!shouldValidateSyntax(filePath)) {
+    return { valid: true };
+  }
+
+  const result = validateSyntax(filePath, content);
+
+  if (result.success) {
+    return { valid: true };
+  }
+
+  // Extract useful error message
+  const errorMessage = result.error.message || 'Syntax error';
+  return { valid: false, error: errorMessage };
+}
+
+// ============================================================================
 // FILE OPERATIONS
 // ============================================================================
 
@@ -384,6 +424,17 @@ export function applyFix(
       }
     }
 
+    // Validate syntax before writing
+    const validation = validateModifiedSyntax(file, newContent);
+    if (!validation.valid) {
+      return {
+        issue,
+        operation,
+        success: false,
+        error: `Fix produced invalid syntax: ${validation.error}`,
+      };
+    }
+
     // Write new content
     if (!options.dryRun) {
       fs.writeFileSync(file, newContent);
@@ -511,6 +562,18 @@ export function applyFixes(
         });
         break;
       }
+    }
+
+    // Validate syntax before writing (rollback entire batch if invalid)
+    const validation = validateModifiedSyntax(file, newContent);
+    if (!validation.valid) {
+      // Return all operations as failed due to syntax error
+      return operations.map(({ operation, issue }) => ({
+        issue,
+        operation,
+        success: false,
+        error: `Fix produced invalid syntax: ${validation.error}`,
+      }));
     }
 
     // Write new content

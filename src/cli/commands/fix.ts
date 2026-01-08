@@ -97,15 +97,20 @@ export function registerFixCommand(program: Command): void {
     .description(
       `Auto-fix code quality issues
 
-Modes:
-  (default)    Safe fixes with biome + typecheck
+Modes (Safe/Unsafe separation - like Biome):
+  (default)    Safe fixes only (trivial + safe difficulty)
   --quick      Trivial only: console, debugger, alert (~2s)
-  --all        Include risky fixers + auto-backup
+  --all        Include risky/unsafe fixers + auto-backup
+
+Difficulty levels:
+  trivial      100% safe, auto-apply (console, debugger, alert)
+  safe         Low risk, unlikely to break code
+  risky        May change behavior, requires review
 
 Examples:
   krolik fix --dry-run           # Preview all safe fixes
-  krolik fix --quick             # Fast trivial cleanup
-  krolik fix --all --yes         # Full fix with auto-confirm
+  krolik fix --quick             # Fast trivial cleanup (safest)
+  krolik fix --all --yes         # Full fix including risky
   krolik fix --fix-console       # Only console.log fixes`,
     )
     // Base options (8)

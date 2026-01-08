@@ -32,6 +32,113 @@
  * ```
  */
 
+class ParserState {
+  inSingleQuote = false;
+  inDoubleQuote = false;
+  inTemplate = false;
+  templateBraceDepth = 0;
+  inLineComment = false;
+  inBlockComment = false;
+  escaped = false;
+
+  process(char: string, nextChar: string): { skip: number } {
+    let skip = 0;
+
+    // Handle escape sequences in strings
+    if (this.escaped) {
+      this.escaped = false;
+      return { skip };
+    }
+
+    if (char === '\\' && (this.inSingleQuote || this.inDoubleQuote || this.inTemplate)) {
+      this.escaped = true;
+      return { skip };
+    }
+
+    // Handle newline ending line comment
+    if (this.inLineComment) {
+      if (char === '\n') {
+        this.inLineComment = false;
+      }
+      return { skip };
+    }
+
+    // Handle block comment end
+    if (this.inBlockComment) {
+      if (char === '*' && nextChar === '/') {
+        this.inBlockComment = false;
+        skip = 1; // Skip the '/'
+      }
+      return { skip };
+    }
+
+    // Handle template expressions ${...}
+    if (this.inTemplate && this.templateBraceDepth === 0 && char === '$' && nextChar === '{') {
+      this.templateBraceDepth = 1;
+      skip = 1; // Skip the '{'
+      return { skip };
+    }
+
+    // Track brace depth inside template expressions
+    if (this.inTemplate && this.templateBraceDepth > 0) {
+      if (char === '{') {
+        this.templateBraceDepth++;
+      } else if (char === '}') {
+        this.templateBraceDepth--;
+      }
+      // Inside template expression, check for comments
+      if (this.templateBraceDepth > 0) {
+        if (char === '/' && nextChar === '/') {
+          this.inLineComment = true;
+          skip = 1;
+          return { skip };
+        }
+        if (char === '/' && nextChar === '*') {
+          this.inBlockComment = true;
+          skip = 1;
+          return { skip };
+        }
+      }
+      return { skip };
+    }
+
+    // String toggling (only when not in comment)
+    if (char === "'" && !this.inDoubleQuote && !this.inTemplate) {
+      this.inSingleQuote = !this.inSingleQuote;
+    } else if (char === '"' && !this.inSingleQuote && !this.inTemplate) {
+      this.inDoubleQuote = !this.inDoubleQuote;
+    } else if (char === '`' && !this.inSingleQuote && !this.inDoubleQuote) {
+      this.inTemplate = !this.inTemplate;
+      if (!this.inTemplate) this.templateBraceDepth = 0;
+    }
+
+    // Check for comment start (only when not in string)
+    if (!this.inSingleQuote && !this.inDoubleQuote && !this.inTemplate) {
+      if (char === '/' && nextChar === '/') {
+        this.inLineComment = true;
+        skip = 1;
+        return { skip };
+      }
+      if (char === '/' && nextChar === '*') {
+        this.inBlockComment = true;
+        skip = 1;
+      }
+    }
+
+    return { skip };
+  }
+
+  isInString(): boolean {
+    return (
+      this.inSingleQuote || this.inDoubleQuote || (this.inTemplate && this.templateBraceDepth === 0)
+    );
+  }
+
+  isInComment(): boolean {
+    return this.inLineComment || this.inBlockComment;
+  }
+}
+
 /**
  * Check if a position is inside a string literal.
  *
@@ -54,94 +161,16 @@
  * ```
  */
 export function isInsideString(content: string, offset: number): boolean {
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inTemplate = false;
-  let templateBraceDepth = 0;
-  let escaped = false;
-
-  // Also track comments to avoid false positives
-  let inLineComment = false;
-  let inBlockComment = false;
+  const state = new ParserState();
 
   for (let i = 0; i < offset && i < content.length; i++) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    // Handle escape sequences
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && (inSingleQuote || inDoubleQuote || inTemplate)) {
-      escaped = true;
-      continue;
-    }
-
-    // Handle newline ending line comment
-    if (inLineComment) {
-      if (char === '\n') {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    // Handle block comment end
-    if (inBlockComment) {
-      if (char === '*' && nextChar === '/') {
-        inBlockComment = false;
-        i++; // Skip the '/'
-      }
-      continue;
-    }
-
-    // Check for comment start (only when not in string)
-    if (!inSingleQuote && !inDoubleQuote && !inTemplate) {
-      if (char === '/' && nextChar === '/') {
-        inLineComment = true;
-        i++; // Skip the second '/'
-        continue;
-      }
-      if (char === '/' && nextChar === '*') {
-        inBlockComment = true;
-        i++; // Skip the '*'
-        continue;
-      }
-    }
-
-    // Handle template literal expressions ${...}
-    if (inTemplate && templateBraceDepth === 0 && char === '$' && nextChar === '{') {
-      templateBraceDepth = 1;
-      i++; // Skip the '{'
-      continue;
-    }
-
-    // Track brace depth inside template expressions
-    if (inTemplate && templateBraceDepth > 0) {
-      if (char === '{') {
-        templateBraceDepth++;
-      } else if (char === '}') {
-        templateBraceDepth--;
-      }
-      continue;
-    }
-
-    // String handling
-    if (char === "'" && !inDoubleQuote && !inTemplate) {
-      inSingleQuote = !inSingleQuote;
-    } else if (char === '"' && !inSingleQuote && !inTemplate) {
-      inDoubleQuote = !inDoubleQuote;
-    } else if (char === '`' && !inSingleQuote && !inDoubleQuote) {
-      inTemplate = !inTemplate;
-      if (!inTemplate) {
-        templateBraceDepth = 0;
-      }
-    }
+    const char = content[i] ?? '';
+    const nextChar = content[i + 1] ?? '';
+    const { skip } = state.process(char, nextChar);
+    i += skip;
   }
 
-  // Inside string if in any string context and not inside a template expression
-  return inSingleQuote || inDoubleQuote || (inTemplate && templateBraceDepth === 0);
+  return state.isInString();
 }
 
 /**
@@ -167,101 +196,16 @@ export function isInsideString(content: string, offset: number): boolean {
  * ```
  */
 export function isInsideComment(content: string, offset: number): boolean {
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inTemplate = false;
-  let templateBraceDepth = 0;
-  let inLineComment = false;
-  let inBlockComment = false;
-  let escaped = false;
+  const state = new ParserState();
 
   for (let i = 0; i < offset && i < content.length; i++) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    // Handle escape sequences in strings
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && (inSingleQuote || inDoubleQuote || inTemplate)) {
-      escaped = true;
-      continue;
-    }
-
-    // Handle newline ending line comment
-    if (inLineComment) {
-      if (char === '\n') {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    // Handle block comment end
-    if (inBlockComment) {
-      if (char === '*' && nextChar === '/') {
-        inBlockComment = false;
-        i++; // Skip the '/'
-      }
-      continue;
-    }
-
-    // String context tracking (to ignore comments inside strings)
-    if (!inLineComment && !inBlockComment) {
-      // Handle template expressions
-      if (inTemplate && templateBraceDepth === 0 && char === '$' && nextChar === '{') {
-        templateBraceDepth = 1;
-        i++;
-        continue;
-      }
-
-      if (inTemplate && templateBraceDepth > 0) {
-        if (char === '{') {
-          templateBraceDepth++;
-        } else if (char === '}') {
-          templateBraceDepth--;
-        }
-        // Inside template expression, check for comment start
-        if (templateBraceDepth > 0 && char === '/' && nextChar === '/') {
-          inLineComment = true;
-          i++;
-          continue;
-        }
-        if (templateBraceDepth > 0 && char === '/' && nextChar === '*') {
-          inBlockComment = true;
-          i++;
-          continue;
-        }
-        continue;
-      }
-
-      // String toggling
-      if (char === "'" && !inDoubleQuote && !inTemplate) {
-        inSingleQuote = !inSingleQuote;
-      } else if (char === '"' && !inSingleQuote && !inTemplate) {
-        inDoubleQuote = !inDoubleQuote;
-      } else if (char === '`' && !inSingleQuote && !inDoubleQuote) {
-        inTemplate = !inTemplate;
-        if (!inTemplate) templateBraceDepth = 0;
-      }
-
-      // Check for comment start (only when not in string)
-      if (!inSingleQuote && !inDoubleQuote && !inTemplate) {
-        if (char === '/' && nextChar === '/') {
-          inLineComment = true;
-          i++;
-          continue;
-        }
-        if (char === '/' && nextChar === '*') {
-          inBlockComment = true;
-          i++;
-        }
-      }
-    }
+    const char = content[i] ?? '';
+    const nextChar = content[i + 1] ?? '';
+    const { skip } = state.process(char, nextChar);
+    i += skip;
   }
 
-  return inLineComment || inBlockComment;
+  return state.isInComment();
 }
 
 /**
@@ -290,108 +234,17 @@ export function isInsideComment(content: string, offset: number): boolean {
  * isInsideStringOrComment(code, 6);  // false (at 'x')
  * ```
  */
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Parser logic requires complex state machine
 export function isInsideStringOrComment(content: string, offset: number): boolean {
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-  let inTemplate = false;
-  let templateBraceDepth = 0;
-  let inLineComment = false;
-  let inBlockComment = false;
-  let escaped = false;
+  const state = new ParserState();
 
   for (let i = 0; i < offset && i < content.length; i++) {
-    const char = content[i];
-    const nextChar = content[i + 1];
-
-    // Handle escape sequences in strings
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-
-    if (char === '\\' && (inSingleQuote || inDoubleQuote || inTemplate)) {
-      escaped = true;
-      continue;
-    }
-
-    // Handle newline ending line comment
-    if (inLineComment) {
-      if (char === '\n') {
-        inLineComment = false;
-      }
-      continue;
-    }
-
-    // Handle block comment end
-    if (inBlockComment) {
-      if (char === '*' && nextChar === '/') {
-        inBlockComment = false;
-        i++; // Skip the '/'
-      }
-      continue;
-    }
-
-    // Handle template expressions ${...}
-    if (inTemplate && templateBraceDepth === 0 && char === '$' && nextChar === '{') {
-      templateBraceDepth = 1;
-      i++;
-      continue;
-    }
-
-    // Track brace depth inside template expressions
-    if (inTemplate && templateBraceDepth > 0) {
-      if (char === '{') {
-        templateBraceDepth++;
-      } else if (char === '}') {
-        templateBraceDepth--;
-      }
-      // Inside template expression, check for comments
-      if (templateBraceDepth > 0) {
-        if (char === '/' && nextChar === '/') {
-          inLineComment = true;
-          i++;
-          continue;
-        }
-        if (char === '/' && nextChar === '*') {
-          inBlockComment = true;
-          i++;
-          continue;
-        }
-      }
-      continue;
-    }
-
-    // String toggling (only when not in comment)
-    if (char === "'" && !inDoubleQuote && !inTemplate) {
-      inSingleQuote = !inSingleQuote;
-    } else if (char === '"' && !inSingleQuote && !inTemplate) {
-      inDoubleQuote = !inDoubleQuote;
-    } else if (char === '`' && !inSingleQuote && !inDoubleQuote) {
-      inTemplate = !inTemplate;
-      if (!inTemplate) templateBraceDepth = 0;
-    }
-
-    // Check for comment start (only when not in string)
-    if (!inSingleQuote && !inDoubleQuote && !inTemplate) {
-      if (char === '/' && nextChar === '/') {
-        inLineComment = true;
-        i++;
-        continue;
-      }
-      if (char === '/' && nextChar === '*') {
-        inBlockComment = true;
-        i++;
-      }
-    }
+    const char = content[i] ?? '';
+    const nextChar = content[i + 1] ?? '';
+    const { skip } = state.process(char, nextChar);
+    i += skip;
   }
 
-  // Return true if in any string or comment context
-  // For template literals, only count as "in string" if not inside an expression
-  const inString = inSingleQuote || inDoubleQuote || (inTemplate && templateBraceDepth === 0);
-  const inComment = inLineComment || inBlockComment;
-
-  return inString || inComment;
+  return state.isInString() || state.isInComment();
 }
 
 /**

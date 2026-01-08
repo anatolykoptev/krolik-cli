@@ -12,7 +12,7 @@ import { createDeleteLine, getLineContext, isComment, splitLines } from '../../c
 
 export const metadata = createFixerMetadata('alert', 'Alert Statements', 'lint', {
   description: 'Remove alert() calls',
-  difficulty: 'risky', // TODO: not production-ready
+  difficulty: 'trivial', // Safe to auto-apply - just removes alert calls
   cliFlag: '--fix-alert',
   tags: ['trivial', 'safe-to-autofix', 'debugging'],
 });

@@ -53,6 +53,8 @@ export interface RefactorOptions {
   verbose?: boolean;
   /** Auto-fix type duplicates */
   fixTypes?: boolean;
+  /** Timeout for typecheck in milliseconds (default: 30000) */
+  typecheckTimeout?: number;
 
   // -------------------------------------------------------------------------
   // Legacy options (deprecated, mapped to mode internally)

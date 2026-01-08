@@ -224,7 +224,12 @@ export function assertFixOperation(
 /**
  * Mock console methods for testing
  */
-export function mockConsole() {
+export function mockConsole(): {
+  logs: string[];
+  warnings: string[];
+  errors: string[];
+  restore: () => void;
+} {
   const originalLog = console.log;
   const originalWarn = console.warn;
   const originalError = console.error;

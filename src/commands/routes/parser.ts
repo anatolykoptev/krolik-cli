@@ -100,64 +100,90 @@ function parseProcedures(content: string, procedures: TrpcProcedure[]): void {
       : Math.min(startPos + 2000, content.length);
     const procBlock = content.slice(startPos, endPos);
 
-    // Determine procedure type
-    let type: TrpcProcedure['type'] = 'unknown';
-    if (procBlock.includes('.query(')) type = 'query';
-    else if (procBlock.includes('.mutation(')) type = 'mutation';
-    else if (procBlock.includes('.subscription(')) type = 'subscription';
-
-    // Check for .input()
-    const hasInput = procBlock.includes('.input(');
-
-    // Extract input schema name and fields
-    let inputSchema: string | undefined;
-    let inputFields: InlineField[] | undefined;
-    if (hasInput) {
-      // Try to find schema name: .input(SomeSchema) or .input(z.object({...}))
-      const inputMatch = procBlock.match(/\.input\(\s*(\w+Schema|\w+Input)/);
-      if (inputMatch) {
-        inputSchema = inputMatch[1];
-      } else if (procBlock.match(/\.input\(\s*z\.object/)) {
-        inputSchema = 'inline';
-        // Extract inline schema fields for AI context
-        const inlineSchema = extractInlineSchema(procBlock);
-        if (inlineSchema && inlineSchema.fields.length > 0) {
-          inputFields = inlineSchema.fields;
-        }
-      }
-    }
-
-    // Extract output schema name
-    let outputSchema: string | undefined;
-    const hasOutput = procBlock.includes('.output(');
-    if (hasOutput) {
-      const outputMatch = procBlock.match(/\.output\(\s*(\w+Schema|\w+Output)/);
-      if (outputMatch) {
-        outputSchema = outputMatch[1];
-      } else if (procBlock.match(/\.output\(\s*z\.object/)) {
-        outputSchema = 'inline';
-      } else {
-        // Check for z.array(Schema)
-        const arrayMatch = procBlock.match(/\.output\(\s*z\.array\(\s*(\w+)/);
-        if (arrayMatch) {
-          outputSchema = `${arrayMatch[1]}[]`;
-        }
-      }
-    }
-
-    if (type !== 'unknown') {
-      const proc: TrpcProcedure = {
-        name,
-        type,
-        hasInput,
-        isProtected: accessLevel !== 'public',
-      };
-      if (inputSchema) proc.inputSchema = inputSchema;
-      if (inputFields) proc.inputFields = inputFields;
-      if (outputSchema) proc.outputSchema = outputSchema;
-      procedures.push(proc);
+    const procedure = processProcedureBlock(name, accessLevel || 'public', procBlock);
+    if (procedure) {
+      procedures.push(procedure);
     }
   }
+}
+
+function processProcedureBlock(
+  name: string,
+  accessLevel: string,
+  procBlock: string,
+): TrpcProcedure | null {
+  // Determine procedure type
+  let type: TrpcProcedure['type'] = 'unknown';
+  if (procBlock.includes('.query(')) type = 'query';
+  else if (procBlock.includes('.mutation(')) type = 'mutation';
+  else if (procBlock.includes('.subscription(')) type = 'subscription';
+
+  if (type === 'unknown') return null;
+
+  // Check for .input()
+  const hasInput = procBlock.includes('.input(');
+
+  const { inputSchema, inputFields } = parseInputSchema(procBlock, hasInput);
+  const outputSchema = parseOutputSchema(procBlock);
+
+  const proc: TrpcProcedure = {
+    name,
+    type,
+    hasInput,
+    isProtected: accessLevel !== 'public',
+  };
+
+  if (inputSchema) proc.inputSchema = inputSchema;
+  if (inputFields) proc.inputFields = inputFields;
+  if (outputSchema) proc.outputSchema = outputSchema;
+
+  return proc;
+}
+
+function parseInputSchema(
+  procBlock: string,
+  hasInput: boolean,
+): { inputSchema?: string; inputFields?: InlineField[] } {
+  if (!hasInput) return {};
+
+  // Try to find schema name: .input(SomeSchema) or .input(z.object({...}))
+  const inputMatch = procBlock.match(/\.input\(\s*(\w+Schema|\w+Input)/);
+  if (inputMatch && inputMatch[1]) {
+    return { inputSchema: inputMatch[1] };
+  }
+
+  if (procBlock.match(/\.input\(\s*z\.object/)) {
+    // Extract inline schema fields for AI context
+    const inlineSchema = extractInlineSchema(procBlock);
+    if (inlineSchema && inlineSchema.fields.length > 0) {
+      return { inputSchema: 'inline', inputFields: inlineSchema.fields };
+    }
+    return { inputSchema: 'inline' };
+  }
+
+  return {};
+}
+
+function parseOutputSchema(procBlock: string): string | undefined {
+  const hasOutput = procBlock.includes('.output(');
+  if (!hasOutput) return undefined;
+
+  const outputMatch = procBlock.match(/\.output\(\s*(\w+Schema|\w+Output)/);
+  if (outputMatch) {
+    return outputMatch[1];
+  }
+
+  if (procBlock.match(/\.output\(\s*z\.object/)) {
+    return 'inline';
+  }
+
+  // Check for z.array(Schema)
+  const arrayMatch = procBlock.match(/\.output\(\s*z\.array\(\s*(\w+)/);
+  if (arrayMatch) {
+    return `${arrayMatch[1]}[]`;
+  }
+
+  return undefined;
 }
 
 /**

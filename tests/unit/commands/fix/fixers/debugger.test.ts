@@ -13,7 +13,7 @@ describe('debuggerFixer', () => {
       expect(debuggerFixer.metadata.id).toBe('debugger');
       expect(debuggerFixer.metadata.name).toBe('Debugger Statements');
       expect(debuggerFixer.metadata.category).toBe('lint');
-      expect(debuggerFixer.metadata.difficulty).toBe('risky');
+      expect(debuggerFixer.metadata.difficulty).toBe('trivial');
       expect(debuggerFixer.metadata.cliFlag).toBe('--fix-debugger');
       expect(debuggerFixer.metadata.negateFlag).toBe('--no-debugger');
     });

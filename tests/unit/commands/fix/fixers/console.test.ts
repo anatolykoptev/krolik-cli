@@ -13,7 +13,7 @@ describe('consoleFixer', () => {
       expect(consoleFixer.metadata.id).toBe('console');
       expect(consoleFixer.metadata.name).toBe('Console Statements');
       expect(consoleFixer.metadata.category).toBe('lint');
-      expect(consoleFixer.metadata.difficulty).toBe('risky');
+      expect(consoleFixer.metadata.difficulty).toBe('trivial');
       expect(consoleFixer.metadata.cliFlag).toBe('--fix-console');
       expect(consoleFixer.metadata.negateFlag).toBe('--no-console');
     });

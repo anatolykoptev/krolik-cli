@@ -19,6 +19,7 @@ import type { AgentContext, AgentDefinition } from './types';
 export {
   createExecutionPlan,
   getAgentRecommendations,
+  getSmartAgentRecommendations,
 } from './orchestrator/execution-plan';
 export {
   formatOrchestrationJSON,
@@ -46,7 +47,11 @@ export type {
   TaskType,
 } from './orchestrator/types';
 
-import { createExecutionPlan, getAgentRecommendations } from './orchestrator/execution-plan';
+import {
+  createExecutionPlan,
+  getAgentRecommendations,
+  getSmartAgentRecommendations,
+} from './orchestrator/execution-plan';
 // Import for internal use
 import { analyzeTask } from './orchestrator/task-analysis';
 import type { OrchestrateOptions, OrchestrationResult } from './orchestrator/types';
@@ -139,6 +144,9 @@ export const BUILTIN_AGENTS: AgentDefinition[] = [ORCHESTRATOR_AGENT, TASK_ROUTE
 
 /**
  * Main orchestration function
+ *
+ * Uses smart agent selection by default (context-aware scoring).
+ * Pass `legacy: true` in options to use old keyword-based selection.
  */
 export async function orchestrate(
   task: string,
@@ -156,8 +164,20 @@ export async function orchestrate(
   // Analyze task
   const analysis = analyzeTask(task);
 
-  // Get recommendations
-  analysis.agents = getAgentRecommendations(analysis, agentsPath, options);
+  // Get recommendations - smart by default, legacy if specified
+  if (options.legacy) {
+    // Legacy: keyword-based category matching
+    analysis.agents = getAgentRecommendations(analysis, agentsPath, options);
+  } else {
+    // Smart: context-aware scoring with history (default)
+    const { recommendations } = await getSmartAgentRecommendations(
+      analysis,
+      projectRoot,
+      agentsPath,
+      options,
+    );
+    analysis.agents = recommendations;
+  }
 
   // Create execution plan
   const plan = createExecutionPlan(analysis.agents, options);

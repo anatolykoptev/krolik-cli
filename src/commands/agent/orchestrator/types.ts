@@ -98,6 +98,8 @@ export interface OrchestrateOptions {
   dryRun?: boolean | undefined;
   /** Output format */
   format?: 'text' | 'xml' | 'json' | undefined;
+  /** Use legacy keyword-based selection instead of smart scoring */
+  legacy?: boolean | undefined;
 }
 
 /**

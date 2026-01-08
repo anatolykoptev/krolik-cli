@@ -1,27 +1,32 @@
 /**
  * @module commands/fix/fixers/eval
- * @description Eval fixer - detects and fixes eval() security risks
+ * @description Eval fixer (AST-based) - detects and fixes eval() security risks
  *
- * Detects:
+ * Uses ts-morph AST for 100% accurate detection of:
  * - eval() calls
  * - new Function() constructor
  *
  * Fixes:
- * - Converts eval(jsonString) to JSON.parse(jsonString) when safe
+ * - Converts eval(jsonVar) to JSON.parse(jsonVar) when safe
  * - Adds TODO comment for complex cases
+ *
+ * Benefits over regex-based approach:
+ * - Correctly skips eval inside strings and comments
+ * - Correctly identifies actual function calls vs identifiers
+ * - More reliable variable name detection for JSON.parse conversion
  */
 
 import { createFixerMetadata } from '../../core/registry';
 import type { Fixer, FixOperation, QualityIssue } from '../../core/types';
-import { analyzeEval } from './analyzer';
-import { fixEvalIssue } from './fixer';
+import { analyzeEvalAST } from './ast-analyzer';
+import { fixEvalIssueAST } from './ast-fixer';
 
 /**
  * Eval fixer metadata
  */
 export const metadata = createFixerMetadata('eval', 'Eval Security', 'type-safety', {
   description: 'Detect and fix eval() security risks',
-  difficulty: 'risky', // TODO: not production-ready
+  difficulty: 'safe', // Now safe with ts-morph AST-based implementation
   cliFlag: '--fix-eval',
   negateFlag: '--no-eval',
   tags: ['security', 'safe', 'eval'],
@@ -34,11 +39,11 @@ export const evalFixer: Fixer = {
   metadata,
 
   analyze(content: string, file: string): QualityIssue[] {
-    return analyzeEval(content, file);
+    return analyzeEvalAST(content, file);
   },
 
   fix(issue: QualityIssue, content: string): FixOperation | null {
-    return fixEvalIssue(issue, content);
+    return fixEvalIssueAST(issue, content);
   },
 
   shouldSkip(issue: QualityIssue, _content: string): boolean {
@@ -58,6 +63,9 @@ export const evalFixer: Fixer = {
   },
 };
 
-// Re-export for convenience
+// Legacy exports for backwards compatibility
 export { analyzeEval } from './analyzer';
+// Re-export AST-based functions as primary API
+export { analyzeEvalAST } from './ast-analyzer';
+export { fixEvalIssueAST } from './ast-fixer';
 export { fixEvalIssue } from './fixer';

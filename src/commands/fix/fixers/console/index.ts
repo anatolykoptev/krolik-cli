@@ -16,7 +16,7 @@ import { fixConsoleIssue } from './fixer';
  */
 export const metadata = createFixerMetadata('console', 'Console Statements', 'lint', {
   description: 'Remove console.log/warn/error statements',
-  difficulty: 'risky', // TODO: not production-ready
+  difficulty: 'trivial', // Safe to auto-apply - just removes console statements
   cliFlag: '--fix-console',
   negateFlag: '--no-console',
   tags: ['trivial', 'safe-to-autofix', 'debugging'],

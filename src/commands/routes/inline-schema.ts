@@ -87,14 +87,58 @@ function parseObjectFields(content: string): InlineField[] {
  * Parse a Zod chain like z.string().min(1).optional()
  */
 function parseZodChain(name: string, chain: string): InlineField | null {
-  // Extract base type
+  const baseType = extractBaseType(chain);
+  if (!baseType) return null;
+
+  let required = true;
+  let defaultValue: string | undefined;
+
+  // Check for optional
+  if (chain.includes('.optional()')) {
+    required = false;
+  }
+
+  // Check for default
+  const defaultMatch = chain.match(/\.default\s*\(\s*(['"]?)([^'")\s]+)\1\s*\)/);
+  if (defaultMatch) {
+    defaultValue = defaultMatch[2];
+    required = false;
+  }
+
+  const validations = extractValidations(chain);
+
+  // Check for nullable
+  if (chain.includes('.nullable()')) {
+    validations.push('nullable');
+  }
+
+  // Handle external schema reference override
+  if (chain.match(/^\w+Schema/)) {
+    // This case seems odd given extractBaseType logic but preserving original intent
+    // If it starts with Schema but extractBaseType didn't return null?
+    // Actually extractBaseType returns null if not z.something or Schema
+    // Let's refine extractBaseType to handle Schema logic too.
+  }
+
+  return {
+    name,
+    type: baseType,
+    required,
+    ...(validations.length > 0 ? { validation: validations.join(', ') } : {}),
+    ...(defaultValue ? { defaultValue } : {}),
+  };
+}
+
+function extractBaseType(chain: string): string | null {
+  // Handle external schema reference
+  if (chain.match(/^\w+Schema/)) {
+    return chain.match(/^(\w+)Schema/)?.[1] || 'unknown';
+  }
+
   const typeMatch = chain.match(/^z\.(\w+)/);
   if (!typeMatch?.[1]) return null;
 
-  let baseType: string = typeMatch[1];
-  let required = true;
-  const validations: string[] = [];
-  let defaultValue: string | undefined;
+  let baseType = typeMatch[1];
 
   // Handle enum with values
   if (baseType === 'enum') {
@@ -113,24 +157,22 @@ function parseZodChain(name: string, chain: string): InlineField | null {
     baseType = 'enum';
   }
 
-  // Check for optional
-  if (chain.includes('.optional()')) {
-    required = false;
+  // Handle array type
+  if (baseType === 'array') {
+    const innerMatch = chain.match(/z\.array\s*\(\s*z\.(\w+)/);
+    if (innerMatch) {
+      baseType = `${innerMatch[1]}[]`;
+    } else {
+      baseType = 'array';
+    }
   }
 
-  // Check for nullable
-  if (chain.includes('.nullable()')) {
-    validations.push('nullable');
-  }
+  return baseType;
+}
 
-  // Check for default
-  const defaultMatch = chain.match(/\.default\s*\(\s*(['"]?)([^'")\s]+)\1\s*\)/);
-  if (defaultMatch) {
-    defaultValue = defaultMatch[2];
-    required = false;
-  }
+function extractValidations(chain: string): string[] {
+  const validations: string[] = [];
 
-  // Extract validations
   const minMatch = chain.match(/\.min\s*\(\s*(\d+)\s*\)/);
   if (minMatch) {
     validations.push(`min:${minMatch[1]}`);
@@ -166,29 +208,7 @@ function parseZodChain(name: string, chain: string): InlineField | null {
     validations.push('int');
   }
 
-  // Handle array type
-  if (baseType === 'array') {
-    const innerMatch = chain.match(/z\.array\s*\(\s*z\.(\w+)/);
-    if (innerMatch) {
-      baseType = `${innerMatch[1]}[]`;
-    } else {
-      baseType = 'array';
-    }
-  }
-
-  // Handle external schema reference
-  if (chain.match(/^\w+Schema/)) {
-    baseType = chain.match(/^(\w+)Schema/)?.[1] || 'unknown';
-    required = !chain.includes('.optional()');
-  }
-
-  return {
-    name,
-    type: baseType,
-    required,
-    ...(validations.length > 0 ? { validation: validations.join(', ') } : {}),
-    ...(defaultValue ? { defaultValue } : {}),
-  };
+  return validations;
 }
 
 /**
