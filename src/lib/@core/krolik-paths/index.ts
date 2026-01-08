@@ -79,7 +79,7 @@ export function resolveProjectRoot(options: ResolveOptions = {}): string {
     const resolved = path.resolve(explicit);
     if (validate && !isValidProjectRoot(resolved)) {
       throw new Error(
-        `Invalid project root: ${resolved} ` + `(not a directory or missing package.json/.git)`,
+        `Invalid project root: ${resolved} (not a directory or missing package.json/.git)`,
       );
     }
     return resolved;
