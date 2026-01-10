@@ -98,6 +98,11 @@ export interface RecommendationItem {
   line: number | undefined;
   snippet: string | undefined;
   count: number;
+  /** Suggested fix (before/after) */
+  fix?: {
+    before: string;
+    after: string;
+  };
 }
 
 /**

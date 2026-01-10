@@ -125,11 +125,19 @@ export const HARDCODED_SKIP_PATTERNS = ['tailwind', '.css', '.scss', '.stories.'
 
 /**
  * Additional patterns to skip for lint rules only
+ * These files use console.log intentionally for output/debugging
  */
 export const LINT_SKIP_PATTERNS = [
   '/cli/', // CLI files can use console
   'bin/', // Binary entry points can use console
   'logger', // Logger files can use console
+  '/seed', // Seed files use console for progress output
+  '/seeds/', // Seed directory
+  'prisma/seed', // Prisma seed files
+  '/webhook', // Webhook handlers need console for debugging
+  '/webhooks/', // Webhook directory
+  'validate-', // Validation scripts (CLI output)
+  'migrate-', // Migration scripts (CLI output)
 ] as const;
 
 /**

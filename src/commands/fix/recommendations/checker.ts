@@ -40,7 +40,9 @@ function checkSingleRecommendation(
   analysis: FileAnalysis,
 ): RecommendationResult | null {
   let triggered = false;
-  let location: { line: number; snippet: string } | undefined;
+  let location:
+    | { line: number; snippet: string; fix?: { before: string; after: string } }
+    | undefined;
 
   // Check using pattern
   if (rec.pattern) {
@@ -62,15 +64,29 @@ function checkSingleRecommendation(
 
   // Check using custom function
   if (rec.check && !triggered) {
-    triggered = rec.check(content, analysis);
+    const checkResult = rec.check(content, analysis);
+    // Handle rich CheckResult or simple boolean
+    if (typeof checkResult === 'object') {
+      triggered = checkResult.detected;
+      if (checkResult.line || checkResult.snippet) {
+        location = {
+          line: checkResult.line ?? 0,
+          snippet: checkResult.snippet ?? '',
+          ...(checkResult.fix && { fix: checkResult.fix }),
+        };
+      }
+    } else {
+      triggered = checkResult;
+    }
   }
 
   if (triggered) {
     return {
       recommendation: rec,
       file: analysis.relativePath,
-      ...(location?.line !== undefined ? { line: location.line } : {}),
-      ...(location?.snippet !== undefined ? { snippet: location.snippet } : {}),
+      ...(location?.line !== undefined && location.line > 0 ? { line: location.line } : {}),
+      ...(location?.snippet !== undefined && location.snippet ? { snippet: location.snippet } : {}),
+      ...(location?.fix !== undefined ? { fix: location.fix } : {}),
     };
   }
 

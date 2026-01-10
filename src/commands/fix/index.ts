@@ -31,7 +31,12 @@ import type { CommandContext } from '../../types/commands/base';
 import type { FixOptions, FixResult } from './core';
 import { formatPlan, formatPlanForAI, formatResults } from './formatters';
 import { applyFixesParallel } from './parallel-executor';
-import { type FixPlan, generateFixPlan, generateFixPlanFromIssues, type SkipStats } from './plan';
+import {
+  type FixPlan,
+  type GeneratePlanResult,
+  generateFixPlan,
+  generateFixPlanFromIssues,
+} from './plan';
 import {
   type BiomeResult,
   biomeAutoFix,
@@ -52,7 +57,8 @@ export { applyFix, applyFixes, createBackup, rollbackFix } from './applier';
 // Re-export types
 export type { FixOperation, FixOptions, FixResult } from './core';
 export { getFixDifficulty } from './core';
-export { findStrategy } from './strategies';
+
+// Note: findStrategy removed - strategy system migrated to fixers
 
 // Import registry for --list-fixers
 import { registry } from './fixers';
@@ -533,7 +539,7 @@ async function runFixFromAudit(
     warn: (msg: string) => void;
     error: (msg: string) => void;
   },
-): Promise<{ plans: FixPlan[]; skipStats: SkipStats; totalIssues: number } | null> {
+): Promise<GeneratePlanResult | null> {
   // Check if audit data exists
   if (!hasAuditData(projectRoot)) {
     logger.error("No audit data found. Run 'krolik audit' first.");
@@ -574,7 +580,7 @@ async function runFixFromRefactor(
     warn: (msg: string) => void;
     error: (msg: string) => void;
   },
-): Promise<{ plans: FixPlan[]; skipStats: SkipStats; totalIssues: number } | null> {
+): Promise<GeneratePlanResult | null> {
   // Check if refactor data exists
   if (!hasRefactorData(projectRoot)) {
     logger.error("No refactor data found. Run 'krolik refactor' first.");
@@ -613,6 +619,7 @@ async function runFixFromRefactor(
         categories: new Map(),
       },
       totalIssues: 0,
+      recommendations: [],
     };
   }
 
@@ -644,7 +651,7 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
     if (await runBiomeStep(config.projectRoot, options, logger)) return;
 
     // Step 2: Generate fix plan (from cache or fresh analysis)
-    let planResult: { plans: FixPlan[]; skipStats: SkipStats; totalIssues: number };
+    let planResult: GeneratePlanResult;
 
     if (options.fromRefactor) {
       // Use cached refactor recommendations
@@ -678,14 +685,14 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
       planResult = await generateFixPlan(config.projectRoot, options);
     }
 
-    const { plans, skipStats, totalIssues } = planResult;
+    const { plans, skipStats, totalIssues, recommendations } = planResult;
 
     // Show plan
     const format = options.format ?? 'ai';
     console.log(
       format === 'text'
         ? formatPlan(plans, skipStats, totalIssues, options)
-        : formatPlanForAI(plans, skipStats, totalIssues),
+        : formatPlanForAI(plans, skipStats, totalIssues, recommendations),
     );
 
     // Count fixes

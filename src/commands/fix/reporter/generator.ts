@@ -38,6 +38,7 @@ import type {
   AIReport,
   AIReportOptions,
   BackwardsCompatSummary,
+  CodeStyleRecommendation,
   DuplicateSummary,
   RankingSummary,
   RecommendationSummary,
@@ -198,6 +199,22 @@ export function generateAIReport(
   const nextAction = determineNextAction(summary, aiRules);
   const doNot = generateDoNotRules(summary);
 
+  // Convert quality recommendations to CodeStyleRecommendation format
+  const codeStyleRecommendations: CodeStyleRecommendation[] = qualityReport.recommendations.map(
+    (rec) => ({
+      id: rec.id,
+      title: rec.title,
+      description: rec.description,
+      category: rec.category,
+      severity: rec.severity,
+      file: rec.file,
+      count: rec.count,
+      ...(rec.line !== undefined && { line: rec.line }),
+      ...(rec.snippet !== undefined && { snippet: rec.snippet }),
+      ...(rec.fix && { fix: rec.fix }),
+    }),
+  );
+
   return {
     meta: {
       version: '1.0',
@@ -221,6 +238,7 @@ export function generateAIReport(
     ...(recommendations && recommendations.length > 0 && { recommendations }),
     ...(duplicates && { duplicates }),
     ...(issueClusters.length > 0 && { issueClusters }),
+    ...(codeStyleRecommendations.length > 0 && { codeStyleRecommendations }),
   };
 }
 

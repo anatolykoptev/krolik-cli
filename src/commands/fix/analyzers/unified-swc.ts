@@ -45,6 +45,7 @@ import {
   isCliFile,
   LONG_FUNCTION_FIXER_ID,
   shouldSkipForAnalysis,
+  shouldSkipForLint,
 } from '@/lib/@detectors';
 import {
   type DetectorContext,
@@ -239,7 +240,8 @@ export function analyzeFileUnified(
 // ============================================================================
 
 function buildSkipOptions(filepath: string): SkipOptions {
-  const shouldSkipLint = shouldSkipForAnalysis(filepath);
+  // Use shouldSkipForLint for lint issues (includes seed, webhook, logger files)
+  const shouldSkipLintAnalysis = shouldSkipForLint(filepath);
   const shouldSkipTypeSafety =
     filepath.endsWith('.d.ts') ||
     filepath.includes('.test.') ||
@@ -257,7 +259,7 @@ function buildSkipOptions(filepath: string): SkipOptions {
     filepath.includes('/services/'); // Service layers are expected to have queries
 
   return {
-    skipLint: shouldSkipLint,
+    skipLint: shouldSkipLintAnalysis,
     skipTypeSafety: shouldSkipTypeSafety,
     skipSecurity: shouldSkipForAnalysis(filepath),
     skipModernization: shouldSkipForAnalysis(filepath),

@@ -17,12 +17,27 @@ export type RecommendationCategory =
   | 'imports'
   | 'testing'
   | 'security'
-  | 'async';
+  | 'async'
+  | 'simplify';
 
 /**
  * Recommendation severity
  */
 export type RecommendationSeverity = 'suggestion' | 'recommendation' | 'best-practice';
+
+/**
+ * Result from check function with optional location info
+ */
+export interface CheckResult {
+  detected: boolean;
+  line?: number;
+  snippet?: string;
+  /** Suggested fix (before/after) */
+  fix?: {
+    before: string;
+    after: string;
+  };
+}
 
 /**
  * A single recommendation rule
@@ -37,8 +52,8 @@ export interface Recommendation {
   pattern?: RegExp;
   /** Anti-pattern that triggers the recommendation */
   antiPattern?: RegExp;
-  /** Custom check function */
-  check?: (content: string, analysis: FileAnalysis) => boolean;
+  /** Custom check function - can return boolean or rich result with location */
+  check?: (content: string, analysis: FileAnalysis) => boolean | CheckResult;
   /** Link to documentation */
   link?: string;
 }
@@ -51,4 +66,9 @@ export interface RecommendationResult {
   file: string;
   line?: number;
   snippet?: string;
+  /** Suggested fix (before/after) */
+  fix?: {
+    before: string;
+    after: string;
+  };
 }

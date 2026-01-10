@@ -267,6 +267,7 @@ export async function analyzeQuality(
       line: rec.line,
       snippet: rec.snippet,
       count,
+      ...(rec.fix && { fix: rec.fix }),
     }));
 
   const report: QualityReport = {

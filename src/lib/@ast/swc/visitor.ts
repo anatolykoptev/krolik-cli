@@ -204,6 +204,34 @@ function getCallbackForType(
     case 'ArrayExpression':
       return callbacks.onArrayExpression;
 
+    // Control flow nodes (for simplify analysis)
+    case 'IfStatement':
+      return callbacks.onIfStatement;
+    case 'SwitchStatement':
+      return callbacks.onSwitchStatement;
+    case 'SwitchCase':
+      return callbacks.onSwitchCase;
+    case 'ReturnStatement':
+      return callbacks.onReturnStatement;
+    case 'ThrowStatement':
+      return callbacks.onThrowStatement;
+    case 'BreakStatement':
+      return callbacks.onBreakStatement;
+    case 'ContinueStatement':
+      return callbacks.onContinueStatement;
+    case 'BlockStatement':
+      return callbacks.onBlockStatement;
+
+    // Expression nodes (for simplify analysis)
+    case 'ConditionalExpression':
+      return callbacks.onConditionalExpression;
+    case 'BinaryExpression':
+      return callbacks.onBinaryExpression;
+    case 'UnaryExpression':
+      return callbacks.onUnaryExpression;
+    case 'TemplateLiteral':
+      return callbacks.onTemplateLiteral;
+
     default:
       return undefined;
   }

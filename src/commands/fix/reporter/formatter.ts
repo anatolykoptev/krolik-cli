@@ -1043,6 +1043,51 @@ export function formatAsXml(report: AIReport): string {
     lines.push('  </readability>');
   }
 
+  // Code style recommendations (simplify, typescript, imports, etc.)
+  if (report.codeStyleRecommendations && report.codeStyleRecommendations.length > 0) {
+    lines.push('');
+    lines.push(
+      '  <!-- CODE-STYLE - Best practices recommendations (Google/Airbnb style guides) -->',
+    );
+    lines.push(`  <code-style count="${report.codeStyleRecommendations.length}">`);
+
+    // Group by category
+    const byCategory = new Map<string, typeof report.codeStyleRecommendations>();
+    for (const rec of report.codeStyleRecommendations) {
+      const list = byCategory.get(rec.category) ?? [];
+      list.push(rec);
+      byCategory.set(rec.category, list);
+    }
+
+    for (const [category, recs] of byCategory) {
+      lines.push(`    <category name="${category}">`);
+      for (const rec of recs) {
+        lines.push(`      <rec id="${rec.id}" severity="${rec.severity}" count="${rec.count}">`);
+        lines.push(`        <title>${escapeXml(rec.title)}</title>`);
+        lines.push(`        <description>${escapeXml(rec.description)}</description>`);
+        if (rec.file) {
+          const lineAttr = rec.line ? ` line="${rec.line}"` : '';
+          const snippetContent = rec.snippet ? escapeXml(rec.snippet) : '';
+          if (snippetContent) {
+            lines.push(
+              `        <example file="${escapeXml(rec.file)}"${lineAttr}>${snippetContent}</example>`,
+            );
+          } else {
+            lines.push(`        <example file="${escapeXml(rec.file)}"${lineAttr} />`);
+          }
+        }
+        // Add before/after fix suggestion if available
+        if (rec.fix) {
+          lines.push(`        <before>${escapeXml(rec.fix.before)}</before>`);
+          lines.push(`        <after>${escapeXml(rec.fix.after)}</after>`);
+        }
+        lines.push('      </rec>');
+      }
+      lines.push('    </category>');
+    }
+    lines.push('  </code-style>');
+  }
+
   lines.push('</ai-report>');
 
   return lines.join('\n');

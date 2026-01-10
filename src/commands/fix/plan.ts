@@ -4,7 +4,7 @@
  */
 
 import { analyzeQuality } from './analyze';
-import type { FixOperation, FixOptions, QualityIssue } from './core';
+import type { FixOperation, FixOptions, QualityIssue, RecommendationItem } from './core';
 import { getFixDifficulty, isFixerEnabled } from './core';
 import { registry } from './fixers';
 
@@ -39,6 +39,8 @@ export interface GeneratePlanResult {
   plans: FixPlan[];
   skipStats: SkipStats;
   totalIssues: number;
+  /** Code recommendations (simplify, performance, async patterns, etc.) */
+  recommendations: RecommendationItem[];
 }
 
 // ============================================================================
@@ -72,6 +74,7 @@ export async function generateFixPlan(
     plans: limitedPlans,
     skipStats,
     totalIssues: allIssues.length,
+    recommendations: report.recommendations,
   };
 }
 
@@ -162,6 +165,14 @@ async function generatePlansFromIssues(
       if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
         console.warn(`[krolik] Fixer not found: ${issue.fixerId}`);
       }
+      continue;
+    }
+
+    // Check if fixer wants to skip this issue (context-aware filtering)
+    // This applies smart detection like: skip console.error in catch blocks,
+    // skip validation scripts, skip build-time functions, etc.
+    if (fixer.shouldSkip?.(issue, content)) {
+      skipStats.contextSkipped++;
       continue;
     }
 
@@ -290,5 +301,6 @@ export async function generateFixPlanFromIssues(
     plans: limitedPlans,
     skipStats,
     totalIssues: filteredIssues.length,
+    recommendations: [], // No recommendations when loading from cached issues
   };
 }

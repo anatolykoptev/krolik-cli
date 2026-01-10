@@ -28,6 +28,9 @@ export type FilePurpose =
   | 'component' // React component
   | 'router' // API router
   | 'command' // CLI command entry
+  | 'seed' // Database seed file - console.log for progress
+  | 'logger' // Logger implementation - console is the point
+  | 'webhook' // Webhook handler - console for debugging
   | 'unknown';
 
 /**
@@ -94,6 +97,39 @@ interface PurposeMatcher {
  * Purpose matchers in priority order
  */
 const PURPOSE_MATCHERS: PurposeMatcher[] = [
+  // Seed files - console.log is progress output
+  {
+    purpose: 'seed',
+    matchBasename: (name) => name === 'seed.ts' || name.startsWith('seed'),
+    matchDirname: (dir) => dir.includes('/seed') || dir.includes('/seeds'),
+    matchPath: (filePath) => filePath.includes('prisma/seed'),
+    // Content detection: faker, createMany, seeding patterns
+    matchContent: (content) =>
+      /faker\.(person|company|internet|lorem|date|number)/.test(content) ||
+      /\.createMany\s*\(/.test(content) ||
+      /seeding.*progress|✅.*\d+\s+(records|items|users)/i.test(content),
+  },
+  // Logger files - console is the implementation
+  {
+    purpose: 'logger',
+    matchBasename: (name) => name === 'logger.ts' || name === 'logging.ts',
+    matchDirname: (dir) => dir.includes('/logger'),
+    // Content detection: exports console-like interface or logging levels
+    matchContent: (content) =>
+      /export\s+(const|function)\s+(logger|log|createLogger)/.test(content) ||
+      /LogLevel|'error'.*'warn'.*'info'.*'debug'/.test(content) ||
+      (/console\.(error|warn|info|debug)\s*\(/.test(content) && /export\s+\{/.test(content)),
+  },
+  // Webhook handlers - console for important debugging
+  {
+    purpose: 'webhook',
+    matchDirname: (dir) => dir.includes('/webhooks/') || dir.includes('/webhook/'),
+    matchPath: (filePath) => filePath.includes('api/webhooks/'),
+    // Content detection: signature verification, idempotency, event handling
+    matchContent: (content) =>
+      /verify.*signature|validateSignature|crypto\.(verify|createHmac)/i.test(content) ||
+      /idempotency|event\.type|webhook.*event/i.test(content),
+  },
   // Test files
   {
     purpose: 'test',
@@ -303,6 +339,21 @@ export function shouldSkipConsoleFix(context: FixContext, content: string, line:
     return true;
   }
 
+  // Never remove console in seed files (progress output)
+  if (context.filePurpose === 'seed') {
+    return true;
+  }
+
+  // Never remove console in logger files (it's the implementation!)
+  if (context.filePurpose === 'logger') {
+    return true;
+  }
+
+  // Never remove console in webhook handlers (critical debugging)
+  if (context.filePurpose === 'webhook') {
+    return true;
+  }
+
   // For CLI tools, check if it's actual output
   if (context.projectType === 'cli') {
     // Skip all console in output files
@@ -313,6 +364,135 @@ export function shouldSkipConsoleFix(context: FixContext, content: string, line:
     // Check if this specific console is for output
     if (isCliOutput(content, line)) {
       return true;
+    }
+  }
+
+  // Check if this specific console is functional (not debugging)
+  if (isFunctionalConsole(content, line)) {
+    return true;
+  }
+
+  return false;
+}
+
+// ============================================================================
+// FUNCTIONAL CONSOLE DETECTION
+// ============================================================================
+
+/**
+ * Patterns that indicate console.log is functional output, not debugging
+ */
+const FUNCTIONAL_CONSOLE_PATTERNS = [
+  // Progress indicators with emoji
+  /console\.(log|info)\(['"`]✅/, // Success
+  /console\.(log|info)\(['"`]❌/, // Error
+  /console\.(log|info)\(['"`]⚠/, // Warning
+  /console\.(log|info)\(['"`]🌱/, // Seeding
+  /console\.(log|info)\(['"`]📦/, // Package
+  /console\.(log|info)\(['"`]🔧/, // Setup
+  /console\.(log|info)\(['"`]✓/, // Check mark
+  /console\.(log|info)\(['"`]✗/, // X mark
+
+  // Progress output with counts
+  /console\.log\(['"`].*\d+\s+(records|items|users|places|bookings)/, // "✅ 10 records"
+
+  // Formatted tables/boxes
+  /console\.log\(['"`][═─│┌┐└┘├┤┬┴┼]/, // Box drawing
+  /console\.table\s*\(/, // console.table is always intentional
+
+  // Using formatters
+  /console\.log\(chalk\./, // chalk formatting
+  /console\.log\(.*format/, // format functions
+  /console\.log\(.*\.join\(['"`]\\n/, // array.join for multiline
+];
+
+/**
+ * Context patterns that indicate functional console
+ */
+const FUNCTIONAL_CONTEXT_PATTERNS = [
+  /function\s+(seed|migrate|setup|init|bootstrap)/, // Setup functions
+  /async\s+function\s+main\s*\(/, // Main entry point
+  /export\s+async\s+function\s+seed/, // Export seed
+  /export\s+async\s+function\s+generateStaticParams/, // Next.js build-time
+  /export\s+async\s+function\s+generateMetadata/, // Next.js metadata
+  /function\s+validate\w*\s*\(/, // Validation functions
+  /^\s*}\s*catch\s*\(/, // Inside catch block
+  /catch\s*\(\s*\w+\s*\)\s*\{/, // Catch block start
+];
+
+/**
+ * Check if a specific console.log is functional (not debugging)
+ * Uses both line content and surrounding context
+ *
+ * Conservative approach: better to skip than to remove important logs
+ */
+export function isFunctionalConsole(content: string, line: number): boolean {
+  const lines = content.split('\n');
+  const targetLine = lines[line - 1] || '';
+  const consoleLine = targetLine.trim();
+
+  // Check if line matches functional patterns
+  for (const pattern of FUNCTIONAL_CONSOLE_PATTERNS) {
+    if (pattern.test(consoleLine)) {
+      return true;
+    }
+  }
+
+  // Check surrounding context (10 lines before for better catch block detection)
+  const contextStart = Math.max(0, line - 11);
+  const contextLines = lines.slice(contextStart, line).join('\n');
+
+  for (const pattern of FUNCTIONAL_CONTEXT_PATTERNS) {
+    if (pattern.test(contextLines)) {
+      return true;
+    }
+  }
+
+  // Check if inside catch block (conservative - any catch in context)
+  if (isInsideCatchBlock(lines, line)) {
+    return true;
+  }
+
+  // Check if console.error/warn (often intentional for user feedback)
+  if (/console\.(error|warn)\s*\(/.test(consoleLine)) {
+    // console.error/warn with message string - likely intentional error logging
+    // Only remove if it's JUST logging a variable without context
+    if (/console\.(error|warn)\s*\(\s*['"`]/.test(consoleLine)) {
+      return true; // Has message string - keep it
+    }
+    // console.error(error) in catch block - still keep it (caught above)
+    // console.error(someVar) outside catch - might be debugging, but be conservative
+    return true; // Better to keep than remove
+  }
+
+  return false;
+}
+
+/**
+ * Check if line is inside a catch block
+ * Looks for catch(...) { before the line with unclosed brace
+ */
+function isInsideCatchBlock(lines: string[], lineNum: number): boolean {
+  let braceCount = 0;
+
+  // Scan backwards from the line
+  for (let i = lineNum - 1; i >= 0 && i >= lineNum - 20; i--) {
+    const line = lines[i] || '';
+
+    // Count braces
+    for (const char of line) {
+      if (char === '}') braceCount++;
+      if (char === '{') braceCount--;
+    }
+
+    // If we find catch and braces are balanced or open, we're inside catch
+    if (/catch\s*\(/.test(line) && braceCount <= 0) {
+      return true;
+    }
+
+    // If we find try, stop looking
+    if (/\btry\s*\{/.test(line) && braceCount > 0) {
+      return false;
     }
   }
 

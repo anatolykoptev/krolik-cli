@@ -126,6 +126,34 @@ export interface VisitorCallbacks {
   // === Member access ===
   /** Called for MemberExpression nodes */
   onMemberExpression?: VisitorCallback;
+
+  // === Control flow nodes (for simplify analysis) ===
+  /** Called for IfStatement nodes */
+  onIfStatement?: VisitorCallback;
+  /** Called for SwitchStatement nodes */
+  onSwitchStatement?: VisitorCallback;
+  /** Called for SwitchCase nodes */
+  onSwitchCase?: VisitorCallback;
+  /** Called for ReturnStatement nodes */
+  onReturnStatement?: VisitorCallback;
+  /** Called for ThrowStatement nodes */
+  onThrowStatement?: VisitorCallback;
+  /** Called for BreakStatement nodes */
+  onBreakStatement?: VisitorCallback;
+  /** Called for ContinueStatement nodes */
+  onContinueStatement?: VisitorCallback;
+  /** Called for BlockStatement nodes */
+  onBlockStatement?: VisitorCallback;
+
+  // === Expression nodes (for simplify analysis) ===
+  /** Called for ConditionalExpression (ternary) nodes */
+  onConditionalExpression?: VisitorCallback;
+  /** Called for BinaryExpression nodes */
+  onBinaryExpression?: VisitorCallback;
+  /** Called for UnaryExpression nodes */
+  onUnaryExpression?: VisitorCallback;
+  /** Called for TemplateLiteral nodes */
+  onTemplateLiteral?: VisitorCallback;
 }
 
 /**

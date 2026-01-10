@@ -366,6 +366,33 @@ export interface AIReport {
   issueClusters?: IssueCluster[];
   /** Readability score (Chromium Tricorder-style) */
   readability?: ReadabilityScoreSummary;
+  /** Code style recommendations (simplify, typescript, imports, etc.) */
+  codeStyleRecommendations?: CodeStyleRecommendation[];
+}
+
+// ============================================================================
+// CODE STYLE RECOMMENDATIONS
+// ============================================================================
+
+/**
+ * Code style recommendation (simplify, typescript, imports, etc.)
+ * From quality analysis (Google/Airbnb style guides)
+ */
+export interface CodeStyleRecommendation {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  severity: 'suggestion' | 'recommendation' | 'best-practice';
+  file: string;
+  line?: number;
+  snippet?: string;
+  count: number;
+  /** Suggested fix (before/after) */
+  fix?: {
+    before: string;
+    after: string;
+  };
 }
 
 // ============================================================================

@@ -132,6 +132,21 @@ export {
   parseFileUncached,
   validateSyntax,
 } from './parser';
+// Export simplify analyzers (AST-based code simplification detection)
+export type { SimplifyAnalysisResult } from './simplify-analyzers';
+export {
+  analyzeCallbackHell,
+  analyzeComplexTernary,
+  analyzeEmptyFunctions,
+  analyzeInefficientArrayChain,
+  analyzeNegationChain,
+  analyzeObjectShorthand,
+  analyzeRedundantBoolean,
+  analyzeStringConcatenation,
+  analyzeSwitchToLookup,
+  analyzeUnnecessaryElse,
+  analyzeVerboseConditionals,
+} from './simplify-analyzers';
 // Export string/comment context detection utilities
 export {
   getLineContent,

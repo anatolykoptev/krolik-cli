@@ -5,7 +5,7 @@
 
 import * as path from 'node:path';
 import { escapeXml } from '../../../lib/@format';
-import type { FixOperation } from '../core';
+import type { FixOperation, RecommendationItem } from '../core';
 import type { FixPlan, FixPlanItem, SkipStats } from '../plan';
 
 // ============================================================================
@@ -245,6 +245,54 @@ function formatAIGuidance(plans: FixPlan[], totalFixes: number): string[] {
 }
 
 // ============================================================================
+// RECOMMENDATIONS FORMATTER
+// ============================================================================
+
+/**
+ * Format recommendations section
+ */
+function formatRecommendations(recommendations: RecommendationItem[]): string[] {
+  if (recommendations.length === 0) return [];
+
+  const lines: string[] = [];
+  lines.push('  <recommendations>');
+  lines.push(
+    '    <note>Code recommendations based on best practices (Google/Airbnb style guides)</note>',
+  );
+
+  // Group by category
+  const byCategory = new Map<string, RecommendationItem[]>();
+  for (const rec of recommendations) {
+    const list = byCategory.get(rec.category) ?? [];
+    list.push(rec);
+    byCategory.set(rec.category, list);
+  }
+
+  for (const [category, recs] of byCategory) {
+    lines.push(`    <category name="${category}">`);
+    for (const rec of recs) {
+      lines.push(
+        `      <recommendation id="${rec.id}" severity="${rec.severity}" count="${rec.count}">`,
+      );
+      lines.push(`        <title>${escapeXml(rec.title)}</title>`);
+      lines.push(`        <description>${escapeXml(rec.description)}</description>`);
+      if (rec.file) {
+        lines.push(
+          `        <example file="${rec.file}"${rec.line ? ` line="${rec.line}"` : ''} />`,
+        );
+      }
+      lines.push('      </recommendation>');
+    }
+    lines.push('    </category>');
+  }
+
+  lines.push('  </recommendations>');
+  lines.push('');
+
+  return lines;
+}
+
+// ============================================================================
 // MAIN FORMATTER
 // ============================================================================
 
@@ -255,6 +303,7 @@ export function formatPlanForAI(
   plans: FixPlan[],
   skipStats: SkipStats,
   totalIssues: number,
+  recommendations: RecommendationItem[] = [],
 ): string {
   const lines: string[] = [];
   let fixIndex = 0;
@@ -278,6 +327,9 @@ export function formatPlanForAI(
 
   // AI guidance section
   lines.push(...formatAIGuidance(plans, fixIndex));
+
+  // Recommendations section
+  lines.push(...formatRecommendations(recommendations));
 
   lines.push('</krolik-fix-plan>');
 

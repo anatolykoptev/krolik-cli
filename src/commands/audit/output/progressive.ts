@@ -14,7 +14,13 @@
 import { buildElement, optimizeXml, type XmlElement } from '../../../lib/@format';
 import { countTokens, fitToBudget } from '../../../lib/@tokens';
 import { normalizePath } from '../../fix/reporter/grouping';
-import type { AIReport, EnrichedIssue, IssueGroup, PriorityLevel } from '../../fix/reporter/types';
+import type {
+  AIReport,
+  CodeStyleRecommendation,
+  EnrichedIssue,
+  IssueGroup,
+  PriorityLevel,
+} from '../../fix/reporter/types';
 import { buildExecutiveSummaryElement } from './executive-summary';
 
 // ============================================================================
@@ -50,13 +56,13 @@ export const OUTPUT_LEVELS: Record<OutputLevel, OutputLevelConfig> = {
   },
   default: {
     level: 2,
-    tokenBudget: 500,
-    sections: ['executive-summary', 'top-issues'],
+    tokenBudget: 1200, // Increased for code-style section
+    sections: ['executive-summary', 'top-issues', 'code-style'],
   },
   full: {
     level: 3,
     tokenBudget: 5000,
-    sections: ['executive-summary', 'top-issues', 'full-report'],
+    sections: ['executive-summary', 'top-issues', 'code-style', 'full-report'],
   },
 };
 
@@ -69,6 +75,11 @@ const MAX_TOP_ISSUES = 10;
  * Maximum issues per group in top-issues
  */
 const MAX_ISSUES_PER_GROUP = 3;
+
+/**
+ * Maximum code style recommendations to show
+ */
+const MAX_CODE_STYLE_RECS = 5;
 
 // ============================================================================
 // PUBLIC API
@@ -99,6 +110,12 @@ export function formatProgressiveOutput(
   // Level 2+: Include top issues
   if (config.level >= 2) {
     children.push(buildTopIssuesElement(report));
+
+    // Include code style recommendations if available
+    const codeStyleElement = buildCodeStyleElement(report);
+    if (codeStyleElement) {
+      children.push(codeStyleElement);
+    }
   }
 
   // Level 3: Include full report reference
@@ -231,6 +248,120 @@ function buildFullReportElement(report: AIReport): XmlElement {
       { tag: 'hint', content: 'Full details available in .krolik/AUDIT.xml' },
     ],
   };
+}
+
+/**
+ * Build code style recommendations element
+ * Shows top recommendations with actionable examples
+ */
+function buildCodeStyleElement(report: AIReport): XmlElement | null {
+  const recs = report.codeStyleRecommendations;
+  if (!recs || recs.length === 0) {
+    return null;
+  }
+
+  // Sort by: severity (best-practice > recommendation > suggestion), then by count
+  const severityOrder: Record<string, number> = {
+    'best-practice': 0,
+    recommendation: 1,
+    suggestion: 2,
+  };
+
+  const sorted = [...recs].sort((a, b) => {
+    const severityDiff = (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2);
+    if (severityDiff !== 0) return severityDiff;
+    return b.count - a.count; // Higher count first
+  });
+
+  // Take top recommendations
+  const topRecs = sorted.slice(0, MAX_CODE_STYLE_RECS);
+
+  // Build recommendation elements with actionable info
+  const recElements: XmlElement[] = topRecs.map((rec) => buildRecElement(rec));
+
+  // Add hint for fix command
+  const hasSimplify = topRecs.some((r) => r.category === 'simplify');
+  const hint = hasSimplify
+    ? 'Use krolik fix to see auto-fixable simplifications'
+    : 'Review and apply recommended patterns';
+
+  return {
+    tag: 'code-style',
+    attrs: {
+      count: recs.length,
+      showing: topRecs.length,
+    },
+    content: [...recElements, { tag: 'hint', content: hint }],
+  };
+}
+
+/**
+ * Build a single recommendation element with actionable example
+ */
+function buildRecElement(rec: CodeStyleRecommendation): XmlElement {
+  const children: XmlElement[] = [
+    { tag: 'what', content: rec.title },
+    { tag: 'why', content: rec.description },
+  ];
+
+  // Add example with file location
+  if (rec.file) {
+    const loc = rec.line ? `:${rec.line}` : '';
+    children.push({
+      tag: 'example',
+      attrs: { file: `${normalizePath(rec.file)}${loc}` },
+      content: rec.snippet || 'See file for example',
+    });
+  }
+
+  // Add before/after fix suggestion if available
+  if (rec.fix) {
+    children.push({
+      tag: 'before',
+      content: rec.fix.before,
+    });
+    children.push({
+      tag: 'after',
+      content: rec.fix.after,
+    });
+  }
+
+  // Add actionable fix command based on category
+  const fixCommand = getFixCommand(rec);
+  if (fixCommand) {
+    children.push({ tag: 'fix', attrs: { command: fixCommand } });
+  }
+
+  return {
+    tag: 'rec',
+    attrs: {
+      id: rec.id,
+      severity: rec.severity,
+      count: rec.count,
+      category: rec.category,
+    },
+    content: children,
+  };
+}
+
+/**
+ * Get fix command for a recommendation if available
+ */
+function getFixCommand(rec: CodeStyleRecommendation): string | null {
+  // Map recommendation IDs to fix commands
+  const fixCommands: Record<string, string> = {
+    // Simplify rules
+    'simplify-redundant-boolean': 'krolik fix --dry-run',
+    'simplify-unnecessary-else': 'krolik fix --dry-run',
+    'simplify-object-shorthand': 'krolik fix --dry-run',
+    // TypeScript rules
+    'ts-strict-equality': 'krolik fix --dry-run',
+    'ts-prefer-nullish': 'krolik fix --dry-run',
+    // Async rules
+    'async-no-floating-promises': 'krolik fix --dry-run',
+  };
+
+  return fixCommands[rec.id] ?? null;
 }
 
 // ============================================================================
