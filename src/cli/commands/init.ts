@@ -4,25 +4,21 @@
  */
 
 import type { Command } from 'commander';
+import { addForceOption, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-
-/** Helper to create command context */
-async function createContext(program: Command, options: CommandOptions) {
-  const { createContext: createCtx } = await import('../context');
-  return createCtx(program, options);
-}
+import { createContext, handleProjectOption } from './helpers';
 
 /**
  * Register init command
  */
 export function registerInitCommand(program: Command): void {
-  program
-    .command('init')
-    .description('Initialize krolik.config.ts')
-    .option('--force', 'Overwrite existing config')
-    .action(async (options: CommandOptions) => {
-      const { runInit } = await import('../../commands/init');
-      const ctx = await createContext(program, options);
-      await runInit(ctx);
-    });
+  const cmd = program.command('init').description('Initialize krolik.config.ts');
+  addProjectOption(cmd);
+  addForceOption(cmd);
+  cmd.action(async (options: CommandOptions) => {
+    const { runInit } = await import('../../commands/init');
+    handleProjectOption(options);
+    const ctx = await createContext(program, options);
+    await runInit(ctx);
+  });
 }

@@ -4,18 +4,16 @@
  */
 
 import type { Command } from 'commander';
-import { resolveProjectPath } from '../../mcp/tools/core/projects';
+import { addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-import { createContext } from './helpers';
+import { createContext, handleProjectOption } from './helpers';
 
 /**
  * Register context command
  */
 export function registerContextCommand(program: Command): void {
-  program
-    .command('context')
-    .description(
-      `Generate AI context for a task
+  const cmd = program.command('context').description(
+    `Generate AI context for a task
 
 Modes:
   -m, --minimal  Ultra-compact: summary, git, memory only (~1500 tokens)
@@ -33,8 +31,13 @@ Examples:
   krolik context --quick                     # Compact mode with repo-map
   krolik context --search "tRPC"             # Context with search for tRPC
   krolik context --changed-only              # Only context from changed files`,
-    )
-    .option('-p, --project <name>', 'Project folder name (for multi-project workspaces)')
+  );
+
+  // Common options using builders
+  addProjectOption(cmd);
+
+  // Command-specific options
+  cmd
     .option('--issue <number>', 'Context for GitHub issue')
     .option('--feature <name>', 'Context for feature')
     .option('--file <path>', 'Context for file')
@@ -62,16 +65,7 @@ Examples:
         options.withAudit = true;
       }
 
-      // Handle --project option
-      if (options.project) {
-        const resolved = resolveProjectPath(process.cwd(), options.project as string);
-        if ('error' in resolved) {
-          console.error(resolved.error);
-          process.exit(1);
-        }
-        // Override project root via environment variable (used by loadConfig)
-        process.env.KROLIK_PROJECT_ROOT = resolved.path;
-      }
+      handleProjectOption(options);
 
       const ctx = await createContext(program, options);
       await runContext(ctx);

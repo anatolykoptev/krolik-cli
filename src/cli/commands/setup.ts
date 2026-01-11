@@ -4,21 +4,24 @@
  */
 
 import type { Command } from 'commander';
+import { addDryRunOption, addForceOption } from '../builders';
 import type { CommandOptions } from '../types';
-
-/** Helper to create command context */
-async function createContext(program: Command, options: CommandOptions) {
-  const { createContext: createCtx } = await import('../context');
-  return createCtx(program, options);
-}
+import { createContext } from './helpers';
 
 /**
  * Register setup command
  */
 export function registerSetupCommand(program: Command): void {
-  program
+  const cmd = program
     .command('setup')
-    .description('Install plugins, agents, and MCP servers for krolik')
+    .description('Install plugins, agents, and MCP servers for krolik');
+
+  // Use builders for common options
+  addDryRunOption(cmd);
+  addForceOption(cmd);
+
+  // Command-specific options
+  cmd
     .option('--all', 'Install everything (plugins + agents + MCP servers)')
     .option('--plugins', 'Install only Claude Code MCP plugins')
     .option('--agents', 'Install only AI agents (wshobson/agents)')
@@ -28,8 +31,6 @@ export function registerSetupCommand(program: Command): void {
     .option('--check', 'Check installed components and show recommendations')
     .option('--update', 'Update all installed components')
     .option('--list', 'List available plugins and agents')
-    .option('--dry-run', 'Preview without installing')
-    .option('--force', 'Reinstall even if already installed')
     .action(async (options: CommandOptions) => {
       if (options.list) {
         const { listPlugins } = await import('../../commands/setup');

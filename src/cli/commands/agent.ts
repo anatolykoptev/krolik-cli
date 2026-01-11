@@ -8,23 +8,26 @@
  */
 
 import type { Command } from 'commander';
+import { addDryRunOption, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-
-/** Helper to create command context */
-async function createContext(program: Command, options: CommandOptions) {
-  const { createContext: createCtx } = await import('../context');
-  return createCtx(program, options);
-}
+import { createContext, handleProjectOption } from './helpers';
 
 /**
  * Register agent command
  */
 export function registerAgentCommand(program: Command): void {
-  program
+  const cmd = program
     .command('agent [name]')
     .description(
       'Run specialized AI agents with project context. Use --orchestrate for multi-agent coordination.',
-    )
+    );
+
+  // Common options using builders
+  addProjectOption(cmd);
+  addDryRunOption(cmd);
+
+  // Command-specific options
+  cmd
     .option('--list', 'List all available agents')
     .option('--install', 'Install agents from wshobson/agents to ~/.krolik/agents')
     .option('--update', 'Update installed agents to latest version')
@@ -34,7 +37,6 @@ export function registerAgentCommand(program: Command): void {
     .option('--no-schema', 'Skip including Prisma schema')
     .option('--no-routes', 'Skip including tRPC routes')
     .option('--no-git', 'Skip including git info')
-    .option('--dry-run', 'Show agent prompt without executing')
     // Orchestration options
     .option(
       '--orchestrate',
@@ -45,6 +47,7 @@ export function registerAgentCommand(program: Command): void {
     .option('--parallel', 'Prefer parallel execution of agents')
     .action(async (name: string | undefined, options: CommandOptions) => {
       const { runAgent } = await import('../../commands/agent');
+      handleProjectOption(options);
       const ctx = await createContext(program, {
         ...options,
         agentName: name,

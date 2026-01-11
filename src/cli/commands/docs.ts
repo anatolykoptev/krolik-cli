@@ -4,13 +4,9 @@
  */
 
 import type { Command } from 'commander';
+import { addForceOption, addJsonOption, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-
-/** Helper to create command context */
-async function createContext(program: Command, options: CommandOptions) {
-  const { createContext: createCtx } = await import('../context');
-  return createCtx(program, options);
-}
+import { createContext } from './helpers';
 
 /**
  * Register docs command with subcommands
@@ -19,17 +15,21 @@ export function registerDocsCommand(program: Command): void {
   const docs = program.command('docs').description('Library documentation cache (Context7)');
 
   // docs fetch <library>
-  docs
-    .command('fetch <library>')
-    .description('Fetch documentation for a library')
+  const fetchCmd = docs.command('fetch <library>').description('Fetch documentation for a library');
+
+  // Common options using builders
+  addProjectOption(fetchCmd);
+  addForceOption(fetchCmd);
+  addJsonOption(fetchCmd);
+
+  // Command-specific options
+  fetchCmd
     .option('--topic <topic>', 'Specific topic to fetch (single topic)')
     .option('--topics <topics>', 'Comma-separated topics to fetch')
     .option('--with-topics', 'Use predefined topics for the library (recommended)')
     .option('--mode <mode>', 'Context7 mode: code or info', 'code')
-    .option('--force', 'Force refresh even if not expired')
     .option('--max-pages <n>', 'Maximum pages to fetch (general mode)', '10')
     .option('--pages-per-topic <n>', 'Pages per topic (multi-topic mode)', '3')
-    .option('--json', 'Output as JSON')
     .action(async (library: string, options: CommandOptions) => {
       const { runDocsFetch } = await import('../../commands/docs');
       const topics = options.topics
@@ -50,13 +50,17 @@ export function registerDocsCommand(program: Command): void {
     });
 
   // docs search <query>
-  docs
-    .command('search <query>')
-    .description('Search cached documentation')
+  const searchCmd = docs.command('search <query>').description('Search cached documentation');
+
+  // Common options using builders
+  addProjectOption(searchCmd);
+  addJsonOption(searchCmd);
+
+  // Command-specific options
+  searchCmd
     .option('--library <name>', 'Filter by library')
     .option('--topic <topic>', 'Filter by topic')
     .option('--limit <n>', 'Maximum results', '10')
-    .option('--json', 'Output as JSON')
     .action(async (query: string, options: CommandOptions) => {
       const { runDocsSearch } = await import('../../commands/docs');
       const ctx = await createContext(program, {
@@ -69,11 +73,15 @@ export function registerDocsCommand(program: Command): void {
     });
 
   // docs list
-  docs
-    .command('list')
-    .description('List cached libraries')
+  const listCmd = docs.command('list').description('List cached libraries');
+
+  // Common options using builders
+  addProjectOption(listCmd);
+  addJsonOption(listCmd);
+
+  // Command-specific options
+  listCmd
     .option('--expired', 'Show only expired entries')
-    .option('--json', 'Output as JSON')
     .action(async (options: CommandOptions) => {
       const { runDocsList } = await import('../../commands/docs');
       const ctx = await createContext(program, {
@@ -84,26 +92,32 @@ export function registerDocsCommand(program: Command): void {
     });
 
   // docs detect
-  docs
-    .command('detect')
-    .description('Detect libraries from package.json')
-    .option('--json', 'Output as JSON')
-    .action(async (options: CommandOptions) => {
-      const { runDocsDetect } = await import('../../commands/docs');
-      const ctx = await createContext(program, {
-        ...options,
-        format: options.json ? 'json' : 'ai',
-      });
-      await runDocsDetect(ctx);
+  const detectCmd = docs.command('detect').description('Detect libraries from package.json');
+
+  // Common options using builders
+  addProjectOption(detectCmd);
+  addJsonOption(detectCmd);
+
+  detectCmd.action(async (options: CommandOptions) => {
+    const { runDocsDetect } = await import('../../commands/docs');
+    const ctx = await createContext(program, {
+      ...options,
+      format: options.json ? 'json' : 'ai',
     });
+    await runDocsDetect(ctx);
+  });
 
   // docs clear
-  docs
-    .command('clear')
-    .description('Clear documentation cache')
+  const clearCmd = docs.command('clear').description('Clear documentation cache');
+
+  // Common options using builders
+  addProjectOption(clearCmd);
+  addJsonOption(clearCmd);
+
+  // Command-specific options
+  clearCmd
     .option('--library <name>', 'Clear specific library only')
     .option('--expired', 'Clear only expired entries')
-    .option('--json', 'Output as JSON')
     .action(async (options: CommandOptions) => {
       const { runDocsClear } = await import('../../commands/docs');
       const ctx = await createContext(program, {

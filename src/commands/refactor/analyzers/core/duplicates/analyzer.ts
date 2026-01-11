@@ -8,6 +8,7 @@ import { findFiles, readFile } from '../../../../../lib/@core/fs';
 import {
   allRenderDifferentComponents,
   areAllDifferentDomains,
+  detectArchitecturalPattern,
   detectIntent,
 } from '../../../../../lib/@detectors/noise-filter/extractors';
 import type { DuplicateInfo, DuplicateLocation, FunctionSignature } from '../../../core/types';
@@ -26,6 +27,29 @@ import { calculateGroupSimilarity } from './similarity';
  * Only functions with meaningful logic (complexity > 25) are considered clones.
  */
 const MIN_STRUCTURAL_COMPLEXITY = 25;
+
+/**
+ * Check if functions have different architectural patterns.
+ * Functions with different patterns (sync vs async, DI vs internal-fetch)
+ * represent architectural separation, not real duplicates.
+ */
+function haveDifferentArchPatterns(funcs: FunctionSignature[]): boolean {
+  if (funcs.length < 2) return false;
+
+  const patterns = funcs.map((f) =>
+    detectArchitecturalPattern({
+      file: f.file,
+      name: f.name,
+      text: f.normalizedBody,
+      params: f.params,
+      isAsync: f.isAsync,
+      paramCount: f.paramCount,
+    }),
+  );
+
+  const uniquePatterns = new Set(patterns.map((p) => p.patternKey));
+  return uniquePatterns.size > 1;
+}
 
 // ============================================================================
 // HELPERS
@@ -150,6 +174,10 @@ export async function findDuplicates(
     // Skip if only one unique location after deduplication
     if (locations.length < 2) continue;
 
+    // Skip if functions have different architectural patterns (sync vs async, DI vs internal-fetch)
+    // These represent intentional architectural separation, not duplication
+    if (haveDifferentArchPatterns(funcs)) continue;
+
     const similarity = calculateGroupSimilarity(funcs);
 
     let recommendation: 'merge' | 'rename' | 'keep-both' = 'keep-both';
@@ -195,6 +223,9 @@ export async function findDuplicates(
 
     const uniqueNames = new Set(funcs.map((f) => f.name));
     if (uniqueNames.size === 1) continue;
+
+    // Skip if functions have different architectural patterns
+    if (haveDifferentArchPatterns(funcs)) continue;
 
     const sortedNames = [...uniqueNames].sort((a, b) => {
       const aExported = funcs.some((f) => f.name === a && f.exported);
@@ -281,6 +312,9 @@ export async function findDuplicates(
     // These are intentional wrappers, not duplicates
     const bodies = funcs.map((f) => f.normalizedBody);
     if (allRenderDifferentComponents(bodies)) continue;
+
+    // Skip if functions have different architectural patterns (sync vs async, DI vs internal-fetch)
+    if (haveDifferentArchPatterns(funcs)) continue;
 
     const sortedNames = [...uniqueNames].sort((a, b) => {
       const aExported = funcs.some((f) => f.name === a && f.exported);

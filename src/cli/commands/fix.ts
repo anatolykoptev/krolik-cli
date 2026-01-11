@@ -9,16 +9,20 @@
  */
 
 import type { Command } from 'commander';
-import type { CommandOptions } from '../types';
-import { createContext } from './helpers';
+import { addDryRunOption, addPathOption, addProjectOption } from '../builders';
+import { parseMode } from '../parsers';
+import type { CommandOptions, FixMode } from '../types';
+import { createContext, handleProjectOption } from './helpers';
 
 /**
- * Resolve mode from CLI flags
+ * Resolve mode from CLI flags using parseMode
  */
-function resolveMode(options: CommandOptions): 'quick' | 'default' | 'all' {
-  if (options.quick) return 'quick';
-  if (options.all) return 'all';
-  return 'default';
+function resolveMode(options: CommandOptions): FixMode {
+  return parseMode(
+    { quick: options.quick as boolean | undefined, all: options.all as boolean | undefined },
+    ['quick', 'all'],
+    'default',
+  ) as FixMode;
 }
 
 /**
@@ -92,10 +96,8 @@ function buildContextOptions(options: CommandOptions): Record<string, unknown> {
  * Register fix command
  */
 export function registerFixCommand(program: Command): void {
-  program
-    .command('fix')
-    .description(
-      `Auto-fix code quality issues
+  const cmd = program.command('fix').description(
+    `Auto-fix code quality issues
 
 Modes (Safe/Unsafe separation - like Biome):
   (default)    Safe fixes only (trivial + safe difficulty)
@@ -108,22 +110,28 @@ Difficulty levels:
   risky        May change behavior, requires review
 
 Examples:
-  krolik fix --dry-run           # Preview all safe fixes
-  krolik fix --quick             # Fast trivial cleanup (safest)
-  krolik fix --all --yes         # Full fix including risky
-  krolik fix --fix-console       # Only console.log fixes`,
-    )
-    // Base options (8)
-    .option('--path <path>', 'Target path (default: project root)')
-    .option('--category <cat>', 'Filter: lint, type-safety, complexity, hardcoded, srp')
-    .option('--dry-run', 'Preview changes without applying')
+  krolik fix --dry-run                    # Preview all safe fixes
+  krolik fix --quick                      # Fast trivial cleanup (safest)
+  krolik fix --all --yes                  # Full fix including risky
+  krolik fix --fix-console                # Only console.log fixes
+  krolik fix --project piternow-wt-fix    # Specific project`,
+  );
+
+  // Common options using builders
+  addProjectOption(cmd);
+  addPathOption(cmd);
+  addDryRunOption(cmd);
+
+  // Fix-specific options (mode options have fix-specific descriptions)
+  cmd
     .option('--quick', 'Trivial fixes only (console, debugger, alert)')
     .option('--all', 'Include risky fixers + auto-backup')
+    .option('--category <cat>', 'Filter: lint, type-safety, complexity, hardcoded, srp')
     .option('--from-audit', 'Use cached audit data')
     .option('--from-refactor', 'Use cached refactor data (auto-fixable recommendations)')
     .option('--limit <n>', 'Max fixes to apply', parseInt)
     .option('--yes', 'Auto-confirm all fixes')
-    // Fixer modules (10) - for granular control
+    // Fixer modules - for granular control
     .option('--fix-console', 'Fix console.log statements')
     .option('--fix-debugger', 'Fix debugger statements')
     .option('--fix-alert', 'Fix alert() calls')
@@ -138,6 +146,8 @@ Examples:
     .option('--cleanup-deprecated', 'Delete deprecated shim files and update imports')
     .action(async (options: CommandOptions) => {
       const { runFix } = await import('../../commands/fix');
+      handleProjectOption(options);
+
       const contextOptions = buildContextOptions(options);
       const ctx = await createContext(program, contextOptions);
       await runFix(ctx);

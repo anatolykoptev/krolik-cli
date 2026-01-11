@@ -62,6 +62,8 @@ function parseFileWithSwc(
         bodyHash: swcFunc.bodyHash,
         normalizedBody: normalizedBodyText,
         tokens,
+        isAsync: swcFunc.isAsync,
+        paramCount: swcFunc.paramCount,
         // Fingerprint catches renamed clones (same structure, different identifiers)
         ...(fpResult.fingerprint && { fingerprint: fpResult.fingerprint }),
         ...(fpResult.complexity > 0 && { complexity: fpResult.complexity }),

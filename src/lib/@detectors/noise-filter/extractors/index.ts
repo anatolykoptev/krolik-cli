@@ -33,10 +33,19 @@ export {
 } from './domain';
 // Intent Detection
 export {
+  // Architectural Pattern Detection
+  type ArchitecturalPatternResult,
+  type AsyncSyncPattern,
+  type DependencyPattern,
+  detectArchitecturalPattern,
+  detectAsyncSyncPattern,
+  detectDependencyPattern,
   detectIntent,
+  detectWrapperPattern,
   type FunctionIntent,
   getDefaultSkipIntents,
   hasSkippableIntent,
+  haveDifferentArchitecturalPatterns,
   type IntentContext,
   type IntentResult,
   shouldSkipIntent,

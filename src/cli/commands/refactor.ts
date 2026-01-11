@@ -4,34 +4,20 @@
  */
 
 import type { Command } from 'commander';
-import type { RefactorMode } from '../../commands/refactor/core/options';
-import type { CommandOptions } from '../types';
-
-/** Global options from program.opts() */
-interface GlobalOptions {
-  projectRoot?: string;
-  cwd?: string;
-  json?: boolean;
-  text?: boolean;
-  verbose?: boolean;
-}
+import { addDryRunOption, addModeSwitch, addPathOption, addProjectOption } from '../builders';
+import { parseMode, resolveOutputFormat } from '../parsers';
+import type { CommandOptions, GlobalProgramOptions, RefactorMode } from '../types';
+import { handleProjectOption } from './helpers';
 
 /**
- * Determine output format from global options
+ * Determine refactor mode from CLI options using parseMode
  */
-function getOutputFormat(globalOpts: GlobalOptions): string {
-  if (globalOpts.json) return 'json';
-  if (globalOpts.text) return 'text';
-  return 'xml';
-}
-
-/**
- * Determine refactor mode from CLI options
- */
-function determineMode(options: CommandOptions): RefactorMode | undefined {
-  if (options.quick) return 'quick';
-  if (options.deep) return 'deep';
-  return undefined; // default mode
+function resolveMode(options: CommandOptions): RefactorMode {
+  return parseMode(
+    { quick: options.quick as boolean | undefined, deep: options.deep as boolean | undefined },
+    ['quick', 'deep'],
+    'default',
+  ) as RefactorMode;
 }
 
 /**
@@ -39,10 +25,13 @@ function determineMode(options: CommandOptions): RefactorMode | undefined {
  */
 function buildRefactorOptions(
   options: CommandOptions,
-  globalOpts: GlobalOptions,
+  globalOpts: GlobalProgramOptions,
 ): Record<string, unknown> {
+  // Use resolveOutputFormat from parsers, mapping 'ai' to 'xml' for this command
+  const format = resolveOutputFormat(globalOpts, options);
+
   const opts: Record<string, unknown> = {
-    format: getOutputFormat(globalOpts),
+    format: format === 'ai' ? 'xml' : format,
   };
 
   // Path options
@@ -59,9 +48,9 @@ function buildRefactorOptions(
   // Typecheck timeout
   if (options.typecheckTimeout) opts.typecheckTimeout = options.typecheckTimeout;
 
-  // Mode handling - resolveMode in analysis.ts will handle the rest
-  const mode = determineMode(options);
-  if (mode) {
+  // Mode handling
+  const mode = resolveMode(options);
+  if (mode !== 'default') {
     opts.mode = mode;
   }
 
@@ -72,10 +61,8 @@ function buildRefactorOptions(
  * Register refactor command
  */
 export function registerRefactorCommand(program: Command): void {
-  program
-    .command('refactor')
-    .description(
-      `Analyze and refactor module structure
+  const cmd = program.command('refactor').description(
+    `Analyze and refactor module structure
 
 Modes:
   (default)        Function duplicates + structure (~3s)
@@ -83,18 +70,24 @@ Modes:
   --deep           Full analysis with types (~30s)
 
 Examples:
-  krolik refactor                    # Default analysis
-  krolik refactor --quick            # Fast structure check
-  krolik refactor --deep             # Full analysis with types
-  krolik refactor --apply            # Apply suggested migrations
-  krolik refactor --package api      # Analyze specific package`,
-    )
-    .option('--path <path>', 'Path to analyze (default: auto-detect)')
+  krolik refactor                           # Default analysis
+  krolik refactor --quick                   # Fast structure check
+  krolik refactor --deep                    # Full analysis with types
+  krolik refactor --apply                   # Apply suggested migrations
+  krolik refactor --package api             # Analyze specific package
+  krolik refactor --project piternow-wt-fix # Specific project`,
+  );
+
+  // Use builders for common options
+  addProjectOption(cmd);
+  addPathOption(cmd);
+  addModeSwitch(cmd, ['quick', 'deep']);
+  addDryRunOption(cmd);
+
+  // Command-specific options
+  cmd
     .option('--package <name>', 'Monorepo package to analyze (e.g., web, api)')
     .option('--all-packages', 'Analyze all packages in monorepo')
-    .option('--quick', 'Quick mode: structure only, no AST (~1.5s)')
-    .option('--deep', 'Deep mode: + types, + git history (~30s)')
-    .option('--dry-run', 'Show migration plan without applying')
     .option('--apply', 'Apply migrations (creates backup, commits first)')
     .option('--fix-types', 'Auto-fix 100% identical type duplicates')
     .option(
@@ -104,8 +97,13 @@ Examples:
     )
     .action(async (options: CommandOptions) => {
       const { refactorCommand } = await import('../../commands/refactor');
-      const globalOpts = program.opts() as GlobalOptions;
-      const projectRoot = globalOpts.projectRoot || globalOpts.cwd || process.cwd();
+      const globalOpts = program.opts() as GlobalProgramOptions;
+
+      // Handle --project option (smart project detection)
+      const resolvedProject = handleProjectOption(options);
+      const projectRoot =
+        resolvedProject || globalOpts.projectRoot || globalOpts.cwd || process.cwd();
+
       const refactorOpts = buildRefactorOptions(options, globalOpts);
       await refactorCommand(projectRoot, refactorOpts);
     });

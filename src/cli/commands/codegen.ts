@@ -17,24 +17,28 @@
  */
 
 import type { Command } from 'commander';
+import { addDryRunOption, addForceOption, addPathOption, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-
-/** Helper to create command context */
-async function createContext(program: Command, options: CommandOptions) {
-  const { createContext: createCtx } = await import('../context');
-  return createCtx(program, options);
-}
+import { createContext, handleProjectOption } from './helpers';
 
 /**
  * Register codegen command
  */
 export function registerCodegenCommand(program: Command): void {
-  program
+  const cmd = program
     .command('codegen [target]')
-    .description('Generate code (trpc-route, zod-schema, ts-zod, test, bundle)')
+    .description('Generate code (trpc-route, zod-schema, ts-zod, test, bundle)');
+
+  // Common options using builders
+  addProjectOption(cmd);
+  addPathOption(cmd);
+  addDryRunOption(cmd);
+  addForceOption(cmd);
+
+  // Command-specific options
+  cmd
     .option('--list', 'List available generators')
     .option('--name <name>', 'Name for generated code (e.g., booking, user, Button)')
-    .option('--path <path>', 'Output path for generated files')
     .option('--output <path>', 'Alias for --path')
     .option('--file <file>', 'Source file (for test/ts-zod generator)')
     .option('--from-type <type>', 'TypeScript interface/type name (for ts-zod generator)')
@@ -43,11 +47,10 @@ export function registerCodegenCommand(program: Command): void {
       '--bundle <type>',
       'Bundle type: react-component, react-hook, api-route (for bundle generator)',
     )
-    .option('--dry-run', 'Preview without creating files')
-    .option('--force', 'Overwrite existing files')
     .option('--no-docs', 'Disable docs enhancement (enabled by default)')
     .action(async (target: string | undefined, options: CommandOptions) => {
       const { runCodegen } = await import('../../commands/codegen');
+      handleProjectOption(options);
       const ctx = await createContext(program, { ...options, target });
       await runCodegen(ctx);
     });

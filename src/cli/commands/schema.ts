@@ -4,9 +4,9 @@
  */
 
 import type { Command } from 'commander';
-import { resolveProjectPath } from '../../mcp/tools/core/projects';
+import { addOutputLevelOptions, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-import { createContext } from './helpers';
+import { createContext, handleProjectOption } from './helpers';
 
 interface SchemaCommandOptions extends CommandOptions {
   save?: boolean;
@@ -21,15 +21,17 @@ interface SchemaCommandOptions extends CommandOptions {
  * Register schema command
  */
 export function registerSchemaCommand(program: Command): void {
-  program
-    .command('schema')
-    .description('Analyze Prisma schema')
+  const cmd = program.command('schema').description('Analyze Prisma schema');
+
+  // Common options from builders
+  addProjectOption(cmd);
+  addOutputLevelOptions(cmd);
+
+  // Command-specific options
+  cmd
     .option('--save', 'Save to SCHEMA.md')
     .option('-m, --model <name>', 'Filter by model name (partial match)')
     .option('-d, --domain <name>', 'Filter by domain name')
-    .option('-c, --compact', 'Compact output (models with relations only, no field details)')
-    .option('-f, --full', 'Full verbose output (all fields with all attributes)')
-    .option('-p, --project <name>', 'Project folder name (for multi-project workspaces)')
     .addHelpText(
       'after',
       `
@@ -49,16 +51,7 @@ Examples:
     )
     .action(async (options: SchemaCommandOptions) => {
       const { runSchema } = await import('../../commands/schema');
-
-      // Handle --project option
-      if (options.project) {
-        const resolved = resolveProjectPath(process.cwd(), options.project);
-        if ('error' in resolved) {
-          console.error(resolved.error);
-          process.exit(1);
-        }
-        process.env.KROLIK_PROJECT_ROOT = resolved.path;
-      }
+      handleProjectOption(options);
 
       const ctx = await createContext(program, options);
       await runSchema({

@@ -4,9 +4,9 @@
  */
 
 import type { Command } from 'commander';
-import { resolveProjectPath } from '../../mcp/tools/core/projects';
+import { addOutputLevelOptions, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-import { createContext } from './helpers';
+import { createContext, handleProjectOption } from './helpers';
 
 interface RoutesCommandOptions extends CommandOptions {
   save?: boolean;
@@ -19,13 +19,15 @@ interface RoutesCommandOptions extends CommandOptions {
  * Register routes command
  */
 export function registerRoutesCommand(program: Command): void {
-  program
-    .command('routes')
-    .description('Analyze tRPC routes')
+  const cmd = program.command('routes').description('Analyze tRPC routes');
+
+  // Common options from builders
+  addProjectOption(cmd);
+  addOutputLevelOptions(cmd);
+
+  // Command-specific options
+  cmd
     .option('--save', 'Save to ROUTES.md')
-    .option('-c, --compact', 'Compact output (routers with procedure counts only)')
-    .option('-f, --full', 'Full verbose output (all procedures with all attributes)')
-    .option('-p, --project <name>', 'Project folder name (for multi-project workspaces)')
     .addHelpText(
       'after',
       `
@@ -43,16 +45,7 @@ Examples:
     )
     .action(async (options: RoutesCommandOptions) => {
       const { runRoutes } = await import('../../commands/routes');
-
-      // Handle --project option
-      if (options.project) {
-        const resolved = resolveProjectPath(process.cwd(), options.project);
-        if ('error' in resolved) {
-          console.error(resolved.error);
-          process.exit(1);
-        }
-        process.env.KROLIK_PROJECT_ROOT = resolved.path;
-      }
+      handleProjectOption(options);
 
       const ctx = await createContext(program, options);
       await runRoutes({

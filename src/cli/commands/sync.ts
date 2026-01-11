@@ -6,17 +6,21 @@
 import type { Command } from 'commander';
 import { loadConfig } from '../../config';
 import { createLogger } from '../../lib/@core/logger';
+import { addDryRunOption, addForceOption } from '../builders';
 import type { CommandOptions } from '../types';
 
 /**
  * Register sync command
  */
 export function registerSyncCommand(program: Command): void {
-  program
-    .command('sync')
-    .description('Sync krolik documentation to CLAUDE.md')
-    .option('--force', 'Force update even if versions match')
-    .option('--dry-run', 'Preview without changes')
+  const cmd = program.command('sync').description('Sync krolik documentation to CLAUDE.md');
+
+  // Use builders for common options
+  addDryRunOption(cmd);
+  addForceOption(cmd);
+
+  // Command-specific options
+  cmd
     .option('--status', 'Show current sync status')
     .option('--create-subdocs', 'Create missing CLAUDE.md for packages/apps')
     .action(async (options: CommandOptions) => {

@@ -52,6 +52,10 @@ export interface FunctionSignature {
   fingerprint?: string;
   /** Structural complexity score */
   complexity?: number;
+  /** Whether function is async */
+  isAsync?: boolean;
+  /** Number of parameters (for architectural pattern detection) */
+  paramCount?: number;
 }
 
 // ============================================================================

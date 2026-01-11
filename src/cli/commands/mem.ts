@@ -4,13 +4,9 @@
  */
 
 import type { Command } from 'commander';
+import { addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
-
-/** Helper to create command context */
-async function createContext(program: Command, options: CommandOptions) {
-  const { createContext: createCtx } = await import('../context');
-  return createCtx(program, options);
-}
+import { createContext, handleProjectOption } from './helpers';
 
 /**
  * Register mem command with subcommands
@@ -19,9 +15,9 @@ export function registerMemCommand(program: Command): void {
   const mem = program.command('mem').description('Memory system for persistent AI context');
 
   // mem save
-  mem
-    .command('save')
-    .description('Save a memory entry')
+  const saveCmd = mem.command('save').description('Save a memory entry');
+  addProjectOption(saveCmd);
+  saveCmd
     .requiredOption('--type <type>', 'Memory type: observation, decision, pattern, bugfix, feature')
     .requiredOption('--title <title>', 'Short title/summary')
     .requiredOption('--description <desc>', 'Detailed description')
@@ -32,6 +28,7 @@ export function registerMemCommand(program: Command): void {
     .option('--json', 'Output as JSON')
     .action(async (options: CommandOptions) => {
       const { runMemSave } = await import('../../commands/memory');
+      handleProjectOption(options);
       const ctx = await createContext(program, {
         ...options,
         format: options.json ? 'json' : 'ai',
@@ -40,15 +37,14 @@ export function registerMemCommand(program: Command): void {
     });
 
   // mem search
-  mem
-    .command('search')
-    .description('Search memory entries')
+  const searchCmd = mem.command('search').description('Search memory entries');
+  addProjectOption(searchCmd);
+  searchCmd
     .option('--query <query>', 'Search query (FTS5 full-text search)')
     .option('--type <type>', 'Filter by type: observation, decision, pattern, bugfix, feature')
     .option('--importance <level>', 'Filter by importance: low, medium, high, critical')
     .option('--tags <tags>', 'Filter by tags (comma-separated)')
     .option('--features <features>', 'Filter by features/domains (comma-separated)')
-    .option('--project <name>', 'Filter by project name')
     .option('--limit <n>', 'Maximum results', '10')
     .option('--json', 'Output as JSON')
     .action(async (options: CommandOptions) => {
@@ -62,9 +58,9 @@ export function registerMemCommand(program: Command): void {
     });
 
   // mem recent
-  mem
-    .command('recent')
-    .description('Get recent memory entries')
+  const recentCmd = mem.command('recent').description('Get recent memory entries');
+  addProjectOption(recentCmd);
+  recentCmd
     .option('--limit <n>', 'Maximum entries', '10')
     .option('--type <type>', 'Filter by type')
     .option('--json', 'Output as JSON')
@@ -79,16 +75,14 @@ export function registerMemCommand(program: Command): void {
     });
 
   // mem stats
-  mem
-    .command('stats')
-    .description('Show memory statistics')
-    .option('--json', 'Output as JSON')
-    .action(async (options: CommandOptions) => {
-      const { runMemStats } = await import('../../commands/memory');
-      const ctx = await createContext(program, {
-        ...options,
-        format: options.json ? 'json' : 'ai',
-      });
-      await runMemStats(ctx);
+  const statsCmd = mem.command('stats').description('Show memory statistics');
+  addProjectOption(statsCmd);
+  statsCmd.option('--json', 'Output as JSON').action(async (options: CommandOptions) => {
+    const { runMemStats } = await import('../../commands/memory');
+    const ctx = await createContext(program, {
+      ...options,
+      format: options.json ? 'json' : 'ai',
     });
+    await runMemStats(ctx);
+  });
 }
