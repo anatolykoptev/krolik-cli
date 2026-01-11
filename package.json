@@ -65,6 +65,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@swc/core": "^1.15.7",
     "better-sqlite3": "^12.5.0",
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
@@ -73,7 +74,6 @@
     "gpt-tokenizer": "^3.4.0",
     "i18next-cli": "^1.33.5",
     "minify-xml": "^4.5.2",
-    "ora": "^8.2.0",
     "prettier": "^3.7.4",
     "ts-morph": "^27.0.2",
     "zod": "^3.24.4"
@@ -82,8 +82,6 @@
     "@biomejs/biome": "^2.0.0",
     "@changesets/changelog-github": "^0.5.2",
     "@changesets/cli": "^2.29.8",
-    "@swc/core": "^1.15.7",
-    "@swc/core-darwin-arm64": "^1.15.7",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.0",
     "@vitest/coverage-v8": "^4.0.16",
@@ -111,6 +109,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@swc/core",
       "better-sqlite3"
     ]
   }
