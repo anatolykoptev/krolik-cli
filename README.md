@@ -32,6 +32,20 @@ npm i -g @anatolykoptev/krolik-cli
 
 ## Commands
 
+### Global Option: `--project`
+
+All commands support `--project` for multi-project workspaces:
+
+```bash
+krolik status --project my-app           # Run on specific project
+krolik audit --project piternow-wt-fix   # Audit specific project
+krolik context --project api-service     # Context for specific project
+```
+
+This is useful when you have multiple projects in a workspace and want to target a specific one.
+
+---
+
 ### `krolik context` — Stop Searching, Start Coding
 
 One command replaces 10+ manual searches. AI gets complete project context instantly.
