@@ -217,8 +217,27 @@ export default defineConfig({
 
 ## Requirements
 
-- Node.js >= 20.0.0
-- TypeScript >= 5.0.0
+### Core
+
+- **Node.js >= 20.0.0** — required
+- **TypeScript >= 5.0.0** — peer dependency
+
+### Native Modules
+
+Krolik uses native modules (`better-sqlite3`, `@swc/core`) that require compilation:
+
+| Platform    | Requirements                                                                                               |
+|-------------|------------------------------------------------------------------------------------------------------------|
+| **macOS**   | Xcode Command Line Tools: `xcode-select --install`                                                         |
+| **Linux**   | `build-essential python3`: `apt install build-essential python3`                                           |
+| **Windows** | [windows-build-tools](https://github.com/nicolo-ribaudo/node-gyp-rs): `npm install -g windows-build-tools` |
+
+### For `krolik setup` Features
+
+| Feature                  | Requires                                                           |
+|--------------------------|--------------------------------------------------------------------|
+| `--plugins`, `--agents`  | `git`                                                              |
+| `--mcp`                  | [Claude Code CLI](https://github.com/anthropics/claude-code)       |
 
 ## Contributing
 
