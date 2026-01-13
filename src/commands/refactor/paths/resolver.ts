@@ -11,7 +11,7 @@ import {
   type MonorepoPackage,
 } from '../../../config';
 import { exists, relativePath as getRelativePath } from '../../../lib/@core/fs';
-import type { RefactorOptions } from '../core/options';
+import { getModeFlags, type RefactorOptions, resolveMode } from '../core/options';
 import type { ResolvedPathsWithPackage } from './types';
 
 /**
@@ -26,7 +26,10 @@ export function resolvePaths(
   projectRoot: string,
   options: RefactorOptions,
 ): ResolvedPathsWithPackage {
-  const isTypeAnalysis = options.typesOnly || options.includeTypes || options.fixTypes;
+  // Use mode system to determine if type analysis is needed
+  const mode = resolveMode(options);
+  const modeFlags = getModeFlags(mode);
+  const isTypeAnalysis = modeFlags.analyzeTypeDuplicates;
 
   // If explicit path is provided
   if (options.path) {

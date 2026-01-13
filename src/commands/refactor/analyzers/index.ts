@@ -117,7 +117,6 @@ export { analyzeReusableModules, getQuickReusableSummary } from './metrics/reusa
 
 export type { PackageJson } from './shared/helpers';
 export {
-  createSharedProject,
   findDir,
   findFile,
   findTsConfig,
@@ -128,13 +127,3 @@ export {
   listDirectory,
   readPackageJson,
 } from './shared/helpers';
-
-// ============================================================================
-// ENHANCED ANALYSIS (orchestrator)
-// ============================================================================
-
-export {
-  createEnhancedAnalysis,
-  createEnhancedMigrationPlan,
-  type EnhancedAnalysisOptions,
-} from './enhanced';

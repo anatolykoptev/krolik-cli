@@ -11,15 +11,13 @@
  * - AI-native output with dependency graphs and navigation hints
  *
  * Usage:
- *   krolik refactor                    # Analyze lib/
+ *   krolik refactor                    # Default mode: structure + function duplicates
  *   krolik refactor --path src/utils   # Analyze specific path
- *   krolik refactor --duplicates-only  # Only find function duplicates
- *   krolik refactor --types-only       # Only find type/interface duplicates
- *   krolik refactor --include-types    # Include type duplicates in analysis
- *   krolik refactor --structure-only   # Only analyze structure
+ *   krolik refactor --mode quick       # Quick: structure only, no enhanced analysis
+ *   krolik refactor --mode deep        # Deep: full analysis with types + git history
  *   krolik refactor --dry-run          # Show plan without applying
  *   krolik refactor --apply            # Apply migrations
- *   krolik refactor --ai               # AI-native output (default for XML)
+ *   krolik refactor --fix-types        # Auto-fix identical type duplicates (implies deep)
  */
 
 // Re-export from analyzers

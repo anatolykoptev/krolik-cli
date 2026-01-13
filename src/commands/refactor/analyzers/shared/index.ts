@@ -17,7 +17,6 @@ export { hashContent } from './hashing';
 // Helper functions
 export type { PackageJson } from './helpers';
 export {
-  createSharedProject,
   findDir,
   findFile,
   findTsConfig,

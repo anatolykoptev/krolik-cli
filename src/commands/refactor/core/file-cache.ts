@@ -47,34 +47,6 @@ export function clearFileCache(): void {
 }
 
 /**
- * Get cached file content with mtime-based invalidation
- * @deprecated Use contentCache.get() directly from unified FileCache
- */
-export function getCachedContent(filePath: string): string | null {
-  try {
-    return contentCache.get(filePath);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Cache file content with mtime tracking
- * @deprecated Use contentCache.set() directly from unified FileCache
- */
-export function setCachedContent(filePath: string, content: string): void {
-  contentCache.set(filePath, content);
-}
-
-/**
- * Clear content cache only
- * @deprecated Use contentCache.clear() directly from unified FileCache
- */
-export function clearContentCache(): void {
-  contentCache.clear();
-}
-
-/**
  * Internal file finding implementation
  */
 function findFilesInternal(dirPath: string, options: FindFilesOptions = {}, depth = 0): string[] {

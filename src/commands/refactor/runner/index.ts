@@ -12,3 +12,8 @@ export {
   type TypeFixOptions,
   type TypeFixResult,
 } from './migration';
+export {
+  type RegistryRunnerOptions,
+  type RegistryRunnerResult,
+  runRegistryAnalysis,
+} from './registry-runner';

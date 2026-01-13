@@ -22,6 +22,12 @@ export const SIMILARITY_THRESHOLDS = {
    * ~40 chars filters single-line returns but keeps multi-line functions.
    */
   MIN_BODY_LENGTH: 40,
+  /**
+   * Minimum similarity to report as duplicate.
+   * Functions with <15% similarity are just naming collisions, not duplicates.
+   * This filters out `formatAI` in different modules with completely different implementations.
+   */
+  MIN_REPORT_SIMILARITY: 0.15,
 } as const;
 
 /**

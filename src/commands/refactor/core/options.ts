@@ -55,18 +55,6 @@ export interface RefactorOptions {
   fixTypes?: boolean;
   /** Timeout for typecheck in milliseconds (default: 30000) */
   typecheckTimeout?: number;
-
-  // -------------------------------------------------------------------------
-  // Legacy options (deprecated, mapped to mode internally)
-  // -------------------------------------------------------------------------
-  /** @deprecated Use mode='default' instead */
-  duplicatesOnly?: boolean;
-  /** @deprecated Use mode='quick' instead */
-  structureOnly?: boolean;
-  /** @deprecated Use mode='deep' instead */
-  typesOnly?: boolean;
-  /** @deprecated Use mode='deep' instead */
-  includeTypes?: boolean;
 }
 
 // ============================================================================
@@ -135,8 +123,7 @@ export function mergeOptions(options: RefactorOptions): RefactorOptions {
  * Priority:
  * 1. Explicit mode option
  * 2. fixTypes implies 'deep'
- * 3. Legacy flags (structureOnly, typesOnly, includeTypes, duplicatesOnly)
- * 4. Default: 'default'
+ * 3. Default: 'default'
  */
 export function resolveMode(options: RefactorOptions): RefactorMode {
   // 1. Explicit mode takes priority
@@ -149,18 +136,7 @@ export function resolveMode(options: RefactorOptions): RefactorMode {
     return 'deep';
   }
 
-  // 3. Legacy flags
-  if (options.structureOnly) {
-    return 'quick';
-  }
-  if (options.typesOnly || options.includeTypes) {
-    return 'deep';
-  }
-  if (options.duplicatesOnly) {
-    return 'default';
-  }
-
-  // 4. Default mode
+  // 3. Default mode
   return 'default';
 }
 

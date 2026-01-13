@@ -1004,9 +1004,7 @@ export function formatAsXml(report: AIReport): string {
       lines.push(`      <files>${dup.files.map((f) => escapeXml(f)).join(', ')}</files>`);
       lines.push('    </dup>');
     }
-    lines.push(
-      '    <hint>Run: krolik refactor --duplicates-only for full duplicate analysis</hint>',
-    );
+    lines.push('    <hint>Run: krolik refactor for full duplicate analysis</hint>');
     lines.push('  </duplicates>');
   }
 

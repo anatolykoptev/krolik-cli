@@ -6,7 +6,6 @@
 import * as fs from 'node:fs';
 import { detectFeatures, detectMonorepoPackages } from '../../config';
 import { ensureKrolikDir, getKrolikFilePath } from '../../lib/@core/krolik-paths';
-import { createEnhancedAnalysis } from './analyzers/enhanced';
 import type { RefactorOptions } from './core/options';
 import { getModeFlags, resolveMode } from './core/options';
 import type { Recommendation } from './core/types-ai';
@@ -19,6 +18,7 @@ import {
   runRefactor,
   type TypeFixOptions,
 } from './runner';
+import { runRegistryAnalysis } from './runner/registry-runner';
 import { printSummaryReport, runTypecheck } from './utils';
 
 // ============================================================================
@@ -178,11 +178,25 @@ async function handleSingleRefactor(projectRoot: string, options: RefactorOption
   }
 
   // Cache recommendations for fix --from-refactor integration
-  // Create enhanced analysis to get recommendations (same as printAnalysis does internally)
-  const enhanced = await createEnhancedAnalysis(analysis, projectRoot, resolved.targetPath);
-  if (enhanced.recommendations?.length > 0) {
-    cacheRecommendations(projectRoot, resolved.relativePath, enhanced.recommendations);
-    printAutoFixHint(enhanced.recommendations);
+  // Use registry-based analysis to get recommendations
+  const registryResult = await runRegistryAnalysis({
+    projectRoot,
+    targetPath: resolved.targetPath,
+    baseAnalysis: analysis,
+    outputLevel: 'standard',
+    ...(options.verbose !== undefined && { verbose: options.verbose }),
+  });
+
+  // Extract recommendations from analyzer results
+  const recommendationsResult = registryResult.analyzerResults.get('recommendations');
+  const recommendations =
+    recommendationsResult?.status === 'success'
+      ? (recommendationsResult.data as Recommendation[])
+      : [];
+
+  if (recommendations.length > 0) {
+    cacheRecommendations(projectRoot, resolved.relativePath, recommendations);
+    printAutoFixHint(recommendations);
   }
 
   // Run typecheck after applying changes

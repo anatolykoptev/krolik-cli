@@ -15,7 +15,7 @@ import { resolveProjectPath } from '../core/projects';
 type RefactorMode = 'quick' | 'default' | 'deep';
 
 /**
- * Run lightweight refactor analysis for MCP
+ * Run lightweight refactor analysis for MCP using registry-based system
  */
 async function runLightweightRefactor(
   projectRoot: string,
@@ -28,8 +28,7 @@ async function runLightweightRefactor(
 ): Promise<string> {
   // Dynamic imports to avoid loading heavy modules at startup
   const { runRefactor } = await import('@/commands/refactor/runner/analysis');
-  const { createEnhancedAnalysis } = await import('@/commands/refactor/analyzers');
-  const { formatAiNativeXml } = await import('@/commands/refactor/output');
+  const { runRegistryAnalysis } = await import('@/commands/refactor/runner/registry-runner');
   const { resolvePaths } = await import('@/commands/refactor/paths');
 
   // Default to 'default' mode for MCP (full analysis)
@@ -41,20 +40,25 @@ async function runLightweightRefactor(
   if (options.package) refactorOptions.package = options.package;
   if (options.allPackages !== undefined) refactorOptions.allPackages = options.allPackages;
 
-  // Run analysis
+  // Run base analysis
   const analysis = await runRefactor(projectRoot, refactorOptions);
 
-  // Resolve target path for enhanced analysis
+  // Resolve target path for registry analysis
   const resolved = resolvePaths(projectRoot, options);
   const targetPath = resolved.targetPaths[0] ?? projectRoot;
 
-  // Create enhanced analysis (quickMode skips heavy analyses)
-  const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath, {
-    quickMode: mode === 'quick',
+  // Map mode to output level (summary | standard | full)
+  const outputLevel = mode === 'quick' ? 'summary' : mode === 'deep' ? 'full' : 'standard';
+
+  // Run registry-based analysis (returns XML output directly)
+  const result = await runRegistryAnalysis({
+    projectRoot,
+    targetPath,
+    baseAnalysis: analysis,
+    outputLevel,
   });
 
-  // Format as AI-native XML
-  return formatAiNativeXml(enhanced, { mode });
+  return result.output;
 }
 
 export const refactorTool: MCPToolDefinition = {

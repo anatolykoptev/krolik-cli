@@ -5,12 +5,7 @@
 
 import { exists } from '../../../lib/@core/fs';
 import { saveToKrolik } from '../../../lib/@core/krolik-paths';
-import {
-  analyzeStructure,
-  createEnhancedAnalysis,
-  findDuplicates,
-  findTypeDuplicates,
-} from '../analyzers';
+import { analyzeStructure, findDuplicates, findTypeDuplicates } from '../analyzers';
 import { clearFileCache } from '../core/file-cache';
 import type { RefactorOptions } from '../core/options';
 import { getModeFlags, resolveMode } from '../core/options';
@@ -21,8 +16,9 @@ import type {
   TypeDuplicateInfo,
 } from '../core/types';
 import { createMigrationPlan, findAffectedImports } from '../migration';
-import { formatAiNativeXml, formatMigrationPreview, formatRefactor } from '../output';
+import { formatMigrationPreview, formatRefactor } from '../output';
 import { resolvePaths } from '../paths';
+import { runRegistryAnalysis } from './registry-runner';
 
 // ============================================================================
 // RESULT MERGING UTILITIES
@@ -282,15 +278,21 @@ export async function printAnalysis(
 
   // Skip enhanced analysis and XML generation in quick mode (saves ~0.5s)
   if (mode !== 'quick') {
-    const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath);
-    const xmlOutput = formatAiNativeXml(enhanced, { mode });
+    // Use registry-based analysis
+    const registryResult = await runRegistryAnalysis({
+      projectRoot,
+      targetPath,
+      baseAnalysis: analysis,
+      outputLevel: 'standard',
+      ...(options.verbose !== undefined && { verbose: options.verbose }),
+    });
 
     // Save to .krolik/REFACTOR.xml for AI access
-    saveToKrolik('REFACTOR.xml', xmlOutput, { projectRoot });
+    saveToKrolik('REFACTOR.xml', registryResult.output, { projectRoot });
 
     // For XML format, output XML
     if (format === 'xml') {
-      console.log(xmlOutput);
+      console.log(registryResult.output);
       return;
     }
   }

@@ -6,288 +6,28 @@
  * Uses Kahn's algorithm for topological sort and Tarjan's algorithm for SCC detection.
  *
  * Key principles:
- * - Leaf nodes (no dependents) → refactor first (safe, no impact)
- * - Core nodes (many dependents) → refactor last (high impact)
- * - Cycles → must be refactored together as atomic unit
+ * - Leaf nodes (no dependents) -> refactor first (safe, no impact)
+ * - Core nodes (many dependents) -> refactor last (high impact)
+ * - Cycles -> must be refactored together as atomic unit
  */
 
+import {
+  buildCouplingMap,
+  calculatePhaseRisk,
+  classifyNode,
+  classifyNodeWithMaps,
+  getRiskLevel,
+} from './classification.js';
+import { kahnTopologicalSort, topologicalSort } from './kahn.js';
+import { findStronglyConnectedComponents, tarjanSCC } from './tarjan.js';
 import type { CouplingMetrics, RefactoringPhase, SafeRefactoringOrder } from './types.js';
 
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-/** Threshold for "core" classification (percentile of afferent coupling) */
-const CORE_THRESHOLD_PERCENTILE = 80;
-
-/** Risk multiplier for cycles */
-const CYCLE_RISK_MULTIPLIER = 1.5;
-
-// ============================================================================
-// STRONGLY CONNECTED COMPONENTS (Tarjan's Algorithm)
-// ============================================================================
-
-interface TarjanState {
-  index: Map<string, number>;
-  lowlink: Map<string, number>;
-  onStack: Set<string>;
-  stack: string[];
-  sccs: string[][];
-  currentIndex: number;
-}
-
-/**
- * Find strongly connected components using Tarjan's algorithm
- *
- * SCCs represent groups of modules with circular dependencies
- * that must be refactored together.
- */
-export function findStronglyConnectedComponents(
-  dependencyGraph: Record<string, string[]>,
-): string[][] {
-  const state: TarjanState = {
-    index: new Map(),
-    lowlink: new Map(),
-    onStack: new Set(),
-    stack: [],
-    sccs: [],
-    currentIndex: 0,
-  };
-
-  function strongConnect(nodeId: string): void {
-    state.index.set(nodeId, state.currentIndex);
-    state.lowlink.set(nodeId, state.currentIndex);
-    state.currentIndex++;
-    state.stack.push(nodeId);
-    state.onStack.add(nodeId);
-
-    const deps = dependencyGraph[nodeId] ?? [];
-    for (const depId of deps) {
-      if (!state.index.has(depId)) {
-        // Successor not yet visited
-        strongConnect(depId);
-        state.lowlink.set(nodeId, Math.min(state.lowlink.get(nodeId)!, state.lowlink.get(depId)!));
-      } else if (state.onStack.has(depId)) {
-        // Successor is on stack → part of current SCC
-        state.lowlink.set(nodeId, Math.min(state.lowlink.get(nodeId)!, state.index.get(depId)!));
-      }
-    }
-
-    // If node is root of SCC
-    if (state.lowlink.get(nodeId) === state.index.get(nodeId)) {
-      const scc: string[] = [];
-      let w: string;
-      do {
-        w = state.stack.pop()!;
-        state.onStack.delete(w);
-        scc.push(w);
-      } while (w !== nodeId);
-      state.sccs.push(scc);
-    }
-  }
-
-  // Visit all nodes
-  for (const nodeId of Object.keys(dependencyGraph)) {
-    if (!state.index.has(nodeId)) {
-      strongConnect(nodeId);
-    }
-  }
-
-  return state.sccs;
-}
-
-// ============================================================================
-// TOPOLOGICAL SORT (Kahn's Algorithm)
-// ============================================================================
-
-/**
- * Topological sort using Kahn's algorithm
- *
- * Returns modules in dependency order (dependencies before dependents)
- * For refactoring, we reverse this (dependents first, then dependencies)
- */
-export function topologicalSort(
-  dependencyGraph: Record<string, string[]>,
-  pageRankScores?: Map<string, number>,
-): string[] {
-  // Calculate in-degrees
-  const inDegree = new Map<string, number>();
-  for (const node of Object.keys(dependencyGraph)) {
-    if (!inDegree.has(node)) {
-      inDegree.set(node, 0);
-    }
-    for (const dep of dependencyGraph[node] ?? []) {
-      inDegree.set(dep, (inDegree.get(dep) ?? 0) + 1);
-    }
-  }
-
-  // Find all nodes with no incoming edges (leaf nodes in dependency sense)
-  const queue: string[] = [];
-  for (const [node, degree] of inDegree) {
-    if (degree === 0) {
-      queue.push(node);
-    }
-  }
-
-  const result: string[] = [];
-
-  while (queue.length > 0) {
-    // Sort queue by PageRank (lowest first for safe ordering)
-    if (pageRankScores) {
-      queue.sort((a, b) => {
-        const scoreA = pageRankScores.get(a) ?? 0;
-        const scoreB = pageRankScores.get(b) ?? 0;
-        return scoreA - scoreB;
-      });
-    }
-
-    const node = queue.shift()!;
-    result.push(node);
-
-    // Remove edges from this node
-    for (const dep of dependencyGraph[node] ?? []) {
-      const newDegree = (inDegree.get(dep) ?? 1) - 1;
-      inDegree.set(dep, newDegree);
-      if (newDegree === 0) {
-        queue.push(dep);
-      }
-    }
-  }
-
-  return result;
-}
-
-// ============================================================================
-// NODE CLASSIFICATION
-// ============================================================================
-
-/**
- * Build a lookup map for coupling metrics (O(n) -> enables O(1) lookups)
- */
-function buildCouplingMap(couplingMetrics: CouplingMetrics[]): Map<string, CouplingMetrics> {
-  return new Map(couplingMetrics.map((c) => [c.path, c]));
-}
-
-/**
- * Classify a node as leaf, intermediate, or core based on coupling
- *
- * For batch operations, use classifyNodes() which pre-computes percentiles
- */
-export function classifyNode(
-  node: string,
-  couplingMetrics: CouplingMetrics[],
-  pageRankScores: Map<string, number>,
-): 'leaf' | 'intermediate' | 'core' {
-  // Build map for O(1) lookup (avoids O(n^2) when called in loop)
-  const couplingMap = buildCouplingMap(couplingMetrics);
-  const coupling = couplingMap.get(node);
-  if (!coupling) return 'intermediate';
-
-  const Ca = coupling.afferentCoupling;
-  const pageRank = pageRankScores.get(node) ?? 0;
-
-  // Calculate percentiles
-  const allCa = couplingMetrics.map((c) => c.afferentCoupling);
-  const allPageRank = Array.from(pageRankScores.values());
-
-  const caPercentile = calculatePercentile(Ca, allCa);
-  const prPercentile = calculatePercentile(pageRank, allPageRank);
-
-  // Leaf: no dependents or very low PageRank
-  if (Ca === 0 || (caPercentile < 20 && prPercentile < 20)) {
-    return 'leaf';
-  }
-
-  // Core: high dependents or high PageRank
-  if (caPercentile >= CORE_THRESHOLD_PERCENTILE || prPercentile >= CORE_THRESHOLD_PERCENTILE) {
-    return 'core';
-  }
-
-  return 'intermediate';
-}
-
-function calculatePercentile(value: number, allValues: number[]): number {
-  if (allValues.length === 0) return 0;
-  const sorted = [...allValues].sort((a, b) => a - b);
-  const rank = sorted.filter((v) => v < value).length;
-  return Math.round((rank / sorted.length) * 100);
-}
-
-// ============================================================================
-// RISK CALCULATION
-// ============================================================================
-
-/**
- * Calculate risk score for a phase
- *
- * Uses pre-built coupling map for O(1) lookups (avoids O(n*m) complexity)
- */
-function calculatePhaseRisk(
-  modules: string[],
-  couplingMap: Map<string, CouplingMetrics>,
-  pageRankScores: Map<string, number>,
-  isCycle: boolean,
-): number {
-  if (modules.length === 0) return 0;
-
-  let totalRisk = 0;
-  for (const module of modules) {
-    const coupling = couplingMap.get(module);
-    const Ca = coupling?.afferentCoupling ?? 0;
-    const pageRank = pageRankScores.get(module) ?? 0;
-    totalRisk += Ca * 10 + pageRank * 100;
-  }
-
-  const avgRisk = totalRisk / modules.length;
-  return Math.round(avgRisk * (isCycle ? CYCLE_RISK_MULTIPLIER : 1));
-}
-
-/**
- * Convert numeric risk to level
- */
-function getRiskLevel(riskScore: number): RefactoringPhase['riskLevel'] {
-  if (riskScore >= 50) return 'critical';
-  if (riskScore >= 30) return 'high';
-  if (riskScore >= 10) return 'medium';
-  return 'low';
-}
+// Re-export for backwards compatibility
+export { findStronglyConnectedComponents, topologicalSort, classifyNode };
 
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
-
-/**
- * Classify a node using pre-built maps for O(1) lookups
- * Internal function used by generateSafeRefactoringOrder
- */
-function classifyNodeWithMaps(
-  node: string,
-  couplingMap: Map<string, CouplingMetrics>,
-  pageRankScores: Map<string, number>,
-  allCa: number[],
-  allPageRank: number[],
-): 'leaf' | 'intermediate' | 'core' {
-  const coupling = couplingMap.get(node);
-  if (!coupling) return 'intermediate';
-
-  const Ca = coupling.afferentCoupling;
-  const pageRank = pageRankScores.get(node) ?? 0;
-
-  const caPercentile = calculatePercentile(Ca, allCa);
-  const prPercentile = calculatePercentile(pageRank, allPageRank);
-
-  // Leaf: no dependents or very low PageRank
-  if (Ca === 0 || (caPercentile < 20 && prPercentile < 20)) {
-    return 'leaf';
-  }
-
-  // Core: high dependents or high PageRank
-  if (caPercentile >= CORE_THRESHOLD_PERCENTILE || prPercentile >= CORE_THRESHOLD_PERCENTILE) {
-    return 'core';
-  }
-
-  return 'intermediate';
-}
 
 /**
  * Generate safe refactoring order based on dependency topology
@@ -324,7 +64,7 @@ export function generateSafeRefactoringOrder(
   const allPageRank = Array.from(pageRankScores.values());
 
   // 1. Find SCCs (cycles)
-  const sccs = findStronglyConnectedComponents(dependencyGraph);
+  const sccs = tarjanSCC(dependencyGraph);
   const cycles = sccs.filter((scc) => scc.length > 1);
 
   // 2. Classify nodes using pre-built maps (O(n) instead of O(n^2))
@@ -347,7 +87,7 @@ export function generateSafeRefactoringOrder(
   }
 
   // 3. Build condensation graph (treat each SCC as single node)
-  const sccMap = new Map<string, number>(); // node → SCC index
+  const sccMap = new Map<string, number>(); // node -> SCC index
   for (let i = 0; i < sccs.length; i++) {
     for (const node of sccs[i]!) {
       sccMap.set(node, i);
@@ -376,7 +116,7 @@ export function generateSafeRefactoringOrder(
 
   // 4. Topological sort of condensed graph (used for validation)
   // Note: We use BFS-based level grouping below for phase generation
-  void topologicalSort(condensedGraph);
+  void kahnTopologicalSort(condensedGraph);
 
   // 5. Generate phases
   const phases: RefactoringPhase[] = [];

@@ -53,14 +53,25 @@ export type {
 // FUNCTION EXPORTS
 // ============================================================================
 
+// Node classification and risk calculation
+export {
+  buildCouplingMap,
+  CORE_THRESHOLD_PERCENTILE,
+  CYCLE_RISK_MULTIPLIER,
+  calculatePercentile,
+  calculatePhaseRisk,
+  classifyNode,
+  classifyNodeWithMaps,
+  getRiskLevel,
+} from './classification.js';
 export { calculateCouplingMetrics, DEFAULT_HOTSPOT_COUNT, detectHotspots } from './hotspots.js';
 
-export {
-  classifyNode,
-  findStronglyConnectedComponents,
-  generateSafeRefactoringOrder,
-  topologicalSort,
-} from './safe-order.js';
+// Kahn's topological sort
+export { kahnTopologicalSort, topologicalSort } from './kahn.js';
+// Main safe refactoring order function
+export { generateSafeRefactoringOrder } from './safe-order.js';
+// Tarjan's SCC algorithm
+export { findStronglyConnectedComponents, tarjanSCC } from './tarjan.js';
 
 // ============================================================================
 // MAIN ANALYSIS FUNCTION
