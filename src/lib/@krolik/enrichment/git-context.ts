@@ -26,11 +26,20 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 /** Cache for git context by file path */
 const contextCache = new Map<string, GitContextCacheEntry>();
 
+/** Cache for all file change counts (expensive operation) */
+interface ChangeCountsCache {
+  counts: Map<string, number>;
+  cachedAt: number;
+  key: string; // projectRoot:days
+}
+let changeCountsCache: ChangeCountsCache | null = null;
+
 /**
  * Clear the git context cache
  */
 export function clearGitContextCache(): void {
   contextCache.clear();
+  changeCountsCache = null;
 }
 
 /**
@@ -112,8 +121,21 @@ function getLastModifiedDate(projectRoot: string, file: string): string {
 
 /**
  * Get total change count for all files in project (for hotspot detection)
+ * CACHED: This is an expensive operation, cached with TTL
  */
 function getAllFileChangeCounts(projectRoot: string, days: number): Map<string, number> {
+  const cacheKey = `${projectRoot}:${days}`;
+  const now = Date.now();
+
+  // Check cache
+  if (
+    changeCountsCache &&
+    changeCountsCache.key === cacheKey &&
+    now - changeCountsCache.cachedAt < CACHE_TTL_MS
+  ) {
+    return changeCountsCache.counts;
+  }
+
   const lines = execLines(
     `git log --since="${days} days ago" --pretty=format: --name-only | sort | uniq -c | sort -rn`,
     shellOpts(projectRoot),
@@ -131,6 +153,9 @@ function getAllFileChangeCounts(projectRoot: string, days: number): Map<string, 
       }
     }
   }
+
+  // Cache the result
+  changeCountsCache = { counts, cachedAt: now, key: cacheKey };
 
   return counts;
 }
