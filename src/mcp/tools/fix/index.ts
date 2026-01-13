@@ -16,6 +16,30 @@ import { FIX_CATEGORIES } from '../core/shared';
 type FixCategory = (typeof FIX_CATEGORIES)[number];
 
 /**
+ * Available fixers for individual targeting
+ */
+const AVAILABLE_FIXERS = [
+  'console',
+  'debugger',
+  'alert',
+  'any',
+  'ts-ignore',
+  'equality',
+  'eval',
+  'unused-imports',
+  'duplicate',
+  'complexity',
+  'long-functions',
+  'magic-numbers',
+  'hardcoded-urls',
+  'srp',
+  'refine',
+  'i18n',
+] as const;
+
+type FixerName = (typeof AVAILABLE_FIXERS)[number];
+
+/**
  * Run lightweight fix plan generation for MCP
  *
  * Generates fix plan without applying changes.
@@ -28,6 +52,7 @@ async function runLightweightFix(
     path?: string;
     category?: FixCategory;
     safe?: boolean;
+    fixer?: FixerName;
   },
 ): Promise<string> {
   // Dynamic imports to avoid loading heavy modules at startup
@@ -58,6 +83,14 @@ async function runLightweightFix(
   if (options.path) fixOptions.path = options.path;
   if (options.category) fixOptions.category = options.category;
   if (options.safe) fixOptions.safe = options.safe;
+
+  // Handle individual fixer selection
+  if (options.fixer) {
+    // Convert fixer name to FixOptions flag (e.g., 'console' -> fixConsole, 'ts-ignore' -> fixTsIgnore)
+    const parts = options.fixer.split('-');
+    const flagKey = `fix${parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('')}`;
+    (fixOptions as Record<string, boolean>)[flagKey] = true;
+  }
 
   const planResult = await generateFixPlan(projectRoot, fixOptions);
   const { plans, skipStats, totalIssues, recommendations } = planResult;
@@ -116,6 +149,12 @@ export const fixTool: MCPToolDefinition = {
         type: 'boolean',
         description: 'Only apply safe fixes (no risky changes)',
       },
+      fixer: {
+        type: 'string',
+        description:
+          'Run specific fixer: console, debugger, alert, any, ts-ignore, equality, eval, unused-imports, duplicate, complexity, long-functions, magic-numbers, hardcoded-urls, srp, refine, i18n',
+        enum: [...AVAILABLE_FIXERS],
+      },
     },
   },
   template: { when: 'Quality issues found', params: '`dryRun: true` first' },
@@ -144,6 +183,11 @@ export const fixTool: MCPToolDefinition = {
       if (typeof args.path === 'string') options.path = args.path;
       if (typeof args.category === 'string') options.category = args.category as FixCategory;
       if (typeof args.safe === 'boolean') options.safe = args.safe;
+
+      // Handle fixer parameter
+      if (typeof args.fixer === 'string' && AVAILABLE_FIXERS.includes(args.fixer as FixerName)) {
+        options.fixer = args.fixer as FixerName;
+      }
 
       const xml = await runLightweightFix(resolved.path, options);
       return xml;
