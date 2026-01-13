@@ -1,5 +1,83 @@
 # @anatolykoptev/krolik-cli
 
+## 0.15.0
+
+### Minor Changes
+
+- [`9cd40a3`](https://github.com/anatolykoptev/krolik-cli/commit/9cd40a3bf8b1ee2f0598575998b9528966c4cf6a) - ## Refactor component major cleanup
+
+  ### Architecture
+  - Unified runner system: migrated from dual (enhanced.ts + registry-runner) to single registry-based system
+  - Deleted deprecated `enhanced.ts` (313 lines) - all functionality now in registry analyzers
+
+  ### Code Quality
+  - Split large files into focused modules:
+    - `safe-order.ts` (486→226 lines): extracted `tarjan.ts`, `kahn.ts`, `classification.ts`
+    - `swc-parser.ts` (462→17 lines): split into 6 modules in `swc-parser/` directory
+    - `analyzer.ts` (452→120 lines): split into 6 modules in `strategies/` directory
+  - Consolidated `offsetToPosition` with shared `@/lib/@ast/swc` implementation
+  - Removed 10 deprecated shims and functions
+
+  ### Duplicate Detection
+  - Added 20+ new verb prefixes to filter intentional patterns (extract, find, analyze, escape, etc.)
+  - Reduced false positives from 63 to 59 (-6.3%)
+  - Improved structural clone detection accuracy
+
+- [`06d949f`](https://github.com/anatolykoptev/krolik-cli/commit/06d949febe255a3e420ecd94fffbab9490d346d7) - feat(agent): add semantic matching for smarter agent selection
+
+  ### New Features
+  - **Semantic Agent Matching**: Uses Xenova embeddings to find semantically similar agents
+  - **Graceful Fallback**: Falls back to keyword-only matching if embeddings unavailable
+  - **Score Transparency**: Shows semantic similarity percentage in score breakdown
+
+  ### Scoring Changes
+
+  New scoring breakdown (0-100, normalized):
+  - Keyword match: 0-40 points (unchanged)
+  - **Semantic match: 0-15 points (NEW)**
+  - Context boost: 0-30 points (unchanged)
+  - History boost: 0-20 points (unchanged)
+  - Freshness bonus: 0-10 points (unchanged)
+
+  ### How It Works
+  1. Task description is embedded using all-MiniLM-L6-v2 model
+  2. Agent descriptions are embedded and cached (in-memory)
+  3. Cosine similarity is calculated between task and each agent
+  4. Similarity thresholds determine score (calibrated for MiniLM-L6-v2):
+     - 0.50+ = 15 points (very similar)
+     - 0.35-0.50 = 10 points (similar)
+     - 0.25-0.35 = 5 points (somewhat similar)
+
+  ### Benefits
+  - "optimize" now finds "performance-engineer" (no keyword overlap needed)
+  - "fix bugs" now finds "debugger" (semantic understanding)
+  - Better agent recommendations for natural language queries
+
+- [`33000d5`](https://github.com/anatolykoptev/krolik-cli/commit/33000d578ca477b547dbe27177609828c430f686) - feat(memory): add worker thread architecture for non-blocking embeddings
+
+  ### New Features
+  - **Worker Thread Pool**: Model loading now happens in isolated worker thread, preventing MCP server blocking
+  - **Preload at Startup**: `preloadEmbeddingPool()` fires model loading immediately when MCP server starts
+  - **Graceful Fallback**: BM25 search works instantly while model loads in background
+  - **Idle Timeout**: Worker releases after 5 minutes of inactivity (~23MB memory savings)
+  - **Hybrid Search**: Automatic mode selection between BM25-only and hybrid (BM25 + semantic)
+
+  ### Performance Improvements
+  - MCP server responds instantly during model initialization
+  - First semantic search no longer blocks for 2-3 seconds
+  - Memory efficient: worker only active when needed
+
+  ### Technical Details
+  - New `embedding-worker.ts` for isolated model loading
+  - New `embedding-pool.ts` for worker lifecycle management
+  - Updated `embeddings.ts` to use worker pool
+  - Separate tsup bundle for worker thread
+  - Added `sharp` and `protobufjs` to pnpm.onlyBuiltDependencies
+
+  ### Bug Fixes
+  - Fixed worker path resolution for both development (tsx) and production (dist) environments
+  - Worker path now correctly resolves from `import.meta.url` in all scenarios
+
 ## 0.14.1
 
 ### Patch Changes
