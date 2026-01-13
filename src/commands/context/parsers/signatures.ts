@@ -28,6 +28,7 @@ export {
 
 // Import Signature type for formatting functions
 import type { Signature } from '@/lib/@ast/signatures';
+import { escapeXml } from '@/lib/@format/xml/escape';
 
 // ============================================================================
 // AIDER-STYLE FORMATTING
@@ -230,20 +231,4 @@ export function groupSignaturesByType(signatures: Signature[]): Map<string, Sign
   }
 
   return grouped;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-/**
- * Escape special XML characters
- */
-function escapeXml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }

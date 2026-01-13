@@ -8,7 +8,7 @@
  * - Handles all `any` contexts correctly
  */
 
-import { astPool, SyntaxKind } from '@/lib/@ast';
+import { astPool, getLineStartOffset, SyntaxKind } from '@/lib/@ast';
 import type { FixOperation, QualityIssue } from '../../core/types';
 
 /**
@@ -74,18 +74,6 @@ export function fixAnyTypeIssue(issue: QualityIssue, content: string): FixOperat
     // If AST parsing fails, return null
     return null;
   }
-}
-
-/**
- * Get the byte offset where a line starts
- */
-function getLineStartOffset(content: string, lineNumber: number): number {
-  const lines = content.split('\n');
-  let offset = 0;
-  for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
-    offset += (lines[i]?.length ?? 0) + 1; // +1 for newline
-  }
-  return offset;
 }
 
 /**

@@ -10,6 +10,7 @@
  * - Freshness bonus (recent memories get priority)
  */
 
+import { escapeXml } from '@/lib/@format/xml/escape';
 import { getDatabase } from '../database';
 import { BM25_RELEVANCE_MULTIPLIER, DEFAULT_SEARCH_LIMIT } from './constants';
 import { rowToMemory } from './converters';
@@ -458,18 +459,6 @@ export function getRecentDecisions(
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
 
 /**
  * Format date as relative time

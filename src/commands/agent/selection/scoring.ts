@@ -13,6 +13,7 @@
 
 import type { ProjectProfile } from '@/lib/@context/project-profile';
 import { logger } from '@/lib/@core/logger';
+import { escapeRegex } from '@/lib/@security/regex';
 import type { AgentCapabilities } from '../capabilities/types';
 import { calculateSemanticSimilarity } from './embeddings';
 import type { AgentSuccessHistory } from './history';
@@ -84,13 +85,6 @@ const STOPWORDS = new Set([
   'need',
   'want',
 ]);
-
-/**
- * Escape special regex characters
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 /**
  * Check if word is a stopword

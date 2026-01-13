@@ -48,6 +48,30 @@ export function calculateLineOffsets(content: string): number[] {
   return offsets;
 }
 
+/**
+ * Get the byte offset where a specific line starts
+ *
+ * This calculates the offset on demand from content, without pre-computed
+ * line offsets. For repeated lookups, prefer using calculateLineOffsets()
+ * and accessing the array directly.
+ *
+ * @param content - Source code content
+ * @param lineNumber - 1-indexed line number
+ * @returns Byte offset where the line starts
+ *
+ * @example
+ * const offset = getLineStartOffset("line1\nline2\nline3", 2);
+ * // Returns: 6 (line 2 starts after "line1\n")
+ */
+export function getLineStartOffset(content: string, lineNumber: number): number {
+  const lines = content.split('\n');
+  let offset = 0;
+  for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
+    offset += (lines[i]?.length ?? 0) + 1; // +1 for newline
+  }
+  return offset;
+}
+
 // ============================================================================
 // OFFSET CONVERSION
 // ============================================================================

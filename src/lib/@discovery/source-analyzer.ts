@@ -23,6 +23,21 @@ import type {
   VariableDeclarator,
 } from '@swc/core';
 import {
+  isArrowFunction,
+  isAssignmentPattern,
+  isClassDeclaration,
+  isClassMethod,
+  isExportDeclaration,
+  isExportDefaultDeclaration,
+  isFunctionDeclaration,
+  isFunctionExpression,
+  isIdentifier,
+  isTsEnum,
+  isTsInterface,
+  isTsTypeAlias,
+  isVariableDeclaration,
+} from '@/lib/@ast/analysis/guards';
+import {
   extractTypeString as swcExtractTypeString,
   parseFile as swcParseFile,
 } from '@/lib/@ast/swc';
@@ -91,68 +106,6 @@ export interface SourceAnalysisResult {
   exports: ExportedMember[];
   /** Error message if failed */
   error?: string;
-}
-
-// ============================================================================
-// TYPE GUARDS (inline to avoid circular dependencies)
-// ============================================================================
-
-type NodeWithType = { type?: string };
-
-function hasType(node: unknown, type: string): boolean {
-  return (node as NodeWithType).type === type;
-}
-
-function isExportDeclaration(item: ModuleItem): boolean {
-  return hasType(item, 'ExportDeclaration');
-}
-
-function isExportDefaultDeclaration(item: ModuleItem): boolean {
-  return hasType(item, 'ExportDefaultDeclaration');
-}
-
-function isFunctionDeclaration(node: Node): node is FunctionDeclaration {
-  return hasType(node, 'FunctionDeclaration');
-}
-
-function isFunctionExpression(node: Node): node is FunctionExpression {
-  return hasType(node, 'FunctionExpression');
-}
-
-function isArrowFunction(node: Node): boolean {
-  return hasType(node, 'ArrowFunctionExpression');
-}
-
-function isClassDeclaration(node: Node): node is ClassDeclaration {
-  return hasType(node, 'ClassDeclaration');
-}
-
-function isVariableDeclaration(node: Node): boolean {
-  return hasType(node, 'VariableDeclaration');
-}
-
-function isClassMethod(node: Node): node is ClassMethod {
-  return hasType(node, 'ClassMethod');
-}
-
-function isTsTypeAlias(node: Node): boolean {
-  return hasType(node, 'TsTypeAliasDeclaration');
-}
-
-function isTsInterface(node: Node): boolean {
-  return hasType(node, 'TsInterfaceDeclaration');
-}
-
-function isTsEnum(node: Node): boolean {
-  return hasType(node, 'TsEnumDeclaration');
-}
-
-function isIdentifier(node: Pattern | Node): node is Identifier {
-  return hasType(node, 'Identifier');
-}
-
-function isAssignmentPattern(node: Pattern): boolean {
-  return hasType(node, 'AssignmentPattern');
 }
 
 // ============================================================================

@@ -69,6 +69,7 @@ export type { Position } from './position';
 export {
   calculateLineOffsets,
   getContext,
+  getLineStartOffset,
   getSnippet,
   offsetToLine,
   offsetToPosition,

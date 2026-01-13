@@ -111,6 +111,7 @@ export type {
 // CONVENIENCE FUNCTIONS
 // ============================================================================
 
+import { escapeXml } from '@/lib/@format/xml/escape';
 import { getEpicsSummary } from './epics';
 import { getActiveSession, getSessionStats, startSession } from './sessions';
 import { getBlockedTasks, getInProgressTasks, getSuggestedTasks, getTasksByProject } from './tasks';
@@ -241,16 +242,4 @@ export function ensureActiveSession(project: string): string {
     return active.id;
   }
   return startSession({ project });
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }

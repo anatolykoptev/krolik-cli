@@ -9,6 +9,7 @@
  * The i18next-cli cache is populated via `scanProjectI18n()` before running fixers.
  */
 
+import { escapeRegex } from '@/lib/@security/regex';
 import {
   detectHardcodedStrings,
   type HardcodedStringIssue,
@@ -120,13 +121,6 @@ function getContext(line: string, text: string): string {
   if (line.includes(`>${text}<`)) return 'jsx text';
   if (line.match(new RegExp(`\\w+=["']${escapeRegex(text)}["']`))) return 'jsx attribute';
   return 'string literal';
-}
-
-/**
- * Escape special regex characters
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // ============================================================================

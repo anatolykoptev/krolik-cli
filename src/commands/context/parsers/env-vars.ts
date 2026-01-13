@@ -21,6 +21,7 @@ import {
   visitNodeWithCallbacks,
 } from '@/lib/@ast/swc';
 import { scanDirectory as scanDir } from '@/lib/@core/fs';
+import { escapeXml } from '@/lib/@format/xml/escape';
 
 /**
  * Single usage of an environment variable in code
@@ -542,16 +543,4 @@ export function formatEnvVarsXml(report: EnvVarsReport): string {
   lines.push('</env-vars-report>');
 
   return lines.join('\n');
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }

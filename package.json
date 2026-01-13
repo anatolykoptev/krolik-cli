@@ -47,6 +47,7 @@
   "scripts": {
     "dev": "tsx watch src/bin/cli.ts",
     "build": "pnpm sync-version && tsup",
+    "krolik": "node dist/bin/cli.js",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",

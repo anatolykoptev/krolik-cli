@@ -7,7 +7,7 @@
  * - Adds TODO comment for complex cases
  */
 
-import { astPool, Node, SyntaxKind } from '@/lib/@ast';
+import { astPool, getLineStartOffset, Node, SyntaxKind } from '@/lib/@ast';
 import type { FixOperation, QualityIssue } from '../../core/types';
 
 /**
@@ -88,18 +88,6 @@ export function fixEvalIssueAST(issue: QualityIssue, content: string): FixOperat
   } catch {
     return addTodoComment(issue, line);
   }
-}
-
-/**
- * Get the byte offset where a line starts
- */
-function getLineStartOffset(content: string, lineNumber: number): number {
-  const lines = content.split('\n');
-  let offset = 0;
-  for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
-    offset += (lines[i]?.length ?? 0) + 1; // +1 for newline
-  }
-  return offset;
 }
 
 /**

@@ -6,6 +6,7 @@
  * discovery results in various formats.
  */
 
+import { escapeXml } from '@/lib/@format/xml/escape';
 import { getCategoryDisplayName, getCategoryIcon } from './classifier';
 import { getLevelDescription } from './scorer';
 import type { DiscoveryResult, ModuleCategory, ReusabilityLevel } from './types';
@@ -162,18 +163,6 @@ export function formatAsXML(result: DiscoveryResult): string {
   lines.push('</reusable-modules>');
 
   return lines.join('\n');
-}
-
-/**
- * Escape special XML characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 // ============================================================================

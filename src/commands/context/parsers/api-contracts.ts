@@ -14,6 +14,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { scanDirectory } from '@/lib/@core/fs';
+import { escapeXml } from '@/lib/@format/xml/escape';
 
 /**
  * Field definition in Zod schema
@@ -656,16 +657,4 @@ export function formatApiContractsXml(contracts: RouterContract[]): string {
 
   lines.push('</api-contracts>');
   return lines.join('\n');
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }

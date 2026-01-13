@@ -12,6 +12,7 @@
 
 import { DEFAULT_PERIOD_DAYS, isBugFixCommit } from '../../../commands/audit/impact/git-history';
 import { execLines, shellOpts, tryExec } from '../../../lib/@core/shell';
+import { escapeXml } from '../../../lib/@format/xml/escape';
 import { escapeShellArg } from '../../../lib/@security';
 import { isGitRepo } from '../../../lib/@vcs';
 import type { BugFixCommit, GitContext, GitContextCacheEntry, GitContextOptions } from './types';
@@ -328,31 +329,19 @@ export function formatGitContextXml(context: GitContext, indent = 0): string[] {
     lines.push(`${pad}  <evidence>`);
     for (const bug of context.relatedBugs) {
       // Escape XML special characters in message
-      const escapedMessage = escapeXmlChars(bug.message);
+      const escapedMessage = escapeXml(bug.message);
       lines.push(`${pad}    <commit hash="${bug.hash}">${escapedMessage}</commit>`);
     }
     lines.push(`${pad}  </evidence>`);
   }
 
   if (context.warning) {
-    lines.push(`${pad}  <warning>${escapeXmlChars(context.warning)}</warning>`);
+    lines.push(`${pad}  <warning>${escapeXml(context.warning)}</warning>`);
   }
 
   lines.push(`${pad}</git-context>`);
 
   return lines;
-}
-
-/**
- * Escape XML special characters
- */
-function escapeXmlChars(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 // ============================================================================

@@ -31,6 +31,7 @@
  */
 
 import type { Module } from '@swc/core';
+import { escapeXml } from '@/lib/@format/xml/escape';
 import type { ConfidenceLevel, TypeContext } from './types';
 import {
   analyzeUsages,
@@ -262,18 +263,6 @@ function createFallbackResult(): EnhancedTypeInferenceResult {
     details: 'Safe replacement: unknown requires type guards before use',
     evidence: [],
   };
-}
-
-/**
- * Escape special XML characters
- */
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
 }
 
 /**

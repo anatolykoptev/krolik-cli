@@ -11,6 +11,7 @@
 
 import { SyntaxKind } from 'ts-morph';
 import { astPool } from '@/lib/@ast';
+import { escapeRegex } from '@/lib/@security/regex';
 import type { FixOperation, QualityIssue } from '../../core/types';
 
 // ============================================================================
@@ -236,13 +237,6 @@ function findInsertionLine(content: string, file: string): number {
   } catch {
     return 0;
   }
-}
-
-/**
- * Escape special regex characters in a string
- */
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
