@@ -9,6 +9,7 @@
 
 import { astPool, getLineStartOffset, Node, SyntaxKind } from '@/lib/@ast';
 import type { FixOperation, QualityIssue } from '../../core/types';
+import { addTodoComment } from '../../core/utils';
 
 /**
  * Fix an eval issue using AST analysis
@@ -88,19 +89,4 @@ export function fixEvalIssueAST(issue: QualityIssue, content: string): FixOperat
   } catch {
     return addTodoComment(issue, line);
   }
-}
-
-/**
- * Add a TODO comment above the problematic line
- */
-function addTodoComment(issue: QualityIssue, line: string): FixOperation {
-  // Preserve indentation
-  const indent = line.match(/^(\s*)/)?.[1] ?? '';
-
-  return {
-    action: 'insert-before',
-    file: issue.file,
-    line: issue.line,
-    newCode: `${indent}// TODO: Security risk - refactor to avoid eval()`,
-  };
 }

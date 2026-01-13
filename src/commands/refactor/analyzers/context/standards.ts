@@ -13,6 +13,7 @@ import * as path from 'node:path';
 import { exists, findFiles, readFile } from '../../../../lib/@core/fs';
 import type { DirectoryInfo, StandardCheck, StandardsCompliance } from '../../core/types';
 import type { ProjectContext } from '../../core/types-ai';
+import { readPackageJson } from '../shared/helpers';
 
 // ============================================================================
 // MAIN ENTRY
@@ -339,23 +340,4 @@ function checkTsDocCoverage(projectRoot: string): boolean {
   }
 
   return false;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-interface PackageJson {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-}
-
-function readPackageJson(projectRoot: string): PackageJson | null {
-  const content = readFile(path.join(projectRoot, 'package.json'));
-  if (!content) return null;
-  try {
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
 }

@@ -12,6 +12,7 @@
 import { SyntaxKind } from 'ts-morph';
 import { astPool } from '@/lib/@ast';
 import type { FixOperation, QualityIssue } from '../../core/types';
+import { findInsertionLine } from '../../core/utils';
 
 // ============================================================================
 // FIXER
@@ -168,40 +169,6 @@ function findNumberPosition(
     }
   } catch {
     return null;
-  }
-}
-
-/**
- * Find the best line to insert a constant declaration
- * (after imports, before other code)
- */
-function findInsertionLine(content: string, file: string): number {
-  try {
-    const [sourceFile, cleanup] = astPool.createSourceFile(content, file);
-
-    try {
-      const statements = sourceFile.getStatements();
-      let lastImportLine = 0;
-
-      for (const statement of statements) {
-        if (
-          statement.getKind() === SyntaxKind.ImportDeclaration ||
-          statement.getKind() === SyntaxKind.ImportEqualsDeclaration
-        ) {
-          lastImportLine = statement.getEndLineNumber();
-        } else {
-          break;
-        }
-      }
-
-      // Insert after imports (with a blank line)
-      return lastImportLine > 0 ? lastImportLine : 0;
-    } finally {
-      cleanup();
-    }
-  } catch {
-    // Fallback: insert at line 0
-    return 0;
   }
 }
 

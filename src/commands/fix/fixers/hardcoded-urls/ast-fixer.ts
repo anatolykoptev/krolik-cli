@@ -13,6 +13,7 @@ import { SyntaxKind } from 'ts-morph';
 import { astPool } from '@/lib/@ast';
 import { escapeRegex } from '@/lib/@security/regex';
 import type { FixOperation, QualityIssue } from '../../core/types';
+import { findInsertionLine } from '../../core/utils';
 
 // ============================================================================
 // FIXER
@@ -205,37 +206,6 @@ function findUrlPosition(
     }
   } catch {
     return null;
-  }
-}
-
-/**
- * Find the best line to insert a constant declaration
- */
-function findInsertionLine(content: string, file: string): number {
-  try {
-    const [sourceFile, cleanup] = astPool.createSourceFile(content, file);
-
-    try {
-      const statements = sourceFile.getStatements();
-      let lastImportLine = 0;
-
-      for (const statement of statements) {
-        if (
-          statement.getKind() === SyntaxKind.ImportDeclaration ||
-          statement.getKind() === SyntaxKind.ImportEqualsDeclaration
-        ) {
-          lastImportLine = statement.getEndLineNumber();
-        } else {
-          break;
-        }
-      }
-
-      return lastImportLine > 0 ? lastImportLine : 0;
-    } finally {
-      cleanup();
-    }
-  } catch {
-    return 0;
   }
 }
 
