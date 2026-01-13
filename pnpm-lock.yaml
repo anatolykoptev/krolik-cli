@@ -3960,7 +3960,7 @@ snapshots:
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.0
       '@types/long': 4.0.2
-      '@types/node': 22.19.3
+      '@types/node': 22.19.5
       long: 4.0.0
 
   pump@3.0.3:
