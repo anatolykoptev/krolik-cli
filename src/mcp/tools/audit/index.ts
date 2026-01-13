@@ -2,42 +2,109 @@
  * @module mcp/tools/audit
  * @description krolik_audit tool - Code quality audit
  *
+ * PERFORMANCE: Uses direct function imports instead of subprocess spawn.
+ * This eliminates 10s+ Node.js startup overhead.
+ *
  * Supports two modes:
- * - Standard audit (mode: all, release) - lint-style issues
- * - Refactor mode (mode: refactor) - duplicate detection, structure analysis
+ * - Standard audit (mode: all, release, lint, etc) - lint-style issues
+ * - Refactor mode (mode: refactor) - redirects to krolik_refactor tool
  */
 
-import {
-  buildFlags,
-  COMMON_FLAGS,
-  type FlagSchema,
-  type MCPToolDefinition,
-  PROJECT_PROPERTY,
-  registerTool,
-  runKrolik,
-  TIMEOUT_60S,
-  TIMEOUT_120S,
-  withProjectDetection,
-} from '../core';
+import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
+import { formatError } from '../core/errors';
+import { resolveProjectPath } from '../core/projects';
 
-// Schema for standard audit modes
-const auditSchema: FlagSchema = {
-  path: COMMON_FLAGS.path,
-  feature: COMMON_FLAGS.feature,
-  mode: { flag: '--mode' },
-};
+// Valid audit modes
+const VALID_MODES = [
+  'all',
+  'release',
+  'refactor',
+  'hardcoded',
+  'lint',
+  'types',
+  'security',
+  'pre-commit',
+  'queries',
+] as const;
 
-// Schema for refactor mode
-const refactorSchema: FlagSchema = {
-  path: COMMON_FLAGS.path,
-  package: { flag: '--package', sanitize: 'feature' },
-  allPackages: { flag: '--all-packages' },
-  quick: { flag: '--quick' },
-  deep: { flag: '--deep' },
-  dryRun: COMMON_FLAGS.dryRun,
-  apply: COMMON_FLAGS.apply,
-  fixTypes: { flag: '--fix-types' },
-};
+type AuditMode = (typeof VALID_MODES)[number];
+
+/**
+ * Generate audit report directly (no subprocess)
+ */
+async function generateAuditReport(
+  projectRoot: string,
+  options: { feature?: string; mode?: AuditMode },
+): Promise<string> {
+  const { generateAIReportFromAnalysis, formatAsXml } = await import('@/lib/@reporter');
+  const { parseIntent, filterByIntent } = await import('@/commands/audit/filters');
+
+  // Generate full report
+  const report = await generateAIReportFromAnalysis(projectRoot);
+
+  // Apply intent filter if specified
+  const intent = parseIntent({ feature: options.feature, mode: options.mode });
+  if (intent) {
+    // Filter the report based on intent
+    const filterReport = (report: Awaited<ReturnType<typeof generateAIReportFromAnalysis>>) => {
+      const filteredGroups = report.groups
+        .map((group) => {
+          const qualityIssues = group.issues.map((ei) => ei.issue);
+          const filtered = filterByIntent(qualityIssues, intent);
+          const filteredFiles = new Set(filtered.map((i) => `${i.file}:${i.line}`));
+          const filteredIssues = group.issues.filter((ei) =>
+            filteredFiles.has(`${ei.issue.file}:${ei.issue.line}`),
+          );
+          if (filteredIssues.length === 0) return null;
+          return {
+            ...group,
+            issues: filteredIssues,
+            count: filteredIssues.length,
+            autoFixableCount: filteredIssues.filter((i) => i.autoFixable).length,
+          };
+        })
+        .filter((g): g is NonNullable<typeof g> => g !== null);
+
+      const totalIssues = filteredGroups.reduce((sum, g) => sum + g.count, 0);
+      const autoFixableIssues = filteredGroups.reduce((sum, g) => sum + g.autoFixableCount, 0);
+
+      // Recalculate byPriority
+      const byPriority: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+      for (const group of filteredGroups) {
+        for (const issue of group.issues) {
+          byPriority[issue.priority] = (byPriority[issue.priority] ?? 0) + 1;
+        }
+      }
+
+      return {
+        ...report,
+        groups: filteredGroups,
+        quickWins: report.quickWins.filter((qw) =>
+          filteredGroups.some((g) =>
+            g.issues.some((i) => i.issue.file === qw.issue.file && i.issue.line === qw.issue.line),
+          ),
+        ),
+        hotspots: report.hotspots.filter((h) =>
+          filteredGroups.some((g) => g.issues.some((i) => i.issue.file === h.file)),
+        ),
+        actionPlan: report.actionPlan.filter((step) =>
+          filteredGroups.some((g) => g.issues.some((i) => i.issue.file === step.file)),
+        ),
+        summary: {
+          ...report.summary,
+          totalIssues,
+          autoFixableIssues,
+          manualIssues: totalIssues - autoFixableIssues,
+          byPriority: byPriority as typeof report.summary.byPriority,
+        },
+      };
+    };
+
+    return formatAsXml(filterReport(report));
+  }
+
+  return formatAsXml(report);
+}
 
 export const auditTool: MCPToolDefinition = {
   name: 'krolik_audit',
@@ -67,17 +134,7 @@ Modes:
       },
       mode: {
         type: 'string',
-        enum: [
-          'all',
-          'release',
-          'refactor',
-          'hardcoded',
-          'lint',
-          'types',
-          'security',
-          'pre-commit',
-          'queries',
-        ],
+        enum: VALID_MODES as unknown as string[],
         description:
           'Filter by mode: all, release, refactor (runs refactor cmd), hardcoded, lint (auto-fixable), types, security, pre-commit, queries (duplicate queries)',
       },
@@ -115,31 +172,34 @@ Modes:
   template: { when: 'Code quality audit', params: '—' },
   workflow: { trigger: 'on_refactor', order: 2 },
   category: 'code',
-  handler: (args, workspaceRoot) => {
-    const mode = args.mode as string | undefined;
+  handler: async (args, workspaceRoot) => {
+    const mode = args.mode as AuditMode | undefined;
 
-    // When mode=refactor, run the refactor command instead
+    // When mode=refactor, tell user to use krolik_refactor tool
     if (mode === 'refactor') {
-      const result = buildFlags(args, refactorSchema);
-      if (!result.ok) {
-        if (args.package && result.error.includes('package')) {
-          return 'Error: Invalid package name.';
-        }
-        return result.error;
-      }
-
-      return withProjectDetection(args, workspaceRoot, (projectPath) => {
-        return runKrolik(`refactor ${result.flags || ''}`, projectPath, TIMEOUT_120S);
-      });
+      return '<audit error="true"><message>For refactor analysis, use krolik_refactor tool instead.</message></audit>';
     }
 
-    // Standard audit for other modes
-    const result = buildFlags(args, auditSchema);
-    if (!result.ok) return result.error;
+    // Resolve project path
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
 
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      return runKrolik(`audit ${result.flags}`, projectPath, TIMEOUT_60S);
-    });
+    if ('error' in resolved) {
+      if (resolved.error.includes('not found')) {
+        return `<audit error="true"><message>Project "${projectArg}" not found.</message></audit>`;
+      }
+      return resolved.error;
+    }
+
+    try {
+      const options: { feature?: string; mode?: AuditMode } = {};
+      if (typeof args.feature === 'string') options.feature = args.feature;
+      if (mode) options.mode = mode;
+      const xml = await generateAuditReport(resolved.path, options);
+      return xml;
+    } catch (error) {
+      return formatError(error);
+    }
   },
 };
 

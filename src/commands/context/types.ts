@@ -7,6 +7,8 @@ import type { ArchitecturePatterns } from '@/lib/@discovery/architecture';
 import type { Memory } from '@/lib/@storage/memory';
 import type { OutputFormat } from '../../types/commands/base';
 import type { ContextResult } from '../../types/commands/context';
+export type { ContextResult };
+
 import type { KrolikConfig } from '../../types/config';
 import type { RoutesOutput } from '../routes/output';
 import type { SchemaOutput } from '../schema/output';
