@@ -25,10 +25,33 @@ import {
 // ============================================================================
 
 /**
+ * Maximum number of agent embeddings to cache.
+ * Prevents unbounded memory growth in long-running processes.
+ * 200 agents × ~1.5KB per embedding = ~300KB max memory.
+ */
+const MAX_CACHE_SIZE = 200;
+
+/**
  * In-memory cache for agent embeddings
  * Key: agent name, Value: embedding vector
+ * Uses LRU-like eviction when cache exceeds MAX_CACHE_SIZE
  */
 const agentEmbeddingCache = new Map<string, Float32Array>();
+
+/**
+ * Add to cache with size limit (evict oldest entries if full)
+ */
+function cacheEmbedding(name: string, embedding: Float32Array): void {
+  // Evict oldest entries if cache is full
+  if (agentEmbeddingCache.size >= MAX_CACHE_SIZE) {
+    // Map maintains insertion order, so first key is oldest
+    const oldestKey = agentEmbeddingCache.keys().next().value;
+    if (oldestKey) {
+      agentEmbeddingCache.delete(oldestKey);
+    }
+  }
+  agentEmbeddingCache.set(name, embedding);
+}
 
 // ============================================================================
 // INITIALIZATION
@@ -119,7 +142,7 @@ export async function getAgentEmbedding(
   // Use pre-computed embedding if available (no model call needed)
   if (preComputed && preComputed.length > 0) {
     const embedding = new Float32Array(preComputed);
-    agentEmbeddingCache.set(name, embedding);
+    cacheEmbedding(name, embedding);
     return embedding;
   }
 
@@ -130,7 +153,7 @@ export async function getAgentEmbedding(
 
   try {
     const result = await generateEmbedding(description);
-    agentEmbeddingCache.set(name, result.embedding);
+    cacheEmbedding(name, result.embedding);
     return result.embedding;
   } catch (error) {
     // Log at debug level for troubleshooting, but don't fail

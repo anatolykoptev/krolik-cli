@@ -129,7 +129,52 @@ function deduplicateByName(scored: ScoredAgent[]): ScoredAgent[] {
 }
 
 /**
+ * Common stopwords to exclude from quick matching
+ * (subset of main scoring stopwords for performance)
+ */
+const QUICK_STOPWORDS = new Set([
+  'the',
+  'and',
+  'for',
+  'with',
+  'that',
+  'this',
+  'from',
+  'have',
+  'will',
+  'can',
+  'use',
+  'your',
+  'all',
+  'any',
+  'how',
+  'when',
+  'what',
+  'which',
+  'are',
+  'code',
+  'file',
+  'data',
+  'make',
+  'like',
+  'work',
+  'need',
+  'want',
+]);
+
+/**
+ * Check if task contains keyword as whole word (word boundary match)
+ */
+function containsWholeWordQuick(text: string, word: string): boolean {
+  // Escape special regex characters
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`\\b${escaped}\\b`, 'i');
+  return pattern.test(text);
+}
+
+/**
  * Quick agent selection without full pipeline (for CLI listing)
+ * Uses word-boundary matching consistent with main scoring.
  */
 export async function quickSelect(
   task: string,
@@ -139,21 +184,23 @@ export async function quickSelect(
   const capabilities = await loadCapabilitiesIndex(agentsPath);
   const normalizedTask = task.toLowerCase();
 
-  // Simple keyword-only scoring
+  // Simple keyword-only scoring with word boundary matching
   const scored = capabilities.map((agent) => {
     let score = 0;
 
-    // Check keywords
+    // Check keywords (word boundary, skip stopwords)
     for (const kw of agent.keywords) {
-      if (normalizedTask.includes(kw.toLowerCase())) {
+      if (QUICK_STOPWORDS.has(kw.toLowerCase())) continue;
+      if (containsWholeWordQuick(normalizedTask, kw)) {
         score += 10;
       }
     }
 
-    // Check description
+    // Check description (word boundary, skip stopwords)
     const descWords = agent.description.toLowerCase().split(/\s+/);
     for (const word of descWords) {
-      if (word.length > 3 && normalizedTask.includes(word)) {
+      if (word.length <= 3 || QUICK_STOPWORDS.has(word)) continue;
+      if (containsWholeWordQuick(normalizedTask, word)) {
         score += 2;
       }
     }

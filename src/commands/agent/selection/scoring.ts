@@ -12,6 +12,7 @@
  */
 
 import type { ProjectProfile } from '@/lib/@context/project-profile';
+import { logger } from '@/lib/@core/logger';
 import type { AgentCapabilities } from '../capabilities/types';
 import { calculateSemanticSimilarity } from './embeddings';
 import type { AgentSuccessHistory } from './history';
@@ -188,8 +189,12 @@ export async function scoreAgents(
   for (const result of results) {
     if (result.status === 'fulfilled') {
       scored.push(result.value);
+    } else {
+      // Log rejection for debugging (agent name not available in rejection)
+      logger.debug(
+        `Agent scoring failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`,
+      );
     }
-    // Rejected agents are silently skipped - they won't appear in results
   }
 
   // Sort by score descending
@@ -224,9 +229,9 @@ async function calculateScoreBreakdown(
   const historyBoost = scoreHistory(agent, history, currentFeature);
   const freshnessBonus = scoreFreshness(agent, history);
 
-  // Total raw score (0-115), normalize to 0-100
+  // Total raw score, normalize to 0-100
   const rawTotal = keywordMatch + semanticMatch + contextBoost + historyBoost + freshnessBonus;
-  const total = Math.round((rawTotal / 115) * 100);
+  const total = Math.round((rawTotal / MAX_RAW_SCORE) * 100);
 
   return {
     keywordMatch: Math.round(keywordMatch),
@@ -326,6 +331,53 @@ const KEYWORD_SCORES = {
   MAX_DESC_MATCHES: 4,
 } as const;
 
+/** Context scoring constants */
+const CONTEXT_SCORES = {
+  /** Points per tech stack match */
+  TECH_STACK: 5,
+  /** Maximum tech stack matches */
+  MAX_TECH_MATCHES: 3,
+  /** Project type exact match */
+  PROJECT_TYPE: 15,
+  /** Fullstack agent partial credit */
+  FULLSTACK_PARTIAL: 8,
+  /** Maximum context score */
+  MAX: 30,
+} as const;
+
+/** History scoring constants */
+const HISTORY_SCORES = {
+  /** Multiplier for success score (0.15 = 15% of successScore) */
+  SUCCESS_MULTIPLIER: 0.15,
+  /** Feature match bonus */
+  FEATURE_MATCH: 5,
+  /** Maximum history score */
+  MAX: 20,
+} as const;
+
+/** Freshness scoring constants */
+const FRESHNESS_SCORES = {
+  /** High recent usage (>5 uses) */
+  HIGH: 10,
+  /** Medium recent usage (>2 uses) */
+  MEDIUM: 7,
+  /** Low recent usage (>0 uses) */
+  LOW: 4,
+  /** Maximum freshness score */
+  MAX: 10,
+} as const;
+
+/**
+ * Maximum possible raw score before normalization.
+ * Calculated from individual score maximums.
+ */
+const MAX_RAW_SCORE =
+  KEYWORD_SCORES.MAX +
+  SEMANTIC_SCORES.HIGH +
+  CONTEXT_SCORES.MAX +
+  HISTORY_SCORES.MAX +
+  FRESHNESS_SCORES.MAX; // 40 + 15 + 30 + 20 + 10 = 115
+
 /**
  * Score keyword match (0-40 points)
  *
@@ -416,23 +468,33 @@ function scoreContextMatch(
   for (const tech of agent.techStack) {
     if (profile.techStack.includes(tech)) {
       matchedTechStack.push(tech);
-      score += 5;
-      if (matchedTechStack.length >= 3) break; // Cap at 3 matches
+      score += CONTEXT_SCORES.TECH_STACK;
+      if (matchedTechStack.length >= CONTEXT_SCORES.MAX_TECH_MATCHES) break;
     }
   }
 
-  // Project type match (15 points)
+  // Project type match
   if (agent.projectTypes.includes(profile.type)) {
-    score += 15;
+    score += CONTEXT_SCORES.PROJECT_TYPE;
   } else if (agent.projectTypes.includes('fullstack')) {
     // Fullstack agents get partial credit
-    score += 8;
+    score += CONTEXT_SCORES.FULLSTACK_PARTIAL;
   }
 
   return {
-    score: Math.min(score, 30),
+    score: Math.min(score, CONTEXT_SCORES.MAX),
     matchedTechStack,
   };
+}
+
+/**
+ * Get agent history entry (helper to avoid repeated lookups)
+ */
+function getAgentHistory(
+  agent: AgentCapabilities,
+  history: Map<string, AgentSuccessHistory>,
+): AgentSuccessHistory | undefined {
+  return history.get(agent.name);
 }
 
 /**
@@ -446,21 +508,21 @@ function scoreHistory(
   history: Map<string, AgentSuccessHistory>,
   currentFeature?: string,
 ): number {
-  const hist = history.get(agent.name);
+  const hist = getAgentHistory(agent, history);
   if (!hist) return 0;
 
   // Base score from success history (0-15)
-  let score = hist.successScore * 0.15;
+  let score = hist.successScore * HISTORY_SCORES.SUCCESS_MULTIPLIER;
 
-  // Feature match bonus (5 points)
+  // Feature match bonus
   if (
     currentFeature &&
     hist.features.some((f) => f.toLowerCase().includes(currentFeature.toLowerCase()))
   ) {
-    score += 5;
+    score += HISTORY_SCORES.FEATURE_MATCH;
   }
 
-  return Math.min(score, 20);
+  return Math.min(score, HISTORY_SCORES.MAX);
 }
 
 /**
@@ -472,13 +534,13 @@ function scoreFreshness(
   agent: AgentCapabilities,
   history: Map<string, AgentSuccessHistory>,
 ): number {
-  const hist = history.get(agent.name);
+  const hist = getAgentHistory(agent, history);
   if (!hist) return 0;
 
-  // Agents used recently get bonus
-  if (hist.recentUses > 5) return 10;
-  if (hist.recentUses > 2) return 7;
-  if (hist.recentUses > 0) return 4;
+  // Agents used recently get bonus (tiered)
+  if (hist.recentUses > 5) return FRESHNESS_SCORES.HIGH;
+  if (hist.recentUses > 2) return FRESHNESS_SCORES.MEDIUM;
+  if (hist.recentUses > 0) return FRESHNESS_SCORES.LOW;
 
   return 0;
 }
