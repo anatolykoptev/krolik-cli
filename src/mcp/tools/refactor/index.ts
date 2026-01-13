@@ -3,8 +3,9 @@
  * @description krolik_refactor tool - Module structure analysis and refactoring
  *
  * PERFORMANCE: Uses direct imports instead of subprocess.
- * - Default mode for MCP is 'quick' (structure only, no AST)
- * - Fast response due to direct function calls
+ * - Default mode is 'default' (duplicates + structure + all analyses)
+ * - Use 'quick' flag for faster structure-only analysis
+ * - Use 'deep' flag for full analysis with git history
  */
 
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
@@ -31,8 +32,8 @@ async function runLightweightRefactor(
   const { formatAiNativeXml } = await import('@/commands/refactor/output');
   const { resolvePaths } = await import('@/commands/refactor/paths');
 
-  // Default to quick mode for MCP (fastest)
-  const mode: RefactorMode = options.mode ?? 'quick';
+  // Default to 'default' mode for MCP (full analysis)
+  const mode: RefactorMode = options.mode ?? 'default';
 
   // Build options object (only include defined values)
   const refactorOptions: Parameters<typeof runRefactor>[1] = { mode };
@@ -47,7 +48,7 @@ async function runLightweightRefactor(
   const resolved = resolvePaths(projectRoot, options);
   const targetPath = resolved.targetPaths[0] ?? projectRoot;
 
-  // Create enhanced analysis (with quickMode for MCP)
+  // Create enhanced analysis (quickMode skips heavy analyses)
   const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath, {
     quickMode: mode === 'quick',
   });
@@ -127,11 +128,11 @@ Modes:
 
     try {
       // Resolve mode from quick/deep boolean flags
-      let mode: RefactorMode = 'quick'; // Default for MCP
+      let mode: RefactorMode = 'default'; // Default mode with full analysis
       if (args.deep === true) {
         mode = 'deep';
-      } else if (args.quick === false) {
-        mode = 'default';
+      } else if (args.quick === true) {
+        mode = 'quick';
       }
 
       const options: Parameters<typeof runLightweightRefactor>[1] = { mode };

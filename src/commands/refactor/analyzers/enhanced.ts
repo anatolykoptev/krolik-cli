@@ -25,8 +25,9 @@ import { generateAiNavigation } from './context/navigation';
 import { analyzeFileSizes } from './metrics/file-size';
 import { generateRecommendations } from './metrics/recommendations';
 import { analyzeReusableModules } from './metrics/reusable';
-import type { I18nAnalysisResult } from './modules/i18n.analyzer';
+import { type I18nAnalysisResult, i18nAnalyzer } from './modules/i18n.analyzer';
 import { analyzeRanking, type RankingAnalysis } from './ranking/index';
+import type { AnalyzerContext } from './registry/types';
 
 // ============================================================================
 // API ROUTERS DISCOVERY
@@ -237,9 +238,28 @@ export async function createEnhancedAnalysis(
     }
   }
 
-  // Note: i18n analysis is now handled via the registry-based analyzer system
-  // See: analyzers/modules/i18n.analyzer.ts
-  const i18nAnalysis: I18nAnalysisResult | undefined = undefined;
+  // Run i18n analysis (skip in quick mode)
+  let i18nAnalysis: I18nAnalysisResult | undefined;
+  if (!quickMode) {
+    try {
+      // Create minimal context for i18n analyzer
+      const i18nContext: AnalyzerContext = {
+        projectRoot,
+        targetPath,
+        baseAnalysis,
+        options: { quickMode, includeI18n: true },
+      };
+
+      if (i18nAnalyzer.shouldRun(i18nContext)) {
+        const result = await i18nAnalyzer.analyze(i18nContext);
+        if (result.status === 'success' && result.data) {
+          i18nAnalysis = result.data;
+        }
+      }
+    } catch {
+      // Silently skip if i18n analysis fails
+    }
+  }
 
   // Analyze API routes (skip in quick mode)
   let apiAnalysis: RoutesOutput | undefined;
