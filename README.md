@@ -24,6 +24,10 @@ AI assistants spend most of their time gathering context. Every session starts w
 
 **Krolik gives AI everything it needs in 1-2 seconds.**
 
+---
+
+## Installation
+
 ```bash
 npm i -g @anatolykoptev/krolik-cli
 ```
@@ -32,39 +36,21 @@ npm i -g @anatolykoptev/krolik-cli
 
 ## Commands
 
-### Global Option: `--project`
+### `krolik context` — Project Context in Seconds
 
-All commands support `--project` for multi-project workspaces:
-
-```bash
-krolik status --project my-app           # Run on specific project
-krolik audit --project piternow-wt-fix   # Audit specific project
-krolik context --project api-service     # Context for specific project
-```
-
-This is useful when you have multiple projects in a workspace and want to target a specific one.
-
----
-
-### `krolik context` — Stop Searching, Start Coding
-
-One command replaces 10+ manual searches. AI gets complete project context instantly.
+One command replaces 10+ manual searches.
 
 ```bash
 krolik context --feature auth      # Everything about auth feature
 krolik context --issue 42          # Context from GitHub issue
-krolik context --search "tRPC"     # Find code matching pattern
-krolik context --changed-only      # Only git-changed files
-krolik context --minimal           # Ultra-compact (~1500 tokens)
-krolik context --quick             # Compact with repo-map (~3500 tokens)
-krolik context --deep              # Full analysis (~5s)
+krolik context --quick             # Compact mode (~3500 tokens)
 ```
 
-**What it collects**: git state, database schema, API routes, project structure, types, past decisions, library docs, lib modules with signatures.
+**What it collects**: git state, database schema, API routes, project structure, types, past decisions.
 
 ---
 
-### `krolik mem` — Remember Across Sessions
+### `krolik mem` — Persistent Memory
 
 AI forgets everything between sessions. Krolik remembers.
 
@@ -76,85 +62,42 @@ krolik mem recent --limit 5
 
 **Memory types**: decisions, patterns, bugfixes, observations, features.
 
-Memories are automatically included in context — AI sees what was decided before.
-
-#### Semantic Search (Automatic)
-
-`krolik mem search` uses hybrid BM25 + semantic search automatically:
-- **Keyword matching** for exact terms
-- **AI semantic search** for conceptual similarity
-- Automatic fallback to keyword-only if AI model unavailable
-
-```bash
-krolik mem search --query "how do we handle user sessions"  # Finds JWT/auth decisions
-krolik mem search --query "database performance"            # Finds Prisma optimizations
-```
-
-**Model**: `all-MiniLM-L6-v2` (~23MB, downloads on first use to `~/.krolik/models/`)
-
-#### Memory Graph
-
-Track relationships between decisions:
-
-```bash
-krolik_mem_link fromId=123 toId=456 linkType="caused"     # Decision 123 caused bugfix 456
-krolik_mem_link fromId=789 toId=123 linkType="supersedes" # Decision 789 replaces 123
-krolik_mem_chain memoryId=123 direction="forward"         # Get decision chain
-krolik_mem_outdated                                       # List superseded decisions
-```
-
-**Link types**: `caused`, `related`, `supersedes`, `implements`, `contradicts`
-
 ---
 
-### `krolik audit` — Find All Quality Issues
+### `krolik audit` — Find Quality Issues
 
-Analyzes entire codebase and creates a prioritized report.
+Analyzes codebase and creates a prioritized report.
 
 ```bash
 krolik audit                       # All issues
 krolik audit --mode release        # Security + type-safety
-krolik audit --mode queries        # Duplicate Prisma/tRPC queries
 krolik audit --mode pre-commit     # Quick check before commit
 ```
 
-**Output**: `.krolik/AI-REPORT.md` with issues ranked by severity, files with most problems, and quick wins that can be auto-fixed.
-
 ---
 
-### `krolik fix` — Auto-Fix Quality Issues
-
-Fixes what can be fixed automatically. Shows what needs manual attention.
+### `krolik fix` — Auto-Fix Issues
 
 ```bash
 krolik fix --dry-run        # Preview changes
 krolik fix                  # Apply safe fixes
-krolik fix --all            # Include risky fixes
 ```
 
-**What it fixes**: console.log, debugger, any types, @ts-ignore, magic numbers, complexity issues, and more.
+**What it fixes**: console.log, debugger, any types, magic numbers, and more.
 
 ---
 
-### `krolik refactor` — Find Duplicates & Improve Structure
-
-Analyzes module structure, finds duplicate functions/types, suggests migrations.
+### `krolik refactor` — Find Duplicates
 
 ```bash
-krolik refactor                  # Default: function duplicates + structure (~3s)
-krolik refactor --quick          # Fast: structure only (~1.5s)
-krolik refactor --deep           # Full: + type duplicates (~10s)
-krolik refactor --apply          # Apply migrations (with backup)
-krolik refactor --fix-types      # Auto-fix identical type duplicates
+krolik refactor              # Find duplicate functions
+krolik refactor --deep       # + type duplicates
+krolik refactor --apply      # Apply migrations
 ```
-
-**Output**: XML report with duplicates, structure score, domain analysis, migration plan. Saved to `.krolik/REFACTOR.xml`.
 
 ---
 
-### `krolik agent` — Run Specialized AI Agents
-
-Run expert agents for specific tasks: security audit, performance review, architecture analysis.
+### `krolik agent` — Specialized AI Agents
 
 ```bash
 krolik agent --list                           # Available agents
@@ -162,52 +105,18 @@ krolik agent security-auditor                 # Run specific agent
 krolik agent --orchestrate --task "review"    # Multi-agent mode
 ```
 
-**12 categories**: security, performance, architecture, quality, debugging, docs, frontend, backend, database, devops, testing, other.
-
----
-
-### `krolik docs` — Library Documentation Cache
-
-Search and cache library documentation from Context7.
-
-```bash
-krolik docs search "app router"    # Search cached docs
-krolik docs fetch next.js          # Fetch docs for a library
-krolik docs detect                 # Auto-detect from package.json
-krolik docs list                   # List cached libraries
-```
-
----
-
-### `krolik modules` — Query Lib Modules
-
-Discover reusable utilities in your codebase before writing new code.
-
-```bash
-krolik modules                     # List all lib modules
-krolik modules --search parse      # Search exports by name
-krolik modules --get fs            # Details of specific module
-krolik modules --paths             # Show where modules are found
-```
-
-**What it shows**: functions with signatures, types, constants — everything exported from `lib/@*` directories.
-
 ---
 
 ### Other Commands
 
 | Command | What it does |
 |---------|--------------|
-| `krolik status` | Quick health check: git, types, lint, TODOs |
+| `krolik status` | Quick health check: git, types, lint |
 | `krolik schema` | Database schema as structured docs |
 | `krolik routes` | API routes as structured docs |
 | `krolik review` | Code review for current changes |
-| `krolik issue 42` | Parse GitHub issue for context |
-| `krolik codegen` | Generate hooks, schemas, tests, barrels |
-| `krolik sync` | Sync CLAUDE.md with project state |
-| `krolik security` | Audit dependencies for vulnerabilities |
-| `krolik init` | Initialize krolik config in project |
-| `krolik setup` | Install Claude Code plugins (memory) |
+| `krolik docs` | Library documentation cache |
+| `krolik modules` | Query lib modules in your codebase |
 
 ---
 
@@ -219,13 +128,11 @@ Native integration with Claude Code via [Model Context Protocol](https://modelco
 claude mcp add krolik -- npx @anatolykoptev/krolik-cli mcp
 ```
 
-All commands available as tools. Claude can use them directly during conversation.
-
 ---
 
 ## Configuration
 
-Works out of the box for most projects. Customize if needed:
+Works out of the box. Customize if needed:
 
 ```typescript
 // krolik.config.ts
@@ -244,46 +151,45 @@ export default defineConfig({
 
 ## Requirements
 
-### Core
+- **Node.js >= 20.0.0**
+- **TypeScript >= 5.0.0** (peer dependency)
 
-- **Node.js >= 20.0.0** — required
-- **TypeScript >= 5.0.0** — peer dependency
+Native modules require build tools:
+- **macOS**: `xcode-select --install`
+- **Linux**: `apt install build-essential python3`
+- **Windows**: `npm install -g windows-build-tools`
 
-### Native Modules
-
-Krolik uses native modules (`better-sqlite3`, `@swc/core`) that require compilation:
-
-| Platform    | Requirements                                                                                               |
-|-------------|------------------------------------------------------------------------------------------------------------|
-| **macOS**   | Xcode Command Line Tools: `xcode-select --install`                                                         |
-| **Linux**   | `build-essential python3`: `apt install build-essential python3`                                           |
-| **Windows** | [windows-build-tools](https://github.com/nicolo-ribaudo/node-gyp-rs): `npm install -g windows-build-tools` |
-
-### AI Model (Semantic Search)
-
-Semantic search uses a local AI model that downloads **on first use** (not during install):
-
-| What | Size | Location |
-|------|------|----------|
-| `all-MiniLM-L6-v2` | ~23MB | `~/.krolik/models/` |
-
-First semantic search query may take 5-10 seconds for download. Subsequent queries are instant (~50ms).
-
-### For `krolik setup` Features
-
-| Feature                  | Requires                                                           |
-|--------------------------|--------------------------------------------------------------------|
-| `--plugins`, `--agents`  | `git`                                                              |
-| `--mcp`                  | [Claude Code CLI](https://github.com/anthropics/claude-code)       |
+---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and release process.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
 
-**Important**: Releases are published **only via GitHub Actions** using npm Trusted Publisher. Manual `npm publish` is not allowed.
+---
 
 ## License
 
 [FSL-1.1-Apache-2.0](LICENSE) © Anatoly Koptev
 
 Free for internal use, education, and research. Converts to Apache 2.0 on December 26, 2027.
+
+---
+
+## Changelog
+
+### v0.15.1 (2026-01-13)
+- Cleaned up README, added changelog
+- Major cleanup of refactor component
+- Optimized MCP tools with direct imports
+- Consolidated duplicate utility functions
+
+### v0.15.0
+- Memory graph: link decisions with `caused`, `supersedes`, `implements`
+- Semantic search with local AI model
+- Added `krolik docs` for library documentation caching
+- Added `krolik modules` for querying lib exports
+
+### v0.14.0
+- Added `krolik agent` with specialized agent categories
+- Added `krolik refactor` for duplicate detection
+- Multi-agent orchestration mode
