@@ -163,7 +163,8 @@ export async function scoreAgents(
 ): Promise<ScoredAgent[]> {
   const normalizedTask = task.toLowerCase();
 
-  const scored = await Promise.all(
+  // Use Promise.allSettled to handle individual agent scoring failures gracefully
+  const results = await Promise.allSettled(
     capabilities.map(async (agent) => {
       const breakdown = await calculateScoreBreakdown(
         agent,
@@ -181,6 +182,15 @@ export async function scoreAgents(
       };
     }),
   );
+
+  // Filter out rejected promises and extract successful results
+  const scored: ScoredAgent[] = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      scored.push(result.value);
+    }
+    // Rejected agents are silently skipped - they won't appear in results
+  }
 
   // Sort by score descending
   return scored.sort((a, b) => b.score - a.score);
@@ -231,17 +241,36 @@ async function calculateScoreBreakdown(
   };
 }
 
+// ============================================================================
+// SCORING THRESHOLDS (calibrated for MiniLM-L6-v2)
+// ============================================================================
+
+/**
+ * Semantic similarity thresholds for scoring
+ * Calibrated for MiniLM-L6-v2 model with short technical texts
+ */
+const SEMANTIC_THRESHOLDS = {
+  /** Very similar - agent highly relevant to task */
+  HIGH: 0.5,
+  /** Similar - agent relevant to task */
+  MEDIUM: 0.35,
+  /** Somewhat similar - agent might be relevant */
+  LOW: 0.25,
+} as const;
+
+/** Points awarded for each semantic similarity tier */
+const SEMANTIC_SCORES = {
+  HIGH: 15,
+  MEDIUM: 10,
+  LOW: 5,
+  NONE: 0,
+} as const;
+
 /**
  * Score semantic match using embeddings (0-15 points)
  *
  * Note: MiniLM-L6-v2 produces lower similarity scores for short texts.
- * Thresholds are calibrated for agent description matching:
- *
- * Similarity thresholds:
- * - 0.50+ = 15 points (very similar)
- * - 0.35-0.50 = 10 points (similar)
- * - 0.25-0.35 = 5 points (somewhat similar)
- * - <0.25 = 0 points (not similar enough)
+ * Thresholds are calibrated for agent description matching.
  *
  * Performance: Uses pre-computed embeddings from capabilities index
  * when available (instant), falls back to on-demand generation (~7ms).
@@ -256,30 +285,46 @@ async function scoreSemanticMatch(
   }
 
   // Pass pre-computed embedding if available (instant path)
-  const similarity = await calculateSemanticSimilarity(
+  const result = await calculateSemanticSimilarity(
     taskEmbedding,
     agent.name,
     agent.description,
     agent.embedding, // Pre-computed from capabilities index
   );
 
-  // No agent embedding available
-  if (similarity === 0) {
+  // No embedding available (null means unavailable, 0 is valid similarity)
+  if (result.similarity === null) {
     return { score: 0, similarity: undefined };
   }
 
+  const similarity = result.similarity;
+
   // Score based on similarity thresholds (calibrated for MiniLM-L6-v2)
-  let score = 0;
-  if (similarity > 0.5) {
-    score = 15;
-  } else if (similarity > 0.35) {
-    score = 10;
-  } else if (similarity > 0.25) {
-    score = 5;
+  let score = SEMANTIC_SCORES.NONE;
+  if (similarity > SEMANTIC_THRESHOLDS.HIGH) {
+    score = SEMANTIC_SCORES.HIGH;
+  } else if (similarity > SEMANTIC_THRESHOLDS.MEDIUM) {
+    score = SEMANTIC_SCORES.MEDIUM;
+  } else if (similarity > SEMANTIC_THRESHOLDS.LOW) {
+    score = SEMANTIC_SCORES.LOW;
   }
 
   return { score, similarity };
 }
+
+/** Points awarded for keyword matches */
+const KEYWORD_SCORES = {
+  /** Direct keyword match */
+  KEYWORD: 8,
+  /** Description word match */
+  DESCRIPTION: 2,
+  /** Agent name part match */
+  NAME_PART: 4,
+  /** Maximum total keyword score */
+  MAX: 40,
+  /** Maximum description matches to score */
+  MAX_DESC_MATCHES: 4,
+} as const;
 
 /**
  * Score keyword match (0-40 points)
@@ -294,7 +339,8 @@ function scoreKeywordMatch(
   description: string,
   task: string,
 ): { score: number; matchedKeywords: string[] } {
-  const matchedKeywords: string[] = [];
+  // Use Set for O(1) lookups instead of array.includes() which is O(n)
+  const matchedKeywordsSet = new Set<string>();
   let score = 0;
 
   // Match against agent keywords (word boundary, skip stopwords)
@@ -304,8 +350,8 @@ function scoreKeywordMatch(
 
     // Use word boundary match instead of substring
     if (containsWholeWord(task, kw)) {
-      matchedKeywords.push(kw);
-      score += 8;
+      matchedKeywordsSet.add(kw);
+      score += KEYWORD_SCORES.KEYWORD;
     }
   }
 
@@ -319,14 +365,14 @@ function scoreKeywordMatch(
   let descMatches = 0;
 
   for (const word of descWords) {
-    // Skip already matched keywords
-    if (matchedKeywords.includes(word)) continue;
+    // Skip already matched keywords (O(1) with Set)
+    if (matchedKeywordsSet.has(word)) continue;
 
     // Use word boundary match
     if (containsWholeWord(task, word)) {
       descMatches++;
-      if (descMatches <= 4) {
-        score += 2;
+      if (descMatches <= KEYWORD_SCORES.MAX_DESC_MATCHES) {
+        score += KEYWORD_SCORES.DESCRIPTION;
       }
     }
   }
@@ -338,17 +384,18 @@ function scoreKeywordMatch(
     .map((p) => p.toLowerCase());
 
   for (const part of agentNameParts) {
-    if (matchedKeywords.includes(part)) continue;
+    // O(1) lookup with Set
+    if (matchedKeywordsSet.has(part)) continue;
 
     if (containsWholeWord(task, part)) {
-      matchedKeywords.push(part);
-      score += 4;
+      matchedKeywordsSet.add(part);
+      score += KEYWORD_SCORES.NAME_PART;
     }
   }
 
   return {
-    score: Math.min(score, 40),
-    matchedKeywords,
+    score: Math.min(score, KEYWORD_SCORES.MAX),
+    matchedKeywords: Array.from(matchedKeywordsSet),
   };
 }
 

@@ -11,6 +11,7 @@
  * - Graceful fallback (returns null if embeddings unavailable)
  */
 
+import { logger } from '@/lib/@core/logger';
 import {
   cosineSimilarity,
   generateEmbedding,
@@ -131,8 +132,9 @@ export async function getAgentEmbedding(
     const result = await generateEmbedding(description);
     agentEmbeddingCache.set(name, result.embedding);
     return result.embedding;
-  } catch {
-    // Silently fail - scoring will fall back to keyword-only
+  } catch (error) {
+    // Log at debug level for troubleshooting, but don't fail
+    logger.debug(`Embedding generation failed for agent "${name}": ${error}`);
     return null;
   }
 }
@@ -156,10 +158,19 @@ export async function getTaskEmbedding(task: string): Promise<Float32Array | nul
   try {
     const result = await generateEmbedding(task);
     return result.embedding;
-  } catch {
-    // Silently fail - scoring will fall back to keyword-only
+  } catch (error) {
+    // Log at debug level for troubleshooting, but don't fail
+    logger.debug(`Task embedding generation failed: ${error}`);
     return null;
   }
+}
+
+/**
+ * Semantic similarity result
+ */
+export interface SemanticSimilarityResult {
+  /** Similarity score (0-1), null if embeddings unavailable */
+  similarity: number | null;
 }
 
 /**
@@ -169,24 +180,27 @@ export async function getTaskEmbedding(task: string): Promise<Float32Array | nul
  * @param agentName - Agent name
  * @param agentDescription - Agent description
  * @param preComputedAgentEmbedding - Pre-computed agent embedding from index
- * @returns Similarity score (0-1) or 0 if unavailable
+ * @returns Object with similarity score (null if unavailable, 0-1 if calculated)
  */
 export async function calculateSemanticSimilarity(
   taskEmbedding: Float32Array | null,
   agentName: string,
   agentDescription: string,
   preComputedAgentEmbedding?: number[],
-): Promise<number> {
-  if (!taskEmbedding) return 0;
+): Promise<SemanticSimilarityResult> {
+  // No task embedding = no semantic matching available
+  if (!taskEmbedding) return { similarity: null };
 
   const agentEmbedding = await getAgentEmbedding(
     agentName,
     agentDescription,
     preComputedAgentEmbedding,
   );
-  if (!agentEmbedding) return 0;
+  // No agent embedding = cannot compute similarity
+  if (!agentEmbedding) return { similarity: null };
 
-  return cosineSimilarity(taskEmbedding, agentEmbedding);
+  // Calculate cosine similarity (can be 0 for orthogonal vectors - valid result!)
+  return { similarity: cosineSimilarity(taskEmbedding, agentEmbedding) };
 }
 
 /**
