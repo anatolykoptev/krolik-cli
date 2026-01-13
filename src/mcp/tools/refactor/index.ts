@@ -11,14 +11,15 @@ import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core'
 import { formatError } from '../core/errors';
 import { resolveProjectPath } from '../core/projects';
 
+type RefactorMode = 'quick' | 'default' | 'deep';
+
 /**
  * Run lightweight refactor analysis for MCP
  */
 async function runLightweightRefactor(
   projectRoot: string,
   options: {
-    quick?: boolean;
-    deep?: boolean;
+    mode?: RefactorMode;
     path?: string;
     package?: string;
     allPackages?: boolean;
@@ -26,19 +27,33 @@ async function runLightweightRefactor(
 ): Promise<string> {
   // Dynamic imports to avoid loading heavy modules at startup
   const { runRefactor } = await import('@/commands/refactor/runner/analysis');
+  const { createEnhancedAnalysis } = await import('@/commands/refactor/analyzers');
   const { formatAiNativeXml } = await import('@/commands/refactor/output');
+  const { resolvePaths } = await import('@/commands/refactor/paths');
 
-  // Run analysis - default to quick mode for MCP (fastest)
-  const analysis = await runRefactor(projectRoot, {
-    quick: options.quick ?? !options.deep, // Default to quick unless deep specified
-    deep: options.deep,
-    path: options.path,
-    package: options.package,
-    allPackages: options.allPackages,
+  // Default to quick mode for MCP (fastest)
+  const mode: RefactorMode = options.mode ?? 'quick';
+
+  // Build options object (only include defined values)
+  const refactorOptions: Parameters<typeof runRefactor>[1] = { mode };
+  if (options.path) refactorOptions.path = options.path;
+  if (options.package) refactorOptions.package = options.package;
+  if (options.allPackages !== undefined) refactorOptions.allPackages = options.allPackages;
+
+  // Run analysis
+  const analysis = await runRefactor(projectRoot, refactorOptions);
+
+  // Resolve target path for enhanced analysis
+  const resolved = resolvePaths(projectRoot, options);
+  const targetPath = resolved.targetPaths[0] ?? projectRoot;
+
+  // Create enhanced analysis (with quickMode for MCP)
+  const enhanced = await createEnhancedAnalysis(analysis, projectRoot, targetPath, {
+    quickMode: mode === 'quick',
   });
 
   // Format as AI-native XML
-  return formatAiNativeXml(analysis, projectRoot);
+  return formatAiNativeXml(enhanced, { mode });
 }
 
 export const refactorTool: MCPToolDefinition = {
@@ -111,15 +126,15 @@ Modes:
     }
 
     try {
-      const options: {
-        quick?: boolean;
-        deep?: boolean;
-        path?: string;
-        package?: string;
-        allPackages?: boolean;
-      } = {};
-      if (typeof args.quick === 'boolean') options.quick = args.quick;
-      if (typeof args.deep === 'boolean') options.deep = args.deep;
+      // Resolve mode from quick/deep boolean flags
+      let mode: RefactorMode = 'quick'; // Default for MCP
+      if (args.deep === true) {
+        mode = 'deep';
+      } else if (args.quick === false) {
+        mode = 'default';
+      }
+
+      const options: Parameters<typeof runLightweightRefactor>[1] = { mode };
       if (typeof args.path === 'string') options.path = args.path;
       if (typeof args.package === 'string') options.package = args.package;
       if (typeof args.allPackages === 'boolean') options.allPackages = args.allPackages;
