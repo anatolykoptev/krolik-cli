@@ -77,13 +77,37 @@ export class EmbeddingWorkerPool {
     this.cacheDir = path.join(os.homedir(), '.krolik', 'models');
 
     // Worker path resolution:
-    // After bundling, all code runs from dist/bin/cli.js
-    // So import.meta.url points to dist/bin/cli.js
-    // Worker is separately bundled at dist/lib/@storage/memory/embedding-worker.js
+    // In production (bundled): import.meta.url is file:///path/to/dist/bin/cli.js
+    // In development (tsx): import.meta.url is file:///path/to/src/lib/@storage/memory/embedding-pool.ts
     const currentFile = fileURLToPath(import.meta.url);
-    const distBinDir = path.dirname(currentFile); // dist/bin
-    const distDir = path.dirname(distBinDir); // dist
-    this.workerPath = path.join(distDir, 'lib', '@storage', 'memory', 'embedding-worker.js');
+    const currentDir = path.dirname(currentFile);
+
+    // Find project root by looking for dist/ or src/ in the absolute path
+    const distIndex = currentDir.indexOf('/dist/');
+    const srcIndex = currentDir.indexOf('/src/');
+
+    let projectRoot: string;
+
+    if (distIndex !== -1) {
+      // Production: running from dist/
+      projectRoot = currentDir.slice(0, distIndex);
+    } else if (srcIndex !== -1) {
+      // Development: running via tsx from src/
+      projectRoot = currentDir.slice(0, srcIndex);
+    } else {
+      // Fallback: use parent of current directory (4 levels up from embedding-pool.ts)
+      projectRoot = path.resolve(currentDir, '..', '..', '..', '..');
+    }
+
+    // Worker is always in dist/lib/@storage/memory/
+    this.workerPath = path.join(
+      projectRoot,
+      'dist',
+      'lib',
+      '@storage',
+      'memory',
+      'embedding-worker.js',
+    );
   }
 
   // ==========================================================================

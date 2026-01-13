@@ -25,3 +25,8 @@ feat(memory): add worker thread architecture for non-blocking embeddings
 - Updated `embeddings.ts` to use worker pool
 - Separate tsup bundle for worker thread
 - Added `sharp` and `protobufjs` to pnpm.onlyBuiltDependencies
+
+### Bug Fixes
+
+- Fixed worker path resolution for both development (tsx) and production (dist) environments
+- Worker path now correctly resolves from `import.meta.url` in all scenarios
