@@ -2,13 +2,13 @@
  * @module commands/context/parsers
  * @description Parsers for code analysis (Zod schemas, components, tests)
  *
- * All parsers now use SWC AST for accurate parsing:
+ * All parsers use SWC AST for accurate parsing:
  * - types-parser-swc: TypeScript interfaces/types with generics support
  * - zod-swc: Nested z.object() calls, method chains
  * - components-swc: JSX/hooks from AST (no false positives)
  * - tests-swc: describe/it blocks from AST
  *
- * Benefits over regex:
+ * Benefits:
  * - No false positives from strings/comments
  * - Proper handling of nested structures
  * - Type-safe AST traversal
@@ -23,9 +23,7 @@ export type {
   SchemaField,
 } from './api-contracts';
 export { formatApiContractsXml, parseApiContracts } from './api-contracts';
-// Legacy regex-based parsers (kept for backward compatibility)
-export { parseComponents as parseComponentsRegex } from './components';
-// SWC-based parsers (recommended)
+// Components parser (SWC-based)
 export { parseComponents } from './components-swc';
 export type {
   CascadeBehavior,
@@ -64,7 +62,7 @@ export {
   formatSignaturesForFile,
   formatSignaturesMap,
 } from './signatures';
-export { parseTestFiles as parseTestFilesRegex } from './tests';
+// Test files parser (SWC-based)
 export { parseTestFiles } from './tests-swc';
 // Re-export types
 export type {
@@ -77,10 +75,7 @@ export type {
   ZodField,
   ZodSchemaInfo,
 } from './types';
-export {
-  buildImportGraph as buildImportGraphRegex,
-  parseTypesInDir as parseTypesInDirRegex,
-} from './types-parser';
+// Types and imports parser (SWC-based)
 export { buildImportGraph, parseTypesInDir } from './types-parser-swc';
-export { parseZodSchemas as parseZodSchemasRegex } from './zod';
+// Zod schemas parser (SWC-based)
 export { parseZodSchemas } from './zod-swc';
