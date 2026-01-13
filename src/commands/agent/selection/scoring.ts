@@ -242,6 +242,9 @@ async function calculateScoreBreakdown(
  * - 0.35-0.50 = 10 points (similar)
  * - 0.25-0.35 = 5 points (somewhat similar)
  * - <0.25 = 0 points (not similar enough)
+ *
+ * Performance: Uses pre-computed embeddings from capabilities index
+ * when available (instant), falls back to on-demand generation (~7ms).
  */
 async function scoreSemanticMatch(
   agent: AgentCapabilities,
@@ -252,10 +255,12 @@ async function scoreSemanticMatch(
     return { score: 0, similarity: undefined };
   }
 
+  // Pass pre-computed embedding if available (instant path)
   const similarity = await calculateSemanticSimilarity(
     taskEmbedding,
     agent.name,
     agent.description,
+    agent.embedding, // Pre-computed from capabilities index
   );
 
   // No agent embedding available

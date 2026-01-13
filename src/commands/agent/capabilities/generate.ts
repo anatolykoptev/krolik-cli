@@ -6,22 +6,81 @@
 import { exists, readJson, writeJson } from '@/lib/@core/fs';
 import { getKrolikFilePath } from '@/lib/@core/krolik-paths';
 import { logger } from '@/lib/@core/logger';
+import {
+  generateEmbedding,
+  isEmbeddingsAvailable,
+  isEmbeddingsLoading,
+  preloadEmbeddingPool,
+} from '@/lib/@storage/memory/embeddings';
 import { loadAllAgents } from '../loader';
 import { parseAllAgentCapabilities } from './parser';
 import type { AgentCapabilities, CapabilitiesIndex } from './types';
 
-/** Current index version */
-const INDEX_VERSION = '1.0.0';
+/** Current index version - bump when changing embedding format */
+const INDEX_VERSION = '2.0.0';
 
 /** Index file name */
 const INDEX_FILE = 'agent-capabilities.json';
 
+/** Maximum time to wait for embeddings to load (ms) */
+const EMBEDDING_INIT_TIMEOUT_MS = 5000;
+
+/**
+ * Wait for embeddings to become available
+ */
+async function waitForEmbeddings(): Promise<boolean> {
+  if (isEmbeddingsAvailable()) {
+    return true;
+  }
+
+  if (!isEmbeddingsLoading()) {
+    preloadEmbeddingPool();
+  }
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < EMBEDDING_INIT_TIMEOUT_MS) {
+    if (isEmbeddingsAvailable()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  return isEmbeddingsAvailable();
+}
+
 /**
  * Generate capabilities index from agents path
+ * Now includes pre-computed embeddings for instant semantic matching
  */
 export async function generateCapabilitiesIndex(agentsPath: string): Promise<CapabilitiesIndex> {
   const allAgents = loadAllAgents(agentsPath);
   const capabilities = parseAllAgentCapabilities(allAgents);
+
+  // Try to generate embeddings for all agents
+  const embeddingsAvailable = await waitForEmbeddings();
+  let embeddingsGenerated = 0;
+
+  if (embeddingsAvailable) {
+    logger.info('Generating embeddings for agents...');
+
+    // Generate embeddings in parallel batches of 10
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < capabilities.length; i += BATCH_SIZE) {
+      const batch = capabilities.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (cap) => {
+          try {
+            const result = await generateEmbedding(cap.description);
+            // Store as regular array for JSON serialization
+            cap.embedding = Array.from(result.embedding);
+            embeddingsGenerated++;
+          } catch {
+            // Silently skip - agent will use keyword-only matching
+          }
+        }),
+      );
+    }
+  }
 
   const index: CapabilitiesIndex = {
     version: INDEX_VERSION,
@@ -37,6 +96,9 @@ export async function generateCapabilitiesIndex(agentsPath: string): Promise<Cap
 
   if (success) {
     logger.success(`Generated capabilities for ${capabilities.length} agents`);
+    if (embeddingsGenerated > 0) {
+      logger.info(`Pre-computed embeddings for ${embeddingsGenerated} agents`);
+    }
     logger.info(`Index saved to: ${indexPath}`);
   } else {
     logger.warn('Failed to save capabilities index');

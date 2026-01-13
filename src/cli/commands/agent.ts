@@ -12,6 +12,18 @@ import { addDryRunOption, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
 import { createContext, handleProjectOption } from './helpers';
 
+// Preload embeddings in background when agent command is registered
+// This ensures semantic matching is ready when orchestration is called
+let embeddingsPreloaded = false;
+function preloadEmbeddingsAsync() {
+  if (embeddingsPreloaded) return;
+  embeddingsPreloaded = true;
+  // Dynamic import to avoid loading heavy modules at CLI startup
+  import('@/lib/@storage/memory/embeddings').then(({ preloadEmbeddingPool }) => {
+    preloadEmbeddingPool();
+  });
+}
+
 /**
  * Register agent command
  */
@@ -46,6 +58,8 @@ export function registerAgentCommand(program: Command): void {
     .option('--max-agents <n>', 'Maximum agents to run in orchestration (default: 5)', parseInt)
     .option('--parallel', 'Prefer parallel execution of agents')
     .action(async (name: string | undefined, options: CommandOptions) => {
+      // Start embedding preload immediately for faster semantic matching
+      preloadEmbeddingsAsync();
       const { runAgent } = await import('../../commands/agent');
       handleProjectOption(options);
       const ctx = await createContext(program, {

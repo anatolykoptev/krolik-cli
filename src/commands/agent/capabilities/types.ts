@@ -29,6 +29,13 @@ export interface AgentCapabilities {
   model: 'sonnet' | 'opus' | 'haiku' | 'inherit';
   /** Path to agent file */
   filePath: string;
+
+  /**
+   * Pre-computed embedding vector for semantic matching.
+   * Stored as number[] for JSON serialization.
+   * Loaded as Float32Array at runtime.
+   */
+  embedding?: number[];
 }
 
 /**

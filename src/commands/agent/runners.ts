@@ -98,7 +98,8 @@ export async function runOrchestration(
   const orchestrateOptions: OrchestrateOptions = {
     maxAgents: options.maxAgents,
     preferParallel: options.preferParallel,
-    includeContext: true,
+    // Context not needed for orchestration plan - agents will load their own context
+    includeContext: false,
     file: options.file,
     feature: options.feature,
     dryRun: options.dryRun,
