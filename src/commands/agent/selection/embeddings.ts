@@ -15,6 +15,8 @@ import {
   cosineSimilarity,
   generateEmbedding,
   isEmbeddingsAvailable,
+  isEmbeddingsLoading,
+  preloadEmbeddingPool,
 } from '@/lib/@storage/memory/embeddings';
 
 // ============================================================================
@@ -26,6 +28,48 @@ import {
  * Key: agent name, Value: embedding vector
  */
 const agentEmbeddingCache = new Map<string, Float32Array>();
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+
+/** Whether we've already tried to initialize embeddings */
+let initAttempted = false;
+
+/** Maximum time to wait for embeddings to load (ms) */
+const INIT_TIMEOUT_MS = 3000;
+
+/**
+ * Try to initialize embeddings with timeout
+ * Returns true if embeddings become available within timeout
+ */
+async function tryInitEmbeddings(): Promise<boolean> {
+  if (initAttempted) {
+    return isEmbeddingsAvailable();
+  }
+  initAttempted = true;
+
+  // If already ready, we're done
+  if (isEmbeddingsAvailable()) {
+    return true;
+  }
+
+  // Start loading if not already
+  if (!isEmbeddingsLoading()) {
+    preloadEmbeddingPool();
+  }
+
+  // Wait for embeddings to become available with timeout
+  const startTime = Date.now();
+  while (Date.now() - startTime < INIT_TIMEOUT_MS) {
+    if (isEmbeddingsAvailable()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  return isEmbeddingsAvailable();
+}
 
 // ============================================================================
 // PUBLIC API
@@ -67,12 +111,16 @@ export async function getAgentEmbedding(
 /**
  * Get embedding for a task description
  *
+ * This is the entry point for semantic matching.
+ * Attempts to initialize embeddings if not already done.
+ *
  * @param task - Task description to embed
  * @returns Embedding vector or null if unavailable
  */
 export async function getTaskEmbedding(task: string): Promise<Float32Array | null> {
-  // Graceful fallback if embeddings not available
-  if (!isEmbeddingsAvailable()) {
+  // Try to initialize embeddings (with timeout)
+  const available = await tryInitEmbeddings();
+  if (!available) {
     return null;
   }
 

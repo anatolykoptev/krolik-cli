@@ -24,10 +24,10 @@ New scoring breakdown (0-100, normalized):
 1. Task description is embedded using all-MiniLM-L6-v2 model
 2. Agent descriptions are embedded and cached (in-memory)
 3. Cosine similarity is calculated between task and each agent
-4. Similarity thresholds determine score:
-   - 0.85+ = 15 points (very similar)
-   - 0.70-0.85 = 10 points (similar)
-   - 0.55-0.70 = 5 points (somewhat similar)
+4. Similarity thresholds determine score (calibrated for MiniLM-L6-v2):
+   - 0.50+ = 15 points (very similar)
+   - 0.35-0.50 = 10 points (similar)
+   - 0.25-0.35 = 5 points (somewhat similar)
 
 ### Benefits
 

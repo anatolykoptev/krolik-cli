@@ -234,11 +234,14 @@ async function calculateScoreBreakdown(
 /**
  * Score semantic match using embeddings (0-15 points)
  *
+ * Note: MiniLM-L6-v2 produces lower similarity scores for short texts.
+ * Thresholds are calibrated for agent description matching:
+ *
  * Similarity thresholds:
- * - 0.85+ = 15 points (very similar)
- * - 0.70-0.85 = 10 points (similar)
- * - 0.55-0.70 = 5 points (somewhat similar)
- * - <0.55 = 0 points (not similar enough)
+ * - 0.50+ = 15 points (very similar)
+ * - 0.35-0.50 = 10 points (similar)
+ * - 0.25-0.35 = 5 points (somewhat similar)
+ * - <0.25 = 0 points (not similar enough)
  */
 async function scoreSemanticMatch(
   agent: AgentCapabilities,
@@ -260,13 +263,13 @@ async function scoreSemanticMatch(
     return { score: 0, similarity: undefined };
   }
 
-  // Score based on similarity thresholds
+  // Score based on similarity thresholds (calibrated for MiniLM-L6-v2)
   let score = 0;
-  if (similarity > 0.85) {
+  if (similarity > 0.5) {
     score = 15;
-  } else if (similarity > 0.7) {
+  } else if (similarity > 0.35) {
     score = 10;
-  } else if (similarity > 0.55) {
+  } else if (similarity > 0.25) {
     score = 5;
   }
 
