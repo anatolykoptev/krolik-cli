@@ -37,6 +37,127 @@ const TIME_CONSTANTS = new Set([
 ]);
 
 // ============================================================================
+// SMART NAMING SUGGESTIONS
+// ============================================================================
+
+/**
+ * Known number patterns with suggested constant names
+ */
+const NUMBER_NAME_SUGGESTIONS: Map<number, string> = new Map([
+  // Time (milliseconds)
+  [500, 'HALF_SECOND_MS'],
+  [1000, 'ONE_SECOND_MS'],
+  [1500, 'ONE_AND_HALF_SECONDS_MS'],
+  [2000, 'TWO_SECONDS_MS'],
+  [3000, 'THREE_SECONDS_MS'],
+  [5000, 'FIVE_SECONDS_MS'],
+  [10000, 'TEN_SECONDS_MS'],
+  [15000, 'FIFTEEN_SECONDS_MS'],
+  [30000, 'THIRTY_SECONDS_MS'],
+  [60000, 'ONE_MINUTE_MS'],
+  [120000, 'TWO_MINUTES_MS'],
+  [300000, 'FIVE_MINUTES_MS'],
+  [600000, 'TEN_MINUTES_MS'],
+  [900000, 'FIFTEEN_MINUTES_MS'],
+  [1800000, 'THIRTY_MINUTES_MS'],
+  [3600000, 'ONE_HOUR_MS'],
+  [7200000, 'TWO_HOURS_MS'],
+  [86400000, 'ONE_DAY_MS'],
+  [604800000, 'ONE_WEEK_MS'],
+
+  // Time (seconds)
+  [60, 'ONE_MINUTE_SECS'],
+  [120, 'TWO_MINUTES_SECS'],
+  [300, 'FIVE_MINUTES_SECS'],
+  [600, 'TEN_MINUTES_SECS'],
+  [3600, 'ONE_HOUR_SECS'],
+  [86400, 'ONE_DAY_SECS'],
+
+  // File sizes
+  [1024, 'ONE_KB'],
+  [1048576, 'ONE_MB'],
+  [1073741824, 'ONE_GB'],
+  [5242880, 'FIVE_MB'],
+  [10485760, 'TEN_MB'],
+  [52428800, 'FIFTY_MB'],
+  [104857600, 'HUNDRED_MB'],
+
+  // Pagination / limits
+  [10, 'DEFAULT_PAGE_SIZE'],
+  [20, 'DEFAULT_PAGE_SIZE'],
+  [25, 'DEFAULT_PAGE_SIZE'],
+  [50, 'DEFAULT_PAGE_SIZE'],
+  [100, 'DEFAULT_LIMIT'],
+
+  // Retry / timeout
+  [3, 'MAX_RETRIES'],
+  [5, 'MAX_RETRIES'],
+
+  // Animation / UI
+  [150, 'ANIMATION_DURATION_MS'],
+  [200, 'ANIMATION_DURATION_MS'],
+  [250, 'ANIMATION_DURATION_MS'],
+  [300, 'ANIMATION_DURATION_MS'],
+  [350, 'ANIMATION_DURATION_MS'],
+  [400, 'ANIMATION_DURATION_MS'],
+  [500, 'ANIMATION_DURATION_MS'],
+]);
+
+/**
+ * Context-based naming patterns
+ */
+const CONTEXT_PATTERNS: Array<{ pattern: RegExp; nameTemplate: (value: number) => string }> = [
+  // setTimeout/setInterval
+  { pattern: /setTimeout|setInterval|delay|sleep/, nameTemplate: (v) => `DELAY_${v}MS` },
+  // Width/height
+  { pattern: /width|height|size/i, nameTemplate: (v) => `SIZE_${v}PX` },
+  // Padding/margin
+  { pattern: /padding|margin|gap|spacing/i, nameTemplate: (v) => `SPACING_${v}` },
+  // Max/min
+  { pattern: /max|maximum/i, nameTemplate: (v) => `MAX_${v}` },
+  { pattern: /min|minimum/i, nameTemplate: (v) => `MIN_${v}` },
+  // Threshold/limit
+  { pattern: /threshold|limit/i, nameTemplate: (v) => `THRESHOLD_${v}` },
+  // Percentage
+  { pattern: /percent|opacity|alpha/i, nameTemplate: (v) => `PERCENT_${v}` },
+];
+
+/**
+ * Suggest a constant name for a magic number
+ */
+function suggestConstantName(value: number, lineContent: string): string {
+  // 1. Check known patterns first
+  const knownName = NUMBER_NAME_SUGGESTIONS.get(value);
+  if (knownName) return knownName;
+
+  // 2. Check context-based patterns
+  for (const { pattern, nameTemplate } of CONTEXT_PATTERNS) {
+    if (pattern.test(lineContent)) {
+      return nameTemplate(value);
+    }
+  }
+
+  // 3. Heuristic based on value
+  // Time-like values (multiples of 1000)
+  if (value >= 1000 && value % 1000 === 0) {
+    const seconds = value / 1000;
+    if (seconds < 60) return `${seconds}_SECONDS_MS`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}_MINUTES_MS`;
+    return `${Math.round(seconds / 3600)}_HOURS_MS`;
+  }
+
+  // File size like values (multiples of 1024)
+  if (value >= 1024 && value % 1024 === 0) {
+    const kb = value / 1024;
+    if (kb < 1024) return `${kb}_KB`;
+    return `${Math.round(kb / 1024)}_MB`;
+  }
+
+  // Default: generic name
+  return `CONST_${value}`;
+}
+
+// ============================================================================
 // ANALYZER
 // ============================================================================
 
@@ -86,6 +207,7 @@ export function analyzeMagicNumbersAST(content: string, file: string): QualityIs
         if (isInAllowedContext(literal)) continue;
 
         const lineContent = lines[line - 1] ?? '';
+        const suggestedName = suggestConstantName(value, lineContent);
 
         issues.push({
           file,
@@ -93,7 +215,7 @@ export function analyzeMagicNumbersAST(content: string, file: string): QualityIs
           severity: 'warning',
           category: 'hardcoded',
           message: `Hardcoded number: ${value}`,
-          suggestion: 'Extract to a named constant',
+          suggestion: `Extract to constant: const ${suggestedName} = ${value}`,
           snippet: lineContent.trim().slice(0, 60),
           fixerId: 'magic-numbers',
         });
@@ -268,13 +390,14 @@ function analyzeMagicNumbersFallback(content: string, file: string): QualityIssu
 
       if (shouldSkipNumber(num)) continue;
 
+      const suggestedName = suggestConstantName(num, line);
       issues.push({
         file,
         line: i + 1,
         severity: 'warning',
         category: 'hardcoded',
         message: `Hardcoded number: ${num}`,
-        suggestion: 'Extract to a named constant',
+        suggestion: `Extract to constant: const ${suggestedName} = ${num}`,
         snippet: trimmed.slice(0, 60),
         fixerId: 'magic-numbers',
       });
