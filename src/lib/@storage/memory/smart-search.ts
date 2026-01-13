@@ -41,7 +41,10 @@ const IMPORTANCE_MULTIPLIERS: Record<MemoryImportance, number> = {
 const TYPE_MULTIPLIERS: Record<MemoryType, number> = {
   decision: 1.3, // Decisions are highly relevant
   pattern: 1.2, // Patterns inform architecture
+  library: 1.2, // Library knowledge is reusable
   bugfix: 1.1, // Bugfixes prevent regressions
+  snippet: 1.1, // Snippets are directly usable code
+  'anti-pattern': 1.0, // Anti-patterns help avoid mistakes
   feature: 1.0, // Features are context
   observation: 0.9, // Observations are background
 };

@@ -18,8 +18,8 @@
  */
 
 import { groupBy } from '@/lib/@core';
-import { normalizePath } from '../../fix/reporter/grouping';
-import type { EnrichedIssue, IssuePatternId } from '../../fix/reporter/types';
+import { normalizePath } from '../../../lib/@reporter/grouping';
+import type { EnrichedIssue, IssuePatternId } from '../../../lib/@reporter/types';
 
 // ============================================================================
 // TYPES

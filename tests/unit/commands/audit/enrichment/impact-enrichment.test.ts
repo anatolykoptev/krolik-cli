@@ -4,11 +4,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { QualityIssue } from '../../../../../src/commands/fix/core';
 import {
   enrichIssueWithImpact,
   ImpactEnricher,
-} from '../../../../../src/commands/audit/enrichment/impact-enrichment';
-import type { QualityIssue } from '../../../../../src/commands/fix/core';
+} from '../../../../../src/lib/@krolik/enrichment/impact-enrichment';
 
 describe('ImpactEnricher', () => {
   // Simple dependency graph for testing

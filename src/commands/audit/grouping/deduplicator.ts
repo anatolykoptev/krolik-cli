@@ -11,8 +11,8 @@
  * which can happen when multiple analyzers detect the same problem.
  */
 
+import type { EnrichedIssue } from '../../../lib/@reporter/types';
 import type { QualityIssue } from '../../fix/core';
-import type { EnrichedIssue } from '../../fix/reporter/types';
 
 // ============================================================================
 // DEDUPLICATION

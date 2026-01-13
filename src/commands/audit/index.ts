@@ -13,9 +13,9 @@
 import { fileCache } from '../../lib/@cache';
 import { saveToKrolik } from '../../lib/@core/krolik-paths';
 import { formatDuration, measureTimeAsync } from '../../lib/@core/time';
+import type { AIReport, EnrichedIssue, IssueGroup } from '../../lib/@reporter/types';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 import type { FixerRegistry } from '../fix/core/registry';
-import type { AIReport, EnrichedIssue, IssueGroup } from '../fix/reporter/types';
 import { getProjectStatus } from '../status';
 import { formatReportOutput, type ReportSummary } from '../status/output';
 import { type AuditIntent, filterByIntent, parseIntent } from './filters';
@@ -61,7 +61,7 @@ async function generateReport(
   projectRoot: string,
   logger: { info: (msg: string) => void },
 ): Promise<GenerateReportResult> {
-  const { generateAIReportFromAnalysis, formatAsXml } = await import('../fix/reporter');
+  const { generateAIReportFromAnalysis, formatAsXml } = await import('../../lib/@reporter');
 
   logger.info('Analyzing code quality...');
   const report = await generateAIReportFromAnalysis(projectRoot);
@@ -390,4 +390,4 @@ export async function runAudit(ctx: CommandContext & { options: AuditOptions }):
 }
 
 // Re-export types
-export type { AIReport } from '../fix/reporter/types';
+export type { AIReport } from '../../lib/@reporter/types';

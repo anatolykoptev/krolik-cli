@@ -3,8 +3,8 @@
  * @description Path utilities for agents marketplace
  */
 
-import { homedir } from 'node:os';
 import * as path from 'node:path';
+import { getUserKrolikDir } from '../@core/krolik-paths';
 
 /**
  * Agents repository constants
@@ -16,7 +16,7 @@ export const AGENTS_REPO_NAME = 'wshobson/agents';
  * Get krolik home directory (~/.krolik)
  */
 export function getKrolikHome(): string {
-  return path.join(homedir(), '.krolik');
+  return getUserKrolikDir();
 }
 
 /**

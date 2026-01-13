@@ -50,6 +50,12 @@ export interface FileCacheOptions {
    * @default true
    */
   collectStats?: boolean;
+
+  /**
+   * Maximum number of files to keep in cache
+   * @default 200
+   */
+  maxSize?: number;
 }
 
 /**
@@ -61,6 +67,7 @@ export interface FileCacheOptions {
  * - Memory usage estimation
  * - Warmup for batch pre-loading
  * - Thread-safe within Node.js single-threaded context
+ * - LRU Eviction to bound memory usage
  */
 export class FileCache {
   private cache = new Map<string, CachedContent>();
@@ -71,6 +78,7 @@ export class FileCache {
     this.options = {
       trackMtime: options.trackMtime ?? true,
       collectStats: options.collectStats ?? true,
+      maxSize: options.maxSize ?? 200,
     };
   }
 
@@ -98,6 +106,9 @@ export class FileCache {
             if (this.options.collectStats) {
               this.stats.hits++;
             }
+            // LRU: Refresh entry position
+            this.cache.delete(absolute);
+            this.cache.set(absolute, cached);
             return cached.content;
           }
 
@@ -112,6 +123,9 @@ export class FileCache {
         if (this.options.collectStats) {
           this.stats.hits++;
         }
+        // LRU: Refresh entry position
+        this.cache.delete(absolute);
+        this.cache.set(absolute, cached);
         return cached.content;
       }
     }
@@ -122,6 +136,12 @@ export class FileCache {
     }
 
     const content = fs.readFileSync(absolute, 'utf-8');
+
+    // LRU: Evict if full
+    if (this.cache.size >= this.options.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
 
     // Store in cache with mtime if tracking enabled
     if (this.options.trackMtime) {
@@ -159,6 +179,17 @@ export class FileCache {
    */
   set(filepath: string, content: string): void {
     const absolute = path.resolve(filepath);
+
+    // LRU: Evict if full (unless updating existing)
+    if (!this.cache.has(absolute) && this.cache.size >= this.options.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+
+    // If updating existing, delete first to move to end (LRU)
+    if (this.cache.has(absolute)) {
+      this.cache.delete(absolute);
+    }
 
     if (this.options.trackMtime) {
       try {

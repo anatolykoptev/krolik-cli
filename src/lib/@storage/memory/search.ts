@@ -1,6 +1,11 @@
 /**
  * @module lib/@storage/memory/search
  * @description Full-text search operations (FTS5 and LIKE fallback)
+ *
+ * Supports hybrid memory architecture:
+ * - Project-scoped search with optional global inclusion
+ * - Global-only search
+ * - Scope filtering
  */
 
 import { getDatabase } from '../database';
@@ -10,6 +15,8 @@ import type { MemorySearchOptions, MemorySearchResult } from './types';
 
 /**
  * Search memories with FTS5 and filters
+ * Supports hybrid search: project + global memories
+ *
  * @param options - Search options including query, filters, and limit
  * @returns Array of search results with relevance scores
  */
@@ -18,10 +25,25 @@ export function search(options: MemorySearchOptions): MemorySearchResult[] {
   const params: unknown[] = [];
   const conditions: string[] = [];
 
-  // Build WHERE conditions
-  if (options.project) {
-    conditions.push('m.project = ?');
-    params.push(options.project);
+  // Build scope/project conditions for hybrid search
+  if (options.scope) {
+    // Explicit scope filter
+    conditions.push('m.scope = ?');
+    params.push(options.scope);
+    if (options.scope === 'project' && options.project) {
+      conditions.push('m.project = ?');
+      params.push(options.project);
+    }
+  } else if (options.project) {
+    // Default hybrid behavior: include project + global
+    const includeGlobal = options.includeGlobal !== false; // Default true
+    if (includeGlobal) {
+      conditions.push("(m.project = ? OR m.scope = 'global')");
+      params.push(options.project);
+    } else {
+      conditions.push('m.project = ?');
+      params.push(options.project);
+    }
   }
 
   if (options.type) {
@@ -32,6 +54,12 @@ export function search(options: MemorySearchOptions): MemorySearchResult[] {
   if (options.importance) {
     conditions.push('m.importance = ?');
     params.push(options.importance);
+  }
+
+  // Source filter
+  if (options.source) {
+    conditions.push('m.source = ?');
+    params.push(options.source);
   }
 
   // Tag filter (check if any tag matches)
@@ -117,6 +145,8 @@ export function search(options: MemorySearchOptions): MemorySearchResult[] {
 
 /**
  * Fallback LIKE-based search when FTS fails
+ * Supports hybrid search: project + global memories
+ *
  * @param options - Search options
  * @returns Array of search results with default relevance
  */
@@ -125,9 +155,23 @@ export function searchWithLike(options: MemorySearchOptions): MemorySearchResult
   const params: unknown[] = [];
   const conditions: string[] = [];
 
-  if (options.project) {
-    conditions.push('project = ?');
-    params.push(options.project);
+  // Build scope/project conditions for hybrid search
+  if (options.scope) {
+    conditions.push('scope = ?');
+    params.push(options.scope);
+    if (options.scope === 'project' && options.project) {
+      conditions.push('project = ?');
+      params.push(options.project);
+    }
+  } else if (options.project) {
+    const includeGlobal = options.includeGlobal !== false;
+    if (includeGlobal) {
+      conditions.push("(project = ? OR scope = 'global')");
+      params.push(options.project);
+    } else {
+      conditions.push('project = ?');
+      params.push(options.project);
+    }
   }
 
   if (options.type) {
@@ -138,6 +182,11 @@ export function searchWithLike(options: MemorySearchOptions): MemorySearchResult
   if (options.importance) {
     conditions.push('importance = ?');
     params.push(options.importance);
+  }
+
+  if (options.source) {
+    conditions.push('source = ?');
+    params.push(options.source);
   }
 
   if (options.query) {
@@ -153,7 +202,7 @@ export function searchWithLike(options: MemorySearchOptions): MemorySearchResult
     SELECT *
     FROM memories
     ${whereClause}
-    ORDER BY created_at_epoch DESC
+    ORDER BY usage_count DESC, created_at_epoch DESC
     LIMIT ?
   `;
 

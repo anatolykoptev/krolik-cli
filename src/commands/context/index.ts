@@ -691,7 +691,7 @@ async function addQualityIssues(
   aiData: AiContextData,
 ): Promise<void> {
   try {
-    const { generateAIReportFromAnalysis } = await import('../fix/reporter');
+    const { generateAIReportFromAnalysis } = await import('../../lib/@reporter');
 
     // Generate audit report
     const report = await generateAIReportFromAnalysis(projectRoot);

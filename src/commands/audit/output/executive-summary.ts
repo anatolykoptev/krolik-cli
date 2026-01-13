@@ -12,8 +12,8 @@
  */
 
 import { buildElement, type XmlElement } from '../../../lib/@format';
-import { normalizePath } from '../../fix/reporter/grouping';
-import type { AIReport } from '../../fix/reporter/types';
+import { normalizePath } from '../../../lib/@reporter/grouping';
+import type { AIReport } from '../../../lib/@reporter/types';
 import { calculateHealthScore, type HealthScore } from './health-score';
 
 // ============================================================================

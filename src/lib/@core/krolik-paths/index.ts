@@ -257,3 +257,51 @@ export function getKrolikFilePath(
   const krolikDir = getKrolikDir(scope, options);
   return path.join(krolikDir, filename);
 }
+
+// ============================================================================
+// SUBDIRECTORY HELPERS
+// ============================================================================
+
+export interface SubdirOptions extends ResolveOptions {
+  scope?: KrolikScope;
+}
+
+/**
+ * Get path to a subdirectory within .krolik
+ *
+ * Does NOT create the directory.
+ *
+ * @param subdir - Subdirectory name (e.g., 'cache', 'lib')
+ * @param options - Resolution options (including scope)
+ * @returns Absolute path to subdirectory
+ *
+ * @example
+ * getKrolikSubdir('cache'); // -> /project/.krolik/cache
+ * getKrolikSubdir('memory', { scope: 'user' }); // -> ~/.krolik/memory
+ */
+export function getKrolikSubdir(subdir: string, options: SubdirOptions = {}): string {
+  const { scope = 'project', ...resolveOpts } = options;
+  const krolikDir = getKrolikDir(scope, resolveOpts);
+  return path.join(krolikDir, subdir);
+}
+
+/**
+ * Ensure subdirectory within .krolik exists
+ *
+ * Creates both .krolik and the subdirectory if they don't exist.
+ *
+ * @param subdir - Subdirectory name (e.g., 'cache', 'lib')
+ * @param options - Resolution options (including scope)
+ * @returns Absolute path to subdirectory
+ * @throws Error if directory creation fails
+ *
+ * @example
+ * ensureKrolikSubdir('cache'); // Creates /project/.krolik/cache/
+ */
+export function ensureKrolikSubdir(subdir: string, options: SubdirOptions = {}): string {
+  const subdirPath = getKrolikSubdir(subdir, options);
+  if (!ensureDir(subdirPath)) {
+    throw new Error(`Failed to create .krolik subdirectory: ${subdirPath}`);
+  }
+  return subdirPath;
+}

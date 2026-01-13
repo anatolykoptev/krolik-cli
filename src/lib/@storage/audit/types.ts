@@ -4,7 +4,7 @@
  */
 
 import type { HealthGrade } from '@/commands/audit/output/health-score';
-import type { PriorityLevel } from '@/commands/fix/reporter/types';
+import type { PriorityLevel } from '../../@reporter/types';
 
 // ============================================================================
 // DATABASE TYPES

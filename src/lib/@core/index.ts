@@ -13,6 +13,10 @@
  * - text: Text and linguistic analysis (morphology, syllables, naming)
  */
 
+// Cache utilities
+export * from './cache';
+// Concurrency utilities
+export * from './concurrency';
 // Constants (centralized)
 export * from './constants';
 // File system utilities
@@ -29,5 +33,7 @@ export * from './shell';
 export * from './text';
 // Time measurement utilities
 export * from './time';
+// UI utilities
+export * from './ui';
 // General utilities
 export * from './utils';

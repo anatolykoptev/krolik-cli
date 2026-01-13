@@ -6,7 +6,7 @@
  * with optional trend detection from previous audits.
  */
 
-import type { AIReport, PriorityLevel } from '../../fix/reporter/types';
+import type { AIReport, PriorityLevel } from '../../../lib/@reporter/types';
 
 // ============================================================================
 // TYPES

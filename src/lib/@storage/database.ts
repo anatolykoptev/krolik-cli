@@ -1,6 +1,13 @@
 /**
  * @module lib/@storage/database
  * @description SQLite database manager for storage system (memory + docs cache)
+ *
+ * Supports hybrid memory architecture:
+ * - Global database (~/.krolik/memory/global.db): patterns, library docs, snippets
+ * - Project database ({project}/.krolik/memory/krolik.db): decisions, bugs, features
+ *
+ * Phase 1: Single global DB with proper project filtering
+ * Phase 2: Split into global + per-project DBs (TODO)
  */
 
 import * as fs from 'node:fs';
@@ -8,15 +15,64 @@ import { homedir } from 'node:os';
 import * as path from 'node:path';
 import Database, { type Statement } from 'better-sqlite3';
 
-const MEMORY_DIR = path.join(homedir(), '.krolik', 'memory');
-const DB_PATH = path.join(MEMORY_DIR, 'memories.db');
+import { ensureDir } from '../@core/fs';
 
-let dbInstance: Database.Database | null = null;
+// ============================================================================
+// TYPES
+// ============================================================================
+
+export type DatabaseScope = 'global' | 'project';
+
+export interface DatabaseOptions {
+  /** Database scope: 'global' for ~/.krolik, 'project' for {projectPath}/.krolik */
+  scope?: DatabaseScope;
+  /** Required for 'project' scope - absolute path to project root */
+  projectPath?: string;
+}
+
+// ============================================================================
+// DATABASE PATHS
+// ============================================================================
+
+/**
+ * Get global memory directory (~/.krolik/memory)
+ */
+function getGlobalMemoryDir(): string {
+  const dir = path.join(homedir(), '.krolik', 'memory');
+  ensureDir(dir);
+  return dir;
+}
+
+/**
+ * Legacy global DB path (memories.db) - used for backward compatibility
+ */
+function getLegacyGlobalDbPath(): string {
+  return path.join(getGlobalMemoryDir(), 'memories.db');
+}
+
+/**
+ * Get the effective database path based on options
+ *
+ * Phase 1 behavior: Always use global DB (memories.db) for compatibility
+ * Hybrid architecture uses scope column instead of separate DBs
+ */
+function getEffectiveDbPath(_options?: DatabaseOptions): string {
+  // Use single global DB with scope column for hybrid architecture
+  return getLegacyGlobalDbPath();
+}
+
+// ============================================================================
+// DATABASE INSTANCE CACHE
+// ============================================================================
 
 /**
  * Cache for prepared statements to avoid re-preparing the same SQL
+ * Key format: `${dbPath}:${sql}`
  */
 const stmtCache = new Map<string, Statement<unknown[], unknown>>();
+
+/** Database instances cache (keyed by path) */
+const dbInstances = new Map<string, Database.Database>();
 
 /**
  * Get or create a prepared statement from cache
@@ -28,10 +84,12 @@ export function prepareStatement<BindParams extends unknown[] = unknown[], Resul
   db: Database.Database,
   sql: string,
 ): Statement<BindParams, Result> {
-  let stmt = stmtCache.get(sql);
+  // Use db.name (file path) as part of the key for multi-db support
+  const cacheKey = `${db.name}:${sql}`;
+  let stmt = stmtCache.get(cacheKey);
   if (!stmt) {
     stmt = db.prepare(sql);
-    stmtCache.set(sql, stmt);
+    stmtCache.set(cacheKey, stmt);
   }
   return stmt as Statement<BindParams, Result>;
 }
@@ -46,51 +104,103 @@ export function clearStatementCache(): void {
 /**
  * Current schema version
  */
-const CURRENT_VERSION = 4;
+const CURRENT_VERSION = 6;
 
-/**
- * Ensure memory directory exists
- */
-function ensureMemoryDir(): void {
-  if (!fs.existsSync(MEMORY_DIR)) {
-    fs.mkdirSync(MEMORY_DIR, { recursive: true, mode: 0o700 });
-  }
-}
+// ============================================================================
+// DATABASE ACCESS
+// ============================================================================
 
 /**
  * Get or create database instance
+ *
+ * @param options - Database options (scope, projectPath)
+ * @returns Database instance
+ *
+ * Phase 1: Always returns global database (backward compatible)
+ * Phase 2: Will return appropriate database based on scope
  */
-export function getDatabase(): Database.Database {
-  if (dbInstance) {
-    return dbInstance;
+export function getDatabase(options?: DatabaseOptions): Database.Database {
+  const dbPath = getEffectiveDbPath(options);
+
+  // Check cache
+  const cached = dbInstances.get(dbPath);
+  if (cached) {
+    return cached;
   }
 
-  ensureMemoryDir();
+  // Ensure directory exists
+  const dbDir = path.dirname(dbPath);
+  ensureDir(dbDir);
 
-  dbInstance = new Database(DB_PATH);
+  // Create new database instance
+  const db = new Database(dbPath);
 
   // Enable WAL mode for better concurrency
-  dbInstance.pragma('journal_mode = WAL');
-  dbInstance.pragma('synchronous = NORMAL');
-  dbInstance.pragma('foreign_keys = ON');
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+  db.pragma('foreign_keys = ON');
 
   // Run migrations
-  runMigrations(dbInstance);
+  runMigrations(db);
 
-  return dbInstance;
+  // Cache instance
+  dbInstances.set(dbPath, db);
+
+  return db;
+}
+
+/**
+ * Get global database instance
+ * Convenience method for global memory operations
+ */
+export function getGlobalDatabase(): Database.Database {
+  return getDatabase({ scope: 'global' });
+}
+
+/**
+ * Get project database instance
+ * Convenience method for project-scoped memory operations
+ *
+ * @param projectPath - Absolute path to project root
+ */
+export function getProjectDatabase(projectPath: string): Database.Database {
+  return getDatabase({ scope: 'project', projectPath });
 }
 
 /**
  * Close database connection
+ *
+ * @param options - Database options to identify which DB to close
+ *                  If not provided, closes all databases
  */
-export function closeDatabase(): void {
-  if (dbInstance) {
-    // Clear statement cache before closing to avoid stale references
+export function closeDatabase(options?: DatabaseOptions): void {
+  if (options) {
+    const dbPath = getEffectiveDbPath(options);
+    const db = dbInstances.get(dbPath);
+    if (db) {
+      db.close();
+      dbInstances.delete(dbPath);
+    }
+  } else {
+    // Close all databases
     clearStatementCache();
-    dbInstance.close();
-    dbInstance = null;
+    for (const [dbPath, db] of dbInstances) {
+      db.close();
+      dbInstances.delete(dbPath);
+    }
   }
 }
+
+/**
+ * Close all database connections
+ */
+export function closeAllDatabases(): void {
+  closeDatabase();
+}
+
+// ============================================================================
+// SCHEMA MIGRATIONS
+// ============================================================================
 
 /**
  * Get current schema version
@@ -368,26 +478,106 @@ function runMigrations(db: Database.Database): void {
     const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
     prepareStatement<[number, string]>(db, insertVersionSql).run(4, new Date().toISOString());
   }
+
+  // Migration 5: Hybrid memory architecture
+  if (currentVersion < 5) {
+    db.exec(`
+      -- Add scope field to memories (project vs global)
+      ALTER TABLE memories ADD COLUMN scope TEXT DEFAULT 'project'
+        CHECK(scope IN ('project', 'global'));
+
+      -- Add source field (where this knowledge came from)
+      ALTER TABLE memories ADD COLUMN source TEXT DEFAULT 'manual'
+        CHECK(source IN ('manual', 'context7', 'ai-generated', 'promoted'));
+
+      -- Add usage tracking for relevance
+      ALTER TABLE memories ADD COLUMN usage_count INTEGER DEFAULT 0;
+      ALTER TABLE memories ADD COLUMN last_used_at TEXT;
+
+      -- Add original reference for promoted memories
+      ALTER TABLE memories ADD COLUMN original_project TEXT;
+      ALTER TABLE memories ADD COLUMN original_id INTEGER;
+
+      -- Index for scope filtering
+      CREATE INDEX IF NOT EXISTS idx_memories_scope ON memories(scope);
+      CREATE INDEX IF NOT EXISTS idx_memories_source ON memories(source);
+      CREATE INDEX IF NOT EXISTS idx_memories_scope_type ON memories(scope, type);
+    `);
+
+    // Record migration
+    const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
+    prepareStatement<[number, string]>(db, insertVersionSql).run(5, new Date().toISOString());
+  }
+
+  // Migration 6: Semantic search embeddings and memory graph
+  if (currentVersion < 6) {
+    db.exec(`
+      -- Memory embeddings table for semantic search
+      -- Stores 384-dimensional vectors from all-MiniLM-L6-v2
+      -- Note: sqlite-vec extension creates the actual vec0 virtual table
+      -- This is a regular table that stores embeddings as BLOBs
+      CREATE TABLE IF NOT EXISTS memory_embeddings (
+        memory_id INTEGER PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+        embedding BLOB NOT NULL,
+        model TEXT NOT NULL DEFAULT 'all-MiniLM-L6-v2',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      -- Memory links table for graph relationships
+      CREATE TABLE IF NOT EXISTS memory_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+        to_id INTEGER NOT NULL REFERENCES memories(id) ON DELETE CASCADE,
+        link_type TEXT NOT NULL CHECK(link_type IN (
+          'caused',      -- This memory caused/led to the linked memory
+          'related',     -- General relationship
+          'supersedes',  -- This memory replaces the linked memory
+          'implements',  -- This memory implements the linked decision
+          'contradicts'  -- This memory contradicts the linked memory
+        )),
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(from_id, to_id, link_type)
+      );
+
+      -- Indexes for memory graph traversal
+      CREATE INDEX IF NOT EXISTS idx_memory_links_from ON memory_links(from_id);
+      CREATE INDEX IF NOT EXISTS idx_memory_links_to ON memory_links(to_id);
+      CREATE INDEX IF NOT EXISTS idx_memory_links_type ON memory_links(link_type);
+    `);
+
+    // Record migration
+    const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
+    prepareStatement<[number, string]>(db, insertVersionSql).run(6, new Date().toISOString());
+  }
 }
+
+// ============================================================================
+// DIAGNOSTICS
+// ============================================================================
 
 /**
  * Get database path (for diagnostics)
+ *
+ * @param options - Database options
  */
-export function getDatabasePath(): string {
-  return DB_PATH;
+export function getDatabasePath(options?: DatabaseOptions): string {
+  return getEffectiveDbPath(options);
 }
 
 /**
  * Get database stats
+ *
+ * @param options - Database options
  */
-export function getDatabaseStats(): {
+export function getDatabaseStats(options?: DatabaseOptions): {
   path: string;
   size: number;
   memoriesCount: number;
   schemaVersion: number;
 } {
-  const db = getDatabase();
-  const stats = fs.statSync(DB_PATH);
+  const db = getDatabase(options);
+  const dbPath = getEffectiveDbPath(options);
+  const stats = fs.statSync(dbPath);
 
   const countSql = 'SELECT COUNT(*) as count FROM memories';
   const countRow = prepareStatement<[], { count: number }>(db, countSql).get() as { count: number };
@@ -398,7 +588,7 @@ export function getDatabaseStats(): {
   };
 
   return {
-    path: DB_PATH,
+    path: dbPath,
     size: stats.size,
     memoriesCount: countRow.count,
     schemaVersion: versionRow?.version ?? 0,

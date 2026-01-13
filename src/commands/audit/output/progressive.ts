@@ -12,15 +12,15 @@
  */
 
 import { buildElement, optimizeXml, type XmlElement } from '../../../lib/@format';
-import { countTokens, fitToBudget } from '../../../lib/@tokens';
-import { normalizePath } from '../../fix/reporter/grouping';
+import { normalizePath } from '../../../lib/@reporter/grouping';
 import type {
   AIReport,
   CodeStyleRecommendation,
   EnrichedIssue,
   IssueGroup,
   PriorityLevel,
-} from '../../fix/reporter/types';
+} from '../../../lib/@reporter/types';
+import { countTokens, fitToBudget } from '../../../lib/@tokens';
 import { buildExecutiveSummaryElement } from './executive-summary';
 
 // ============================================================================

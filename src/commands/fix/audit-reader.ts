@@ -7,15 +7,15 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { getKrolikFilePath } from '../../lib/@core/krolik-paths';
+import type { AIReport, EnrichedIssue, PriorityLevel } from '../../lib/@reporter/types';
 import type { QualityIssue, QualitySeverity } from './core';
-import type { AIReport, EnrichedIssue, PriorityLevel } from './reporter/types';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const AUDIT_DATA_FILE = '.krolik/audit-data.json';
+const AUDIT_DATA_FILENAME = 'audit-data.json';
 
 // ============================================================================
 // TYPES
@@ -92,7 +92,7 @@ function enrichedToQualityIssue(enriched: EnrichedIssue): QualityIssue {
  * Check if audit data exists
  */
 export function hasAuditData(projectRoot: string): boolean {
-  const auditPath = path.join(projectRoot, AUDIT_DATA_FILE);
+  const auditPath = getKrolikFilePath(AUDIT_DATA_FILENAME, 'project', { projectRoot });
   return fs.existsSync(auditPath);
 }
 
@@ -100,7 +100,7 @@ export function hasAuditData(projectRoot: string): boolean {
  * Get age of audit data in milliseconds
  */
 export function getAuditDataAge(projectRoot: string): number | null {
-  const auditPath = path.join(projectRoot, AUDIT_DATA_FILE);
+  const auditPath = getKrolikFilePath(AUDIT_DATA_FILENAME, 'project', { projectRoot });
   if (!fs.existsSync(auditPath)) return null;
 
   try {
@@ -120,7 +120,7 @@ export function getAuditDataAge(projectRoot: string): number | null {
  * @param quickWinsOnly - If true, only return quick wins (auto-fixable issues)
  */
 export function readAuditData(projectRoot: string, quickWinsOnly = false): AuditDataResult {
-  const auditPath = path.join(projectRoot, AUDIT_DATA_FILE);
+  const auditPath = getKrolikFilePath(AUDIT_DATA_FILENAME, 'project', { projectRoot });
 
   // Check if file exists
   if (!fs.existsSync(auditPath)) {

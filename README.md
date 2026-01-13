@@ -78,6 +78,33 @@ krolik mem recent --limit 5
 
 Memories are automatically included in context — AI sees what was decided before.
 
+#### Semantic Search (Automatic)
+
+`krolik mem search` uses hybrid BM25 + semantic search automatically:
+- **Keyword matching** for exact terms
+- **AI semantic search** for conceptual similarity
+- Automatic fallback to keyword-only if AI model unavailable
+
+```bash
+krolik mem search --query "how do we handle user sessions"  # Finds JWT/auth decisions
+krolik mem search --query "database performance"            # Finds Prisma optimizations
+```
+
+**Model**: `all-MiniLM-L6-v2` (~23MB, downloads on first use to `~/.krolik/models/`)
+
+#### Memory Graph
+
+Track relationships between decisions:
+
+```bash
+krolik_mem_link fromId=123 toId=456 linkType="caused"     # Decision 123 caused bugfix 456
+krolik_mem_link fromId=789 toId=123 linkType="supersedes" # Decision 789 replaces 123
+krolik_mem_chain memoryId=123 direction="forward"         # Get decision chain
+krolik_mem_outdated                                       # List superseded decisions
+```
+
+**Link types**: `caused`, `related`, `supersedes`, `implements`, `contradicts`
+
 ---
 
 ### `krolik audit` — Find All Quality Issues
@@ -231,6 +258,16 @@ Krolik uses native modules (`better-sqlite3`, `@swc/core`) that require compilat
 | **macOS**   | Xcode Command Line Tools: `xcode-select --install`                                                         |
 | **Linux**   | `build-essential python3`: `apt install build-essential python3`                                           |
 | **Windows** | [windows-build-tools](https://github.com/nicolo-ribaudo/node-gyp-rs): `npm install -g windows-build-tools` |
+
+### AI Model (Semantic Search)
+
+Semantic search uses a local AI model that downloads **on first use** (not during install):
+
+| What | Size | Location |
+|------|------|----------|
+| `all-MiniLM-L6-v2` | ~23MB | `~/.krolik/models/` |
+
+First semantic search query may take 5-10 seconds for download. Subsequent queries are instant (~50ms).
 
 ### For `krolik setup` Features
 

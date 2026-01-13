@@ -15,7 +15,7 @@ import {
   getPreviousAudit as dbGetPrevious,
   saveAuditEntry as dbSaveEntry,
 } from '@/lib/@storage';
-import type { PriorityLevel } from '../../fix/reporter/types';
+import type { PriorityLevel } from '../../../lib/@reporter/types';
 import type { HealthGrade } from './health-score';
 
 // ============================================================================

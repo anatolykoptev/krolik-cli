@@ -21,15 +21,15 @@
  */
 
 import { groupBy } from '@/lib/@core';
-import type { QualityCategory } from '../../fix/core';
-import { normalizePath } from '../../fix/reporter/grouping';
+import { normalizePath } from '../../../lib/@reporter/grouping';
 import type {
   BatchFixInfo,
   EnrichedIssue,
   IssuePattern,
   IssuePatternId,
   PatternFileInfo,
-} from '../../fix/reporter/types';
+} from '../../../lib/@reporter/types';
+import type { QualityCategory } from '../../fix/core';
 import { getBatchCommand, hasBatchFix } from './batch-commands';
 
 // ============================================================================

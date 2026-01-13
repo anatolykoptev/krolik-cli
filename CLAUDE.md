@@ -220,8 +220,9 @@ import { detectLintIssue, detectSecurityIssue } from '@/lib/@detectors';
 const issues = detectLintIssue(content, filePath, lineNumber);
 ```
 
-## Принцип: Zero False Positives > High Recall
-Google подход — лучше пропустить настоящую проблему, чем показать ложную.
+## Principle: Zero False Positives > High Recall
+
+Google approach — better to miss a real issue than show a false one.
 
 ## SWC Fast Parsing
 
@@ -412,50 +413,14 @@ git push
 - `gpt-tokenizer` — Token counting
 - `zod` — Schema validation
 - `chalk` — Terminal styling
-- `ora` — Spinners
 - `glob` — File matching
 - `prettier` — Code formatting
+- `@swc/core` — Fast parsing (10-50x faster than ts-morph)
 
 **Dev:**
-- `@swc/core` — Fast parsing (10-50x faster than ts-morph)
+
 - `@biomejs/biome` — Lint + format
 - `vitest` — Testing
 - `tsup` — Build
 - `@changesets/cli` — Release management
 - `husky` + `lint-staged` — Pre-commit hooks
-
-## Related CLAUDE.md Files
-
-### Krolik CLI (this project)
-
-| File | Purpose |
-|------|---------|
-| [CLAUDE.md](CLAUDE.md) | This file — development guide |
-| [src/commands/fix/CLAUDE.md](src/commands/fix/CLAUDE.md) | Fix command internals |
-
-### Workspace Root
-
-| File | Purpose |
-|------|---------|
-| [../CLAUDE.md](../CLAUDE.md) | Main workspace rules, Krolik usage |
-
-### Piternow Project (target project)
-
-| File | Purpose |
-|------|---------|
-| [../piternow-wt-fix/CLAUDE.md](../piternow-wt-fix/CLAUDE.md) | Main project rules |
-| [../piternow-wt-fix/apps/web/CLAUDE.md](../piternow-wt-fix/apps/web/CLAUDE.md) | Next.js web app |
-| [../piternow-wt-fix/apps/mobile/CLAUDE.md](../piternow-wt-fix/apps/mobile/CLAUDE.md) | Expo mobile app |
-| [../piternow-wt-fix/packages/api/CLAUDE.md](../piternow-wt-fix/packages/api/CLAUDE.md) | tRPC API package |
-| [../piternow-wt-fix/packages/db/CLAUDE.md](../piternow-wt-fix/packages/db/CLAUDE.md) | Prisma database |
-| [../piternow-wt-fix/packages/shared/CLAUDE.md](../piternow-wt-fix/packages/shared/CLAUDE.md) | Shared utilities |
-| [../piternow-wt-fix/packages/ui/CLAUDE.md](../piternow-wt-fix/packages/ui/CLAUDE.md) | UI components |
-| [../piternow-wt-fix/packages/api/src/lib/integrations/CLAUDE.md](../piternow-wt-fix/packages/api/src/lib/integrations/CLAUDE.md) | API integrations |
-| [../piternow-wt-fix/packages/api/src/lib/observability/CLAUDE.md](../piternow-wt-fix/packages/api/src/lib/observability/CLAUDE.md) | Observability |
-
-### Other Tools
-
-| File | Purpose |
-|------|---------|
-| [../claude-mem/CLAUDE.md](../claude-mem/CLAUDE.md) | Claude memory plugin |
-| [../cal.com/CLAUDE.md](../cal.com/CLAUDE.md) | Cal.com reference |

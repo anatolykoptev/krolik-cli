@@ -29,7 +29,7 @@
  */
 
 import type { Node, Span } from '@swc/core';
-import { parseSync } from '@swc/core';
+import { parse } from '@swc/core';
 import { calculateLineOffsets, getSnippet, offsetToLine } from '@/lib/@ast/swc';
 import {
   COMPLEXITY_FIXER_ID,
@@ -157,14 +157,14 @@ interface SkipOptions {
  * 5. Hardcoded values: magic numbers, URLs, hex colors
  * 6. Complexity issues: high cyclomatic complexity, long functions
  */
-export function analyzeFileUnified(
+export async function analyzeFileUnified(
   content: string,
   filepath: string,
   options: {
     maxComplexity?: number;
     maxFunctionLines?: number;
   } = {},
-): UnifiedAnalysisResult {
+): Promise<UnifiedAnalysisResult> {
   const maxComplexity = options.maxComplexity ?? DEFAULT_MAX_COMPLEXITY;
   const maxFunctionLines = options.maxFunctionLines ?? DEFAULT_MAX_FUNCTION_LINES;
 
@@ -191,8 +191,8 @@ export function analyzeFileUnified(
   const isCli = isCliFile(filepath);
 
   try {
-    // Parse file with SWC
-    const { ast, lineOffsets, baseOffset } = parseFileWithSwc(content, filepath);
+    // Parse file with SWC (async)
+    const { ast, lineOffsets, baseOffset } = await parseFileWithSwc(content, filepath);
 
     // Create factory context for issue creation
     const factoryCtx: IssueFactoryContext = {
@@ -283,14 +283,14 @@ function shouldSkipAll(options: SkipOptions): boolean {
   );
 }
 
-function parseFileWithSwc(
+async function parseFileWithSwc(
   content: string,
   filepath: string,
-): { ast: Node; lineOffsets: number[]; baseOffset: number } {
+): Promise<{ ast: Node; lineOffsets: number[]; baseOffset: number }> {
   const isTypeScript = filepath.endsWith('.ts') || filepath.endsWith('.tsx');
   const isJsx = filepath.endsWith('.jsx') || filepath.endsWith('.tsx');
 
-  const ast = parseSync(content, {
+  const ast = await parse(content, {
     syntax: isTypeScript ? 'typescript' : 'ecmascript',
     ...(isTypeScript && isJsx ? { tsx: true } : {}),
     ...(!isTypeScript && isJsx ? { jsx: true } : {}),

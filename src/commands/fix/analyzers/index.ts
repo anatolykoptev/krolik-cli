@@ -37,11 +37,11 @@ const ERROR_CODE = 30;
  * Analyze a single file for quality issues
  * Main entry point that orchestrates all analyzers
  */
-export function analyzeFile(
+export async function analyzeFile(
   filepath: string,
   projectRoot: string,
   options: QualityOptions = {},
-): FileAnalysis {
+): Promise<FileAnalysis> {
   const content = fileCache.get(filepath);
   const lines = content.split('\n');
   const relativePath = path.relative(projectRoot, filepath);
@@ -74,7 +74,7 @@ export function analyzeFile(
     complexityIssues,
     queryIssues,
     functions,
-  } = analyzeFileUnified(content, relativePath);
+  } = await analyzeFileUnified(content, relativePath);
 
   // Initialize analysis
   const analysis: FileAnalysis = {

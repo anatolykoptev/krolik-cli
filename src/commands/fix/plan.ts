@@ -3,6 +3,8 @@
  * @description Fix plan generation
  */
 
+import { fileCache } from '../../lib/@cache';
+import type { ContentProvider } from '../../lib/@reporter/types';
 import { analyzeQuality } from './analyze';
 import type { FixOperation, FixOptions, QualityIssue, RecommendationItem } from './core';
 import { getFixDifficulty, isFixerEnabled } from './core';
@@ -59,13 +61,22 @@ export async function generateFixPlan(
   if (options.category) qualityOptions.category = options.category;
   if (options.all) qualityOptions.includeRisky = true;
 
-  const { report, fileContents } = await analyzeQuality(projectRoot, qualityOptions);
+  const { report, fileContents: _fileContents } = await analyzeQuality(projectRoot, qualityOptions);
 
   // Collect ALL issues from all files
   const allIssues = collectAllIssues(report.files, options.category);
 
+  // Use fileCache as provider since fileContents map is deprecated
+  const contentProvider: ContentProvider = (path) => {
+    try {
+      return fileCache.get(path);
+    } catch {
+      return undefined;
+    }
+  };
+
   // Generate plans
-  const { plans, skipStats } = await generatePlansFromIssues(allIssues, fileContents, options);
+  const { plans, skipStats } = await generatePlansFromIssues(allIssues, contentProvider, options);
 
   // Apply limit if specified
   const limitedPlans = applyLimit(plans, options.limit);
@@ -104,7 +115,7 @@ function collectAllIssues(
  */
 async function generatePlansFromIssues(
   allIssues: QualityIssue[],
-  fileContents: Map<string, string>,
+  fileContents: Map<string, string> | ContentProvider,
   options: FixOptions,
 ): Promise<{ plans: FixPlan[]; skipStats: SkipStats }> {
   const plans = new Map<string, FixPlan>();
@@ -137,7 +148,13 @@ async function generatePlansFromIssues(
     }
 
     // Get file content
-    const content = fileContents.get(issue.file) || '';
+    let content = '';
+    if (fileContents instanceof Map) {
+      content = fileContents.get(issue.file) || '';
+    } else if (typeof fileContents === 'function') {
+      content = fileContents(issue.file) || '';
+    }
+
     if (!content) {
       skipStats.noContent++;
       continue;

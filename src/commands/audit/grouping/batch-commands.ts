@@ -6,7 +6,7 @@
  * Each pattern that has an available fixer is mapped to its CLI command.
  */
 
-import type { IssuePatternId } from '../../fix/reporter/types';
+import type { IssuePatternId } from '../../../lib/@reporter/types';
 
 // ============================================================================
 // BATCH COMMAND MAPPING

@@ -3,7 +3,7 @@
  * @description Database row to object converters
  */
 
-import type { Memory, MemoryImportance, MemoryType } from './types';
+import type { Memory, MemoryImportance, MemoryScope, MemorySource, MemoryType } from './types';
 
 /**
  * Convert database row to Memory object
@@ -25,5 +25,12 @@ export function rowToMemory(row: Record<string, unknown>): Memory {
     features: JSON.parse((row.features as string) || '[]'),
     createdAt: row.created_at as string,
     metadata: JSON.parse((row.metadata as string) || '{}'),
+    // Hybrid memory fields (migration 5)
+    scope: (row.scope as MemoryScope) || 'project',
+    source: (row.source as MemorySource) || 'manual',
+    usageCount: (row.usage_count as number) || 0,
+    lastUsedAt: row.last_used_at as string | undefined,
+    originalProject: row.original_project as string | undefined,
+    originalId: row.original_id as number | undefined,
   };
 }

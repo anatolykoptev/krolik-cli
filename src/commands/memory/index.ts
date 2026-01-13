@@ -127,7 +127,7 @@ export async function runMemSave(ctx: CommandContext & { options: MemSaveOptions
     features: parseList(options.features),
   };
 
-  const memory = save(saveOptions, {
+  const memory = await save(saveOptions, {
     project: projectName,
     branch: branch || undefined,
     commit: commit || undefined,

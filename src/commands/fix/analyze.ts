@@ -18,6 +18,7 @@ import { glob } from 'glob';
 import { fileCache, validatePathWithinProject } from '@/lib';
 import { getIgnorePatterns } from '@/lib/@core/constants';
 import { detectBackwardsCompat } from '@/lib/@detectors';
+import { calculateHash, limitConcurrency, loadCache, Spinner, saveCache } from '../../lib/@core';
 import { analyzeFile } from './analyzers';
 import type {
   FileAnalysis,
@@ -42,7 +43,7 @@ const DEFAULT_PAGE_SIZE = 20;
  */
 export interface QualityReportWithContents {
   report: QualityReport;
-  fileContents: Map<string, string>;
+  fileContents?: Map<string, string>; // Optional now, usage deprecated in favor of on-demand cache
 }
 
 // ============================================================================
@@ -95,20 +96,50 @@ export async function analyzeQuality(
   // Analyze each file and collect contents
   const analyses: FileAnalysis[] = [];
   const allIssues: QualityIssue[] = [];
+  // File contents map is deprecated but kept for compatibility with restricted types
+  // Ideally, consumers should use fileCache directly
   const fileContents = new Map<string, string>();
 
   // Note: The unified-swc analyzer handles most categories (lint, type-safety, security, etc.)
   // Additional fixer analyzers (like i18n) are run separately for their specific categories.
 
-  for (const file of files) {
+  // Load incremental cache
+  const cache = loadCache(projectRoot);
+  let cacheModified = false;
+
+  // Initialize progress spinner
+  const spinner = new Spinner(`Analyzing ${files.length} files`);
+  spinner.start();
+  let processedFiles = 0;
+
+  // Parallel execution using limitConcurrency
+  await limitConcurrency(files, 8, async (file) => {
     try {
+      processedFiles++;
+      const percent = Math.round((processedFiles / files.length) * 100);
+      spinner.update(`Analyzing files... ${percent}% (${processedFiles}/${files.length})`);
+
       // Read content once (using cache to avoid repeated reads)
       const content = fileCache.get(file);
       const relativePath = path.relative(projectRoot, file);
+      const hash = calculateHash(content);
+
+      // Check cache
+      const cached = cache.files[relativePath];
+      if (cached && cached.hash === hash) {
+        // Reuse cached analysis
+        const analysis = cached.result as FileAnalysis;
+        // Update absolute path in case project moved
+        analysis.path = file;
+
+        analyses.push(analysis);
+        allIssues.push(...analysis.issues);
+        return;
+      }
 
       // Run unified analyzer (includes lint, type-safety, security, modernization, hardcoded)
       // All issues from unified-swc now have fixerId set for direct fixer lookup
-      const analysis = analyzeFile(file, projectRoot, options);
+      const analysis = await analyzeFile(file, projectRoot, options);
       analyses.push(analysis);
 
       allIssues.push(...analysis.issues);
@@ -155,12 +186,39 @@ export async function analyzeQuality(
         }
       }
 
-      // Store content for AI context - key by both absolute and relative paths
-      fileContents.set(analysis.path, content);
-      fileContents.set(analysis.relativePath, content);
+      // NOTE: We do NOT populate fileContents Map anymore to save memory
+      // The fileCache is populated and can be used on-demand.
+      // If a consumer really needs the Map, they will find it empty here.
+
+      // Update cache
+      cache.files[relativePath] = {
+        hash,
+        timestamp: Date.now(),
+        result: analysis,
+      };
+      cacheModified = true;
     } catch {
       // Skip files that can't be analyzed
     }
+  });
+
+  spinner.stop();
+
+  // Log cache stats if verbose
+  if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
+    const stats = fileCache.getStats();
+    const hitRate =
+      stats.hits + stats.misses > 0
+        ? Math.round((stats.hits / (stats.hits + stats.misses)) * 100)
+        : 0;
+    console.log(
+      `Cache: ${hitRate}% hit rate (${stats.hits} hits, ${stats.misses} misses), ${Math.round(stats.memoryBytes / 1024 / 1024)}MB memory`,
+    );
+  }
+
+  // Save cache if modified
+  if (cacheModified) {
+    saveCache(projectRoot, cache);
   }
 
   // Filter issues by category/severity if specified

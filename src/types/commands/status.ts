@@ -80,9 +80,17 @@ export interface StatusResult {
     issueNumber?: number;
     description?: string;
   };
-  /** Recent memory entries (decisions, patterns, bugfixes) */
+  /** Recent memory entries (decisions, patterns, bugfixes, library knowledge, etc.) */
   memory?: Array<{
-    type: 'decision' | 'pattern' | 'bugfix' | 'observation' | 'feature';
+    type:
+      | 'decision'
+      | 'pattern'
+      | 'bugfix'
+      | 'observation'
+      | 'feature'
+      | 'library'
+      | 'snippet'
+      | 'anti-pattern';
     title: string;
     tags?: string[];
   }>;
