@@ -2,15 +2,14 @@
  * @module mcp/tools/audit
  * @description krolik_audit tool - Code quality audit
  *
- * PERFORMANCE: MCP returns cached AUDIT.xml from CLI runs.
- * - Instant response (reads file instead of running analysis)
- * - Tells user to run `krolik audit` if cache is stale
- * - Filter by mode/feature applied to cached results
+ * PERFORMANCE: Uses lightweight analysis mode for MCP.
+ * - Runs analyzeQuality() with incremental file cache
+ * - Skips heavy operations (ranking, duplicates, recommendations)
+ * - Returns real-time results, not from disk cache
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
+import { formatError } from '../core/errors';
 import { resolveProjectPath } from '../core/projects';
 
 // Valid audit modes
@@ -28,74 +27,95 @@ const VALID_MODES = [
 
 type AuditMode = (typeof VALID_MODES)[number];
 
-// Cache freshness threshold (1 hour)
-const CACHE_MAX_AGE_MS = 60 * 60 * 1000;
-
 /**
- * Filter cached XML report by mode
- * Simple text-based filtering for common patterns
+ * Run lightweight audit analysis for MCP
+ *
+ * Uses incremental cache - if files haven't changed, results are instant.
+ * Skips heavy operations (ranking, duplicates, recommendations).
  */
-function filterCachedReport(xml: string, options: { mode?: AuditMode; feature?: string }): string {
-  // If no filter, return as-is
-  if (!options.mode && !options.feature) {
-    return xml;
+async function runLightweightAudit(
+  projectRoot: string,
+  options: { feature?: string; mode?: AuditMode },
+): Promise<string> {
+  // Dynamic imports to avoid loading heavy modules at startup
+  const { analyzeQuality } = await import('@/commands/fix/analyze');
+  const { generateAIReport, formatAsXml } = await import('@/lib/@reporter');
+  const { parseIntent, filterByIntent } = await import('@/commands/audit/filters');
+
+  // Run quality analysis with incremental cache
+  // This is FAST if files haven't changed (uses cached results)
+  const qualityResult = await analyzeQuality(projectRoot, { includeTests: false });
+
+  // Generate report WITHOUT heavy enrichments
+  // - No impactEnricher (skips PageRank analysis)
+  // - No ranking/recommendations/duplicates
+  // - includeSnippets=false to skip code context extraction
+  const report = await generateAIReport(
+    qualityResult.report,
+    { maxIssues: 100, includeSnippets: false },
+    () => undefined, // No content provider needed
+    undefined, // No ranking
+    undefined, // No recommendations
+    undefined, // No duplicates
+    undefined, // No impact enricher
+  );
+
+  // Apply intent filter if specified
+  const intent = parseIntent({ feature: options.feature, mode: options.mode });
+  if (intent) {
+    const filteredGroups = report.groups
+      .map((group) => {
+        const qualityIssues = group.issues.map((ei) => ei.issue);
+        const filtered = filterByIntent(qualityIssues, intent);
+        const filteredFiles = new Set(filtered.map((i) => `${i.file}:${i.line}`));
+        const filteredIssues = group.issues.filter((ei) =>
+          filteredFiles.has(`${ei.issue.file}:${ei.issue.line}`),
+        );
+        if (filteredIssues.length === 0) return null;
+        return {
+          ...group,
+          issues: filteredIssues,
+          count: filteredIssues.length,
+          autoFixableCount: filteredIssues.filter((i) => i.autoFixable).length,
+        };
+      })
+      .filter((g): g is NonNullable<typeof g> => g !== null);
+
+    const totalIssues = filteredGroups.reduce((sum, g) => sum + g.count, 0);
+    const autoFixableIssues = filteredGroups.reduce((sum, g) => sum + g.autoFixableCount, 0);
+
+    const byPriority: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+    for (const group of filteredGroups) {
+      for (const issue of group.issues) {
+        byPriority[issue.priority] = (byPriority[issue.priority] ?? 0) + 1;
+      }
+    }
+
+    return formatAsXml({
+      ...report,
+      groups: filteredGroups,
+      quickWins: report.quickWins.filter((qw) =>
+        filteredGroups.some((g) =>
+          g.issues.some((i) => i.issue.file === qw.issue.file && i.issue.line === qw.issue.line),
+        ),
+      ),
+      hotspots: report.hotspots.filter((h) =>
+        filteredGroups.some((g) => g.issues.some((i) => i.issue.file === h.file)),
+      ),
+      actionPlan: report.actionPlan.filter((step) =>
+        filteredGroups.some((g) => g.issues.some((i) => i.issue.file === step.file)),
+      ),
+      summary: {
+        ...report.summary,
+        totalIssues,
+        autoFixableIssues,
+        manualIssues: totalIssues - autoFixableIssues,
+        byPriority: byPriority as typeof report.summary.byPriority,
+      },
+    });
   }
 
-  // For mode filtering, we extract the category mapping
-  const categoryFilters: Record<string, string[]> = {
-    lint: ['lint'],
-    types: ['type-safety'],
-    security: ['security'],
-    hardcoded: ['hardcoded'],
-    release: ['security', 'type-safety'],
-    'pre-commit': ['lint', 'security', 'type-safety'],
-    queries: ['duplicate-query'],
-  };
-
-  const allowedCategories = options.mode ? categoryFilters[options.mode] : undefined;
-
-  // If mode is 'all' or not in our mapping, return full report
-  if (options.mode === 'all' || (options.mode && !allowedCategories)) {
-    return xml;
-  }
-
-  // Add filter info header
-  const filterInfo: string[] = [];
-  if (options.mode) filterInfo.push(`mode="${options.mode}"`);
-  if (options.feature) filterInfo.push(`feature="${options.feature}"`);
-
-  const header = `<audit-filter ${filterInfo.join(' ')}>\n`;
-  const footer = '\n</audit-filter>';
-
-  // For complex filtering, just return the full report with a note
-  // Full filtering would require XML parsing which adds complexity
-  return `${header}<note>Showing cached results. For precise filtering, run: krolik audit --mode=${options.mode || 'all'}${options.feature ? ` --feature=${options.feature}` : ''}</note>\n${xml}${footer}`;
-}
-
-/**
- * Get cached audit report if fresh
- */
-function getCachedAuditReport(projectRoot: string): { xml: string; age: number } | null {
-  const auditPath = path.join(projectRoot, '.krolik', 'AUDIT.xml');
-
-  if (!fs.existsSync(auditPath)) {
-    return null;
-  }
-
-  const stats = fs.statSync(auditPath);
-  const age = Date.now() - stats.mtimeMs;
-
-  // Check if cache is fresh
-  if (age > CACHE_MAX_AGE_MS) {
-    return null;
-  }
-
-  try {
-    const xml = fs.readFileSync(auditPath, 'utf-8');
-    return { xml, age };
-  } catch {
-    return null;
-  }
+  return formatAsXml(report);
 }
 
 export const auditTool: MCPToolDefinition = {
@@ -183,25 +203,16 @@ Modes:
       return resolved.error;
     }
 
-    // Try to get cached report first
-    const cached = getCachedAuditReport(resolved.path);
-
-    if (cached) {
-      const ageMinutes = Math.round(cached.age / 60000);
-      const options: { mode?: AuditMode; feature?: string } = {};
-      if (mode) options.mode = mode;
+    try {
+      const options: { feature?: string; mode?: AuditMode } = {};
       if (typeof args.feature === 'string') options.feature = args.feature;
+      if (mode) options.mode = mode;
 
-      const filtered = filterCachedReport(cached.xml, options);
-      return `<audit source="cache" age-minutes="${ageMinutes}">\n${filtered}\n</audit>`;
+      const xml = await runLightweightAudit(resolved.path, options);
+      return xml;
+    } catch (error) {
+      return formatError(error);
     }
-
-    // No cache available - tell user to run CLI audit
-    return `<audit error="true">
-  <message>No recent audit cache found. Run CLI audit first:</message>
-  <command>krolik audit${mode ? ` --mode=${mode}` : ''}</command>
-  <reason>MCP timeout prevents full analysis. CLI audit has no timeout and caches results.</reason>
-</audit>`;
   },
 };
 
