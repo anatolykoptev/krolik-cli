@@ -81,7 +81,7 @@ function findSchemaDir(projectRoot: string, configSchemaDir?: string): string | 
 /**
  * Filter schema by model/domain
  */
-function filterSchema(result: SchemaOutput, options: SchemaOptions): SchemaOutput {
+export function filterSchema(result: SchemaOutput, options: SchemaOptions): SchemaOutput {
   let { models, enums } = result;
 
   // Filter by domain

@@ -1,24 +1,17 @@
 /**
  * @module mcp/tools/routes
  * @description krolik_routes tool - tRPC routes analysis
+ *
+ * PERFORMANCE: Uses direct function imports instead of subprocess spawn.
+ * This eliminates 10s+ Node.js startup overhead.
  */
 
-import {
-  buildFlags,
-  COMMON_FLAGS,
-  type FlagSchema,
-  type MCPToolDefinition,
-  PROJECT_PROPERTY,
-  registerTool,
-  runKrolik,
-  withProjectDetection,
-} from '../core';
-
-const routesFlagSchema: FlagSchema = {
-  json: COMMON_FLAGS.json,
-  compact: { flag: '--compact' },
-  full: { flag: '--full' },
-};
+import { analyzeRoutes } from '@/commands/routes';
+import { formatAI, formatCompact, formatJson, formatSmart } from '@/commands/routes/output';
+import { findRoutersDir } from '@/lib/@discovery/routes';
+import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
+import { formatError } from '../core/errors';
+import { resolveProjectPath } from '../core/projects';
 
 export const routesTool: MCPToolDefinition = {
   name: 'krolik_routes',
@@ -50,11 +43,48 @@ export const routesTool: MCPToolDefinition = {
   template: { when: 'API routes questions', params: '—' },
   category: 'context',
   handler: (args, workspaceRoot) => {
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const result = buildFlags(args, routesFlagSchema);
-      if (!result.ok) return result.error;
-      return runKrolik(`routes ${result.flags}`, projectPath);
-    });
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
+
+    if ('error' in resolved) {
+      if (resolved.error.includes('not found')) {
+        return `<routes error="true"><message>Project "${projectArg}" not found.</message></routes>`;
+      }
+      return resolved.error;
+    }
+
+    try {
+      // Find routers directory
+      const routersDir = findRoutersDir(resolved.path);
+
+      if (!routersDir) {
+        return `<routes error="true">
+  <message>tRPC routers directory not found</message>
+  <hint>Checked: packages/api/src/routers, src/server/routers, src/routers</hint>
+</routes>`;
+      }
+
+      // Analyze routes
+      const result = analyzeRoutes(routersDir);
+
+      // Format output based on options
+      if (args.json === true) {
+        return formatJson(result);
+      }
+
+      if (args.compact === true) {
+        return formatCompact(result);
+      }
+
+      if (args.full === true) {
+        return formatAI(result);
+      }
+
+      // Default: Smart format
+      return formatSmart(result);
+    } catch (error) {
+      return formatError(error);
+    }
   },
 };
 

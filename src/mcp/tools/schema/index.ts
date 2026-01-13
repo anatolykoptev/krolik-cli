@@ -1,26 +1,23 @@
 /**
  * @module mcp/tools/schema
  * @description krolik_schema tool - Prisma schema analysis
+ *
+ * PERFORMANCE: Uses direct function imports instead of subprocess spawn.
+ * This eliminates 10s+ Node.js startup overhead.
  */
 
+import { analyzeSchema, filterSchema, type SchemaOptions } from '@/commands/schema';
 import {
-  buildFlags,
-  COMMON_FLAGS,
-  type FlagSchema,
-  type MCPToolDefinition,
-  PROJECT_PROPERTY,
-  registerTool,
-  runKrolik,
-  withProjectDetection,
-} from '../core';
-
-const schemaFlagSchema: FlagSchema = {
-  json: COMMON_FLAGS.json,
-  model: { flag: '--model' },
-  domain: { flag: '--domain' },
-  compact: { flag: '--compact' },
-  full: { flag: '--full' },
-};
+  formatAI,
+  formatCompact,
+  formatJson,
+  formatSmart,
+  type SchemaOutput,
+} from '@/commands/schema/output';
+import { findSchemaDir } from '@/lib/@discovery/schema';
+import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
+import { formatError } from '../core/errors';
+import { resolveProjectPath } from '../core/projects';
 
 export const schemaTool: MCPToolDefinition = {
   name: 'krolik_schema',
@@ -67,11 +64,60 @@ export const schemaTool: MCPToolDefinition = {
   template: { when: 'DB schema questions', params: '—' },
   category: 'context',
   handler: (args, workspaceRoot) => {
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const result = buildFlags(args, schemaFlagSchema);
-      if (!result.ok) return result.error;
-      return runKrolik(`schema ${result.flags}`, projectPath);
-    });
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
+
+    if ('error' in resolved) {
+      if (resolved.error.includes('not found')) {
+        return `<schema error="true"><message>Project "${projectArg}" not found.</message></schema>`;
+      }
+      return resolved.error;
+    }
+
+    try {
+      // Find schema directory
+      const schemaDir = findSchemaDir(resolved.path);
+
+      if (!schemaDir) {
+        return `<schema error="true">
+  <message>Prisma schema directory not found</message>
+  <hint>Checked: prisma, packages/db/prisma, src/prisma, db/prisma</hint>
+</schema>`;
+      }
+
+      // Analyze schema
+      const fullResult = analyzeSchema(schemaDir);
+
+      // Build filter options
+      const filterOptions: SchemaOptions = {
+        model: typeof args.model === 'string' ? args.model : undefined,
+        domain: typeof args.domain === 'string' ? args.domain : undefined,
+      };
+
+      // Apply filters if specified
+      const hasFilters = filterOptions.model || filterOptions.domain;
+      const result: SchemaOutput = hasFilters
+        ? filterSchema(fullResult, filterOptions)
+        : fullResult;
+
+      // Format output based on options
+      if (args.json === true) {
+        return formatJson(result);
+      }
+
+      if (args.compact === true) {
+        return formatCompact(result, fullResult);
+      }
+
+      if (args.full === true) {
+        return hasFilters ? formatAI(result) : formatAI(fullResult);
+      }
+
+      // Default: Smart format
+      return formatSmart(result, hasFilters ? fullResult : undefined);
+    } catch (error) {
+      return formatError(error);
+    }
   },
 };
 
