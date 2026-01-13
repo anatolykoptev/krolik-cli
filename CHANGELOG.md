@@ -1,5 +1,11 @@
 # @anatolykoptev/krolik-cli
 
+## 0.15.1
+
+### Patch Changes
+
+- [`a49ef4d`](https://github.com/anatolykoptev/krolik-cli/commit/a49ef4d897ffec09674b8caaf37b3c8d0c76d46c) - Cleaned up README: removed verbose sections, added changelog
+
 ## 0.15.0
 
 ### Minor Changes

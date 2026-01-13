@@ -1,6 +1,6 @@
 {
   "name": "@anatolykoptev/krolik-cli",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "KROLIK — fast AI-assisted development toolkit for TypeScript projects",
   "keywords": [
     "cli",
