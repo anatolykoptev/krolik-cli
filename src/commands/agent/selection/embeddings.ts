@@ -39,18 +39,24 @@ let initAttempted = false;
 /**
  * Maximum time to wait for embeddings to load (ms)
  *
- * Production optimization: Use short timeout (100ms) for agent selection
- * to ensure instant response. If embeddings not ready, gracefully
- * degrade to keyword-only scoring (still 40/100 points max).
+ * Production optimization: Use very short timeout for instant response.
+ * If embeddings not ready, gracefully degrade to keyword-only scoring.
  *
- * Note: MCP server preloads embeddings at startup, so most calls
- * will hit the cache and return instantly.
+ * Timeout strategy:
+ * - 0ms if not already loading (don't block at all)
+ * - 50ms if already loading (quick check if nearly ready)
+ *
+ * Note: MCP server preloads embeddings at startup, so most MCP calls
+ * will have embeddings ready. CLI cold starts use keyword-only.
  */
-const INIT_TIMEOUT_MS = 100;
+const INIT_TIMEOUT_MS = 50;
 
 /**
  * Try to initialize embeddings with timeout
  * Returns true if embeddings become available within timeout
+ *
+ * Optimization: Only wait if embeddings are already loading (nearly ready).
+ * Don't block on cold start — use keyword-only matching instead.
  */
 async function tryInitEmbeddings(): Promise<boolean> {
   if (initAttempted) {
@@ -63,19 +69,19 @@ async function tryInitEmbeddings(): Promise<boolean> {
     return true;
   }
 
-  // Start loading if not already
-  if (!isEmbeddingsLoading()) {
-    preloadEmbeddingPool();
-  }
-
-  // Wait for embeddings to become available with timeout
-  // Use 10ms polling for quick detection within 100ms window
-  const startTime = Date.now();
-  while (Date.now() - startTime < INIT_TIMEOUT_MS) {
-    if (isEmbeddingsAvailable()) {
-      return true;
+  // If already loading, wait briefly (might be nearly ready)
+  if (isEmbeddingsLoading()) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < INIT_TIMEOUT_MS) {
+      if (isEmbeddingsAvailable()) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    await new Promise((resolve) => setTimeout(resolve, 10));
+  } else {
+    // Not loading — start in background but don't wait
+    // Next call will benefit from preloading
+    preloadEmbeddingPool();
   }
 
   return isEmbeddingsAvailable();

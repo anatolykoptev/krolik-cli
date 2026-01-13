@@ -12,8 +12,8 @@ import { addDryRunOption, addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
 import { createContext, handleProjectOption } from './helpers';
 
-// Preload embeddings in background when agent command is registered
-// This ensures semantic matching is ready when orchestration is called
+// Preload embeddings immediately when this module is imported
+// This gives embeddings a head start while CLI parses arguments
 let embeddingsPreloaded = false;
 function preloadEmbeddingsAsync() {
   if (embeddingsPreloaded) return;
@@ -23,6 +23,10 @@ function preloadEmbeddingsAsync() {
     preloadEmbeddingPool();
   });
 }
+
+// Start preloading immediately when module is imported
+// This runs in parallel with CLI argument parsing
+preloadEmbeddingsAsync();
 
 /**
  * Register agent command

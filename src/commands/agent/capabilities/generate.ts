@@ -22,66 +22,23 @@ const INDEX_VERSION = '2.0.0';
 /** Index file name */
 const INDEX_FILE = 'agent-capabilities.json';
 
-/** Maximum time to wait for embeddings to load (ms) */
-const EMBEDDING_INIT_TIMEOUT_MS = 5000;
+/** Track if background embedding generation is in progress */
+let backgroundEmbeddingGeneration: Promise<void> | null = null;
 
 /**
- * Wait for embeddings to become available
- */
-async function waitForEmbeddings(): Promise<boolean> {
-  if (isEmbeddingsAvailable()) {
-    return true;
-  }
-
-  if (!isEmbeddingsLoading()) {
-    preloadEmbeddingPool();
-  }
-
-  const startTime = Date.now();
-  while (Date.now() - startTime < EMBEDDING_INIT_TIMEOUT_MS) {
-    if (isEmbeddingsAvailable()) {
-      return true;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-
-  return isEmbeddingsAvailable();
-}
-
-/**
- * Generate capabilities index from agents path
- * Now includes pre-computed embeddings for instant semantic matching
+ * Generate capabilities index from agents path (FAST - no embeddings)
+ *
+ * Two-phase initialization:
+ * 1. Phase 1 (instant): Generate index without embeddings - keyword search works immediately
+ * 2. Phase 2 (background): Generate embeddings and update index asynchronously
+ *
+ * This ensures first-time users get instant response while embeddings generate in background.
  */
 export async function generateCapabilitiesIndex(agentsPath: string): Promise<CapabilitiesIndex> {
   const allAgents = loadAllAgents(agentsPath);
   const capabilities = parseAllAgentCapabilities(allAgents);
 
-  // Try to generate embeddings for all agents
-  const embeddingsAvailable = await waitForEmbeddings();
-  let embeddingsGenerated = 0;
-
-  if (embeddingsAvailable) {
-    logger.info('Generating embeddings for agents...');
-
-    // Generate embeddings in parallel batches of 10
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < capabilities.length; i += BATCH_SIZE) {
-      const batch = capabilities.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map(async (cap) => {
-          try {
-            const result = await generateEmbedding(cap.description);
-            // Store as regular array for JSON serialization
-            cap.embedding = Array.from(result.embedding);
-            embeddingsGenerated++;
-          } catch {
-            // Silently skip - agent will use keyword-only matching
-          }
-        }),
-      );
-    }
-  }
-
+  // Phase 1: Create index immediately WITHOUT embeddings
   const index: CapabilitiesIndex = {
     version: INDEX_VERSION,
     generatedAt: new Date().toISOString(),
@@ -90,21 +47,110 @@ export async function generateCapabilitiesIndex(agentsPath: string): Promise<Cap
     agents: capabilities,
   };
 
-  // Save to user-level .krolik directory
+  // Save index immediately (keyword search works right away)
   const indexPath = getKrolikFilePath(INDEX_FILE, 'user');
   const success = writeJson(indexPath, index, 2);
 
   if (success) {
     logger.success(`Generated capabilities for ${capabilities.length} agents`);
-    if (embeddingsGenerated > 0) {
-      logger.info(`Pre-computed embeddings for ${embeddingsGenerated} agents`);
-    }
     logger.info(`Index saved to: ${indexPath}`);
+
+    // Phase 2: Start background embedding generation (non-blocking)
+    scheduleEmbeddingGeneration(agentsPath, capabilities, indexPath);
   } else {
     logger.warn('Failed to save capabilities index');
   }
 
   return index;
+}
+
+/**
+ * Schedule background embedding generation
+ * Runs asynchronously without blocking the main flow
+ */
+function scheduleEmbeddingGeneration(
+  agentsPath: string,
+  capabilities: AgentCapabilities[],
+  indexPath: string,
+): void {
+  // Don't schedule if already in progress
+  if (backgroundEmbeddingGeneration) return;
+
+  backgroundEmbeddingGeneration = (async () => {
+    try {
+      // Wait for embedding model to be ready
+      if (!isEmbeddingsLoading()) {
+        preloadEmbeddingPool();
+      }
+
+      // Wait up to 10 seconds for embeddings to become available
+      const startTime = Date.now();
+      while (Date.now() - startTime < 10000) {
+        if (isEmbeddingsAvailable()) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      if (!isEmbeddingsAvailable()) {
+        logger.warn('Embedding model not available, skipping semantic indexing');
+        return;
+      }
+
+      logger.info('Generating embeddings in background...');
+      let embeddingsGenerated = 0;
+
+      // Generate embeddings in parallel batches of 10
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < capabilities.length; i += BATCH_SIZE) {
+        const batch = capabilities.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (cap) => {
+            try {
+              const result = await generateEmbedding(cap.description);
+              cap.embedding = Array.from(result.embedding);
+              embeddingsGenerated++;
+            } catch {
+              // Silently skip - agent will use keyword-only matching
+            }
+          }),
+        );
+      }
+
+      // Update index with embeddings
+      if (embeddingsGenerated > 0) {
+        const updatedIndex: CapabilitiesIndex = {
+          version: INDEX_VERSION,
+          generatedAt: new Date().toISOString(),
+          agentsPath,
+          totalAgents: capabilities.length,
+          agents: capabilities,
+        };
+
+        writeJson(indexPath, updatedIndex, 2);
+        logger.success(`Pre-computed embeddings for ${embeddingsGenerated} agents`);
+      }
+    } catch (error) {
+      // Silent failure - embeddings are optional enhancement
+      logger.warn('Background embedding generation failed');
+    } finally {
+      backgroundEmbeddingGeneration = null;
+    }
+  })();
+}
+
+/**
+ * Check if embeddings are being generated in background
+ */
+export function isEmbeddingGenerationInProgress(): boolean {
+  return backgroundEmbeddingGeneration !== null;
+}
+
+/**
+ * Wait for background embedding generation to complete (for testing)
+ */
+export async function waitForEmbeddingGeneration(): Promise<void> {
+  if (backgroundEmbeddingGeneration) {
+    await backgroundEmbeddingGeneration;
+  }
 }
 
 /**
