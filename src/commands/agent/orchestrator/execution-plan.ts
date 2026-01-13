@@ -122,6 +122,12 @@ function formatSmartReason(scored: ScoredAgent): string {
     parts.push(`Keywords: ${breakdown.matchedKeywords.slice(0, 3).join(', ')}`);
   }
 
+  // Show semantic similarity if used
+  if (breakdown.semanticMatch > 0 && breakdown.semanticSimilarity) {
+    const pct = Math.round(breakdown.semanticSimilarity * 100);
+    parts.push(`Semantic: ${pct}%`);
+  }
+
   if (breakdown.matchedTechStack.length > 0) {
     parts.push(`Tech: ${breakdown.matchedTechStack.join(', ')}`);
   }

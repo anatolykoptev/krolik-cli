@@ -4,14 +4,16 @@
  *
  * Scoring breakdown:
  * - Keyword match: 0-40 points
+ * - Semantic match: 0-15 points (NEW - uses embeddings)
  * - Context boost: 0-30 points
  * - History boost: 0-20 points
  * - Freshness bonus: 0-10 points
- * Total: 0-100 points
+ * Total: 0-100 points (normalized from 0-115)
  */
 
 import type { ProjectProfile } from '@/lib/@context/project-profile';
 import type { AgentCapabilities } from '../capabilities/types';
+import { calculateSemanticSimilarity } from './embeddings';
 import type { AgentSuccessHistory } from './history';
 
 /**
@@ -110,18 +112,22 @@ function containsWholeWord(text: string, word: string): boolean {
 export interface ScoreBreakdown {
   /** Keyword match score (0-40) */
   keywordMatch: number;
+  /** Semantic match score (0-15) - uses embeddings */
+  semanticMatch: number;
   /** Context boost score (0-30) */
   contextBoost: number;
   /** History boost score (0-20) */
   historyBoost: number;
   /** Freshness bonus (0-10) */
   freshnessBonus: number;
-  /** Total score (0-100) */
+  /** Total score (0-100, normalized) */
   total: number;
   /** Matched keywords for transparency */
   matchedKeywords: string[];
   /** Matched tech stack for transparency */
   matchedTechStack: string[];
+  /** Semantic similarity score (0-1) for debugging */
+  semanticSimilarity?: number | undefined;
 }
 
 /**
@@ -144,32 +150,37 @@ export interface ScoredAgent {
  * @param projectProfile - Project profile for context boosting
  * @param history - Agent success history for history boosting
  * @param currentFeature - Optional current feature for extra boosting
+ * @param taskEmbedding - Pre-computed task embedding for semantic matching
  * @returns Sorted array of scored agents (highest first)
  */
-export function scoreAgents(
+export async function scoreAgents(
   task: string,
   capabilities: AgentCapabilities[],
   projectProfile: ProjectProfile,
   history: Map<string, AgentSuccessHistory>,
   currentFeature?: string,
-): ScoredAgent[] {
+  taskEmbedding?: Float32Array | null,
+): Promise<ScoredAgent[]> {
   const normalizedTask = task.toLowerCase();
 
-  const scored = capabilities.map((agent) => {
-    const breakdown = calculateScoreBreakdown(
-      agent,
-      normalizedTask,
-      projectProfile,
-      history,
-      currentFeature,
-    );
+  const scored = await Promise.all(
+    capabilities.map(async (agent) => {
+      const breakdown = await calculateScoreBreakdown(
+        agent,
+        normalizedTask,
+        taskEmbedding ?? null,
+        projectProfile,
+        history,
+        currentFeature,
+      );
 
-    return {
-      agent,
-      score: breakdown.total,
-      breakdown,
-    };
-  });
+      return {
+        agent,
+        score: breakdown.total,
+        breakdown,
+      };
+    }),
+  );
 
   // Sort by score descending
   return scored.sort((a, b) => b.score - a.score);
@@ -178,17 +189,24 @@ export function scoreAgents(
 /**
  * Calculate full score breakdown for an agent
  */
-function calculateScoreBreakdown(
+async function calculateScoreBreakdown(
   agent: AgentCapabilities,
   normalizedTask: string,
+  taskEmbedding: Float32Array | null,
   profile: ProjectProfile,
   history: Map<string, AgentSuccessHistory>,
   currentFeature?: string,
-): ScoreBreakdown {
+): Promise<ScoreBreakdown> {
   const { score: keywordMatch, matchedKeywords } = scoreKeywordMatch(
     agent.keywords,
     agent.description,
     normalizedTask,
+  );
+
+  // Semantic match using embeddings (0-15 points)
+  const { score: semanticMatch, similarity: semanticSimilarity } = await scoreSemanticMatch(
+    agent,
+    taskEmbedding,
   );
 
   const { score: contextBoost, matchedTechStack } = scoreContextMatch(agent, profile);
@@ -196,17 +214,63 @@ function calculateScoreBreakdown(
   const historyBoost = scoreHistory(agent, history, currentFeature);
   const freshnessBonus = scoreFreshness(agent, history);
 
-  const total = Math.round(keywordMatch + contextBoost + historyBoost + freshnessBonus);
+  // Total raw score (0-115), normalize to 0-100
+  const rawTotal = keywordMatch + semanticMatch + contextBoost + historyBoost + freshnessBonus;
+  const total = Math.round((rawTotal / 115) * 100);
 
   return {
     keywordMatch: Math.round(keywordMatch),
+    semanticMatch: Math.round(semanticMatch),
     contextBoost: Math.round(contextBoost),
     historyBoost: Math.round(historyBoost),
     freshnessBonus: Math.round(freshnessBonus),
     total: Math.min(total, 100),
     matchedKeywords,
     matchedTechStack,
+    semanticSimilarity,
   };
+}
+
+/**
+ * Score semantic match using embeddings (0-15 points)
+ *
+ * Similarity thresholds:
+ * - 0.85+ = 15 points (very similar)
+ * - 0.70-0.85 = 10 points (similar)
+ * - 0.55-0.70 = 5 points (somewhat similar)
+ * - <0.55 = 0 points (not similar enough)
+ */
+async function scoreSemanticMatch(
+  agent: AgentCapabilities,
+  taskEmbedding: Float32Array | null,
+): Promise<{ score: number; similarity: number | undefined }> {
+  // No task embedding = no semantic score (graceful fallback)
+  if (!taskEmbedding) {
+    return { score: 0, similarity: undefined };
+  }
+
+  const similarity = await calculateSemanticSimilarity(
+    taskEmbedding,
+    agent.name,
+    agent.description,
+  );
+
+  // No agent embedding available
+  if (similarity === 0) {
+    return { score: 0, similarity: undefined };
+  }
+
+  // Score based on similarity thresholds
+  let score = 0;
+  if (similarity > 0.85) {
+    score = 15;
+  } else if (similarity > 0.7) {
+    score = 10;
+  } else if (similarity > 0.55) {
+    score = 5;
+  }
+
+  return { score, similarity };
 }
 
 /**
@@ -386,6 +450,12 @@ export function formatScoreBreakdown(breakdown: ScoreBreakdown): string {
 
   if (breakdown.keywordMatch > 0) {
     parts.push(`Keyword: ${breakdown.keywordMatch}`);
+  }
+  if (breakdown.semanticMatch > 0) {
+    const sim = breakdown.semanticSimilarity
+      ? ` (${(breakdown.semanticSimilarity * 100).toFixed(0)}%)`
+      : '';
+    parts.push(`Semantic: ${breakdown.semanticMatch}${sim}`);
   }
   if (breakdown.contextBoost > 0) {
     parts.push(`Context: ${breakdown.contextBoost}`);

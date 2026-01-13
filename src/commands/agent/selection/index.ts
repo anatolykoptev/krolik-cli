@@ -12,9 +12,11 @@
 
 import { detectProjectProfile, type ProjectProfile } from '@/lib/@context/project-profile';
 import { type AgentCapabilities, loadCapabilitiesIndex } from '../capabilities';
+import { getTaskEmbedding } from './embeddings';
 import { getAgentSuccessHistory } from './history';
 import { filterByMinScore, getTopAgents, type ScoredAgent, scoreAgents } from './scoring';
 
+export { getEmbeddingCacheStats, isSemanticMatchingAvailable } from './embeddings';
 // Re-export types for consumers
 export type { AgentSuccessHistory } from './history';
 export type { ScoreBreakdown, ScoredAgent } from './scoring';
@@ -45,6 +47,8 @@ export interface SelectionResult {
   totalCandidates: number;
   /** Selection duration in ms */
   durationMs: number;
+  /** Whether semantic matching was used */
+  usedSemanticMatching: boolean;
 }
 
 /**
@@ -79,10 +83,21 @@ export async function selectAgents(
   // Stage 3: Load success history from memory
   const history = getAgentSuccessHistory(projectRoot, currentFeature);
 
-  // Stage 4: Score all agents
-  const scored = scoreAgents(task, capabilities, profile, history, currentFeature);
+  // Stage 4: Get task embedding for semantic matching (if available)
+  const taskEmbedding = await getTaskEmbedding(task);
+  const usedSemanticMatching = taskEmbedding !== null;
 
-  // Stage 5: Filter, deduplicate by name, and limit
+  // Stage 5: Score all agents (now async with semantic matching)
+  const scored = await scoreAgents(
+    task,
+    capabilities,
+    profile,
+    history,
+    currentFeature,
+    taskEmbedding,
+  );
+
+  // Stage 6: Filter, deduplicate by name, and limit
   const filtered = filterByMinScore(scored, minScore);
   const deduplicated = deduplicateByName(filtered);
   const selected = getTopAgents(deduplicated, maxAgents);
@@ -92,6 +107,7 @@ export async function selectAgents(
     profile,
     totalCandidates: capabilities.length,
     durationMs: Date.now() - startTime,
+    usedSemanticMatching,
   };
 }
 
