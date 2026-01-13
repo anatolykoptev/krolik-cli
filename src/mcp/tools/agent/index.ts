@@ -256,21 +256,27 @@ export const agentTool: MCPToolDefinition = {
         if (!task) {
           return '<agent error="true"><message>Task description is required for orchestration mode.</message></agent>';
         }
-        return await handleOrchestration(projectPath, task, {
-          maxAgents: args.maxAgents as number | undefined,
-          parallel: args.parallel as boolean | undefined,
-          dryRun: args.dryRun as boolean | undefined,
-          file: args.file as string | undefined,
-          feature: args.feature as string | undefined,
-        });
+        const orchOpts: {
+          maxAgents?: number;
+          parallel?: boolean;
+          dryRun?: boolean;
+          file?: string;
+          feature?: string;
+        } = {};
+        if (typeof args.maxAgents === 'number') orchOpts.maxAgents = args.maxAgents;
+        if (typeof args.parallel === 'boolean') orchOpts.parallel = args.parallel;
+        if (typeof args.dryRun === 'boolean') orchOpts.dryRun = args.dryRun;
+        if (typeof args.file === 'string') orchOpts.file = args.file;
+        if (typeof args.feature === 'string') orchOpts.feature = args.feature;
+        return await handleOrchestration(projectPath, task, orchOpts);
       }
 
       // Handle single agent execution
       if (args.name) {
-        return await handleSingleAgent(projectPath, args.name as string, {
-          file: args.file as string | undefined,
-          feature: args.feature as string | undefined,
-        });
+        const agentOpts: { file?: string; feature?: string } = {};
+        if (typeof args.file === 'string') agentOpts.file = args.file;
+        if (typeof args.feature === 'string') agentOpts.feature = args.feature;
+        return await handleSingleAgent(projectPath, args.name as string, agentOpts);
       }
 
       // Handle category filter (list agents in category)

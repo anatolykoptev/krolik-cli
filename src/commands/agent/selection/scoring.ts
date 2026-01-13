@@ -305,7 +305,7 @@ async function scoreSemanticMatch(
   const similarity = result.similarity;
 
   // Score based on similarity thresholds (calibrated for MiniLM-L6-v2)
-  let score = SEMANTIC_SCORES.NONE;
+  let score: number = SEMANTIC_SCORES.NONE;
   if (similarity > SEMANTIC_THRESHOLDS.HIGH) {
     score = SEMANTIC_SCORES.HIGH;
   } else if (similarity > SEMANTIC_THRESHOLDS.MEDIUM) {
