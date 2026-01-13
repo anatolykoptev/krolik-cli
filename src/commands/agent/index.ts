@@ -245,7 +245,13 @@ async function runCategoryAgents(
 }
 
 export { AGENT_CATEGORIES, resolveCategory } from './categories';
-export { getRepoStats, loadAgentByName, loadAgentsByCategory, loadAllAgents } from './loader';
+export {
+  findAgentsPath,
+  getRepoStats,
+  loadAgentByName,
+  loadAgentsByCategory,
+  loadAllAgents,
+} from './loader';
 // Re-export orchestration
 export {
   type AgentRecommendation,

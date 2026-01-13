@@ -2,20 +2,31 @@
  * @module mcp/tools/agent
  * @description krolik_agent tool - Run specialized AI agents with orchestration support
  *
- * This tool provides two modes:
+ * PERFORMANCE: Uses direct function imports instead of subprocess spawn.
+ * This is critical for MCP performance - spawnSync caused 10s+ timeouts
+ * because it had to start a new Node process each time.
+ *
+ * Two modes:
  * 1. Direct agent execution: Run a specific agent by name
  * 2. Orchestration mode: Analyze task and coordinate multiple agents
- *
- * When orchestrate=true, the tool acts as a multi-agent coordinator,
- * analyzing the user's task and creating an execution plan for multiple
- * specialized agents.
  */
 
-import { withProjectDetection } from '../core/projects';
-import { registerTool } from '../core/registry';
-import { PROJECT_PROPERTY } from '../core/shared';
-import type { MCPToolDefinition, SchemaProperty } from '../core/types';
-import { runKrolik, TIMEOUT_60S, TIMEOUT_120S } from '../core/utils';
+import {
+  findAgentsPath,
+  formatOrchestrationXML,
+  loadAgentByName,
+  loadAgentsByCategory,
+  loadAllAgents,
+  type OrchestrateOptions,
+  orchestrate,
+} from '@/commands/agent';
+import { buildAgentContext, formatContextForPrompt } from '@/commands/agent/context';
+import { saveAgentExecution } from '@/commands/agent/memory';
+import { escapeXml } from '@/lib/@format';
+import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
+import { formatError } from '../core/errors';
+import { resolveProjectPath } from '../core/projects';
+import type { SchemaProperty } from '../core/types';
 
 /**
  * Agent tool input schema
@@ -68,82 +79,150 @@ const inputSchema: Record<string, SchemaProperty> = {
   },
 };
 
+// ============================================================================
+// HANDLERS
+// ============================================================================
+
 /**
- * Build agent command with proper arguments
+ * Handle list action - list all available agents
  */
-function buildAgentCommand(args: Record<string, unknown>): string {
-  const parts: string[] = ['agent'];
-
-  // Add agent name as positional argument if provided and not orchestrating
-  if (args.name && !args.orchestrate) {
-    const name = String(args.name).replace(/[^a-zA-Z0-9_-]/g, '');
-    parts.push(name);
+function handleList(projectPath: string, category?: string): string {
+  const agentsPath = findAgentsPath(projectPath);
+  if (!agentsPath) {
+    return '<agent-list error="true"><message>Agents not found. Run: krolik setup agents</message></agent-list>';
   }
 
-  // Add flags
-  if (args.orchestrate) {
-    parts.push('--orchestrate');
-    if (args.task) {
-      // Escape and quote the task
-      const task = String(args.task).replace(/"/g, '\\"');
-      parts.push(`--task "${task}"`);
+  const agents = category
+    ? loadAgentsByCategory(agentsPath, category as Parameters<typeof loadAgentsByCategory>[1])
+    : loadAllAgents(agentsPath);
+
+  if (agents.length === 0) {
+    const filter = category ? ` in category "${category}"` : '';
+    return `<agent-list count="0"><message>No agents found${filter}.</message></agent-list>`;
+  }
+
+  const lines: string[] = [`<agent-list count="${agents.length}">`];
+
+  for (const agent of agents) {
+    lines.push(`  <agent name="${escapeXml(agent.name)}" category="${agent.category}">`);
+    lines.push(`    <description>${escapeXml(agent.description)}</description>`);
+    if (agent.model) {
+      lines.push(`    <model>${agent.model}</model>`);
     }
-    if (args.maxAgents) {
-      parts.push(`--max-agents ${Number(args.maxAgents)}`);
-    }
-    if (args.parallel) {
-      parts.push('--parallel');
-    }
+    lines.push('  </agent>');
   }
 
-  if (args.category) {
-    const category = String(args.category).replace(/[^a-zA-Z0-9_-]/g, '');
-    parts.push(`--category ${category}`);
-  }
-
-  if (args.file) {
-    const file = String(args.file).replace(/[^a-zA-Z0-9_./-]/g, '');
-    parts.push(`--file ${file}`);
-  }
-
-  if (args.feature) {
-    const feature = String(args.feature).replace(/[^a-zA-Z0-9_-]/g, '');
-    parts.push(`--feature ${feature}`);
-  }
-
-  if (args.list) {
-    parts.push('--list');
-  }
-
-  if (args.dryRun) {
-    parts.push('--dry-run');
-  }
-
-  return parts.join(' ');
+  lines.push('</agent-list>');
+  return lines.join('\n');
 }
 
 /**
- * Agent tool definition
+ * Handle single agent execution
  */
+async function handleSingleAgent(
+  projectPath: string,
+  agentName: string,
+  options: { file?: string; feature?: string },
+): Promise<string> {
+  const agentsPath = findAgentsPath(projectPath);
+  if (!agentsPath) {
+    return '<agent-execution error="true"><message>Agents not found. Run: krolik setup agents</message></agent-execution>';
+  }
+
+  const agent = loadAgentByName(agentsPath, agentName);
+  if (!agent) {
+    return `<agent-execution error="true"><message>Agent "${agentName}" not found.</message></agent-execution>`;
+  }
+
+  const startTime = Date.now();
+
+  // Build context
+  const context = await buildAgentContext(projectPath, {
+    file: options.file,
+    feature: options.feature,
+    includeSchema: true,
+    includeRoutes: true,
+    includeGit: true,
+  });
+
+  const contextPrompt = formatContextForPrompt(context);
+  const durationMs = Date.now() - startTime;
+
+  // Build full prompt
+  const fullPrompt = `${agent.content}\n\n${contextPrompt}\n\nPlease analyze the project and provide your findings.`;
+
+  // Save execution to memory
+  saveAgentExecution(projectPath, agent.name, agent.category, options.feature);
+
+  // Return XML for Claude to execute
+  const lines: string[] = [
+    `<agent-execution name="${escapeXml(agent.name)}" category="${agent.category}">`,
+    `  <description>${escapeXml(agent.description)}</description>`,
+  ];
+
+  if (agent.model) {
+    lines.push(`  <model>${agent.model}</model>`);
+  }
+
+  lines.push('  <prompt>');
+  lines.push(escapeXml(fullPrompt));
+  lines.push('  </prompt>');
+  lines.push(`  <context-duration-ms>${durationMs}</context-duration-ms>`);
+  lines.push('</agent-execution>');
+
+  return lines.join('\n');
+}
+
+/**
+ * Handle orchestration mode
+ */
+async function handleOrchestration(
+  projectPath: string,
+  task: string,
+  options: {
+    maxAgents?: number;
+    parallel?: boolean;
+    dryRun?: boolean;
+    file?: string;
+    feature?: string;
+  },
+): Promise<string> {
+  const orchestrateOptions: OrchestrateOptions = {
+    maxAgents: options.maxAgents,
+    preferParallel: options.parallel,
+    // Context not needed for orchestration plan - agents will load their own context
+    includeContext: false,
+    file: options.file,
+    feature: options.feature,
+    dryRun: options.dryRun,
+    format: 'xml',
+  };
+
+  const result = await orchestrate(task, projectPath, orchestrateOptions);
+
+  // Save orchestration to memory
+  const agentNames = result.plan.phases
+    .flatMap((p) => p.agents.map((a) => a.agent.name))
+    .slice(0, 10);
+  saveAgentExecution(
+    projectPath,
+    `orchestrator:${result.analysis.taskType}`,
+    'orchestration',
+    options.feature,
+    `${task} → agents: ${agentNames.join(', ')}`,
+  );
+
+  return formatOrchestrationXML(result);
+}
+
+// ============================================================================
+// TOOL DEFINITION
+// ============================================================================
+
 export const agentTool: MCPToolDefinition = {
   name: 'krolik_agent',
-  description: `Run specialized AI agents with project context. Supports orchestration mode for multi-agent coordination.
-
-ORCHESTRATION MODE (orchestrate=true):
-When user says "use multi-agents", "мультиагенты", or needs multiple expert analyses:
-1. Set orchestrate=true and provide task description
-2. The orchestrator analyzes the task and identifies needed agents
-3. Creates execution plan (parallel/sequential)
-4. Returns XML for Claude to execute with Task tool
-
-DIRECT MODE (default):
-Run a specific agent by name or category.
-
-Examples:
-- { "name": "security-auditor" } → Run security agent
-- { "category": "quality" } → Run all quality agents
-- { "orchestrate": true, "task": "analyze security and performance" } → Multi-agent orchestration
-- { "list": true } → List all available agents`,
+  description:
+    'Run specialized AI agents with project context. Supports orchestration mode for multi-agent coordination.\n\nORCHESTRATION MODE (orchestrate=true):\nWhen user says "use multi-agents", "мультиагенты", or needs multiple expert analyses:\n1. Set orchestrate=true and provide task description\n2. The orchestrator analyzes the task and identifies needed agents\n3. Creates execution plan (parallel/sequential)\n4. Returns XML for Claude to execute with Task tool\n\nDIRECT MODE (default):\nRun a specific agent by name or category.\n\nExamples:\n- { "name": "security-auditor" } → Run security agent\n- { "category": "quality" } → Run all quality agents\n- { "orchestrate": true, "task": "analyze security and performance" } → Multi-agent orchestration\n- { "list": true } → List all available agents',
 
   inputSchema: {
     type: 'object',
@@ -152,12 +231,57 @@ Examples:
   template: { when: 'Multi-agent orchestration', params: '`orchestrate: true, task: "..."`' },
   category: 'advanced',
 
-  handler: (args, workspaceRoot) => {
-    return withProjectDetection(args, workspaceRoot, (projectPath) => {
-      const command = buildAgentCommand(args);
-      const timeout = args.orchestrate ? TIMEOUT_120S : TIMEOUT_60S;
-      return runKrolik(command, projectPath, timeout);
-    });
+  handler: async (args, workspaceRoot) => {
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
+
+    if ('error' in resolved) {
+      if (resolved.error.includes('not found')) {
+        return `<agent error="true"><message>Project "${projectArg}" not found.</message></agent>`;
+      }
+      return resolved.error;
+    }
+
+    const projectPath = resolved.path;
+
+    try {
+      // Handle list action
+      if (args.list === true) {
+        return handleList(projectPath, args.category as string | undefined);
+      }
+
+      // Handle orchestration mode
+      if (args.orchestrate === true) {
+        const task = args.task as string;
+        if (!task) {
+          return '<agent error="true"><message>Task description is required for orchestration mode.</message></agent>';
+        }
+        return await handleOrchestration(projectPath, task, {
+          maxAgents: args.maxAgents as number | undefined,
+          parallel: args.parallel as boolean | undefined,
+          dryRun: args.dryRun as boolean | undefined,
+          file: args.file as string | undefined,
+          feature: args.feature as string | undefined,
+        });
+      }
+
+      // Handle single agent execution
+      if (args.name) {
+        return await handleSingleAgent(projectPath, args.name as string, {
+          file: args.file as string | undefined,
+          feature: args.feature as string | undefined,
+        });
+      }
+
+      // Handle category filter (list agents in category)
+      if (args.category) {
+        return handleList(projectPath, args.category as string);
+      }
+
+      return '<agent error="true"><message>Please specify an agent name, category, or use orchestrate mode.</message></agent>';
+    } catch (error) {
+      return formatError(error);
+    }
   },
 };
 
