@@ -8,15 +8,31 @@
 import * as path from 'node:path';
 import { escapeXml, truncate } from '@/lib/@format';
 import {
+  // Links
+  createLink,
+  deleteLink,
+  type GlobalMemorySaveOptions,
+  type GlobalMemoryType,
+  getEmbeddingsCount,
+  getLinkStats,
+  getMemoryChain,
+  getMissingEmbeddingsCount,
+  getSupersededMemories,
+  // Hybrid search (BM25 + semantic with automatic fallback)
+  hybridSearch,
+  isEmbeddingsAvailable,
+  isGlobalType,
+  type LinkType,
   type Memory,
   type MemoryContext,
   type MemorySaveOptions,
-  type MemorySearchOptions,
   type MemorySearchResult,
+  type MemorySource,
   type MemoryType,
+  promote,
   recent,
   save,
-  search,
+  saveGlobal,
 } from '@/lib/@storage/memory';
 import { getCurrentBranch, getRecentCommits, isGitRepo } from '../../../lib/@vcs';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
@@ -56,9 +72,11 @@ function getGitContext(projectPath: string): GitContext {
 function formatMemoryXml(memory: Memory, relevance?: number): string {
   const lines: string[] = [];
   const relevanceAttr = relevance !== undefined ? ` relevance="${relevance.toFixed(2)}"` : '';
+  const scopeAttr = memory.scope ? ` scope="${memory.scope}"` : '';
+  const sourceAttr = memory.source ? ` source="${memory.source}"` : '';
 
   lines.push(
-    `  <memory id="${escapeXml(memory.id)}" type="${memory.type}" importance="${memory.importance}"${relevanceAttr}>`,
+    `  <memory id="${escapeXml(memory.id)}" type="${memory.type}" importance="${memory.importance}"${scopeAttr}${sourceAttr}${relevanceAttr}>`,
   );
   lines.push(`    <title>${escapeXml(memory.title)}</title>`);
   lines.push(`    <description>${escapeXml(truncate(memory.description, 500))}</description>`);
@@ -85,6 +103,11 @@ function formatMemoryXml(memory: Memory, relevance?: number): string {
   }
 
   lines.push(`    <createdAt>${memory.createdAt}</createdAt>`);
+
+  if (memory.usageCount && memory.usageCount > 0) {
+    lines.push(`    <usageCount>${memory.usageCount}</usageCount>`);
+  }
+
   lines.push('  </memory>');
 
   return lines.join('\n');
@@ -105,16 +128,15 @@ interface SaveArgs {
   tags?: string | undefined;
   files?: string | undefined;
   features?: string | undefined;
+  /** Source of this memory */
+  source?: MemorySource | undefined;
 }
 
 /**
- * Arguments for search action
+ * Arguments for search action (hybrid BM25 + semantic)
  */
 interface SearchArgs {
-  query?: string | undefined;
-  type?: MemoryType | undefined;
-  tags?: string | undefined;
-  features?: string | undefined;
+  query: string;
   limit?: number | undefined;
 }
 
@@ -131,10 +153,36 @@ interface RecentArgs {
 // ============================================================================
 
 /**
- * Handle save action - save a new memory entry
+ * Handle save action - save a new memory entry with automatic embedding
+ * Supports both project-scoped and global memories based on type
  */
-function handleSave(args: SaveArgs, projectPath: string): string {
+async function handleSave(args: SaveArgs, projectPath: string): Promise<string> {
   const projectName = path.basename(projectPath);
+
+  // Check if this should be a global memory (based on type)
+  const shouldBeGlobal = isGlobalType(args.type);
+
+  if (shouldBeGlobal) {
+    // Save to global memory (no project context needed)
+    const globalOptions: GlobalMemorySaveOptions = {
+      type: args.type as GlobalMemoryType,
+      title: args.title,
+      description: args.description,
+      importance: args.importance,
+      tags: args.tags ? args.tags.split(',').map((t) => t.trim()) : undefined,
+      source: args.source,
+    };
+
+    const memory = await saveGlobal(globalOptions);
+
+    return [
+      '<memory-save status="success" scope="global">',
+      formatMemoryXml(memory),
+      '</memory-save>',
+    ].join('\n');
+  }
+
+  // Save to project memory
   const gitContext = getGitContext(projectPath);
 
   const saveOptions: MemorySaveOptions = {
@@ -145,6 +193,7 @@ function handleSave(args: SaveArgs, projectPath: string): string {
     tags: args.tags ? args.tags.split(',').map((t) => t.trim()) : undefined,
     files: args.files ? args.files.split(',').map((f) => f.trim()) : undefined,
     features: args.features ? args.features.split(',').map((f) => f.trim()) : undefined,
+    source: args.source,
   };
 
   const context: MemoryContext = {
@@ -153,39 +202,46 @@ function handleSave(args: SaveArgs, projectPath: string): string {
     commit: gitContext.commit,
   };
 
-  const memory = save(saveOptions, context);
+  const memory = await save(saveOptions, context);
 
-  const lines: string[] = [
-    '<memory-save status="success">',
+  return [
+    '<memory-save status="success" scope="project">',
     formatMemoryXml(memory),
     '</memory-save>',
-  ];
-
-  return lines.join('\n');
+  ].join('\n');
 }
 
 /**
- * Handle search action - search memory entries
+ * Handle search action - hybrid BM25 + semantic search
+ * Automatically falls back to BM25-only if embeddings unavailable
  */
-function handleSearch(args: SearchArgs, projectPath: string): string {
+async function handleSearch(args: SearchArgs, projectPath: string): Promise<string> {
   const projectName = path.basename(projectPath);
 
-  const searchOptions: MemorySearchOptions = {
-    query: args.query,
-    type: args.type,
+  // Use hybrid search (BM25 + semantic) with automatic fallback
+  const results: MemorySearchResult[] = await hybridSearch(args.query, {
     project: projectName,
-    tags: args.tags ? args.tags.split(',').map((t) => t.trim()) : undefined,
-    features: args.features ? args.features.split(',').map((f) => f.trim()) : undefined,
     limit: args.limit ?? 10,
-  };
-
-  const results: MemorySearchResult[] = search(searchOptions);
+    // Hybrid search params with sensible defaults
+    semanticWeight: 0.5,
+    bm25Weight: 0.5,
+    minSimilarity: 0.3,
+  });
 
   if (results.length === 0) {
     return '<memory-search count="0"><message>No memories found matching the criteria.</message></memory-search>';
   }
 
-  const lines: string[] = [`<memory-search count="${results.length}">`];
+  // Check if semantic search was used
+  const searchMode = isEmbeddingsAvailable() ? 'hybrid' : 'bm25';
+
+  // Count by scope for summary
+  const projectCount = results.filter((r) => r.memory.scope !== 'global').length;
+  const globalCount = results.filter((r) => r.memory.scope === 'global').length;
+
+  const lines: string[] = [
+    `<memory-search count="${results.length}" mode="${searchMode}" projectCount="${projectCount}" globalCount="${globalCount}">`,
+  ];
 
   for (const result of results) {
     lines.push(formatMemoryXml(result.memory, result.relevance));
@@ -225,17 +281,32 @@ function handleRecent(args: RecentArgs, projectPath: string): string {
 
 /**
  * krolik_mem_save - Save a memory entry
+ *
+ * Supports hybrid memory architecture:
+ * - Project-scoped: observation, decision, bugfix, feature (stored per-project)
+ * - Global-scoped: pattern, library, snippet, anti-pattern (shared across projects)
  */
 export const memSaveTool: MCPToolDefinition = {
   name: 'krolik_mem_save',
   description: `Save memory: observation, decision, pattern, bugfix, or feature.
 
+**Project-scoped types** (stored per-project):
+- observation: User preferences, project-specific notes
+- decision: Architecture decisions, tech choices
+- bugfix: Bug fixes with root cause analysis
+- feature: Implemented features
+
+**Global types** (shared across all projects):
+- pattern: Reusable code patterns
+- library: Library API knowledge (from context7)
+- snippet: Reusable code snippets
+- anti-pattern: Things to avoid
+
 Examples:
-- "Decided to use tRPC for type safety" (decision)
-- "Fixed race condition with mutex" (bugfix)
-- "All routes use validate -> execute -> audit pattern" (pattern)
-- "Users prefer dark mode toggle in header" (observation)
-- "Implemented real-time notifications with WebSockets" (feature)`,
+- "Decided to use tRPC for type safety" (decision → project)
+- "Fixed race condition with mutex" (bugfix → project)
+- "All routes use validate -> execute -> audit" (pattern → global)
+- "React Query staleTime: 5min for lists" (library → global)`,
   template: { when: 'Save decision/pattern/bugfix', params: '`type: "decision", title: "..."`' },
   workflow: { trigger: 'on_decision', order: 1 },
   category: 'memory',
@@ -245,8 +316,18 @@ Examples:
       ...PROJECT_PROPERTY,
       type: {
         type: 'string',
-        enum: ['observation', 'decision', 'pattern', 'bugfix', 'feature'],
-        description: 'Type of memory entry',
+        enum: [
+          'observation',
+          'decision',
+          'bugfix',
+          'feature',
+          'pattern',
+          'library',
+          'snippet',
+          'anti-pattern',
+        ],
+        description:
+          'Type of memory. Project types: observation, decision, bugfix, feature. Global types: pattern, library, snippet, anti-pattern',
       },
       title: {
         type: 'string',
@@ -267,16 +348,47 @@ Examples:
       },
       files: {
         type: 'string',
-        description: 'Comma-separated file paths related to this memory',
+        description: 'Comma-separated file paths related to this memory (project types only)',
       },
       features: {
         type: 'string',
         description: 'Comma-separated features/domains (e.g., "booking, auth")',
       },
+      source: {
+        type: 'string',
+        enum: ['manual', 'context7', 'ai-generated'],
+        description: 'Source of this memory (default: manual)',
+      },
+      promote: {
+        type: 'boolean',
+        description:
+          'Set to true to promote an existing project memory to global scope. Requires id parameter.',
+      },
+      id: {
+        type: 'string',
+        description: 'Memory ID to promote (only used with promote: true)',
+      },
     },
     required: ['type', 'title', 'description'],
   },
-  handler: (args, workspaceRoot) => {
+  handler: async (args, workspaceRoot) => {
+    // Handle promote action
+    if (args.promote === true && args.id) {
+      try {
+        const promoted = await promote(args.id as string);
+        if (!promoted) {
+          return '<memory-promote status="error"><message>Memory not found or already global</message></memory-promote>';
+        }
+        return [
+          '<memory-promote status="success">',
+          formatMemoryXml(promoted),
+          '</memory-promote>',
+        ].join('\n');
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+
     const projectArg = typeof args.project === 'string' ? args.project : undefined;
     const resolved = resolveProjectPath(workspaceRoot, projectArg);
 
@@ -297,10 +409,11 @@ Examples:
       tags: args.tags as string | undefined,
       files: args.files as string | undefined,
       features: args.features as string | undefined,
+      source: args.source as MemorySource | undefined,
     };
 
     try {
-      return handleSave(saveArgs, resolved.path);
+      return await handleSave(saveArgs, resolved.path);
     } catch (error) {
       return formatError(error);
     }
@@ -308,16 +421,20 @@ Examples:
 };
 
 /**
- * krolik_mem_search - Search memory entries
+ * krolik_mem_search - Hybrid search (BM25 + semantic)
+ * Automatically falls back to BM25 if embeddings unavailable
  */
 export const memSearchTool: MCPToolDefinition = {
   name: 'krolik_mem_search',
-  description: `Search memory entries by query, type, tags, or feature.
+  description: `Search memory entries using hybrid BM25 + semantic search.
+
+**Smart search** - combines keyword matching with AI semantic understanding.
+Automatically falls back to keyword-only search if AI model unavailable.
 
 Examples:
-- Search for "tRPC" decisions
-- Find all "performance" related entries
-- Search patterns for "authentication"`,
+- "how do we handle authentication" finds JWT-related decisions
+- "database performance" finds Prisma optimization bugfixes
+- "user sessions" finds related patterns across projects`,
   template: { when: 'Search memories by query', params: '`query: "authentication"`' },
   category: 'memory',
   inputSchema: {
@@ -326,50 +443,33 @@ Examples:
       ...PROJECT_PROPERTY,
       query: {
         type: 'string',
-        description: 'Search query (searches in title and description)',
-      },
-      type: {
-        type: 'string',
-        enum: ['observation', 'decision', 'pattern', 'bugfix', 'feature'],
-        description: 'Filter by memory type',
-      },
-      tags: {
-        type: 'string',
-        description: 'Filter by tags (comma-separated)',
-      },
-      features: {
-        type: 'string',
-        description: 'Filter by feature/domain (comma-separated)',
+        description: 'Natural language search query',
       },
       limit: {
         type: 'number',
         description: 'Maximum number of results (default: 10)',
       },
     },
+    required: ['query'],
   },
-  handler: (args, workspaceRoot) => {
+  handler: async (args, workspaceRoot) => {
     const projectArg = typeof args.project === 'string' ? args.project : undefined;
     const resolved = resolveProjectPath(workspaceRoot, projectArg);
 
     if ('error' in resolved) {
-      // Check if it's a "project not found" vs "multiple projects" scenario
       if (resolved.error.includes('not found')) {
         return formatMCPError('E101', { requested: projectArg });
       }
-      // Return as-is for project list (already formatted)
       return resolved.error;
     }
 
     const searchArgs: SearchArgs = {
-      query: args.query as string | undefined,
-      type: args.type as MemoryType | undefined,
-      tags: args.tags as string | undefined,
-      features: args.features as string | undefined,
+      query: args.query as string,
       limit: args.limit as number | undefined,
     };
 
     try {
-      return handleSearch(searchArgs, resolved.path);
+      return await handleSearch(searchArgs, resolved.path);
     } catch (error) {
       return formatError(error);
     }
@@ -386,7 +486,8 @@ export const memRecentTool: MCPToolDefinition = {
 Useful for:
 - Reviewing recent decisions
 - Checking latest bugfixes
-- Seeing recent patterns added`,
+- Seeing recent patterns added
+- Listing global library knowledge`,
   template: { when: 'Get recent memories', params: '`limit: 5`' },
   workflow: { trigger: 'session_start', order: 2 },
   category: 'memory',
@@ -400,7 +501,16 @@ Useful for:
       },
       type: {
         type: 'string',
-        enum: ['observation', 'decision', 'pattern', 'bugfix', 'feature'],
+        enum: [
+          'observation',
+          'decision',
+          'bugfix',
+          'feature',
+          'pattern',
+          'library',
+          'snippet',
+          'anti-pattern',
+        ],
         description: 'Filter by memory type',
       },
     },
@@ -426,7 +536,283 @@ Useful for:
   },
 };
 
+// ============================================================================
+// MEMORY LINK TOOL
+// ============================================================================
+
+/**
+ * krolik_mem_link - Create relationship between memories
+ */
+export const memLinkTool: MCPToolDefinition = {
+  name: 'krolik_mem_link',
+  description: `Create a relationship between two memories.
+
+Link types:
+- **caused**: This memory caused/led to the linked memory
+- **related**: General relationship
+- **supersedes**: This memory replaces the linked memory (marks old as outdated)
+- **implements**: This memory implements the linked decision
+- **contradicts**: This memory contradicts the linked memory
+
+Examples:
+- Decision 123 led to bugfix 456: fromId=123, toId=456, linkType="caused"
+- New decision 789 replaces old: fromId=789, toId=123, linkType="supersedes"`,
+  template: { when: 'Link two memories', params: '`fromId: 123, toId: 456, linkType: "caused"`' },
+  category: 'memory',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      fromId: {
+        type: 'number',
+        description: 'Source memory ID',
+      },
+      toId: {
+        type: 'number',
+        description: 'Target memory ID',
+      },
+      linkType: {
+        type: 'string',
+        enum: ['caused', 'related', 'supersedes', 'implements', 'contradicts'],
+        description: 'Type of relationship',
+      },
+      action: {
+        type: 'string',
+        enum: ['create', 'delete'],
+        description: 'Action to perform (default: create)',
+      },
+    },
+    required: ['fromId', 'toId', 'linkType'],
+  },
+  handler: (args) => {
+    const fromId = args.fromId as number;
+    const toId = args.toId as number;
+    const linkType = args.linkType as LinkType;
+    const action = (args.action as string) ?? 'create';
+
+    try {
+      if (action === 'delete') {
+        const deleted = deleteLink(fromId, toId, linkType);
+        return `<memory-link action="delete" deleted="${deleted}">
+  <message>${deleted > 0 ? 'Link deleted successfully' : 'Link not found'}</message>
+</memory-link>`;
+      }
+
+      const link = createLink(fromId, toId, linkType);
+      if (!link) {
+        return `<memory-link action="create" status="failed">
+  <message>Failed to create link. Memories may not exist or link already exists.</message>
+</memory-link>`;
+      }
+
+      return `<memory-link action="create" status="success">
+  <link id="${link.id}" from="${link.fromId}" to="${link.toId}" type="${link.linkType}" />
+</memory-link>`;
+    } catch (error) {
+      return formatError(error);
+    }
+  },
+};
+
+// ============================================================================
+// MEMORY CHAIN TOOL
+// ============================================================================
+
+/**
+ * krolik_mem_chain - Traverse memory graph
+ */
+export const memChainTool: MCPToolDefinition = {
+  name: 'krolik_mem_chain',
+  description: `Get related memories by traversing the memory graph.
+
+Directions:
+- **forward**: Follow outgoing links (what this led to)
+- **backward**: Follow incoming links (what led to this)
+- **both**: Both directions
+
+Examples:
+- See all consequences of a decision: direction="forward"
+- See what led to a bugfix: direction="backward"
+- See full context around a memory: direction="both"`,
+  template: { when: 'Get memory chain', params: '`memoryId: 123, direction: "both"`' },
+  category: 'memory',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      memoryId: {
+        type: 'number',
+        description: 'Starting memory ID',
+      },
+      direction: {
+        type: 'string',
+        enum: ['forward', 'backward', 'both'],
+        description: 'Traversal direction (default: both)',
+      },
+      maxDepth: {
+        type: 'number',
+        description: 'Maximum traversal depth (default: 3)',
+      },
+    },
+    required: ['memoryId'],
+  },
+  handler: (args) => {
+    const memoryId = args.memoryId as number;
+    const direction = (args.direction as 'forward' | 'backward' | 'both') ?? 'both';
+    const maxDepth = (args.maxDepth as number) ?? 3;
+
+    try {
+      const chain = getMemoryChain(memoryId, direction, maxDepth);
+
+      if (chain.length === 0) {
+        return `<memory-chain count="0" start="${memoryId}">
+  <message>No memories found in chain.</message>
+</memory-chain>`;
+      }
+
+      const lines: string[] = [
+        `<memory-chain count="${chain.length}" start="${memoryId}" direction="${direction}" maxDepth="${maxDepth}">`,
+      ];
+
+      for (const memory of chain) {
+        lines.push(formatMemoryXml(memory));
+      }
+
+      lines.push('</memory-chain>');
+      return lines.join('\n');
+    } catch (error) {
+      return formatError(error);
+    }
+  },
+};
+
+// ============================================================================
+// MEMORY OUTDATED TOOL
+// ============================================================================
+
+/**
+ * krolik_mem_outdated - List superseded memories
+ */
+export const memOutdatedTool: MCPToolDefinition = {
+  name: 'krolik_mem_outdated',
+  description: `List superseded/outdated memories that have been replaced by newer ones.
+
+Use this to:
+- Find obsolete decisions that should be ignored
+- Clean up old patterns that are no longer valid
+- Review what has changed over time`,
+  template: { when: 'Find outdated memories', params: '' },
+  category: 'memory',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      ...PROJECT_PROPERTY,
+    },
+  },
+  handler: (args, workspaceRoot) => {
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
+
+    if ('error' in resolved) {
+      return resolved.error;
+    }
+
+    const projectName = path.basename(resolved.path);
+
+    try {
+      const outdated = getSupersededMemories(projectName);
+
+      if (outdated.length === 0) {
+        return `<memory-outdated count="0">
+  <message>No superseded memories found. All memories are current.</message>
+</memory-outdated>`;
+      }
+
+      const lines: string[] = [`<memory-outdated count="${outdated.length}">`];
+      lines.push('  <warning>These memories have been superseded by newer ones.</warning>');
+
+      for (const memory of outdated) {
+        lines.push(formatMemoryXml(memory));
+      }
+
+      lines.push('</memory-outdated>');
+      return lines.join('\n');
+    } catch (error) {
+      return formatError(error);
+    }
+  },
+};
+
+// ============================================================================
+// MEMORY STATS TOOL
+// ============================================================================
+
+/**
+ * krolik_mem_stats - Get memory and link statistics
+ */
+export const memStatsTool: MCPToolDefinition = {
+  name: 'krolik_mem_stats',
+  description: `Get statistics about memories, embeddings, and links.
+
+Shows:
+- Total memories by type and scope
+- Embedding coverage (how many have semantic search enabled)
+- Link statistics (relationships between memories)`,
+  template: { when: 'Get memory stats', params: '' },
+  category: 'memory',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      ...PROJECT_PROPERTY,
+    },
+  },
+  handler: (args, workspaceRoot) => {
+    const projectArg = typeof args.project === 'string' ? args.project : undefined;
+    const resolved = resolveProjectPath(workspaceRoot, projectArg);
+
+    if ('error' in resolved) {
+      return resolved.error;
+    }
+
+    try {
+      const embeddingsCount = getEmbeddingsCount();
+      const missingEmbeddings = getMissingEmbeddingsCount();
+      const linkStats = getLinkStats();
+      const embeddingsAvailable = isEmbeddingsAvailable();
+
+      const lines: string[] = ['<memory-stats>'];
+
+      // Embeddings stats
+      lines.push('  <embeddings>');
+      lines.push(`    <available>${embeddingsAvailable}</available>`);
+      lines.push(`    <count>${embeddingsCount}</count>`);
+      lines.push(`    <missing>${missingEmbeddings}</missing>`);
+      lines.push(
+        `    <coverage>${embeddingsCount + missingEmbeddings > 0 ? Math.round((embeddingsCount / (embeddingsCount + missingEmbeddings)) * 100) : 0}%</coverage>`,
+      );
+      lines.push('  </embeddings>');
+
+      // Link stats
+      lines.push('  <links>');
+      lines.push(`    <total>${linkStats.total}</total>`);
+      for (const [type, count] of Object.entries(linkStats.byType)) {
+        if (count > 0) {
+          lines.push(`    <${type}>${count}</${type}>`);
+        }
+      }
+      lines.push('  </links>');
+
+      lines.push('</memory-stats>');
+      return lines.join('\n');
+    } catch (error) {
+      return formatError(error);
+    }
+  },
+};
+
 // Register all tools
 registerTool(memSaveTool);
 registerTool(memSearchTool);
 registerTool(memRecentTool);
+registerTool(memLinkTool);
+registerTool(memChainTool);
+registerTool(memOutdatedTool);
+registerTool(memStatsTool);

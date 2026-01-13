@@ -9,6 +9,9 @@
  * - crud.ts - Save, getById, remove, update operations
  * - search.ts - FTS5 full-text search with LIKE fallback
  * - smart-search.ts - Google-style context-aware ranking
+ * - semantic-search.ts - Embedding-based semantic search
+ * - embeddings.ts - Local embedding generation (transformers.js)
+ * - links.ts - Memory graph relationships
  * - auto-tag.ts - Automatic tag extraction
  * - consolidation.ts - Duplicate detection and cleanup
  * - feature-search.ts - Semantic feature-based search for context injection
@@ -49,13 +52,80 @@ export {
 // Converters (internal use, but exported for testing)
 export { rowToMemory } from './converters';
 // CRUD operations
-export { getById, remove, save, update } from './crud';
+export {
+  getById,
+  getCountsByScope,
+  getCountsBySource,
+  getGlobalMemories,
+  incrementUsage,
+  promote,
+  remove,
+  save,
+  saveGlobal,
+  update,
+} from './crud';
+// Embedding pool (direct access for advanced use)
+export type { EmbeddingPoolStatus } from './embedding-pool';
+// Embeddings (worker thread based - non-blocking)
+export {
+  cosineSimilarity,
+  EMBEDDING_DIMENSION,
+  type EmbeddingResult,
+  generateEmbedding,
+  generateEmbeddings,
+  getEmbeddingsError,
+  getEmbeddingsStatus,
+  isEmbeddingsAvailable,
+  isEmbeddingsLoading,
+  preloadEmbedder,
+  preloadEmbeddingPool,
+} from './embeddings';
 // Feature search operations
 export { searchByFeatures } from './feature-search';
+// Memory links (graph)
+export {
+  ALL_LINK_TYPES,
+  createLink,
+  deleteAllLinks,
+  deleteLink,
+  getAllLinks,
+  getLink,
+  getLinkedFrom,
+  getLinkedTo,
+  getLinkStats,
+  getMemoryChain,
+  getSupersededMemories,
+  getSupersedingMemory,
+  isSuperseded,
+  type LinkedMemory,
+  type LinkType,
+  type MemoryLink,
+} from './links';
+// Migration (auto-runs on first search)
+export {
+  ensureEmbeddingsMigrated,
+  isMigrationComplete,
+  migrateEmbeddings,
+} from './migrate-embeddings';
 // Query operations
 export { getProjects, recent } from './query';
 // Search operations
 export { search, searchWithLike } from './search';
+// Semantic search (hybrid BM25 + embeddings with automatic fallback)
+export {
+  deleteEmbedding,
+  getEmbedding,
+  getEmbeddingsCount,
+  getMemoriesWithoutEmbeddings,
+  getMissingEmbeddingsCount,
+  type HybridSearchOptions,
+  hasEmbedding,
+  hybridSearch,
+  type SemanticSearchResult,
+  semanticSearch,
+  storeEmbedding,
+  storeEmbeddings,
+} from './semantic-search';
 // Smart search
 export {
   getContextMemories,
@@ -71,11 +141,25 @@ export type { MemoryStats } from './stats';
 export { stats } from './stats';
 // Types
 export type {
+  GlobalMemorySaveOptions,
+  GlobalMemoryType,
   Memory,
   MemoryContext,
   MemoryImportance,
   MemorySaveOptions,
+  MemoryScope,
   MemorySearchOptions,
   MemorySearchResult,
+  MemorySource,
   MemoryType,
+  ProjectMemoryType,
+} from './types';
+// Type helpers
+export {
+  ALL_MEMORY_TYPES,
+  GLOBAL_MEMORY_TYPES,
+  inferScope,
+  isGlobalType,
+  isProjectType,
+  PROJECT_MEMORY_TYPES,
 } from './types';

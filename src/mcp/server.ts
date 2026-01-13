@@ -19,6 +19,7 @@
 
 import * as readline from 'node:readline';
 
+import { preloadEmbeddingPool } from '../lib/@storage/memory/embedding-pool';
 import type { ResolvedConfig } from '../types/config';
 import {
   handleInitialize,
@@ -121,6 +122,10 @@ export class MCPServer {
    * Listens for JSON-RPC messages on stdin and responds on stdout
    */
   async start(): Promise<void> {
+    // Preload embedding model in background (non-blocking)
+    // This starts worker thread and loads model while server handles other requests
+    preloadEmbeddingPool();
+
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
