@@ -177,6 +177,17 @@ Free for internal use, education, and research. Converts to Apache 2.0 on Decemb
 
 ## Changelog
 
+### v0.17.0 (2026-01-14)
+- **Toma semantic clone detection** — fast token-based duplicate detection
+  - 65x faster than ML-based approach (84ms for 1600+ functions)
+  - Phase 1 (O(n), hash-based) enabled by default
+  - Phase 2 (O(n²), fuzzy) in deep mode only
+  - 6 similarity metrics: Jaccard, Dice, Jaro-Winkler, Cosine, LCS
+
+### v0.16.0
+- Context-aware console detection (skip debug files)
+- Smart magic number naming based on context
+
 ### v0.15.1 (2026-01-13)
 - Cleaned up README, added changelog
 - Major cleanup of refactor component
