@@ -143,14 +143,20 @@ async function handleMonorepoRefactor(
 }
 
 async function handleSingleRefactor(projectRoot: string, options: RefactorOptions): Promise<void> {
+  const debug = process.env.DEBUG_PERF === '1';
+  const t0 = Date.now();
+
   // Let runRefactor call resolvePaths to get all source paths
   const analysis = await runRefactor(projectRoot, options);
+  if (debug) console.log(`[perf] runRefactor: ${Date.now() - t0}ms`);
 
   // Get resolved paths for output
   const resolved = resolvePaths(projectRoot, options);
 
   // Print results
+  const t1 = Date.now();
   await printAnalysis(analysis, projectRoot, resolved.targetPath, options);
+  if (debug) console.log(`[perf] printAnalysis: ${Date.now() - t1}ms`);
 
   // Track what was applied
   let appliedMigrations = false;
@@ -177,22 +183,30 @@ async function handleSingleRefactor(projectRoot: string, options: RefactorOption
     appliedTypeFixes = result.success;
   }
 
-  // Cache recommendations for fix --from-refactor integration
-  // Use registry-based analysis to get recommendations
-  const registryResult = await runRegistryAnalysis({
-    projectRoot,
-    targetPath: resolved.targetPath,
-    baseAnalysis: analysis,
-    outputLevel: 'standard',
-    ...(options.verbose !== undefined && { verbose: options.verbose }),
-  });
+  // Skip registry analysis in quick mode for performance
+  const mode = resolveMode(options);
+  let recommendations: Recommendation[] = [];
 
-  // Extract recommendations from analyzer results
-  const recommendationsResult = registryResult.analyzerResults.get('recommendations');
-  const recommendations =
-    recommendationsResult?.status === 'success'
-      ? (recommendationsResult.data as Recommendation[])
-      : [];
+  if (mode !== 'quick') {
+    // Cache recommendations for fix --from-refactor integration
+    // Use registry-based analysis to get recommendations
+    const t2 = Date.now();
+    const registryResult = await runRegistryAnalysis({
+      projectRoot,
+      targetPath: resolved.targetPath,
+      baseAnalysis: analysis,
+      outputLevel: 'standard',
+      ...(options.verbose !== undefined && { verbose: options.verbose }),
+    });
+    if (debug) console.log(`[perf] runRegistryAnalysis: ${Date.now() - t2}ms`);
+
+    // Extract recommendations from analyzer results
+    const recommendationsResult = registryResult.analyzerResults.get('recommendations');
+    recommendations =
+      recommendationsResult?.status === 'success'
+        ? (recommendationsResult.data as Recommendation[])
+        : [];
+  }
 
   if (recommendations.length > 0) {
     cacheRecommendations(projectRoot, resolved.relativePath, recommendations);
@@ -216,4 +230,6 @@ async function handleSingleRefactor(projectRoot: string, options: RefactorOption
     // Just show analysis summary without typecheck
     printSummaryReport(analysis, null, false, false);
   }
+
+  if (debug) console.log(`[perf] TOTAL: ${Date.now() - t0}ms`);
 }

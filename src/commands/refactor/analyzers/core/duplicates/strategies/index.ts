@@ -21,4 +21,5 @@ export {
   sortNamesByExportStatus,
 } from './helpers';
 export { findNameBasedDuplicates } from './name-duplicates';
+export { findSemanticClones, type SemanticCloneOptions } from './semantic-clones';
 export { findStructuralClones } from './structural-clones';

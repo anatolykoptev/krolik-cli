@@ -15,6 +15,7 @@ import { findSourceFiles, parseFilesWithSwc, parseFilesWithTsMorph } from './par
 import {
   findBodyHashDuplicates,
   findNameBasedDuplicates,
+  findSemanticClones,
   findStructuralClones,
 } from './strategies';
 
@@ -33,6 +34,10 @@ export interface FindDuplicatesOptions {
   useFastParser?: boolean;
   /** Shared ts-morph Project instance (optional, for performance) */
   project?: Project;
+  /** Enable semantic clone detection - Phase 1 hash-based O(n) (default: true) */
+  enableSemanticClones?: boolean;
+  /** Enable fuzzy semantic matching - Phase 2 O(n²) (default: false, only in deep mode) */
+  enableFuzzySemanticClones?: boolean;
 }
 
 // ============================================================================
@@ -52,26 +57,62 @@ export async function findDuplicates(
   projectRoot: string,
   options: FindDuplicatesOptions = {},
 ): Promise<DuplicateInfo[]> {
-  const { verbose = false, ignoreTests = true, useFastParser = true } = options;
+  const debug = process.env.DEBUG_PERF === '1';
+  const {
+    verbose = false,
+    ignoreTests = true,
+    useFastParser = true,
+    enableSemanticClones = true, // Phase 1 is O(n), fast - enabled by default
+    enableFuzzySemanticClones = false, // Phase 2 is O(n²), slow - only in deep mode
+  } = options;
 
   // Find all source files
+  let t0 = Date.now();
   const files = await findSourceFiles(targetPath, ignoreTests);
+  if (debug)
+    console.log(
+      `[perf:findDuplicates] findSourceFiles: ${Date.now() - t0}ms (${files.length} files)`,
+    );
 
   // Extract all functions from all files
+  t0 = Date.now();
   const allFunctions: FunctionSignature[] = useFastParser
     ? parseFilesWithSwc(files, projectRoot, verbose)
     : parseFilesWithTsMorph(files, projectRoot, targetPath, verbose, options.project);
+  if (debug)
+    console.log(
+      `[perf:findDuplicates] parsing: ${Date.now() - t0}ms (${allFunctions.length} functions)`,
+    );
 
   // Track reported locations to avoid duplicates across strategies
   const reportedLocations = new Set<string>();
 
   // Run all detection strategies
+  t0 = Date.now();
   const nameDuplicates = findNameBasedDuplicates(allFunctions);
+  if (debug) console.log(`[perf:findDuplicates] nameDuplicates: ${Date.now() - t0}ms`);
+
+  t0 = Date.now();
   const bodyDuplicates = findBodyHashDuplicates(allFunctions, reportedLocations);
+  if (debug) console.log(`[perf:findDuplicates] bodyDuplicates: ${Date.now() - t0}ms`);
+
+  t0 = Date.now();
   const structuralClones = findStructuralClones(allFunctions, reportedLocations);
+  if (debug) console.log(`[perf:findDuplicates] structuralClones: ${Date.now() - t0}ms`);
+
+  // Semantic clones: Phase 1 (hash-based, O(n)) runs by default
+  // Phase 2 (fuzzy, O(n²)) only runs when enableFuzzySemanticClones is true
+  let semanticClones: DuplicateInfo[] = [];
+  if (enableSemanticClones) {
+    t0 = Date.now();
+    semanticClones = findSemanticClones(allFunctions, reportedLocations, {
+      enableFuzzyMatching: enableFuzzySemanticClones,
+    });
+    if (debug) console.log(`[perf:findDuplicates] semanticClones: ${Date.now() - t0}ms`);
+  }
 
   // Combine results from all strategies
-  return [...nameDuplicates, ...bodyDuplicates, ...structuralClones];
+  return [...nameDuplicates, ...bodyDuplicates, ...structuralClones, ...semanticClones];
 }
 
 // ============================================================================

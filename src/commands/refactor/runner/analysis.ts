@@ -167,6 +167,9 @@ export async function runRefactor(
   projectRoot: string,
   options: RefactorOptions = {},
 ): Promise<RefactorAnalysis> {
+  const debug = process.env.DEBUG_PERF === '1';
+  const t0 = Date.now();
+
   clearFileCache();
 
   // Resolve mode from options (handles legacy flags)
@@ -185,15 +188,23 @@ export async function runRefactor(
     throw new Error(`No valid target paths found. Checked: ${relativePaths.join(', ')}`);
   }
 
+  if (debug) console.log(`[perf:runRefactor] Analyzing ${existingPaths.length} paths`);
+
   // Run analysis on all paths in parallel
   // SWC is used for both function and type analysis (10-20x faster than ts-morph)
-  const analysisPromises = existingPaths.map(async (targetPath) => {
+  const analysisPromises = existingPaths.map(async (targetPath, idx) => {
+    const pathName = existingRelPaths[idx] ?? targetPath;
+    const pt0 = Date.now();
+
     const [duplicates, typeDuplicates, structure] = await Promise.all([
       // Function duplicates (default, deep modes - not quick)
       // Uses SWC parser (fast) for 10-20x faster parsing
+      // Semantic clones Phase 1 (hash-based, O(n)) always enabled
+      // Semantic clones Phase 2 (fuzzy, O(n²)) only in deep mode
       modeFlags.analyzeFunctionDuplicates
         ? findDuplicates(targetPath, projectRoot, {
-            useFastParser: true, // Always use SWC (fast parser)
+            useFastParser: true,
+            enableFuzzySemanticClones: mode === 'deep',
           })
         : Promise.resolve([]),
       // Type/interface duplicates (deep mode only)
@@ -214,10 +225,12 @@ export async function runRefactor(
           }),
     ]);
 
+    if (debug) console.log(`[perf:runRefactor] ${pathName}: ${Date.now() - pt0}ms`);
     return { duplicates, typeDuplicates, structure };
   });
 
   const pathResults = await Promise.all(analysisPromises);
+  if (debug) console.log(`[perf:runRefactor] All paths done: ${Date.now() - t0}ms`);
 
   // Merge results from all paths
   const duplicates = mergeDuplicates(pathResults.map((r) => r.duplicates));
