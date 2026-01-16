@@ -10,7 +10,7 @@
 
 import * as path from 'node:path';
 import type { DocHints } from '../services/types';
-import { toCamelCase, toPascalCase } from '../templates';
+import { hookTemplate, toCamelCase, toPascalCase } from '../templates';
 import type { GeneratedFile, GeneratorMetadata, GeneratorOptions } from '../types';
 import { BaseGenerator } from './base';
 
@@ -119,73 +119,6 @@ describe('${pascalName}', () => {
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 });
-`;
-}
-
-/**
- * React hook template
- */
-function reactHookTemplate(name: string): string {
-  const hookName = name.startsWith('use') ? name : `use${toPascalCase(name)}`;
-  const pascalName = toPascalCase(name.replace(/^use/, ''));
-
-  return `import { useCallback, useEffect, useState } from 'react';
-
-interface ${pascalName}State {
-  data: unknown;
-  isLoading: boolean;
-  error: Error | null;
-}
-
-interface ${pascalName}Options {
-  enabled?: boolean;
-}
-
-/**
- * ${hookName} - Custom hook for ${pascalName} functionality
- */
-export function ${hookName}(options: ${pascalName}Options = {}) {
-  const { enabled = true } = options;
-
-  const [state, setState] = useState<${pascalName}State>({
-    data: null,
-    isLoading: false,
-    error: null,
-  });
-
-  const fetch${pascalName} = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
-
-    try {
-      // TODO: Implement fetch logic
-      const data = null;
-      setState({ data, isLoading: false, error: null });
-    } catch (error) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error : new Error('Unknown error'),
-      }));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (enabled) {
-      fetch${pascalName}();
-    }
-  }, [enabled, fetch${pascalName}]);
-
-  const refetch = useCallback(() => {
-    fetch${pascalName}();
-  }, [fetch${pascalName}]);
-
-  return {
-    ...state,
-    refetch,
-  };
-}
-
-export default ${hookName};
 `;
 }
 
@@ -473,7 +406,7 @@ class BundleGeneratorClass extends BaseGenerator {
     const files: GeneratedFile[] = [
       {
         path: path.join(hookDir, `${hookName}.ts`),
-        content: reactHookTemplate(name),
+        content: hookTemplate(name),
         action: 'create',
       },
       {
