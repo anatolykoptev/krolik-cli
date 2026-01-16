@@ -7,7 +7,7 @@
 
 import type { MigrationAction } from '../../core/types';
 import type { ExecutionResult } from '../core/types';
-import { updateImports } from '../imports';
+import { executeImportUpdates } from './shared';
 
 /**
  * Execute merge action
@@ -25,27 +25,8 @@ export async function executeMerge(
   libPath: string,
   dryRun: boolean,
 ): Promise<ExecutionResult> {
-  if (dryRun) {
-    return {
-      success: true,
-      message: `Would merge ${action.source} into ${action.target}`,
-    };
-  }
-
-  let updatedCount = 0;
-  for (const affected of action.affectedImports) {
-    const result = await updateImports(
-      affected,
-      action.source,
-      action.target!,
-      projectRoot,
-      libPath,
-    );
-    if (result.changed) updatedCount++;
-  }
-
-  return {
-    success: true,
-    message: `Merged imports from ${action.source} to ${action.target} (${updatedCount} files)`,
-  };
+  return executeImportUpdates(action, projectRoot, libPath, dryRun, {
+    dryRun: `Would merge ${action.source} into ${action.target}`,
+    success: `Merged imports from ${action.source} to ${action.target} ({count} files)`,
+  });
 }

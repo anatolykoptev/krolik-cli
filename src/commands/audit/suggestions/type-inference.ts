@@ -32,7 +32,7 @@
 
 import type { Module } from '@swc/core';
 import { escapeXml } from '@/lib/@format/xml/escape';
-import type { ConfidenceLevel, TypeContext } from './types';
+import type { TypeContext } from './types';
 import {
   analyzeUsages,
   CONFIDENCE_SCORES,
@@ -235,17 +235,6 @@ export function replaceAnyType(line: string, newType: string): string {
   result = result.replace(/\bas\s+any\b/, `as ${newType}`);
 
   return result;
-}
-
-/**
- * Get confidence label for display
- */
-export function getConfidenceLabel(confidence: ConfidenceLevel): string {
-  if (confidence >= 90) return 'very high';
-  if (confidence >= 75) return 'high';
-  if (confidence >= 50) return 'medium';
-  if (confidence >= 25) return 'low';
-  return 'very low';
 }
 
 // ============================================================================

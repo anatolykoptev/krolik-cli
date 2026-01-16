@@ -13,6 +13,7 @@
 import { execLines, shellOpts, tryExec } from '../../../lib/@core/shell';
 import { escapeShellArg } from '../../../lib/@security';
 import { isGitRepo } from '../../../lib/@vcs';
+import { formatRank } from '../utils';
 import type { GitHistoryAnalysis } from './types';
 
 // ============================================================================
@@ -323,15 +324,4 @@ function calculatePercentile(value: number, sortedValues: number[]): number {
   if (sortedValues.length === 0) return 0;
   const rank = sortedValues.filter((v) => v < value).length;
   return Math.round((rank / sortedValues.length) * 100);
-}
-
-/**
- * Format percentile as human-readable rank
- */
-function formatRank(percentile: number): string {
-  if (percentile >= 95) return 'top-5%';
-  if (percentile >= 90) return 'top-10%';
-  if (percentile >= 80) return 'top-20%';
-  if (percentile >= 50) return 'top-50%';
-  return 'bottom-50%';
 }

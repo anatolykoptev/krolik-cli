@@ -11,6 +11,8 @@
  * @see https://www.sonarsource.com/resources/cognitive-complexity/
  */
 
+import { type ReadabilityGrade, scoreToGrade } from '../utils';
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -38,7 +40,6 @@ export interface ReadabilityScore {
 /**
  * Letter grade for readability
  */
-export type ReadabilityGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 /**
  * Individual readability issue
@@ -394,17 +395,6 @@ export function calculateReadabilityScore(input: ReadabilityInput): ReadabilityS
     grade,
     issues,
   };
-}
-
-/**
- * Convert numeric score to letter grade
- */
-export function scoreToGrade(score: number): ReadabilityGrade {
-  if (score >= 90) return 'A';
-  if (score >= 80) return 'B';
-  if (score >= 70) return 'C';
-  if (score >= 60) return 'D';
-  return 'F';
 }
 
 /**

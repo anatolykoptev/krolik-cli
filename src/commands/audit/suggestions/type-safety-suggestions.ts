@@ -7,10 +7,10 @@
  */
 
 import { parseFile } from '../../../lib/@ast/swc';
+import { getConfidenceLabel } from '../utils';
 import {
   buildTypeContext,
   generateTypeContextXml,
-  getConfidenceLabel,
   hasAnyType,
   inferTypeFromUsage,
   replaceAnyType,

@@ -7,7 +7,7 @@
 
 import type { MigrationAction } from '../../core/types';
 import type { ExecutionResult } from '../core/types';
-import { updateImports } from '../imports';
+import { executeImportUpdates } from './shared';
 
 /**
  * Execute update-imports action
@@ -25,27 +25,8 @@ export async function executeUpdateImports(
   libPath: string,
   dryRun: boolean,
 ): Promise<ExecutionResult> {
-  if (dryRun) {
-    return {
-      success: true,
-      message: `Would update ${action.affectedImports.length} import statements`,
-    };
-  }
-
-  let updated = 0;
-  for (const affected of action.affectedImports) {
-    const result = await updateImports(
-      affected,
-      action.source,
-      action.target!,
-      projectRoot,
-      libPath,
-    );
-    if (result.changed) updated++;
-  }
-
-  return {
-    success: true,
-    message: `Updated ${updated} import statements`,
-  };
+  return executeImportUpdates(action, projectRoot, libPath, dryRun, {
+    dryRun: `Would update ${action.affectedImports.length} import statements`,
+    success: `Updated {count} import statements`,
+  });
 }

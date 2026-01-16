@@ -107,10 +107,11 @@ export {
 // TYPE INFERENCE
 // ============================================================================
 
+// Re-export shared utilities
+export { getConfidenceLabel } from '../utils';
 export {
   buildTypeContext,
   generateTypeContextXml,
-  getConfidenceLabel,
   hasAnyType,
   inferAndGenerateXml,
   inferTypeFromUsage,
