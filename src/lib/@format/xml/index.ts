@@ -10,6 +10,8 @@
  * - XML optimization for AI (3 levels: minify, semantic, simplify)
  */
 
+// Escaping
+export { escapeXml, unescapeXml } from '@/lib/@core/xml/escape';
 // Building
 export type { XmlAttributes, XmlElement } from './builder';
 export {
@@ -21,8 +23,6 @@ export {
   wrapXml,
   xmlComment,
 } from './builder';
-// Escaping
-export { escapeXml, unescapeXml } from './escape';
 
 // Minification
 export { minifyXmlOutput } from './minify';

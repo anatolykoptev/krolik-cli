@@ -10,7 +10,7 @@ import { loadContextMemories } from '@/lib/@context/memory';
 import { logger } from '@/lib/@core/logger/logger';
 import { detectLibraries } from '@/lib/@integrations/context7';
 import { searchDocs } from '@/lib/@storage/docs';
-import { getGuardrailsByProject } from '@/lib/@storage/ralph';
+import { getGuardrailsByProject } from '@/lib/@storage/felix';
 import { LIMITS, TIMEOUTS, TRUNCATION } from '../constants';
 import type { AgentContext, LibraryDocSnippet } from '../types';
 

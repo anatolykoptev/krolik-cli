@@ -5,6 +5,10 @@
 
 import { tryExec } from '../../lib/@core/shell';
 
+const DEFAULT_COUNT_LIMIT = 100;
+const DEFAULT_EXTRACT_LIMIT = 50;
+const CONTEXT_LINES = 3;
+
 /**
  * TODO count result
  */
@@ -30,7 +34,7 @@ export function countTodos(
   const {
     exclude = ['node_modules', 'dist', '.next', '.git', 'generated', '__generated__'],
     extensions = ['ts', 'tsx'],
-    limit = 100,
+    limit = DEFAULT_COUNT_LIMIT,
   } = options ?? {};
 
   const excludeArgs = exclude.map((e) => `--exclude-dir="${e}"`).join(' ');
@@ -139,7 +143,7 @@ export function extractTodos(
   const {
     exclude = ['node_modules', 'dist', '.next', '.git', 'generated', '__generated__'],
     extensions = ['ts', 'tsx', 'js', 'jsx'],
-    limit = 50,
+    limit = DEFAULT_EXTRACT_LIMIT,
     withContext = true,
     filterGeneric = false,
   } = options ?? {};
@@ -150,8 +154,8 @@ export function extractTodos(
 
   const excludeArgs = exclude.map((e) => `--exclude-dir="${e}"`).join(' ');
   const includeArgs = extensions.map((e) => `--include="*.${e}"`).join(' ');
-  // Use -B3 to get 3 lines of context before the TODO
-  const contextFlag = withContext ? '-B3' : '';
+  // Use -B flag to get context lines before the TODO
+  const contextFlag = withContext ? `-B${CONTEXT_LINES}` : '';
 
   const todos: TodoItem[] = [];
 

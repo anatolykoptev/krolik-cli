@@ -28,7 +28,7 @@ export {
 
 // Import Signature type for formatting functions
 import type { Signature } from '@/lib/@ast/signatures';
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 
 // ============================================================================
 // AIDER-STYLE FORMATTING

@@ -4,8 +4,8 @@
  */
 
 import type { Command } from 'commander';
+import type { GuardrailCategory, GuardrailSeverity } from '@/lib/@storage/felix';
 import type { MemoryType } from '@/lib/@storage/memory/types';
-import type { GuardrailCategory, GuardrailSeverity } from '@/lib/@storage/ralph';
 import { addProjectOption } from '../builders';
 import type { CommandOptions } from '../types';
 import { createContext, handleProjectOption } from './helpers';

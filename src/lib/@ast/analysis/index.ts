@@ -1,43 +1,31 @@
 /**
- * @module lib/parsing/analysis
- * @description AST analysis utilities for TypeScript source files
+ * @module lib/@ast/analysis
+ * @description AST analysis utilities - type guards for SWC nodes
  *
- * Provides fast SWC-based analysis of TypeScript/JavaScript files to extract
- * exported functions, classes, types, interfaces, enums, and their signatures.
+ * This module provides type guards for SWC AST node types.
  *
- * @example
- * ```typescript
- * import { analyzeSourceFile } from '@/lib/@ast';
- *
- * const result = analyzeSourceFile('/path/to/file.ts');
- * if (result.success) {
- *   for (const exp of result.exports) {
- *     console.log(`${exp.kind}: ${exp.name}`);
- *   }
- * }
- * ```
+ * For source file analysis (analyzeSourceFile, ExportedMember, etc.),
+ * use @/lib/@discovery/source-analyzer instead.
  */
 
-// Re-export commonly used type guards
+// Re-export type guards
 export {
+  type FunctionLike,
+  isArrayPattern,
+  isArrowFunction,
+  isAssignmentPattern,
   isClassDeclaration,
+  isClassMethod,
+  isExportDeclaration,
+  isExportDefaultDeclaration,
   isFunctionDeclaration,
+  isFunctionExpression,
+  isFunctionLike,
   isIdentifier,
+  isObjectPattern,
+  isRestElement,
   isTsEnum,
   isTsInterface,
   isTsTypeAlias,
+  isVariableDeclaration,
 } from './guards';
-/**
- * @deprecated Moved to @/lib/@discovery/source-analyzer
- */
-export type {
-  ExportedMember,
-  ExportKind,
-  MethodInfo,
-  ParamInfo,
-  SourceAnalysisResult,
-} from './source-analyzer';
-/**
- * @deprecated Moved to @/lib/@discovery/source-analyzer
- */
-export { analyzeSourceFile } from './source-analyzer';

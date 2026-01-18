@@ -6,7 +6,7 @@
  * reusable modules across any TypeScript/JavaScript codebase.
  */
 
-import type { ExportedMember } from '@/lib/@ast';
+import type { ExportedMember } from '@/lib/@discovery/source-analyzer';
 
 // ============================================================================
 // CORE ENUMS

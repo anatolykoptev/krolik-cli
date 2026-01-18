@@ -4,7 +4,7 @@
  */
 
 import { getDatabase } from '../database';
-import { createGuardrail, type GuardrailCategory } from '../ralph';
+import { createGuardrail, type GuardrailCategory } from '../felix';
 import { clusterMemories, filterSkillCandidates, type MemoryCluster } from './clustering';
 import { rowToMemory } from './converters';
 

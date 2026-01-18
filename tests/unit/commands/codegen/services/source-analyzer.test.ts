@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { analyzeSourceFile } from '@/commands/codegen/services/source-analyzer';
+import { analyzeSourceFile } from '@/lib/@discovery/source-analyzer';
 
 describe('analyzeSourceFile', () => {
   it('should extract exported function declarations', () => {

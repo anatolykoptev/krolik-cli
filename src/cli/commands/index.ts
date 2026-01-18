@@ -9,6 +9,7 @@ import { registerAuditCommand } from './audit';
 import { registerCodegenCommand } from './codegen';
 import { registerContextCommand } from './context';
 import { registerDocsCommand } from './docs';
+import { registerFelixCommand } from './felix';
 import { registerFixCommand } from './fix';
 import { registerInitCommand } from './init';
 import { registerIssueCommand } from './issue';
@@ -16,7 +17,6 @@ import { registerMcpCommand } from './mcp';
 import { registerMemCommand } from './mem';
 import { registerModulesCommand } from './modules';
 import { registerProgressCommand } from './progress';
-import { registerRalphCommand } from './ralph';
 import { registerRefactorCommand } from './refactor';
 import { registerReviewCommand } from './review';
 import { registerRoutesCommand } from './routes';
@@ -65,5 +65,5 @@ export function registerCommands(program: Command): void {
   registerProgressCommand(program);
 
   // Ralph Loop (autonomous agent orchestration)
-  registerRalphCommand(program);
+  registerFelixCommand(program);
 }

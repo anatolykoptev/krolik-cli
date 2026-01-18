@@ -7,7 +7,7 @@
  */
 
 import { getProjectStatus } from '@/commands/status';
-import { formatAI } from '@/commands/status/output';
+import { formatAI } from '@/commands/status/output/index';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { formatError } from '../core/errors';
 import { resolveProjectPath } from '../core/projects';

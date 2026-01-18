@@ -4,7 +4,7 @@
  * @module commands/prd/types
  */
 
-import type { PRD, PRDTask, TaskComplexity, TaskPriority } from '@/lib/@ralph/schemas/prd.schema';
+import type { PRD, PRDTask, TaskComplexity, TaskPriority } from '@/lib/@felix/schemas/prd.schema';
 
 /**
  * Supported models for PRD generation

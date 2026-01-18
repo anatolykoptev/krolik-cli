@@ -4,15 +4,15 @@
  */
 
 import * as path from 'node:path';
-import { findSkillCandidates, promoteClusterToGuardrail } from '@/lib/@storage/memory/analysis';
-import type { MemoryType } from '@/lib/@storage/memory/types';
 import {
   createGuardrail,
   deleteGuardrail,
   type GuardrailCategory,
   type GuardrailSeverity,
   getGuardrailsByProject,
-} from '@/lib/@storage/ralph';
+} from '@/lib/@storage/felix';
+import { findSkillCandidates, promoteClusterToGuardrail } from '@/lib/@storage/memory/analysis';
+import type { MemoryType } from '@/lib/@storage/memory/types';
 import { type MCPToolDefinition, PROJECT_PROPERTY } from '../core';
 import { formatError, formatMCPError } from '../core/errors';
 import { resolveProjectPath } from '../core/projects';

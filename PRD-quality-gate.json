@@ -7,11 +7,11 @@
     {
       "id": "quality-gate-types",
       "title": "Define quality gate types and interfaces",
-      "description": "Create TypeScript types for quality gate configuration and results in src/lib/@ralph/executor/quality-gate.ts",
+      "description": "Create TypeScript types for quality gate configuration and results in src/lib/@felix/executor/quality-gate.ts",
       "priority": "high",
       "type": "feature",
       "context": {
-        "files": ["src/lib/@ralph/executor/types.ts", "src/lib/@ralph/executor/validation.ts"]
+        "files": ["src/lib/@felix/executor/types.ts", "src/lib/@felix/executor/validation.ts"]
       },
       "acceptance_criteria": [
         "Create QualityGateConfig interface with enabled, auditMode, failOnIssues fields",
@@ -30,7 +30,7 @@
       "type": "feature",
       "dependsOn": ["quality-gate-types"],
       "context": {
-        "files": ["src/lib/@ralph/executor/quality-gate.ts", "src/commands/audit/index.ts"]
+        "files": ["src/lib/@felix/executor/quality-gate.ts", "src/commands/audit/index.ts"]
       },
       "acceptance_criteria": [
         "Function accepts projectRoot and QualityGateConfig",
@@ -51,8 +51,8 @@
       "dependsOn": ["quality-gate-runner"],
       "context": {
         "files": [
-          "src/lib/@ralph/executor/task-runner.ts",
-          "src/lib/@ralph/executor/quality-gate.ts"
+          "src/lib/@felix/executor/task-runner.ts",
+          "src/lib/@felix/executor/quality-gate.ts"
         ]
       },
       "acceptance_criteria": [

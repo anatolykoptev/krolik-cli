@@ -26,7 +26,7 @@ import './memory';
 import './modules';
 import './prd';
 import './progress';
-import './ralph';
+import './felix';
 import './refactor';
 import './review';
 import './routes';

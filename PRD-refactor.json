@@ -17,7 +17,7 @@
       "acceptance_criteria": [
         {
           "id": "ac-001-1",
-          "description": "getRalphDatabase merged into single location",
+          "description": "getFelixDatabase merged into single location",
           "expected": "Function exists only in one file, other locations import it"
         },
         {
@@ -42,9 +42,9 @@
       "complexity": "moderate",
       "labels": ["refactor", "duplicates", "cleanup"],
       "relatedFiles": [
-        "src/lib/@storage/ralph/attempts.ts",
-        "src/lib/@storage/ralph/guardrails.ts",
-        "src/lib/@storage/ralph/sessions.ts",
+        "src/lib/@storage/felix/attempts.ts",
+        "src/lib/@storage/felix/guardrails.ts",
+        "src/lib/@storage/felix/sessions.ts",
         "src/commands/audit/impact/git-history.ts",
         "src/commands/audit/readability/index.ts"
       ]

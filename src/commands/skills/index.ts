@@ -11,7 +11,7 @@ import {
   type GuardrailCategory,
   type GuardrailSeverity,
   getGuardrailsByProject,
-} from '@/lib/@storage/ralph';
+} from '@/lib/@storage/felix';
 import type { MemoryType } from '../../lib/@storage/memory/types';
 import type { CommandContext } from '../../types/commands/base';
 

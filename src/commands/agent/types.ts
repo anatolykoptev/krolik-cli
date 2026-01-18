@@ -9,12 +9,12 @@
  * - Skill: progressive disclosure knowledge (SKILL.md in skills/[name]/ folder)
  */
 
+import type { FelixGuardrail } from '@/lib/@storage/felix/types';
 import type { Memory } from '@/lib/@storage/memory';
-import type { RalphGuardrail } from '@/lib/@storage/ralph/types';
 import type { OutputFormat } from '../../types/commands/base';
 
+export type { FelixGuardrail } from '@/lib/@storage/felix/types';
 export type { Memory } from '@/lib/@storage/memory';
-export type { RalphGuardrail } from '@/lib/@storage/ralph/types';
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@vcs';
@@ -114,7 +114,7 @@ export interface AgentContext {
   feature?: string;
   libraryDocs?: LibraryDocSnippet[];
   memories?: Memory[];
-  skills?: RalphGuardrail[];
+  skills?: FelixGuardrail[];
 }
 
 /**

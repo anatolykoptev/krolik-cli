@@ -4,8 +4,8 @@
  */
 
 import type { ArchitecturePatterns } from '@/lib/@discovery/architecture';
+import type { FelixGuardrail } from '@/lib/@storage/felix';
 import type { Memory } from '@/lib/@storage/memory';
-import type { RalphGuardrail } from '@/lib/@storage/ralph';
 import type { OutputFormat } from '../../types/commands/base';
 import type { ContextResult } from '../../types/commands/context';
 export type { ContextResult };
@@ -320,5 +320,5 @@ export interface AiContextData {
   // Search results (from --search)
   searchResults?: SearchResults;
   // Agent Skills & Guidelines
-  skills?: RalphGuardrail[];
+  skills?: FelixGuardrail[];
 }

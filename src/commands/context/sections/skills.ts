@@ -4,12 +4,12 @@
  */
 
 import { basename } from 'node:path';
-import { getRelevantGuardrails, type RalphGuardrail } from '@/lib/@storage/ralph';
+import { type FelixGuardrail, getRelevantGuardrails } from '@/lib/@storage/felix';
 
 /**
  * Load relevant skills (guardrails)
  */
-export function loadSkills(projectRoot: string, domains: string[] = []): RalphGuardrail[] {
+export function loadSkills(projectRoot: string, domains: string[] = []): FelixGuardrail[] {
   try {
     const projectName = basename(projectRoot);
     // Fetch guardrails relevant to the project and domains
@@ -26,13 +26,13 @@ export function loadSkills(projectRoot: string, domains: string[] = []): RalphGu
 /**
  * Format skills for AI context
  */
-export function formatSkills(skills: RalphGuardrail[]): string {
+export function formatSkills(skills: FelixGuardrail[]): string {
   if (skills.length === 0) return '';
 
   const sections: string[] = [];
 
   // Group by category for better organization
-  const byCategory: Record<string, RalphGuardrail[]> = {};
+  const byCategory: Record<string, FelixGuardrail[]> = {};
 
   for (const skill of skills) {
     const cat = skill.category;

@@ -6,7 +6,7 @@
  */
 
 import * as path from 'node:path';
-import type { ExportedMember } from '@/lib/@ast';
+import type { ExportedMember } from '@/lib/@discovery/source-analyzer';
 import { type ModuleCategory, NAMING_PATTERNS, type NamingSignals } from '../types';
 
 // ============================================================================

@@ -8,7 +8,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type PRD, type PRDTask, validatePRD } from '@/lib/@ralph/schemas/prd.schema';
+import { type PRD, type PRDTask, validatePRD } from '@/lib/@felix/schemas/prd.schema';
 import { sanitizeIssueNumber } from '@/lib/@security';
 import { getIssue, isGhAuthenticated, isGhAvailable } from '@/lib/@vcs';
 import { PRD_DEFAULTS } from './constants';
@@ -19,7 +19,7 @@ import { decomposeIntoTasks } from './generators/task-decomposer';
 import type { GeneratedTask, PrdContext, PrdGenerationResult, PrdGeneratorOptions } from './types';
 
 /** PRD output directory relative to project root */
-const PRD_OUTPUT_DIR = '.krolik/ralph/prd';
+const PRD_OUTPUT_DIR = '.krolik/felix/prd';
 
 /**
  * Generate PRD from GitHub issue

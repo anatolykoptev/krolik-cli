@@ -12,7 +12,7 @@
 
 import { DEFAULT_PERIOD_DAYS, isBugFixCommit } from '../../../commands/audit/impact/git-history';
 import { execLines, shellOpts, tryExec } from '../../../lib/@core/shell';
-import { escapeXml } from '../../../lib/@format/xml/escape';
+import { escapeXml } from '../../../lib/@core/xml/escape';
 import { escapeShellArg } from '../../../lib/@security';
 import { isGitRepo } from '../../../lib/@vcs';
 import type { BugFixCommit, GitContext, GitContextCacheEntry, GitContextOptions } from './types';

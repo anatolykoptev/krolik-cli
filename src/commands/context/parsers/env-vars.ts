@@ -21,7 +21,7 @@ import {
   visitNodeWithCallbacks,
 } from '@/lib/@ast/swc';
 import { scanDirectory as scanDir } from '@/lib/@core/fs';
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 
 /**
  * Single usage of an environment variable in code

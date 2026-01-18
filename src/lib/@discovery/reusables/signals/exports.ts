@@ -8,8 +8,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ExportedMember } from '@/lib/@ast';
-import { analyzeSourceFile } from '@/lib/@ast';
+import { analyzeSourceFile, type ExportedMember } from '@/lib/@discovery/source-analyzer';
 import type { ExportSignals } from '../types';
 
 // ============================================================================

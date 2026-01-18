@@ -14,7 +14,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { scanDirectory } from '@/lib/@core/fs';
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 
 /**
  * Field definition in Zod schema

@@ -3,7 +3,7 @@
  * @description XML element and document building utilities
  */
 
-import { escapeXml } from './escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 import { minifyXmlOutput } from './minify';
 
 // ============================================================================

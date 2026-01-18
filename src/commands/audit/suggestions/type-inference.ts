@@ -31,7 +31,7 @@
  */
 
 import type { Module } from '@swc/core';
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 import type { TypeContext } from './types';
 import {
   analyzeUsages,

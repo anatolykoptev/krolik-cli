@@ -5,7 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { analyzeSourceFile } from '../services/source-analyzer';
+import { analyzeSourceFile } from '@/lib/@discovery/source-analyzer';
 import type { DocHints } from '../services/types';
 import {
   type ClassTestInfo,
