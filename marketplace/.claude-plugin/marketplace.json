@@ -10,7 +10,7 @@
     {
       "name": "krolik",
       "description": "Krolik CLI plugin - PRD execution, context enrichment, and AI-powered development workflows",
-      "version": "0.17.0",
+      "version": "0.18.0",
       "author": {
         "name": "Krolik CLI",
         "email": "support@krolik.dev"
