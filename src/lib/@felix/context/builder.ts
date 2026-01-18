@@ -6,7 +6,7 @@
  * to build complete prompts for AI execution.
  */
 
-import type { FelixGuardrail } from '@/lib/@storage/ralph/types';
+import type { FelixGuardrail } from '@/lib/@storage/felix/types';
 import type { PRDTask } from '../schemas';
 import type { InjectedContext } from './injector';
 import { formatInjectedContext, type InjectContextOptions, injectContext } from './injector';

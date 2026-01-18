@@ -9,7 +9,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Event, Session } from '@google/adk';
-import type { CreateSessionConfig } from '../../@storage/ralph/types.js';
+import type { CreateSessionConfig } from '../../@storage/felix/types.js';
 import { createSQLiteSessionService, type SQLiteSessionService } from './sqlite-session.js';
 
 // ============================================================================

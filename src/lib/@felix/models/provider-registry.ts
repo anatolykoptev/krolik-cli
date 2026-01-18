@@ -7,7 +7,7 @@
  * @module @ralph/models/provider-registry
  */
 
-import type { BaseLlm, Gemini } from '@google/adk';
+import type { BaseLlm } from '@google/adk';
 import type { ModelProvider } from './model-config.js';
 
 // ============================================================================
@@ -190,7 +190,7 @@ export function registerProvider(
   providerRegistry.register(provider, {
     llmClass,
     backends,
-    description,
+    description: description ?? '',
   });
 }
 

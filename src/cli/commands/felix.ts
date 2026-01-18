@@ -13,19 +13,19 @@ import type { CommandOptions } from '../types';
 import { createContext, handleProjectOption } from './helpers';
 
 /**
- * Ralph base directory
+ * Felix base directory
  */
 const FELIX_DIR = '.krolik/felix';
 
 /**
  * Default PRD directory within project
  */
-const PRD_DEFAULT_DIR = `${RALPH_DIR}/prd`;
+const PRD_DEFAULT_DIR = `${FELIX_DIR}/prd`;
 
 /**
- * Ralph logs directory
+ * Felix logs directory
  */
-const RALPH_LOGS_DIR = `${RALPH_DIR}/logs`;
+const FELIX_LOGS_DIR = `${FELIX_DIR}/logs`;
 
 /**
  * Extract project root from PRD path
@@ -48,7 +48,7 @@ function extractProjectRootFromPrd(prdPath: string): string {
  * Find the latest log file in the logs directory
  */
 function findLatestLogFile(projectRoot: string): string | null {
-  const logsDir = join(projectRoot, RALPH_LOGS_DIR);
+  const logsDir = join(projectRoot, FELIX_LOGS_DIR);
   if (!existsSync(logsDir)) return null;
 
   const files = readdirSync(logsDir)
@@ -102,7 +102,7 @@ function spawnRalphBackground(
   },
 ): { sessionId: string; logFile: string } {
   const sessionId = `ralph-${Date.now()}-${randomUUID().slice(0, 8)}`;
-  const logsDir = join(projectRoot, RALPH_LOGS_DIR);
+  const logsDir = join(projectRoot, FELIX_LOGS_DIR);
   const logFile = join(logsDir, `${sessionId}.log`);
 
   // Ensure logs directory exists
@@ -219,7 +219,7 @@ export function registerFelixCommand(program: Command): void {
 
       if (options.session) {
         // Watch specific session
-        const sessionLog = join(projectRoot, RALPH_LOGS_DIR, `${options.session}.log`);
+        const sessionLog = join(projectRoot, FELIX_LOGS_DIR, `${options.session}.log`);
         if (existsSync(sessionLog)) {
           logFile = sessionLog;
         } else {
@@ -231,7 +231,7 @@ export function registerFelixCommand(program: Command): void {
         // Watch latest session
         logFile = findLatestLogFile(projectRoot);
         if (!logFile) {
-          console.error(`<felix-error>No session logs found in ${RALPH_LOGS_DIR}/
+          console.error(`<felix-error>No session logs found in ${FELIX_LOGS_DIR}/
 
 Start a session first:
   krolik ralph start --prd .krolik/ralph/prd/your-task.prd.json</felix-error>`);
