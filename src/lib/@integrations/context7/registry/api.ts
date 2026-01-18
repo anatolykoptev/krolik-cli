@@ -37,15 +37,23 @@ export function getClient(): Context7Client | null {
 
 /**
  * Resolve library ID via Context7 search API.
+ *
+ * @param npmName - NPM package name
+ * @param contextQuery - Optional context query for better relevance ranking (e.g., "deployment static sites")
  */
-export async function resolveViaApi(npmName: string): Promise<ResolutionResult | null> {
+export async function resolveViaApi(
+  npmName: string,
+  contextQuery?: string,
+): Promise<ResolutionResult | null> {
   const client = getClient();
   if (!client) {
     return null;
   }
 
   try {
-    const response = await client.searchLibrary(npmName);
+    // Combine library name with context for better semantic ranking (like Context7 MCP)
+    const searchQuery = contextQuery ? `${npmName} ${contextQuery}` : npmName;
+    const response = await client.searchLibrary(searchQuery);
 
     if (!response.results || response.results.length === 0) {
       return null;

@@ -19,13 +19,26 @@ import { DEFAULT_MAPPINGS } from './defaults';
  * Resolution order:
  * 1. Check SQLite cache
  * 2. Check if already a Context7 ID format
- * 3. Try Context7 search API
+ * 3. Try Context7 search API with optional context query
  * 4. Return null if not found
  *
  * @param npmName - NPM package name (e.g., 'next', '@prisma/client')
+ * @param contextQuery - Optional context for semantic ranking (e.g., "deployment static sites")
  * @returns Resolution result with source and confidence, or null
+ *
+ * @example
+ * ```ts
+ * // Basic search
+ * await resolveLibraryIdDynamic('cloudflare-pages');
+ *
+ * // With context for better relevance (like Context7 MCP)
+ * await resolveLibraryIdDynamic('cloudflare-pages', 'deployment limits configuration');
+ * ```
  */
-export async function resolveLibraryIdDynamic(npmName: string): Promise<ResolutionResult | null> {
+export async function resolveLibraryIdDynamic(
+  npmName: string,
+  contextQuery?: string,
+): Promise<ResolutionResult | null> {
   const normalized = npmName.toLowerCase().trim();
 
   // 1. Check cache first (fast path)
@@ -54,8 +67,8 @@ export async function resolveLibraryIdDynamic(npmName: string): Promise<Resoluti
     };
   }
 
-  // 3. Try Context7 API
-  const apiResult = await resolveViaApi(normalized);
+  // 3. Try Context7 API with context query for better semantic ranking
+  const apiResult = await resolveViaApi(normalized, contextQuery);
   if (apiResult) {
     return apiResult;
   }
