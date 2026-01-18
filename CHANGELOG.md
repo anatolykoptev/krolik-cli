@@ -1,5 +1,19 @@
 # @anatolykoptev/krolik-cli
 
+## 0.18.0
+
+### Minor Changes
+
+- [`b481480`](https://github.com/anatolykoptev/krolik-cli/commit/b481480f40d6786364d839437e8339946d98a956) - **Felix multi-tier routing** — primary feature repositioning
+  - Position Felix as main value proposition with 90% cost savings
+  - Comprehensive README update highlighting multi-tier AI orchestration
+  - Document 4-tier system (Free, Cheap, Mid, Premium)
+  - Add cascade fallback and history learning sections
+  - Include cost estimation examples
+  - Website launch at krolik.tools
+
+  This release repositions Krolik Felix from developer toolkit to cost-optimization platform for AI development, aligning with krolik.tools landing page and Google for Startups application positioning.
+
 ## 0.17.0
 
 ### Minor Changes

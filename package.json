@@ -1,6 +1,6 @@
 {
   "name": "@anatolykoptev/krolik-cli",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Krolik Felix — Multi-Tier AI Orchestration for cost-optimized development",
   "keywords": [
     "cli",
