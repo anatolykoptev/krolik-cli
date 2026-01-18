@@ -1,0 +1,127 @@
+{
+  "version": "1.0",
+  "project": "piternow",
+  "title": "Add Stripe Payment Integration",
+  "description": "Integrate Stripe for subscription payments with webhook handling and comprehensive testing",
+  "createdAt": "2026-01-15T10:00:00Z",
+  "updatedAt": "2026-01-15T10:00:00Z",
+  "config": {
+    "maxAttempts": 3,
+    "maxTokenBudget": 500000,
+    "continueOnFailure": false,
+    "autoCommit": true,
+    "autoGuardrails": true,
+    "retryDelayMs": 2000,
+    "temperature": 0.7,
+    "model": "sonnet"
+  },
+  "tasks": [
+    {
+      "id": "stripe-001-env",
+      "title": "Add Stripe environment variables",
+      "description": "Add STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to .env.example and environment configuration with proper validation",
+      "userStory": "As a developer, I want to configure Stripe API keys so that the application can securely communicate with Stripe",
+      "acceptance_criteria": [
+        {
+          "id": "ac-001-1",
+          "description": "STRIPE_SECRET_KEY added to .env.example with sk_ prefix example",
+          "expected": "File .env.example contains STRIPE_SECRET_KEY=sk_test_..."
+        },
+        {
+          "id": "ac-001-2",
+          "description": "STRIPE_WEBHOOK_SECRET added to .env.example",
+          "expected": "File .env.example contains STRIPE_WEBHOOK_SECRET=whsec_..."
+        },
+        {
+          "id": "ac-001-3",
+          "description": "Environment variables validated in env.ts using Zod",
+          "testCommand": "pnpm typecheck",
+          "expected": "Type checking passes, env vars validated at startup"
+        }
+      ],
+      "dependencies": [],
+      "priority": "critical",
+      "complexity": "trivial",
+      "estimatedTokens": 5000,
+      "labels": ["config", "env", "stripe", "setup"],
+      "relatedFiles": [".env.example", "src/env.ts"],
+      "epic": "payment-integration"
+    },
+    {
+      "id": "stripe-002-schema",
+      "title": "Create Prisma schema for subscriptions",
+      "description": "Add Subscription, PaymentMethod, Invoice, and StripeEvent models to Prisma schema with proper relations",
+      "userStory": "As a system, I want to store subscription and payment data so that I can track user subscriptions and billing history",
+      "acceptance_criteria": [
+        {
+          "id": "ac-002-1",
+          "description": "Subscription model created with all Stripe fields",
+          "expected": "Model includes: stripeSubscriptionId, status, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, userId relation"
+        },
+        {
+          "id": "ac-002-2",
+          "description": "PaymentMethod model created",
+          "expected": "Model includes: stripePaymentMethodId, type, last4, expiryMonth, expiryYear, userId relation"
+        },
+        {
+          "id": "ac-002-3",
+          "description": "StripeEvent model for webhook idempotency",
+          "expected": "Model includes: eventId @unique, type, processedAt, metadata JSON"
+        },
+        {
+          "id": "ac-002-4",
+          "description": "Migration generated and can be applied",
+          "testCommand": "pnpm prisma migrate dev --name add_stripe_models",
+          "expected": "Migration created and applied successfully"
+        }
+      ],
+      "dependencies": ["stripe-001-env"],
+      "priority": "high",
+      "complexity": "moderate",
+      "estimatedTokens": 15000,
+      "labels": ["database", "prisma", "stripe", "models"],
+      "relatedFiles": ["prisma/schema.prisma"],
+      "epic": "payment-integration"
+    },
+    {
+      "id": "stripe-003-client",
+      "title": "Initialize Stripe client",
+      "description": "Create Stripe client singleton with proper error handling and TypeScript types",
+      "acceptance_criteria": [
+        {
+          "id": "ac-003-1",
+          "description": "Stripe client module created",
+          "expected": "File lib/stripe.ts exports stripe client singleton"
+        },
+        {
+          "id": "ac-003-2",
+          "description": "Client uses validated environment variable",
+          "expected": "Uses env.STRIPE_SECRET_KEY from validated env.ts"
+        },
+        {
+          "id": "ac-003-3",
+          "description": "Proper TypeScript types from stripe package",
+          "testCommand": "pnpm typecheck",
+          "expected": "Type checking passes with Stripe types"
+        },
+        {
+          "id": "ac-003-4",
+          "description": "Client has webhook signature verification helper",
+          "expected": "Export constructWebhookEvent function for webhook verification"
+        }
+      ],
+      "dependencies": ["stripe-001-env"],
+      "priority": "high",
+      "complexity": "simple",
+      "estimatedTokens": 8000,
+      "labels": ["lib", "stripe", "client", "typescript"],
+      "relatedFiles": ["src/lib/stripe.ts"],
+      "epic": "payment-integration"
+    }
+  ],
+  "metadata": {
+    "author": "AI Product Manager",
+    "tags": ["stripe", "payments", "subscriptions", "saas"],
+    "notes": "This is a simplified example PRD for demonstration. A real PRD would have all 8+ tasks from the full example."
+  }
+}

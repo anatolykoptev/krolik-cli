@@ -1,0 +1,23 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "krolik-local",
+  "description": "Krolik CLI local plugins for AI-powered development workflows",
+  "owner": {
+    "name": "Krolik CLI",
+    "email": "support@krolik.dev"
+  },
+  "plugins": [
+    {
+      "name": "krolik",
+      "description": "Krolik CLI plugin - PRD execution, context enrichment, and AI-powered development workflows",
+      "version": "0.17.0",
+      "author": {
+        "name": "Krolik CLI",
+        "email": "support@krolik.dev"
+      },
+      "source": "./plugins/krolik",
+      "category": "development",
+      "homepage": "https://github.com/anatolykoptev/krolik-cli"
+    }
+  ]
+}

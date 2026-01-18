@@ -10,34 +10,19 @@
  */
 
 import type { Memory } from '@/lib/@storage/memory';
+import type { RalphGuardrail } from '@/lib/@storage/ralph/types';
 import type { OutputFormat } from '../../types/commands/base';
 
 export type { Memory } from '@/lib/@storage/memory';
+export type { RalphGuardrail } from '@/lib/@storage/ralph/types';
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@vcs';
 
-/**
- * Component type in wshobson/agents
- */
-export type ComponentType = 'agent' | 'command' | 'skill';
+// ... (existing code)
 
 /**
- * Agent definition from wshobson/agents
- */
-export interface AgentDefinition {
-  name: string;
-  description: string;
-  model?: 'sonnet' | 'opus' | 'haiku' | 'inherit';
-  content: string;
-  category: AgentCategory;
-  plugin: string;
-  filePath: string;
-  componentType: ComponentType;
-}
-
-/**
- * Agent category for grouping
+ * Agent category
  */
 export type AgentCategory =
   | 'security'
@@ -54,15 +39,34 @@ export type AgentCategory =
   | 'other';
 
 /**
- * Agent category metadata
+ * Agent category information
  */
 export interface AgentCategoryInfo {
-  name: AgentCategory;
+  name: string;
   label: string;
   description: string;
   aliases: string[];
   plugins: string[];
   primaryAgents: string[];
+}
+
+/**
+ * Component type
+ */
+export type ComponentType = 'agent' | 'command' | 'skill' | 'workflow';
+
+/**
+ * Agent definition
+ */
+export interface AgentDefinition {
+  name: string;
+  description: string;
+  content: string;
+  category: AgentCategory;
+  plugin: string;
+  filePath: string;
+  componentType: ComponentType;
+  model?: 'sonnet' | 'opus' | 'haiku' | 'inherit';
 }
 
 /**
@@ -78,13 +82,17 @@ export interface AgentOptions {
   includeRoutes?: boolean | undefined;
   includeGit?: boolean | undefined;
   includeMemory?: boolean | undefined;
+  includeSkills?: boolean | undefined;
   format?: OutputFormat | undefined;
   verbose?: boolean | undefined;
   dryRun?: boolean | undefined;
+  // LLM options
+  model?: string | undefined;
+  backend?: 'cli' | 'api' | undefined;
 }
 
 /**
- * Library documentation snippet for agent context
+ * Library documentation snippet
  */
 export interface LibraryDocSnippet {
   library: string;
@@ -106,6 +114,7 @@ export interface AgentContext {
   feature?: string;
   libraryDocs?: LibraryDocSnippet[];
   memories?: Memory[];
+  skills?: RalphGuardrail[];
 }
 
 /**

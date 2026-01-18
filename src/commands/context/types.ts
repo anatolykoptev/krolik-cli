@@ -5,6 +5,7 @@
 
 import type { ArchitecturePatterns } from '@/lib/@discovery/architecture';
 import type { Memory } from '@/lib/@storage/memory';
+import type { RalphGuardrail } from '@/lib/@storage/ralph';
 import type { OutputFormat } from '../../types/commands/base';
 import type { ContextResult } from '../../types/commands/context';
 export type { ContextResult };
@@ -316,5 +317,8 @@ export interface AiContextData {
   // Data flows for domains - HOW data moves through the system
   dataFlows?: DataFlow[];
   // Search results (from --search)
+  // Search results (from --search)
   searchResults?: SearchResults;
+  // Agent Skills & Guidelines
+  skills?: RalphGuardrail[];
 }

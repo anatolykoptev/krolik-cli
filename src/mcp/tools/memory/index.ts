@@ -7,6 +7,7 @@
 
 import * as path from 'node:path';
 import { escapeXml, truncate } from '@/lib/@format';
+import { type DocSearchResult, searchDocs } from '@/lib/@storage/docs';
 import {
   // Links
   createLink,
@@ -64,6 +65,26 @@ function getGitContext(projectPath: string): GitContext {
   const commit = commits[0]?.hash;
 
   return { branch, commit };
+}
+
+/**
+ * Format a single doc search result as XML
+ */
+function formatDocXml(result: DocSearchResult): string {
+  const lines: string[] = [];
+  lines.push(
+    `  <doc library="${escapeXml(result.libraryName)}" relevance="${result.relevance.toFixed(2)}">`,
+  );
+  lines.push(`    <title>${escapeXml(result.section.title)}</title>`);
+  lines.push(`    <content>${escapeXml(truncate(result.section.content, 300))}</content>`);
+  if (result.section.topic) {
+    lines.push(`    <topic>${escapeXml(result.section.topic)}</topic>`);
+  }
+  if (result.section.codeSnippets.length > 0) {
+    lines.push(`    <snippets count="${result.section.codeSnippets.length}" />`);
+  }
+  lines.push('  </doc>');
+  return lines.join('\n');
 }
 
 /**
@@ -138,6 +159,10 @@ interface SaveArgs {
 interface SearchArgs {
   query: string;
   limit?: number | undefined;
+  /** Include docs search results (default: true) */
+  includeDocs?: boolean | undefined;
+  /** Limit for docs results (default: 5) */
+  docsLimit?: number | undefined;
 }
 
 /**
@@ -212,14 +237,16 @@ async function handleSave(args: SaveArgs, projectPath: string): Promise<string> 
 }
 
 /**
- * Handle search action - hybrid BM25 + semantic search
+ * Handle search action - unified search across memories and docs
  * Automatically falls back to BM25-only if embeddings unavailable
  */
 async function handleSearch(args: SearchArgs, projectPath: string): Promise<string> {
   const projectName = path.basename(projectPath);
+  const includeDocs = args.includeDocs !== false; // Default: true
+  const docsLimit = args.docsLimit ?? 5;
 
   // Use hybrid search (BM25 + semantic) with automatic fallback
-  const results: MemorySearchResult[] = await hybridSearch(args.query, {
+  const memoryResults: MemorySearchResult[] = await hybridSearch(args.query, {
     project: projectName,
     limit: args.limit ?? 10,
     // Hybrid search params with sensible defaults
@@ -228,26 +255,56 @@ async function handleSearch(args: SearchArgs, projectPath: string): Promise<stri
     minSimilarity: 0.3,
   });
 
-  if (results.length === 0) {
-    return '<memory-search count="0"><message>No memories found matching the criteria.</message></memory-search>';
+  // Search docs if enabled
+  let docsResults: DocSearchResult[] = [];
+  if (includeDocs) {
+    try {
+      docsResults = searchDocs({
+        query: args.query,
+        limit: docsLimit,
+      });
+    } catch {
+      // Docs search failed, continue without docs
+    }
+  }
+
+  // If both empty
+  if (memoryResults.length === 0 && docsResults.length === 0) {
+    return '<unified-search count="0"><message>No results found matching the criteria.</message></unified-search>';
   }
 
   // Check if semantic search was used
   const searchMode = isEmbeddingsAvailable() ? 'hybrid' : 'bm25';
 
   // Count by scope for summary
-  const projectCount = results.filter((r) => r.memory.scope !== 'global').length;
-  const globalCount = results.filter((r) => r.memory.scope === 'global').length;
+  const projectCount = memoryResults.filter((r) => r.memory.scope !== 'global').length;
+  const globalCount = memoryResults.filter((r) => r.memory.scope === 'global').length;
 
   const lines: string[] = [
-    `<memory-search count="${results.length}" mode="${searchMode}" projectCount="${projectCount}" globalCount="${globalCount}">`,
+    `<unified-search mode="${searchMode}" memoryCount="${memoryResults.length}" docsCount="${docsResults.length}">`,
   ];
 
-  for (const result of results) {
-    lines.push(formatMemoryXml(result.memory, result.relevance));
+  // Memory results section
+  if (memoryResults.length > 0) {
+    lines.push(
+      `  <memories count="${memoryResults.length}" projectCount="${projectCount}" globalCount="${globalCount}">`,
+    );
+    for (const result of memoryResults) {
+      lines.push(formatMemoryXml(result.memory, result.relevance).replace(/^/gm, '  '));
+    }
+    lines.push('  </memories>');
   }
 
-  lines.push('</memory-search>');
+  // Docs results section
+  if (docsResults.length > 0) {
+    lines.push(`  <docs count="${docsResults.length}">`);
+    for (const result of docsResults) {
+      lines.push(formatDocXml(result).replace(/^/gm, '  '));
+    }
+    lines.push('  </docs>');
+  }
+
+  lines.push('</unified-search>');
   return lines.join('\n');
 }
 
@@ -421,20 +478,27 @@ Examples:
 };
 
 /**
- * krolik_mem_search - Hybrid search (BM25 + semantic)
+ * krolik_mem_search - Unified search across memories and cached documentation
  * Automatically falls back to BM25 if embeddings unavailable
  */
 export const memSearchTool: MCPToolDefinition = {
   name: 'krolik_mem_search',
   description: `Search memory entries using hybrid BM25 + semantic search.
 
-**Smart search** - combines keyword matching with AI semantic understanding.
+**Unified search** - searches both memories AND cached library documentation.
+Combines keyword matching with AI semantic understanding.
 Automatically falls back to keyword-only search if AI model unavailable.
+
+**Searches:**
+- Project memories (decisions, bugfixes, features, observations)
+- Global memories (patterns, snippets, library knowledge)
+- Cached documentation from krolik_docs (if includeDocs=true)
 
 Examples:
 - "how do we handle authentication" finds JWT-related decisions
 - "database performance" finds Prisma optimization bugfixes
-- "user sessions" finds related patterns across projects`,
+- "user sessions" finds related patterns across projects
+- "app router" finds Next.js docs if cached`,
   template: { when: 'Search memories by query', params: '`query: "authentication"`' },
   category: 'memory',
   inputSchema: {
@@ -447,7 +511,15 @@ Examples:
       },
       limit: {
         type: 'number',
-        description: 'Maximum number of results (default: 10)',
+        description: 'Maximum number of memory results (default: 10)',
+      },
+      includeDocs: {
+        type: 'boolean',
+        description: 'Include cached documentation in search results (default: true)',
+      },
+      docsLimit: {
+        type: 'number',
+        description: 'Maximum number of docs results (default: 5)',
       },
     },
     required: ['query'],
@@ -466,6 +538,8 @@ Examples:
     const searchArgs: SearchArgs = {
       query: args.query as string,
       limit: args.limit as number | undefined,
+      includeDocs: args.includeDocs as boolean | undefined,
+      docsLimit: args.docsLimit as number | undefined,
     };
 
     try {

@@ -12,6 +12,7 @@ import {
   LIKE_MATCH_RELEVANCE,
 } from './constants';
 import { rowToMemory } from './converters';
+import { buildLikePattern, sanitizeFtsQuery } from './sanitize';
 import type { MemorySearchResult } from './types';
 
 /**
@@ -49,9 +50,10 @@ export function searchByFeatures(
     }));
   }
 
-  // Build FTS query from features
+  // Security: Build sanitized FTS query from features
   const ftsQuery = features
-    .map((f) => f.toLowerCase().replace(/['"]/g, ''))
+    .map((f) => sanitizeFtsQuery(f.toLowerCase()))
+    .filter((f) => f.length > 0)
     .map((f) => `${f}*`)
     .join(' OR ');
 
@@ -81,8 +83,9 @@ export function searchByFeatures(
   }
 
   // Fallback: search in features JSON array
-  const placeholders = features.map(() => 'json_each.value LIKE ?').join(' OR ');
-  const likePatterns = features.map((f) => `%${f.toLowerCase()}%`);
+  // Security: Use ESCAPE clause for safe LIKE patterns
+  const placeholders = features.map(() => "json_each.value LIKE ? ESCAPE '\\'").join(' OR ');
+  const likePatterns = features.map((f) => buildLikePattern(f.toLowerCase(), 'contains'));
 
   const rows = db
     .prepare(

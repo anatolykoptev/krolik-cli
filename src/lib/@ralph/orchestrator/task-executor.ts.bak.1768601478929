@@ -1,0 +1,234 @@
+/**
+ * Task Executor Module
+ *
+ * Handles single task execution logic including agent creation,
+ * prompt building, and running tasks through ADK.
+ *
+ * @module @ralph/orchestrator/task-executor
+ */
+
+import { LlmAgent, Runner, type Event } from "@google/adk";
+import type { BasePlugin, BaseLlm } from "@google/adk";
+import type { Content } from "@google/genai";
+
+import { SQLiteSessionService } from "../services/sqlite-session.js";
+import { RetryPlugin } from "../plugins/retry-plugin.js";
+import { CostPlugin } from "../plugins/cost-plugin.js";
+import { NoOpBuiltInCodeExecutor } from "../executors/noop-code-executor.js";
+import type { PRD, PRDTask } from "../schemas/prd.schema.js";
+import type { TaskExecutionResult, RalphLoopEvent } from "../types.js";
+import type { ValidationState } from "./types.js";
+
+/**
+ * Event emitter function type
+ */
+export type EventEmitter = (event: RalphLoopEvent) => void;
+
+/**
+ * Event handler for ADK events
+ */
+export type AdkEventHandler = (event: Event, taskId: string) => Promise<void>;
+
+/**
+ * Task executor configuration
+ */
+export interface TaskExecutorConfig {
+  llm: BaseLlm;
+  sessionService: SQLiteSessionService;
+  plugins: BasePlugin[];
+  retryPlugin: RetryPlugin;
+  costPlugin: CostPlugin;
+  emit: EventEmitter;
+  handleEvent: AdkEventHandler;
+  now: () => string;
+}
+
+/**
+ * Build system prompt for task
+ */
+export function buildSystemPrompt(task: PRDTask, config?: PRD["config"]): string {
+  const acceptanceCriteria = task.acceptance_criteria
+    .map((ac, i) => {
+      if (typeof ac === "string") return `${i + 1}. ${ac}`;
+      return `${i + 1}. ${ac.description}${ac.testCommand ? ` (verify: ${ac.testCommand})` : ""}`;
+    })
+    .join("\n");
+
+  return `You are an autonomous coding agent executing a task from a PRD.
+
+## Task: ${task.title}
+
+${task.description}
+
+${task.userStory ? `### User Story\n${task.userStory}\n` : ""}
+
+### Acceptance Criteria
+${acceptanceCriteria}
+
+${task.files_affected.length > 0 ? `### Files to Modify\n${task.files_affected.join("\n")}\n` : ""}
+
+### Guidelines
+- Make minimal, focused changes
+- Run validation after changes
+- Follow existing code patterns
+- Do not over-engineer
+${config?.autoCommit ? "- Commit after successful validation" : ""}
+`;
+}
+
+/**
+ * Build task prompt
+ */
+export function buildTaskPrompt(task: PRDTask): string {
+  return `Execute the task: ${task.title}
+
+Description: ${task.description}
+
+Please implement this task following the acceptance criteria.`;
+}
+
+/**
+ * Convert task ID to valid ADK agent name (letters, digits, underscores only)
+ */
+function toAgentName(taskId: string): string {
+  // Replace non-alphanumeric chars with underscore, ensure starts with letter
+  const sanitized = taskId.replace(/[^a-zA-Z0-9_]/g, "_");
+  return sanitized.match(/^[a-zA-Z_]/) ? sanitized : `task_${sanitized}`;
+}
+
+/**
+ * Create an LLM agent for a task
+ */
+export function createTaskAgent(
+  task: PRDTask,
+  llm: BaseLlm,
+  config?: PRD["config"]
+): LlmAgent {
+  return new LlmAgent({
+    name: toAgentName(task.id),
+    model: llm,
+    description: task.description,
+    instruction: buildSystemPrompt(task, config),
+    // Use NoOp code executor to prevent Gemini-specific code execution errors for Claude
+    codeExecutor: new NoOpBuiltInCodeExecutor(),
+  });
+}
+
+/**
+ * Execute a single task
+ */
+export async function executeTask(
+  task: PRDTask,
+  config: TaskExecutorConfig,
+  prdConfig?: PRD["config"]
+): Promise<TaskExecutionResult> {
+  const taskStart = Date.now();
+
+  config.emit({ type: "task_started", timestamp: config.now(), taskId: task.id });
+
+  // Create agent for this task
+  const taskAgent = createTaskAgent(task, config.llm, prdConfig);
+
+  // Create session for this task
+  const session = await config.sessionService.createSession({
+    appName: "ralph-loop",
+    userId: "system",
+    state: {
+      taskId: task.id,
+      attempt: 1,
+    },
+  });
+
+  // Create runner with plugins
+  const runner = new Runner({
+    agent: taskAgent,
+    appName: "ralph-loop",
+    sessionService: config.sessionService,
+    plugins: config.plugins,
+  });
+
+  try {
+    // Build message as Content object
+    const newMessage: Content = {
+      role: "user",
+      parts: [{ text: buildTaskPrompt(task) }],
+    };
+
+    console.error(`[task-executor] Starting runner.runAsync for task ${task.id}`);
+    console.error(`[task-executor] Session ID: ${session.id}`);
+
+    // Run agent
+    let lastEvent: Event | undefined;
+    let eventCount = 0;
+
+    const runnerIterator = runner.runAsync({
+      userId: "system",
+      sessionId: session.id,
+      newMessage,
+    });
+    console.error(`[task-executor] Got iterator, starting iteration...`);
+
+    try {
+      for await (const event of runnerIterator) {
+        eventCount++;
+        const contentText = event.content?.parts?.[0] && "text" in event.content.parts[0]
+          ? (event.content.parts[0] as { text: string }).text.slice(0, 200)
+          : "(no text)";
+        console.error(`[task-executor] Event ${eventCount}: author=${event.author}, hasContent=${!!event.content}, text=${contentText}`);
+        lastEvent = event;
+        await config.handleEvent(event, task.id);
+      }
+    } catch (iterErr) {
+      console.error(`[task-executor] Iterator error:`, iterErr);
+      throw iterErr;
+    }
+    console.error(`[task-executor] Runner completed with ${eventCount} events`);
+    console.error(`[task-executor] lastEvent.actions: ${JSON.stringify(lastEvent?.actions)}`);
+
+    // Check result from validation state
+    const validationState = lastEvent?.actions?.stateDelta?.["__validation"] as ValidationState | undefined;
+    console.error(`[task-executor] validationState: ${JSON.stringify(validationState)}`);
+    const success = validationState?.passed !== false;
+    console.error(`[task-executor] success: ${success}`);
+    const usage = config.costPlugin.getTotalUsage();
+
+    config.emit({
+      type: "task_completed",
+      timestamp: config.now(),
+      taskId: task.id,
+      result: {
+        taskId: task.id,
+        success,
+        attempts: config.retryPlugin.getAttemptCount(session.id) + 1,
+        tokensUsed: usage.tokens.totalTokens,
+        costUsd: usage.costUsd,
+        duration: Date.now() - taskStart,
+        fileChanges: [],
+      },
+    });
+
+    return {
+      taskId: task.id,
+      success,
+      attempts: config.retryPlugin.getAttemptCount(session.id) + 1,
+      tokensUsed: usage.tokens.totalTokens,
+      costUsd: usage.costUsd,
+      duration: Date.now() - taskStart,
+      fileChanges: [],
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    config.emit({ type: "task_failed", timestamp: config.now(), taskId: task.id, error: errorMessage });
+
+    return {
+      taskId: task.id,
+      success: false,
+      attempts: config.retryPlugin.getAttemptCount(session.id) + 1,
+      tokensUsed: 0,
+      costUsd: 0,
+      duration: Date.now() - taskStart,
+      fileChanges: [],
+      error: errorMessage,
+    };
+  }
+}

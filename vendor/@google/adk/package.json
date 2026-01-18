@@ -1,0 +1,43 @@
+{
+  "name": "@google/adk",
+  "version": "0.2.3",
+  "description": "Google ADK JS",
+  "author": "Google",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/google/adk-js"
+  },
+  "type": "module",
+  "typings": "./dist/types/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "default": "./dist/esm/index.js"
+    },
+    "./common": {
+      "types": "./dist/types/common.d.ts",
+      "import": "./dist/esm/common.js",
+      "require": "./dist/cjs/common.js",
+      "default": "./dist/esm/common.js"
+    }
+  },
+  "dependencies": {
+    "@google/genai": "1.32.0",
+    "google-auth-library": "^10.3.0",
+    "lodash-es": "^4.17.22",
+    "zod": "3.25.76"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": {
+      "optional": true
+    }
+  }
+}

@@ -7,6 +7,7 @@
  * - Fast response due to direct function calls
  */
 
+import { formatContextJson } from '@/lib/@reporter';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { formatError } from '../core/errors';
 import { resolveProjectPath } from '../core/projects';
@@ -30,6 +31,8 @@ async function runLightweightContext(
     search?: string;
     changedOnly?: boolean;
     withIssues?: boolean;
+    forPrd?: boolean;
+    json?: boolean;
   },
 ): Promise<string> {
   // Dynamic imports to avoid loading heavy modules at startup
@@ -41,7 +44,14 @@ async function runLightweightContext(
   const { generateChecklist } = await import('@/commands/context/domains');
   const { buildQuickSections, buildMinimalSections } = await import('@/commands/context/modes');
   const { collectLibModules, searchInProject } = await import('@/commands/context/helpers');
-  const { loadRelevantMemory, loadLibraryDocs } = await import('@/commands/context/sections');
+  const { loadRelevantMemory, loadLibraryDocs, loadSkills } = await import(
+    '@/commands/context/sections'
+  );
+
+  // forPrd mode: enable full context with skills and workflow
+  if (options.forPrd) {
+    options.full = true;
+  }
 
   let task = options.feature || 'General development context';
   let issueData: { number: number; title: string; body: string; labels: string[] } | undefined;
@@ -106,6 +116,8 @@ async function runLightweightContext(
     libModules?: unknown;
     memories?: unknown;
     libraryDocs?: unknown;
+    skills?: unknown;
+    workflow?: unknown;
   };
 
   const aiData: AiContextData = {
@@ -115,6 +127,38 @@ async function runLightweightContext(
     config: { projectRoot },
     checklist: generateChecklist(result.domains),
   };
+
+  // Load skills for forPrd mode (increased limit)
+  if (options.forPrd) {
+    const skills = loadSkills(projectRoot, result.domains);
+    if (skills.length > 0) {
+      aiData.skills = skills;
+    }
+    // Add PRD workflow instructions
+    aiData.workflow = {
+      phases: [
+        {
+          name: 'Implementation',
+          steps: [
+            'Create TodoWrite item for each task',
+            'Mark task as in_progress',
+            'Implement following acceptance criteria exactly',
+            'Run: pnpm typecheck (must pass)',
+            'Mark task as completed in TodoWrite',
+          ],
+        },
+        {
+          name: 'Finalization',
+          steps: [
+            'krolik_audit mode="pre-commit" - fix any issues',
+            'pnpm test:run - fix any failures',
+            'krolik_mem_save - record what was implemented',
+            'Output: <promise>PRD_COMPLETE</promise>',
+          ],
+        },
+      ],
+    };
+  }
 
   // Smart context (repo-map) - ALL modes
   try {
@@ -158,6 +202,11 @@ async function runLightweightContext(
   // Memory & docs (non-minimal modes)
   aiData.memories = loadRelevantMemory(projectRoot, result.domains);
   aiData.libraryDocs = await loadLibraryDocs(projectRoot, result.domains);
+
+  // JSON output format
+  if (options.json) {
+    return formatContextJson(aiData as Record<string, unknown>);
+  }
 
   return formatAiPrompt(aiData as Parameters<typeof formatAiPrompt>[0]);
 }
@@ -219,6 +268,15 @@ export const contextTool: MCPToolDefinition = {
         type: 'boolean',
         description: 'Include only changed files (from git status)',
       },
+      forPrd: {
+        type: 'boolean',
+        description:
+          'PRD execution mode: enables full context, loads skills/guardrails, adds workflow instructions',
+      },
+      json: {
+        type: 'boolean',
+        description: 'Return JSON format instead of XML',
+      },
     },
   },
   template: { when: 'Before feature/issue work', params: '`feature: "..."` or `issue: "123"`' },
@@ -250,9 +308,11 @@ export const contextTool: MCPToolDefinition = {
       if (typeof args.search === 'string') options.search = args.search;
       if (typeof args.changedOnly === 'boolean') options.changedOnly = args.changedOnly;
       if (typeof args.withIssues === 'boolean') options.withIssues = args.withIssues;
+      if (typeof args.forPrd === 'boolean') options.forPrd = args.forPrd;
+      if (typeof args.json === 'boolean') options.json = args.json;
 
-      const xml = await runLightweightContext(resolved.path, options);
-      return xml;
+      const output = await runLightweightContext(resolved.path, options);
+      return output;
     } catch (error) {
       return formatError(error);
     }

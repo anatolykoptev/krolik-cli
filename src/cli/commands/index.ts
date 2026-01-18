@@ -16,12 +16,14 @@ import { registerMcpCommand } from './mcp';
 import { registerMemCommand } from './mem';
 import { registerModulesCommand } from './modules';
 import { registerProgressCommand } from './progress';
+import { registerRalphCommand } from './ralph';
 import { registerRefactorCommand } from './refactor';
 import { registerReviewCommand } from './review';
 import { registerRoutesCommand } from './routes';
 import { registerSchemaCommand } from './schema';
 import { registerSecurityCommand } from './security';
 import { registerSetupCommand } from './setup';
+import { registerSkillsCommand } from './skills';
 import { registerStatusCommand } from './status';
 import { registerSyncCommand } from './sync';
 
@@ -57,7 +59,11 @@ export function registerCommands(program: Command): void {
   registerDocsCommand(program);
   registerSetupCommand(program);
   registerAgentCommand(program);
+  registerSkillsCommand(program);
 
   // Progress tracking
   registerProgressCommand(program);
+
+  // Ralph Loop (autonomous agent orchestration)
+  registerRalphCommand(program);
 }

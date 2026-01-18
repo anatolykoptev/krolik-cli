@@ -1,5 +1,51 @@
 import { defineConfig } from 'tsup';
 
+// Node.js built-in modules that must be external for ESM bundling
+// These are used by Ralph CLI LLM adapters (spawn, execSync) and other core utilities
+const NODEJS_BUILTINS = [
+  'node:child_process',
+  'node:fs',
+  'node:path',
+  'node:url',
+  'node:process',
+  'node:util',
+  'node:buffer',
+  'node:stream',
+  'node:events',
+  'node:crypto',
+  'node:os',
+  'node:worker_threads',
+  // Also include non-prefixed versions for compatibility
+  'child_process',
+  'fs',
+  'path',
+  'url',
+  'process',
+  'util',
+  'buffer',
+  'stream',
+  'events',
+  'crypto',
+  'os',
+  'worker_threads',
+];
+
+// Native modules that can't be bundled
+const NATIVE_EXTERNALS = ['@swc/core', '@swc/wasm'];
+
+// Google packages that have CommonJS dependencies with child_process
+// Note: @google/adk/common is NOT a separate export - it's bundled from @google/adk
+const GOOGLE_EXTERNALS = [
+  'google-auth-library',
+  '@google/genai',
+  '@google/adk',
+  'gaxios',
+  'gcp-metadata',
+];
+
+// Combined externals for all builds
+const EXTERNALS = [...NODEJS_BUILTINS, ...NATIVE_EXTERNALS, ...GOOGLE_EXTERNALS];
+
 export default defineConfig([
   // Main library entry
   {
@@ -17,8 +63,7 @@ export default defineConfig([
     target: 'node20',
     outDir: 'dist',
     shims: true,
-    // SWC has native bindings that can't be bundled
-    external: ['@swc/core', '@swc/wasm'],
+    external: EXTERNALS,
   },
   // CLI entry with shebang
   {
@@ -38,8 +83,7 @@ export default defineConfig([
     banner: {
       js: '#!/usr/bin/env node',
     },
-    // SWC has native bindings that can't be bundled
-    external: ['@swc/core', '@swc/wasm'],
+    external: EXTERNALS,
   },
   // Embedding worker (separate bundle for worker_threads)
   {
@@ -56,7 +100,6 @@ export default defineConfig([
     target: 'node20',
     outDir: 'dist',
     shims: true,
-    // Worker needs its own bundle of transformers.js
-    external: ['@swc/core', '@swc/wasm'],
+    external: EXTERNALS,
   },
 ]);

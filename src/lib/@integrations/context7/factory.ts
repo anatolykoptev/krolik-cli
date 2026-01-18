@@ -71,11 +71,9 @@ export function configureRegistryDatabase(getter: DatabaseGetter): void {
  * Get the shared SQLite database instance.
  *
  * This function provides access to the application's shared database
- * for registry operations. The database getter must be configured
- * via configureRegistryDatabase() before use.
+ * for registry operations. Auto-initializes Context7 if not already done.
  *
  * @returns SQLite database instance
- * @throws Error if database getter is not configured
  *
  * @example
  * ```ts
@@ -85,12 +83,10 @@ export function configureRegistryDatabase(getter: DatabaseGetter): void {
  */
 export function getRegistryDatabase(): Database {
   if (!databaseGetter) {
-    throw new Error(
-      'Registry database not configured. Call configureRegistryDatabase() first, ' +
-        'or use the factory from context7/factory.ts',
-    );
+    // Auto-initialize Context7 infrastructure
+    initializeContext7();
   }
-  return databaseGetter();
+  return databaseGetter!();
 }
 
 /**

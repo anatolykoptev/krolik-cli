@@ -10,6 +10,7 @@ import {
   enrichWithMemories,
   enrichWithRoutes,
   enrichWithSchema,
+  enrichWithSkills,
   enrichWithTargetFile,
 } from './enrichers';
 
@@ -28,6 +29,7 @@ export async function buildAgentContext(
   enrichWithTargetFile(context, projectRoot, options.file);
   enrichWithFeature(context, projectRoot, options.feature);
   enrichWithMemories(context, projectRoot, options.feature, options.includeMemory);
+  enrichWithSkills(context, projectRoot, options.includeSkills !== false);
 
   return context;
 }
@@ -86,6 +88,43 @@ ${memoriesContent}
 }
 
 /**
+ * Format skills section
+ */
+function formatSkillsSection(context: AgentContext): string | null {
+  if (!context.skills || context.skills.length === 0) return null;
+
+  // Group by category for better readability
+  const byCategory: Record<string, typeof context.skills> = {};
+  for (const skill of context.skills) {
+    if (!byCategory[skill.category]) {
+      byCategory[skill.category] = [];
+    }
+    byCategory[skill.category]!.push(skill);
+  }
+
+  const sections: string[] = [];
+
+  for (const [category, skills] of Object.entries(byCategory)) {
+    sections.push(`  <category name="${category}">`);
+    for (const skill of skills) {
+      // Use CDATA for content to be safe
+      sections.push(`    <skill severity="${skill.severity}" title="${skill.title}">`);
+      sections.push(`      <problem><![CDATA[${skill.problem}]]></problem>`);
+      sections.push(`      <solution><![CDATA[${skill.solution}]]></solution>`);
+      if (skill.example) {
+        sections.push(`      <example><![CDATA[${skill.example}]]></example>`);
+      }
+      sections.push(`    </skill>`);
+    }
+    sections.push(`  </category>`);
+  }
+
+  return `<agent-skills>
+${sections.join('\n')}
+</agent-skills>`;
+}
+
+/**
  * Format context for agent prompt
  */
 export function formatContextForPrompt(context: AgentContext): string {
@@ -129,6 +168,9 @@ ${context.gitDiff}
 
   const memories = formatMemoriesSection(context);
   if (memories) sections.push(memories);
+
+  const skills = formatSkillsSection(context);
+  if (skills) sections.push(skills);
 
   return `<project-context>
 ${sections.join('\n\n')}

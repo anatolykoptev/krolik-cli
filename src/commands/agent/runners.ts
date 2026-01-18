@@ -104,6 +104,9 @@ export async function runOrchestration(
     feature: options.feature,
     dryRun: options.dryRun,
     format: options.format === 'text' ? 'text' : options.format === 'json' ? 'json' : 'xml',
+    // LLM options
+    model: options.model,
+    backend: options.backend,
   };
 
   try {

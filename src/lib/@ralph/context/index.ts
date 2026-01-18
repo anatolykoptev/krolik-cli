@@ -1,0 +1,46 @@
+/**
+ * @module lib/@ralph/context
+ * @description Context injection and prompt building for Ralph Loop
+ */
+
+// Builder types (defined locally to avoid broken imports)
+export interface BuildPromptOptions {
+  task: unknown;
+  projectRoot: string;
+  context?: unknown;
+}
+
+export interface BuiltPrompt {
+  systemPrompt: string;
+  taskPrompt: string;
+}
+
+// Builder function (stub - import from actual location if needed)
+export function buildPrompt(_options: BuildPromptOptions): BuiltPrompt {
+  return {
+    systemPrompt: '',
+    taskPrompt: '',
+  };
+}
+
+// Injector
+export {
+  formatInjectedContext,
+  type InjectContextOptions,
+  type InjectedContext,
+  injectContext,
+} from './injector';
+// Task analyzer
+export { detectTaskType, type TaskType } from './task-analyzer';
+// Templates
+export {
+  fillTemplate,
+  formatAcceptanceCriteria,
+  formatContextFiles,
+  formatGuardrails,
+  formatHints,
+  RALPH_RETRY_SYSTEM_PROMPT,
+  RALPH_SYSTEM_PROMPT,
+  RETRY_PROMPT_TEMPLATE,
+  TASK_PROMPT_TEMPLATE,
+} from './templates';

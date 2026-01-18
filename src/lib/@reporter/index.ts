@@ -30,7 +30,14 @@ export type {
 // Effort estimation
 export { aggregateEffort, estimateEffort } from './effort';
 // Formatters
-export { formatAsJson, formatAsMarkdown, formatAsProgressiveXml, formatAsXml } from './formatter';
+export {
+  formatAsJson,
+  formatAsMarkdown,
+  formatAsProgressiveXml,
+  formatAsXml,
+  formatContextJson,
+  formatJson,
+} from './formatter/index.js';
 // Report generation
 export { generateAIReport, generateAIReportFromAnalysis } from './generator';
 // Issue grouping

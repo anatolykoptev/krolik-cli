@@ -61,6 +61,9 @@ export function registerAgentCommand(program: Command): void {
     .option('--task <description>', 'Task description for orchestration (what to analyze)')
     .option('--max-agents <n>', 'Maximum agents to run in orchestration (default: 5)', parseInt)
     .option('--parallel', 'Prefer parallel execution of agents')
+    // LLM options
+    .option('--model <name>', 'LLM model to use (gemini-2.0-flash, opus, sonnet)')
+    .option('--backend <type>', 'LLM backend type (cli, api)')
     .action(async (name: string | undefined, options: CommandOptions) => {
       // Start embedding preload immediately for faster semantic matching
       preloadEmbeddingsAsync();
@@ -79,6 +82,8 @@ export function registerAgentCommand(program: Command): void {
         task: options.task,
         maxAgents: options.maxAgents,
         preferParallel: options.parallel,
+        model: options.model,
+        backend: options.backend,
       });
       await runAgent(ctx);
     });

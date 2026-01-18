@@ -10,10 +10,11 @@
  * - Freshness bonus (recent memories get priority)
  */
 
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 import { getDatabase } from '../database';
 import { BM25_RELEVANCE_MULTIPLIER, DEFAULT_SEARCH_LIMIT } from './constants';
 import { rowToMemory } from './converters';
+import { buildFtsQuery } from './sanitize';
 import type { Memory, MemoryImportance, MemorySearchResult, MemoryType } from './types';
 
 // ============================================================================
@@ -165,13 +166,8 @@ export function smartSearch(options: SmartSearchOptions): SmartSearchResult[] {
   if (options.query?.trim()) {
     const whereClause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
 
-    // Escape FTS5 special characters and add prefix matching
-    const ftsQuery = options.query
-      .replace(/['"]/g, '')
-      .split(/\s+/)
-      .filter((w) => w.length > 0)
-      .map((word) => `${word}*`)
-      .join(' OR ');
+    // Security: Sanitize FTS5 query and add prefix matching
+    const ftsQuery = buildFtsQuery(options.query);
 
     const sql = `
       SELECT m.*, bm25(memories_fts) as rank

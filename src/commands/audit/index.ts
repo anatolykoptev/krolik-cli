@@ -71,7 +71,8 @@ async function generateReport(
   saveToKrolik('AUDIT.xml', xmlContent, { projectRoot });
 
   // Save JSON version for --from-audit integration in fix command
-  saveToKrolik('audit-data.json', JSON.stringify(report, null, 2), { projectRoot });
+  const { formatAsJson } = await import('../../lib/@reporter/formatter/index.js');
+  saveToKrolik('audit-data.json', formatAsJson(report), { projectRoot });
 
   return {
     reportPath: '.krolik/AUDIT.xml',

@@ -6,12 +6,12 @@
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { loadContextMemories } from '@/lib/@context/memory';
 import { logger } from '@/lib/@core/logger/logger';
 import { detectLibraries } from '@/lib/@integrations/context7';
 import { searchDocs } from '@/lib/@storage/docs';
-import type { Memory, SmartSearchResult } from '@/lib/@storage/memory';
-import { getCriticalMemories, getRecentDecisions, smartSearch } from '@/lib/@storage/memory';
-import { LIMITS, MEMORY_SEARCH, TIMEOUTS, TRUNCATION } from '../constants';
+import { getGuardrailsByProject } from '@/lib/@storage/ralph';
+import { LIMITS, TIMEOUTS, TRUNCATION } from '../constants';
 import type { AgentContext, LibraryDocSnippet } from '../types';
 
 // ============================================================================
@@ -101,9 +101,34 @@ export function enrichWithMemories(
   include?: boolean,
 ): void {
   if (include === false) return;
-  const memories = loadAgentMemories(projectRoot, feature);
+  const memories = loadContextMemories(projectRoot, undefined, feature);
   if (memories.length > 0) {
     context.memories = memories;
+  }
+}
+
+/**
+ * Enrich context with skills if enabled
+ */
+export function enrichWithSkills(
+  context: AgentContext,
+  projectRoot: string,
+  include: boolean,
+): void {
+  if (include === false) return;
+
+  try {
+    const projectName = path.basename(projectRoot);
+    const skills = getGuardrailsByProject(projectName);
+
+    if (skills.length > 0) {
+      context.skills = skills;
+      logger.debug(`[agent/context] Enriched with ${skills.length} skills`);
+    }
+  } catch (error) {
+    logger.debug(
+      `[agent/context] Skills enrichment failed: ${error instanceof Error ? error.message : 'unknown'}`,
+    );
   }
 }
 
@@ -136,60 +161,6 @@ function enrichWithLibraryDocs(task: string, projectRoot: string): LibraryDocSni
     );
     return [];
   }
-}
-
-/**
- * Load relevant memories for agent context using smart ranking
- */
-function loadAgentMemories(projectRoot: string, feature?: string): Memory[] {
-  try {
-    const projectName = path.basename(projectRoot);
-
-    const results = smartSearch({
-      project: projectName,
-      currentFeature: feature,
-      minRelevance: MEMORY_SEARCH.MIN_RELEVANCE,
-      limit: LIMITS.MEMORIES * MEMORY_SEARCH.LIMIT_MULTIPLIER,
-    });
-
-    if (results.length > 0) {
-      logger.debug(`[agent/context] Loaded ${results.length} memories with smart ranking`);
-      return deduplicateMemories(results.slice(0, LIMITS.MEMORIES));
-    }
-
-    const critical = getCriticalMemories(projectName, LIMITS.CRITICAL_MEMORIES);
-    const decisions = getRecentDecisions(projectName, feature, LIMITS.RECENT_DECISIONS);
-
-    const combined = [...critical, ...decisions];
-    const unique = deduplicateMemories(combined);
-
-    logger.debug(
-      `[agent/context] Fallback: ${critical.length} critical + ${decisions.length} decisions`,
-    );
-    return unique.slice(0, LIMITS.MEMORIES);
-  } catch (error) {
-    logger.debug(
-      `[agent/context] Memory loading failed: ${error instanceof Error ? error.message : 'unknown'}`,
-    );
-    return [];
-  }
-}
-
-/**
- * Deduplicate memories by ID
- */
-function deduplicateMemories(results: SmartSearchResult[]): Memory[] {
-  const seen = new Set<string>();
-  const unique: Memory[] = [];
-
-  for (const result of results) {
-    if (!seen.has(result.memory.id)) {
-      seen.add(result.memory.id);
-      unique.push(result.memory);
-    }
-  }
-
-  return unique;
 }
 
 /**

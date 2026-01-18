@@ -111,7 +111,7 @@ export type {
 // CONVENIENCE FUNCTIONS
 // ============================================================================
 
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 import { getEpicsSummary } from './epics';
 import { getActiveSession, getSessionStats, startSession } from './sessions';
 import { getBlockedTasks, getInProgressTasks, getSuggestedTasks, getTasksByProject } from './tasks';

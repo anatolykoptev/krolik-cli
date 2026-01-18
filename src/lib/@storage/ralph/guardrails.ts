@@ -6,6 +6,7 @@
  */
 
 import { prepareStatement } from '../database';
+import type { MemoryType } from '../memory/types';
 import { getRalphDatabase } from './database';
 import type {
   GuardrailCategory,
@@ -23,6 +24,7 @@ function rowToGuardrail(row: RalphGuardrailRow): RalphGuardrail {
   return {
     id: row.id,
     project: row.project,
+    type: (row.type as MemoryType) || 'pattern', // Default to pattern/guardrail if missing
     category: row.category as GuardrailCategory,
     severity: row.severity as GuardrailSeverity,
     title: row.title,
@@ -52,17 +54,31 @@ export function createGuardrail(options: RalphGuardrailCreate): number {
 
   const sql = `
     INSERT INTO ralph_guardrails (
-      project, category, severity, title, problem, solution,
+      project, type, category, severity, title, problem, solution,
       example, tags, related_tasks, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const stmt = prepareStatement<
-    [string, string, string, string, string, string, string | null, string, string, string, string]
+    [
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string,
+      string | null,
+      string,
+      string,
+      string,
+      string,
+    ]
   >(db, sql);
 
   const result = stmt.run(
     options.project,
+    options.type || 'guardrail', // Default type
     options.category,
     options.severity,
     options.title,

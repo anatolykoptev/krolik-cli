@@ -1,0 +1,15 @@
+{
+  "description": "Krolik PRD plugin stop hook for task execution loops",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/prd-stop-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

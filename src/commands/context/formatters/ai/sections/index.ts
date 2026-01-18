@@ -51,6 +51,7 @@ export {
 } from './schema-routes';
 // Search results - from --search option
 export { formatSearchResultsSection } from './search-results';
+export { formatSkillsSection } from './skills';
 // P0: Executive summary - goes FIRST
 export { formatSummarySection } from './summary';
 export {

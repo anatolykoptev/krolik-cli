@@ -17,6 +17,8 @@
  * - topics.ts: Topic management
  */
 
+import { initializeContext7 } from '../factory';
+
 // API resolution
 export { getClient, resolveViaApi } from './api';
 // Database operations
@@ -55,6 +57,9 @@ export { addTopicsForLibrary, getTopicsForLibrary, recordTopicUsage } from './to
  * Call this on startup for optimal performance.
  */
 export function initializeRegistry(): void {
+  // Ensure Context7 infrastructure is initialized first
+  initializeContext7();
+
   // Use dynamic import to get functions
   const { seedDefaultMappings, seedDefaultTopics } = require('./database') as {
     seedDefaultMappings: () => void;

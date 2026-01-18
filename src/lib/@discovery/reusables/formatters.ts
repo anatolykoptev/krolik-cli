@@ -6,7 +6,7 @@
  * discovery results in various formats.
  */
 
-import { escapeXml } from '@/lib/@format/xml/escape';
+import { escapeXml } from '@/lib/@core/xml/escape';
 import { getCategoryDisplayName, getCategoryIcon } from './classifier';
 import { getLevelDescription } from './scorer';
 import type { DiscoveryResult, ModuleCategory, ReusabilityLevel } from './types';

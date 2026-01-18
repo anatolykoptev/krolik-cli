@@ -11,6 +11,7 @@
 import { getDatabase } from '../database';
 import { BM25_RELEVANCE_MULTIPLIER, DEFAULT_SEARCH_LIMIT, LIKE_MATCH_RELEVANCE } from './constants';
 import { rowToMemory } from './converters';
+import { buildFtsQuery, buildLikePattern } from './sanitize';
 import type { MemorySearchOptions, MemorySearchResult } from './types';
 
 /**
@@ -74,13 +75,13 @@ export function search(options: MemorySearchOptions): MemorySearchResult[] {
 
   // Feature filter (check if any feature matches)
   if (options.features && options.features.length > 0) {
-    const featureConditions = options.features.map(() => 'json_each.value LIKE ?');
+    const featureConditions = options.features.map(() => "json_each.value LIKE ? ESCAPE '\\'");
     conditions.push(`EXISTS (
       SELECT 1 FROM json_each(m.features)
       WHERE ${featureConditions.join(' OR ')}
     )`);
-    // Use LIKE for partial matching
-    params.push(...options.features.map((f) => `%${f}%`));
+    // Security: Escape LIKE special characters to prevent pattern injection
+    params.push(...options.features.map((f) => buildLikePattern(f, 'contains')));
   }
 
   const limit = options.limit ?? DEFAULT_SEARCH_LIMIT;
@@ -89,13 +90,8 @@ export function search(options: MemorySearchOptions): MemorySearchResult[] {
   if (options.query?.trim()) {
     const whereClause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
 
-    // Escape FTS5 special characters and add prefix matching
-    const ftsQuery = options.query
-      .replace(/['"]/g, '')
-      .split(/\s+/)
-      .filter((w) => w.length > 0)
-      .map((word) => `${word}*`)
-      .join(' OR ');
+    // Security: Sanitize FTS5 query and add prefix matching
+    const ftsQuery = buildFtsQuery(options.query);
 
     const sql = `
       SELECT m.*, bm25(memories_fts) as rank
@@ -190,8 +186,9 @@ export function searchWithLike(options: MemorySearchOptions): MemorySearchResult
   }
 
   if (options.query) {
-    conditions.push('(title LIKE ? OR description LIKE ?)');
-    const likePattern = `%${options.query}%`;
+    conditions.push("(title LIKE ? ESCAPE '\\' OR description LIKE ? ESCAPE '\\')");
+    // Security: Escape LIKE special characters to prevent pattern injection
+    const likePattern = buildLikePattern(options.query, 'contains');
     params.push(likePattern, likePattern);
   }
 

@@ -51,13 +51,32 @@ function getLegacyGlobalDbPath(): string {
 }
 
 /**
+ * Get project memory directory ({projectPath}/.krolik/memory)
+ */
+function getProjectMemoryDir(projectPath: string): string {
+  const dir = path.join(projectPath, '.krolik', 'memory');
+  ensureDir(dir);
+  return dir;
+}
+
+/**
+ * Get project database path ({projectPath}/.krolik/memory/krolik.db)
+ */
+function getProjectDbPath(projectPath: string): string {
+  return path.join(getProjectMemoryDir(projectPath), 'krolik.db');
+}
+
+/**
  * Get the effective database path based on options
  *
- * Phase 1 behavior: Always use global DB (memories.db) for compatibility
- * Hybrid architecture uses scope column instead of separate DBs
+ * - scope: 'global' or undefined - uses ~/.krolik/memory/memories.db
+ * - scope: 'project' - uses {projectPath}/.krolik/memory/krolik.db
  */
-function getEffectiveDbPath(_options?: DatabaseOptions): string {
-  // Use single global DB with scope column for hybrid architecture
+function getEffectiveDbPath(options?: DatabaseOptions): string {
+  if (options?.scope === 'project' && options.projectPath) {
+    return getProjectDbPath(options.projectPath);
+  }
+  // Default to global DB
   return getLegacyGlobalDbPath();
 }
 
@@ -104,7 +123,7 @@ export function clearStatementCache(): void {
 /**
  * Current schema version
  */
-const CURRENT_VERSION = 6;
+const CURRENT_VERSION = 10;
 
 // ============================================================================
 // DATABASE ACCESS
@@ -180,6 +199,13 @@ export function closeDatabase(options?: DatabaseOptions): void {
     if (db) {
       db.close();
       dbInstances.delete(dbPath);
+
+      // Clear statement cache for this database
+      for (const key of stmtCache.keys()) {
+        if (key.startsWith(`${dbPath}:`)) {
+          stmtCache.delete(key);
+        }
+      }
     }
   } else {
     // Close all databases
@@ -548,6 +574,241 @@ function runMigrations(db: Database.Database): void {
     // Record migration
     const insertVersionSql = 'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)';
     prepareStatement<[number, string]>(db, insertVersionSql).run(6, new Date().toISOString());
+  }
+
+  // Migration 7: Ralph Loop tables (attempts, guardrails, sessions)
+  if (currentVersion < 7) {
+    db.exec(`
+      -- Ralph Loop task attempts (execution history)
+      CREATE TABLE IF NOT EXISTS ralph_attempts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        prd_task_id TEXT NOT NULL,
+        attempt_number INTEGER NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        success INTEGER NOT NULL DEFAULT 0,
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        cost_usd REAL DEFAULT 0,
+        model TEXT,
+        error_message TEXT,
+        error_stack TEXT,
+        files_modified TEXT DEFAULT '[]',
+        commands_executed TEXT DEFAULT '[]',
+        commit_sha TEXT,
+        validation_passed INTEGER DEFAULT 0,
+        validation_output TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ralph_attempts_task ON ralph_attempts(task_id);
+      CREATE INDEX IF NOT EXISTS idx_ralph_attempts_prd_task ON ralph_attempts(prd_task_id);
+      CREATE INDEX IF NOT EXISTS idx_ralph_attempts_started ON ralph_attempts(started_at DESC);
+
+      -- Ralph Loop guardrails (lessons learned from failures)
+      CREATE TABLE IF NOT EXISTS ralph_guardrails (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project TEXT NOT NULL,
+        category TEXT NOT NULL CHECK(category IN (
+          'code-quality', 'testing', 'security', 'dependencies',
+          'performance', 'architecture', 'api', 'database',
+          'typescript', 'react', 'other'
+        )),
+        severity TEXT NOT NULL DEFAULT 'medium' CHECK(severity IN ('critical', 'high', 'medium', 'low')),
+        title TEXT NOT NULL,
+        problem TEXT NOT NULL,
+        solution TEXT NOT NULL,
+        example TEXT,
+        tags TEXT DEFAULT '[]',
+        related_tasks TEXT DEFAULT '[]',
+        usage_count INTEGER DEFAULT 0,
+        last_used_at TEXT,
+        superseded_by INTEGER REFERENCES ralph_guardrails(id),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ralph_guardrails_project ON ralph_guardrails(project);
+      CREATE INDEX IF NOT EXISTS idx_ralph_guardrails_category ON ralph_guardrails(category);
+      CREATE INDEX IF NOT EXISTS idx_ralph_guardrails_severity ON ralph_guardrails(severity);
+
+      -- FTS5 for guardrails search
+      CREATE VIRTUAL TABLE IF NOT EXISTS ralph_guardrails_fts USING fts5(
+        title,
+        problem,
+        solution,
+        tags_text,
+        content='ralph_guardrails',
+        content_rowid='id',
+        tokenize='porter unicode61'
+      );
+
+      -- Triggers for guardrails FTS sync
+      CREATE TRIGGER IF NOT EXISTS ralph_guardrails_ai AFTER INSERT ON ralph_guardrails BEGIN
+        INSERT INTO ralph_guardrails_fts(rowid, title, problem, solution, tags_text)
+        VALUES (new.id, new.title, new.problem, new.solution,
+                REPLACE(REPLACE(new.tags, '[', ''), ']', ''));
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS ralph_guardrails_ad AFTER DELETE ON ralph_guardrails BEGIN
+        INSERT INTO ralph_guardrails_fts(ralph_guardrails_fts, rowid, title, problem, solution, tags_text)
+        VALUES('delete', old.id, old.title, old.problem, old.solution,
+               REPLACE(REPLACE(old.tags, '[', ''), ']', ''));
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS ralph_guardrails_au AFTER UPDATE ON ralph_guardrails BEGIN
+        INSERT INTO ralph_guardrails_fts(ralph_guardrails_fts, rowid, title, problem, solution, tags_text)
+        VALUES('delete', old.id, old.title, old.problem, old.solution,
+               REPLACE(REPLACE(old.tags, '[', ''), ']', ''));
+        INSERT INTO ralph_guardrails_fts(rowid, title, problem, solution, tags_text)
+        VALUES (new.id, new.title, new.problem, new.solution,
+                REPLACE(REPLACE(new.tags, '[', ''), ']', ''));
+      END;
+
+      -- Ralph Loop sessions (high-level session tracking)
+      CREATE TABLE IF NOT EXISTS ralph_sessions (
+        id TEXT PRIMARY KEY,
+        project TEXT NOT NULL,
+        prd_path TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT,
+        status TEXT NOT NULL DEFAULT 'running' CHECK(status IN ('running', 'paused', 'completed', 'failed', 'cancelled')),
+        total_tasks INTEGER DEFAULT 0,
+        completed_tasks INTEGER DEFAULT 0,
+        failed_tasks INTEGER DEFAULT 0,
+        skipped_tasks INTEGER DEFAULT 0,
+        total_tokens INTEGER DEFAULT 0,
+        total_cost_usd REAL DEFAULT 0,
+        current_task_id TEXT,
+        config TEXT DEFAULT '{}'
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ralph_sessions_project ON ralph_sessions(project);
+      CREATE INDEX IF NOT EXISTS idx_ralph_sessions_status ON ralph_sessions(status);
+      CREATE INDEX IF NOT EXISTS idx_ralph_sessions_started ON ralph_sessions(started_at DESC);
+    `);
+
+    prepareStatement<[number, string]>(
+      db,
+      'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)',
+    ).run(7, new Date().toISOString());
+  }
+
+  // Migration 8: Library mappings and topics for docs cache
+  if (currentVersion < 8) {
+    db.exec(`
+      -- Library name mappings (npm package -> context7 library)
+      CREATE TABLE IF NOT EXISTS library_mappings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        npm_name TEXT NOT NULL UNIQUE,
+        context7_id TEXT NOT NULL,
+        context7_name TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_library_mappings_npm ON library_mappings(npm_name);
+
+      -- Library topics for targeted documentation fetching
+      CREATE TABLE IF NOT EXISTS library_topics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        library_id TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        fetched_at TEXT,
+        snippets_count INTEGER DEFAULT 0,
+        FOREIGN KEY (library_id) REFERENCES library_docs(library_id) ON DELETE CASCADE,
+        UNIQUE(library_id, topic)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_library_topics_library ON library_topics(library_id);
+    `);
+
+    prepareStatement<[number, string]>(
+      db,
+      'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)',
+    ).run(8, new Date().toISOString());
+  }
+
+  // Migration 9: Ralph ADK integration tables (consolidate separate DBs)
+  if (currentVersion < 9) {
+    db.exec(`
+      -- Ralph ADK sessions (ADK-compatible session storage, replaces ralph-sessions.db)
+      CREATE TABLE IF NOT EXISTS ralph_adk_sessions (
+        id TEXT PRIMARY KEY,
+        app_name TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        state TEXT DEFAULT '{}',
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ralph_adk_sessions_app_user ON ralph_adk_sessions(app_name, user_id);
+
+      -- Ralph ADK events (conversation history for ADK runner)
+      CREATE TABLE IF NOT EXISTS ralph_adk_events (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        invocation_id TEXT NOT NULL,
+        author TEXT,
+        content TEXT,
+        actions TEXT DEFAULT '{}',
+        branch TEXT,
+        timestamp INTEGER NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES ralph_adk_sessions(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ralph_adk_events_session ON ralph_adk_events(session_id);
+      CREATE INDEX IF NOT EXISTS idx_ralph_adk_events_timestamp ON ralph_adk_events(session_id, timestamp);
+
+      -- Ralph checkpoints (crash recovery, replaces ralph-checkpoints.db)
+      CREATE TABLE IF NOT EXISTS ralph_checkpoints (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        prd_path TEXT NOT NULL,
+        prd_hash TEXT NOT NULL,
+        state TEXT NOT NULL,
+        task_results TEXT NOT NULL,
+        config TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_ralph_checkpoints_prd ON ralph_checkpoints(prd_path);
+      CREATE INDEX IF NOT EXISTS idx_ralph_checkpoints_session ON ralph_checkpoints(session_id);
+    `);
+
+    prepareStatement<[number, string]>(
+      db,
+      'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)',
+    ).run(9, new Date().toISOString());
+  }
+
+  // Migration 10: Model router patterns and attempt routing fields
+  if (currentVersion < 10) {
+    db.exec(`
+      -- Add routing fields to ralph_attempts
+      ALTER TABLE ralph_attempts ADD COLUMN signature_hash TEXT;
+      ALTER TABLE ralph_attempts ADD COLUMN escalated_from TEXT;
+
+      -- Model routing patterns (learning from history)
+      CREATE TABLE IF NOT EXISTS ralph_routing_patterns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        signature_hash TEXT NOT NULL,
+        model TEXT NOT NULL,
+        success_count INTEGER DEFAULT 0,
+        fail_count INTEGER DEFAULT 0,
+        avg_cost REAL DEFAULT 0,
+        last_updated TEXT NOT NULL,
+        UNIQUE(signature_hash, model)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_routing_patterns_signature ON ralph_routing_patterns(signature_hash);
+      CREATE INDEX IF NOT EXISTS idx_routing_patterns_model ON ralph_routing_patterns(model);
+    `);
+
+    prepareStatement<[number, string]>(
+      db,
+      'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)',
+    ).run(10, new Date().toISOString());
   }
 }
 

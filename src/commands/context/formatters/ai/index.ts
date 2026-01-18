@@ -64,6 +64,7 @@ import {
   formatSchemaHighlightsSection,
   formatSchemaSection,
   formatSearchResultsSection,
+  formatSkillsSection,
   formatSummarySection,
   formatTaskSection,
   formatTestsSection,
@@ -262,6 +263,9 @@ export function formatAiPrompt(data: AiContextData): string {
 
   // Architecture patterns (from --architecture)
   formatArchitectureSection(lines, filteredData);
+
+  // Agent Skills & Guidelines
+  formatSkillsSection(lines, filteredData);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // P3: LOW - Details on demand

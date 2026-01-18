@@ -17,3 +17,4 @@ export {
   parseZodSchemasFromDirs,
 } from './parsers';
 export { addQualityIssues } from './quality';
+export { formatSkills, loadSkills } from './skills';

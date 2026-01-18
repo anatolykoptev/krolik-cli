@@ -1,0 +1,114 @@
+{
+  "version": "1.0",
+  "prdId": "stripe-integration-prd",
+  "startedAt": "2026-01-15T11:00:00Z",
+  "currentTask": "stripe-002-schema",
+  "totalTokensUsed": 12800,
+  "tasks": {
+    "stripe-001-env": {
+      "taskId": "stripe-001-env",
+      "status": "done",
+      "attempts": [
+        {
+          "attemptNumber": 1,
+          "startedAt": "2026-01-15T11:00:00Z",
+          "endedAt": "2026-01-15T11:08:30Z",
+          "success": true,
+          "tokensUsed": 4800,
+          "output": "Successfully added Stripe environment variables to .env.example and updated env.ts with Zod validation. All type checks pass.",
+          "filesModified": [".env.example", "src/env.ts"],
+          "commandsExecuted": ["pnpm typecheck"]
+        }
+      ],
+      "currentAttempt": 1,
+      "commitSha": "a1b2c3d4e5f6",
+      "totalTokensUsed": 4800,
+      "startedAt": "2026-01-15T11:00:00Z",
+      "completedAt": "2026-01-15T11:08:30Z",
+      "acceptanceCriteria": [
+        {
+          "id": "ac-001-1",
+          "completed": true,
+          "notes": "Added STRIPE_SECRET_KEY=sk_test_example to .env.example"
+        },
+        {
+          "id": "ac-001-2",
+          "completed": true,
+          "notes": "Added STRIPE_WEBHOOK_SECRET=whsec_example to .env.example"
+        },
+        {
+          "id": "ac-001-3",
+          "completed": true,
+          "testResult": {
+            "passed": true,
+            "output": "Type checking completed successfully"
+          },
+          "notes": "Zod validation added to env.ts with proper error messages"
+        }
+      ]
+    },
+    "stripe-002-schema": {
+      "taskId": "stripe-002-schema",
+      "status": "in_progress",
+      "attempts": [
+        {
+          "attemptNumber": 1,
+          "startedAt": "2026-01-15T11:10:00Z",
+          "endedAt": "2026-01-15T11:25:00Z",
+          "success": false,
+          "error": "Migration failed: Foreign key constraint failed on the field: `Subscription_userId_fkey`",
+          "errorStack": "Error: Migration failed...\n  at prisma.migrate...",
+          "tokensUsed": 8000,
+          "output": "Created all Prisma models but migration failed due to missing User model relation",
+          "filesModified": ["prisma/schema.prisma"],
+          "commandsExecuted": ["pnpm prisma migrate dev --name add_stripe_models"]
+        }
+      ],
+      "currentAttempt": 1,
+      "totalTokensUsed": 8000,
+      "startedAt": "2026-01-15T11:10:00Z",
+      "acceptanceCriteria": [
+        {
+          "id": "ac-002-1",
+          "completed": true,
+          "notes": "Subscription model created with all required Stripe fields"
+        },
+        {
+          "id": "ac-002-2",
+          "completed": true,
+          "notes": "PaymentMethod model created"
+        },
+        {
+          "id": "ac-002-3",
+          "completed": true,
+          "notes": "StripeEvent model added for webhook idempotency"
+        },
+        {
+          "id": "ac-002-4",
+          "completed": false,
+          "testResult": {
+            "passed": false,
+            "error": "Foreign key constraint failed"
+          },
+          "notes": "Migration failed - need to check User model exists with correct fields"
+        }
+      ],
+      "failureReason": "Foreign key constraint error - User model may not have stripeCustomerId field"
+    }
+  },
+  "guardrailsGenerated": ["guardrail-prisma-001-foreign-keys"],
+  "session": {
+    "id": "ralph-session-20260115-110000",
+    "environment": "development",
+    "ralphVersion": "0.1.0",
+    "startedBy": "claude-sonnet-4"
+  },
+  "summary": {
+    "totalTasks": 3,
+    "completed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0,
+    "successRate": 33.33
+  }
+}

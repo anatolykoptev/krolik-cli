@@ -36,8 +36,7 @@ export interface CommonCommandOptions {
 // Output Types
 // ============================================================================
 
-/** Output format for command results */
-export type OutputFormat = 'json' | 'text' | 'ai';
+// OutputFormat is exported from ./parsers/output-format.ts to avoid duplicate
 
 /** Output verbosity level */
 export type OutputLevel = 'summary' | 'compact' | 'default' | 'full';

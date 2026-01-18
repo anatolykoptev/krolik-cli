@@ -24,11 +24,14 @@ import './fix';
 import './issue';
 import './memory';
 import './modules';
+import './prd';
 import './progress';
+import './ralph';
 import './refactor';
 import './review';
 import './routes';
 import './schema';
+import './skills';
 import './status';
 
 // Re-export registry functions from core/

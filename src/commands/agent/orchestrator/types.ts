@@ -100,6 +100,9 @@ export interface OrchestrateOptions {
   format?: 'text' | 'xml' | 'json' | undefined;
   /** Use legacy keyword-based selection instead of smart scoring */
   legacy?: boolean | undefined;
+  /** LLM options */
+  model?: string | undefined;
+  backend?: 'cli' | 'api' | undefined;
 }
 
 /**

@@ -19,7 +19,7 @@ import { detectDomains, findRelatedFiles, generateChecklist, getApproaches } fro
 import { formatAiPrompt, formatJson, formatMarkdown, printContext } from './formatters';
 import { collectLibModules, searchInProject } from './helpers';
 import { buildDeepSections, buildMinimalSections, buildQuickSections } from './modes';
-import { loadLibraryDocs, loadRelevantMemory } from './sections';
+import { loadLibraryDocs, loadRelevantMemory, loadSkills } from './sections';
 import { buildSmartContext } from './smart-context';
 import type { AiContextData, ContextMode, ContextOptions } from './types';
 
@@ -188,6 +188,7 @@ async function buildAiContextData(
   // Memory & docs (non-minimal modes)
   aiData.memories = loadRelevantMemory(projectRoot, result.domains);
   aiData.libraryDocs = await loadLibraryDocs(projectRoot, result.domains);
+  aiData.skills = loadSkills(projectRoot, result.domains);
 
   if (isQuickMode) return aiData;
 
