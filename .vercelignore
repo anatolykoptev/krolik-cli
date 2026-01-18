@@ -1,0 +1,13 @@
+node_modules
+.git
+.krolik
+src
+tests
+dist
+documentation
+*.ts
+*.md
+!docs/**
+tsconfig.json
+package.json
+pnpm-lock.yaml
