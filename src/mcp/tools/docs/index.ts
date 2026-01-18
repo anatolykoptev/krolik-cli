@@ -68,7 +68,19 @@ function handleSearch(args: DocsArgs): string {
   });
 
   if (results.length === 0) {
-    return '<docs-search count="0"><message>No results found. Try different keywords or fetch library docs first.</message></docs-search>';
+    const libraryHint = args.library
+      ? `\n  <suggestion>Use krolik_docs with action: "fetch" and library: "${escapeXml(args.library)}" to cache documentation first</suggestion>`
+      : '\n  <suggestion>Use krolik_docs with action: "detect" to find project libraries, then fetch them</suggestion>';
+
+    const context7Hint = `\n  <context7-alternative>
+    Or use Context7 MCP tools directly:
+    1. mcp__context7__resolve-library-id({ libraryName: "your-library" })
+    2. mcp__context7__query-docs({ libraryId: "resolved-id", query: "${escapeXml(query)}" })
+  </context7-alternative>`;
+
+    return `<docs-search count="0">
+  <message>No results found in krolik docs cache. Try different keywords or fetch library docs first.</message>${libraryHint}${context7Hint}
+</docs-search>`;
   }
 
   const lines = [`<docs-search query="${escapeXml(query)}" count="${results.length}">`];
@@ -136,7 +148,27 @@ async function handleFetch(args: DocsArgs): Promise<string> {
   const force = args.force ?? false;
 
   if (!hasContext7ApiKey()) {
-    return '<docs-fetch status="error"><message>CONTEXT7_API_KEY not set. Please set the environment variable to fetch documentation.</message></docs-fetch>';
+    // Fallback to MCP Context7 tools if API key not available
+    return `<docs-fetch status="mcp_fallback" library="${escapeXml(library)}">
+  <message>CONTEXT7_API_KEY not set. Use Context7 MCP tools to fetch documentation:</message>
+  <instruction>
+    1. Call mcp__context7__resolve-library-id with libraryName: "${escapeXml(library)}"
+    2. Call mcp__context7__query-docs with the resolved libraryId and query: "${escapeXml(topic ?? `${library} documentation`)}"
+    3. The results will be returned directly - no need to call krolik_docs fetch again
+  </instruction>
+  <example>
+    mcp__context7__resolve-library-id({
+      libraryName: "${escapeXml(library)}",
+      query: "${escapeXml(topic ?? `${library} documentation`)}"
+    })
+    // Then use the returned library ID in:
+    mcp__context7__query-docs({
+      libraryId: "/org/project",
+      query: "${escapeXml(topic ?? `${library} usage examples`)}"
+    })
+  </example>
+  <alternative>Set CONTEXT7_API_KEY in .env to enable direct caching</alternative>
+</docs-fetch>`;
   }
 
   const result = await fetchAndCacheDocs(library, { topic, force });
@@ -235,6 +267,12 @@ Use this tool to:
 - Check which libraries are cached
 - Refresh outdated documentation
 - Discover project dependencies that have docs available
+
+**Context7 Integration**:
+- If CONTEXT7_API_KEY is not set, krolik_docs will suggest using Context7 MCP tools directly
+- Use mcp__context7__resolve-library-id to find library IDs
+- Use mcp__context7__query-docs for direct documentation queries
+- krolik_docs provides instructions for seamless fallback to Context7 MCP
 
 Examples:
 - Search: { action: "search", query: "app router server components" }
