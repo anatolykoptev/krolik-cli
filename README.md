@@ -6,23 +6,27 @@
      o_(")(")
 ```
 
-### AI-First Development Toolkit for TypeScript
+### Multi-Tier AI Orchestration for Cost-Optimized Development
 
 [![CI](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/anatolykoptev/krolik-cli/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@anatolykoptev/krolik-cli.svg?style=flat&colorA=18181B&colorB=28CF8D)](https://www.npmjs.com/package/@anatolykoptev/krolik-cli)
 [![License: FSL-1.1-Apache-2.0](https://img.shields.io/badge/License-FSL--1.1-blue.svg?style=flat&colorA=18181B&colorB=28CF8D)](./LICENSE)
 
-[Get Started](#installation) · [Commands](#commands) · [MCP Server](#mcp-server)
+[Get Started](#installation) · [Felix](#krolik-felix--multi-tier-ai-routing) · [Commands](#other-commands) · [MCP Server](#mcp-server)
 
 </div>
 
 ---
 
-## Why Krolik?
+## 🚀 Cut AI Costs by 90%
 
-AI assistants spend most of their time gathering context. Every session starts with "let me search the codebase..." followed by dozens of file reads.
+Stop overpaying for AI. **Krolik Felix** automatically routes tasks to the optimal AI model tier based on complexity:
 
-**Krolik gives AI everything it needs in 1-2 seconds.**
+- **Simple tasks** → Free/Cheap models (formatting, refactoring, simple fixes)
+- **Medium tasks** → Mid-tier models (feature implementation, debugging)
+- **Complex tasks** → Premium models (architecture design, complex algorithms)
+
+**Result**: 90% cost reduction compared to always using premium models.
 
 ---
 
@@ -34,7 +38,87 @@ npm i -g @anatolykoptev/krolik-cli
 
 ---
 
-## Commands
+## `krolik felix` — Multi-Tier AI Routing
+
+Intelligent model orchestration that saves money without sacrificing quality.
+
+### Core Features
+
+#### 🎯 **Automatic Tier Selection**
+Analyzes task complexity and routes to optimal tier:
+- **Free tier** (Llama, DeepSeek) — 60% of tasks
+- **Cheap tier** (Haiku, Flash) — 25% of tasks
+- **Mid tier** (Sonnet, Pro) — 10% of tasks
+- **Premium tier** (Opus, O1) — 5% of critical tasks
+
+#### ⚡ **Cascade Fallback**
+If a cheaper model fails, automatically escalates to next tier:
+```
+Free → Cheap → Mid → Premium
+```
+Ensures reliability while maintaining cost efficiency.
+
+#### 📊 **History Learning**
+SQLite database tracks success/failure patterns:
+- Routes similar tasks to models that performed well historically
+- Improves accuracy over time
+- Learns project-specific patterns
+
+#### 💰 **Cost Estimation**
+```bash
+krolik felix estimate --prd PRD.json
+# Optimistic: $2.50
+# Expected: $4.80
+# Pessimistic: $8.20
+```
+
+### Usage
+
+```bash
+# Start autonomous execution from PRD
+krolik felix start --prd PRD.json
+
+# Get routing plan (dry-run)
+krolik felix plan --prd PRD.json
+
+# Check status
+krolik felix status
+
+# View routing statistics
+krolik felix stats
+```
+
+### Example PRD
+
+```json
+{
+  "name": "Add user authentication",
+  "tasks": [
+    {
+      "id": "create-user-model",
+      "description": "Create Prisma User model with email/password",
+      "complexity": "low",
+      "files_affected": ["prisma/schema.prisma"]
+    },
+    {
+      "id": "implement-jwt-auth",
+      "description": "Implement JWT-based authentication with refresh tokens",
+      "complexity": "high",
+      "files_affected": ["lib/auth.ts", "lib/jwt.ts"]
+    }
+  ]
+}
+```
+
+**Felix analyzes each task and routes**:
+- `create-user-model` → **Cheap tier** (simple schema addition)
+- `implement-jwt-auth` → **Premium tier** (security-critical, complex logic)
+
+---
+
+## Other Commands
+
+Krolik also provides developer productivity tools:
 
 ### `krolik context` — Project Context in Seconds
 
@@ -107,7 +191,7 @@ krolik agent --orchestrate --task "review"    # Multi-agent mode
 
 ---
 
-### Other Commands
+### Other Utilities
 
 | Command | What it does |
 |---------|--------------|
@@ -161,6 +245,12 @@ Native modules require build tools:
 
 ---
 
+## Why "Felix"?
+
+Felix (Latin for "lucky" or "successful") represents the tool's mission: making AI development cost-effective and successful for everyone. The rabbit mascot embodies speed and agility in navigating complex AI model choices.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup.
@@ -176,6 +266,16 @@ Free for internal use, education, and research. Converts to Apache 2.0 on Decemb
 ---
 
 ## Changelog
+
+### v0.18.0 (2026-01-18)
+- **Felix multi-tier routing** — primary feature repositioning
+  - Intelligent model selection across 4 tiers (Free, Cheap, Mid, Premium)
+  - Cascade fallback for reliability
+  - SQLite-based history learning
+  - Cost estimation and routing statistics
+  - 90% cost reduction compared to always using premium models
+- **Updated positioning** — Multi-tier AI orchestration as primary value proposition
+- **Website launch** — krolik.tools with product documentation
 
 ### v0.17.0 (2026-01-14)
 - **Toma semantic clone detection** — fast token-based duplicate detection
