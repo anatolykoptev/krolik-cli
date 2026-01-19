@@ -7,7 +7,7 @@
  * 3. Try alternate provider, same backend
  * 4. Try alternate provider, alternate backend
  *
- * @module @ralph/models/fallback-router
+ * @module @felix/models/fallback-router
  */
 
 import type { BaseLlm } from '@google/adk';

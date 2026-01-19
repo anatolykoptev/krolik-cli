@@ -6,7 +6,7 @@
  * - Reads previous task results via beforeModelCallback
  * - Extracts files changed via afterModelCallback
  *
- * @module @ralph/agents/worker-agent
+ * @module @felix/agents/worker-agent
  */
 
 import type { BaseLlm } from '@google/adk';

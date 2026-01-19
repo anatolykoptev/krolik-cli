@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/history
+ * @module lib/@felix/router/history
  * @description History-based model routing adjustments
  *
  * Analyzes past attempts to adjust model selection:

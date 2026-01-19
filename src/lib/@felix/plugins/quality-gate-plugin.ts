@@ -4,7 +4,7 @@
  * Runs krolik_audit and krolik_review after agent makes changes.
  * Blocks commit/completion if quality gates fail.
  *
- * @module @ralph/plugins/quality-gate-plugin
+ * @module @felix/plugins/quality-gate-plugin
  */
 
 import type { CallbackContext, LlmResponse } from '@google/adk';

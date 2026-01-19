@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/tools/fs
+ * @module lib/@felix/tools/fs
  * @description File system tools for Ralph Agent
  */
 

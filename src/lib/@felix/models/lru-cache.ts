@@ -6,7 +6,7 @@
  * - Time-based expiry (TTL)
  * - Auto-cleanup on access
  *
- * @module @ralph/models/lru-cache
+ * @module @felix/models/lru-cache
  */
 
 // ============================================================================

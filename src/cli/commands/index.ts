@@ -64,6 +64,6 @@ export function registerCommands(program: Command): void {
   // Progress tracking
   registerProgressCommand(program);
 
-  // Ralph Loop (autonomous agent orchestration)
+  // Krolik Felix (autonomous agent orchestration)
   registerFelixCommand(program);
 }

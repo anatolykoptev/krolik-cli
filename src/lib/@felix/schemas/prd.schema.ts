@@ -2,9 +2,9 @@
  * PRD Schema
  *
  * Zod schema for validating PRD.json files at runtime.
- * PRD (Product Requirements Document) defines tasks for Ralph Loop execution.
+ * PRD (Product Requirements Document) defines tasks for Krolik Felix execution.
  *
- * @module @ralph/schemas/prd
+ * @module @felix/schemas/prd
  */
 
 import { z } from 'zod';
@@ -121,7 +121,7 @@ export const PRDTaskSchema = z.object({
 export type PRDTask = z.infer<typeof PRDTaskSchema>;
 
 /**
- * Ralph Loop configuration
+ * Krolik Felix configuration
  */
 export const RalphConfigSchema = z.object({
   /** Max retry attempts per task */

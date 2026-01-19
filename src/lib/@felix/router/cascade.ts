@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/cascade
+ * @module lib/@felix/router/cascade
  * @description Cascade executor with fallback on failure
  *
  * Fallback logic:

@@ -3,7 +3,7 @@
  *
  * Handles parallel task execution by grouping tasks by dependency level.
  *
- * @module @ralph/orchestrator/parallel-executor
+ * @module @felix/orchestrator/parallel-executor
  */
 
 import type { PRDTask } from '../schemas/prd.schema.js';

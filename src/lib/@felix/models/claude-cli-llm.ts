@@ -4,7 +4,7 @@
  * Implements BaseLlm interface using the `claude` CLI command.
  * Allows ADK to work without API keys by using local Claude CLI.
  *
- * @module @ralph/models/claude-cli-llm
+ * @module @felix/models/claude-cli-llm
  */
 
 import { BaseCliLlm, type ProviderConfig } from './base-cli-llm.js';

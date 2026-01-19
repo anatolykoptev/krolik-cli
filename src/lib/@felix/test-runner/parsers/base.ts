@@ -3,7 +3,7 @@
  *
  * Abstract base class for test framework parsers.
  *
- * @module @ralph/test-runner/parsers/base
+ * @module @felix/test-runner/parsers/base
  */
 
 import type { TestFailure, TestFramework, TestOutputParser, TestResult } from '../../types';

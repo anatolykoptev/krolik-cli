@@ -10,7 +10,7 @@
  * 1. Passes the `instanceof BuiltInCodeExecutor` check in Runner
  * 2. Overrides processLlmRequest to do nothing (skips Gemini code execution setup)
  *
- * @module @ralph/executors/noop-code-executor
+ * @module @felix/executors/noop-code-executor
  */
 
 import type { LlmRequest } from '@google/adk';

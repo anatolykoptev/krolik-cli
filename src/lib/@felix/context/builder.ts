@@ -1,6 +1,6 @@
 /**
- * @module lib/@ralph/context/builder
- * @description Prompt builder for Ralph Loop
+ * @module lib/@felix/context/builder
+ * @description Prompt builder for Krolik Felix
  *
  * Combines context injection, templates, and task info
  * to build complete prompts for AI execution.
@@ -12,13 +12,13 @@ import type { InjectedContext } from './injector';
 import { formatInjectedContext, type InjectContextOptions, injectContext } from './injector';
 import { detectTaskType } from './task-analyzer';
 import {
+  FELIX_SYSTEM_PROMPT,
   fillTemplate,
   formatAcceptanceCriteria,
   formatContextFiles,
   formatGuardrails,
   formatHints,
   RALPH_RETRY_SYSTEM_PROMPT,
-  RALPH_SYSTEM_PROMPT,
   RETRY_PROMPT_TEMPLATE,
   TASK_PROMPT_TEMPLATE,
 } from './templates';
@@ -99,7 +99,7 @@ export async function buildPrompt(
   // Build system prompt
   const systemPrompt = isRetry
     ? buildRetrySystemPrompt(options.failureReason, options.guardrails)
-    : RALPH_SYSTEM_PROMPT;
+    : FELIX_SYSTEM_PROMPT;
 
   // Build user prompt
   const userPrompt = isRetry

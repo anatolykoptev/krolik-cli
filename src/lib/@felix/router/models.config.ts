@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/models.config
+ * @module lib/@felix/router/models.config
  * @description Dynamic Model Configuration
  *
  * Declarative model definitions - add new models here without code changes.

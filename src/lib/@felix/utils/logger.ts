@@ -1,5 +1,5 @@
 /**
- * @module @ralph/utils/logger
+ * @module @felix/utils/logger
  * @description Structured logging for Ralph orchestrator
  *
  * All logs go to stderr to keep stdout clean for data output.

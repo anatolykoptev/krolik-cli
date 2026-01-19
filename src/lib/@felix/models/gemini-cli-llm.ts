@@ -4,7 +4,7 @@
  * Implements BaseLlm interface using the `gemini` CLI command.
  * Allows ADK to work without API keys by using local Gemini CLI.
  *
- * @module @ralph/models/gemini-cli-llm
+ * @module @felix/models/gemini-cli-llm
  */
 
 import { BaseCliLlm, type ProviderConfig } from './base-cli-llm.js';

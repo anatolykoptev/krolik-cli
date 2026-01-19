@@ -4,7 +4,7 @@
  * Provides common functionality for CLI-based LLMs (Claude, Gemini, etc.)
  * Concrete implementations only need to override provider-specific methods.
  *
- * @module @ralph/models/base-cli-llm
+ * @module @felix/models/base-cli-llm
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';

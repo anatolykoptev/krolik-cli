@@ -4,7 +4,7 @@
  * Eliminates switch/case hell in llm-factory.ts
  * Allows adding new providers without modifying factory code
  *
- * @module @ralph/models/provider-registry
+ * @module @felix/models/provider-registry
  */
 
 import type { BaseLlm } from '@google/adk';

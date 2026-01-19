@@ -3,7 +3,7 @@
  *
  * Handles graceful shutdown on SIGTERM/SIGINT signals.
  *
- * @module @ralph/orchestrator/signal-handler
+ * @module @felix/orchestrator/signal-handler
  */
 
 import type { SQLiteSessionService } from '../services/sqlite-session.js';

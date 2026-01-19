@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router
+ * @module lib/@felix/router
  * @description Model Router for adaptive model selection
  *
  * Features:

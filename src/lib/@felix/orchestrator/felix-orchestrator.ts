@@ -7,7 +7,7 @@
  * - Orchestrates task execution with validation/retry/cost tracking
  * - Emits events for progress monitoring
  *
- * @module @ralph/orchestrator
+ * @module @felix/orchestrator
  */
 
 import { execSync } from 'node:child_process';

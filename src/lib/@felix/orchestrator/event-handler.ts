@@ -3,7 +3,7 @@
  *
  * Handles ADK event processing and event emission to subscribers.
  *
- * @module @ralph/orchestrator/event-handler
+ * @module @felix/orchestrator/event-handler
  */
 
 import type { Event } from '@google/adk';

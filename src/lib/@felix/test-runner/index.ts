@@ -1,9 +1,9 @@
 /**
  * Test Runner
  *
- * Universal test runner for Ralph Loop validation.
+ * Universal test runner for Krolik Felix validation.
  *
- * @module @ralph/test-runner
+ * @module @felix/test-runner
  */
 
 export { getParser } from './parsers';

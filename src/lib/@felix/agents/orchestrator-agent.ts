@@ -7,7 +7,7 @@
  * - Reports overall progress
  * - Has subAgents for each dependency level
  *
- * @module @ralph/agents/orchestrator-agent
+ * @module @felix/agents/orchestrator-agent
  */
 
 import {

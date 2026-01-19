@@ -3,7 +3,7 @@
  *
  * Parses Playwright output to extract test results and failures.
  *
- * @module @ralph/test-runner/parsers/playwright
+ * @module @felix/test-runner/parsers/playwright
  */
 
 import type { TestFailure, TestResult, TestSuite } from '../../types';

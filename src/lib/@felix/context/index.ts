@@ -1,6 +1,6 @@
 /**
- * @module lib/@ralph/context
- * @description Context injection and prompt building for Ralph Loop
+ * @module lib/@felix/context
+ * @description Context injection and prompt building for Krolik Felix
  */
 
 // Builder types (defined locally to avoid broken imports)
@@ -34,13 +34,13 @@ export {
 export { detectTaskType, type TaskType } from './task-analyzer';
 // Templates
 export {
+  FELIX_SYSTEM_PROMPT,
   fillTemplate,
   formatAcceptanceCriteria,
   formatContextFiles,
   formatGuardrails,
   formatHints,
   RALPH_RETRY_SYSTEM_PROMPT,
-  RALPH_SYSTEM_PROMPT,
   RETRY_PROMPT_TEMPLATE,
   TASK_PROMPT_TEMPLATE,
 } from './templates';

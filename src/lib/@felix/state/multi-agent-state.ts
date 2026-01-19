@@ -4,7 +4,7 @@
  * Provides typed helpers for cross-agent state communication
  * using ADK's session state mechanism.
  *
- * @module @ralph/state/multi-agent-state
+ * @module @felix/state/multi-agent-state
  */
 
 import type { OrchestratorResult, PrdPhase, TaskResult } from '../agents/types.js';

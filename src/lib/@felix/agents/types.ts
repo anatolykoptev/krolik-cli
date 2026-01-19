@@ -1,7 +1,7 @@
 /**
  * Types for multi-agent orchestration
  *
- * @module @ralph/agents/types
+ * @module @felix/agents/types
  */
 
 import type { BaseLlm, BaseTool } from '@google/adk';

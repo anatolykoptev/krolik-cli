@@ -3,7 +3,7 @@
  *
  * Framework-specific parsers for test output.
  *
- * @module @ralph/test-runner/parsers
+ * @module @felix/test-runner/parsers
  */
 
 export { BaseTestParser } from './base';

@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/tools/runtime
+ * @module lib/@felix/tools/runtime
  * @description Runtime environment for Ralph Actions with telemetry, safety, and observation
  */
 

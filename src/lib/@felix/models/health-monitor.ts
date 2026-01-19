@@ -6,7 +6,7 @@
  * 2. Capability level: CLI responds within timeout
  * 3. Runtime level: Track success/failure rates of actual calls
  *
- * @module @ralph/models/health-monitor
+ * @module @felix/models/health-monitor
  */
 
 import { checkCliAvailability, getCliExecutable, type ModelProvider } from './model-config.js';

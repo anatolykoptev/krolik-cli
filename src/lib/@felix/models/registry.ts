@@ -8,7 +8,7 @@
  *
  * For direct LLM creation, prefer using LlmFactory directly.
  *
- * @module @ralph/models/registry
+ * @module @felix/models/registry
  */
 
 import type { BaseLlm } from '@google/adk';

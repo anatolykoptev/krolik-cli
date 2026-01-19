@@ -1,6 +1,6 @@
 /**
- * @module lib/@ralph/context/injector
- * @description Context injector for Ralph Loop
+ * @module lib/@felix/context/injector
+ * @description Context injector for Krolik Felix
  *
  * Pre-runs krolik tools and collects context BEFORE sending to AI.
  * This is the "Context-First" approach - don't wait for AI to request context.

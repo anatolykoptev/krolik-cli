@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/rules
+ * @module lib/@felix/router/rules
  * @description Rule-based model selection from task attributes
  */
 

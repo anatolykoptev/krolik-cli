@@ -3,7 +3,7 @@
  *
  * Common types, constants, and functions used by both ClaudeCliLlm and GeminiCliLlm.
  *
- * @module @ralph/models/cli-shared
+ * @module @felix/models/cli-shared
  */
 
 import { existsSync, statSync } from 'node:fs';

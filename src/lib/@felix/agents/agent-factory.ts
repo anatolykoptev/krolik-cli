@@ -4,7 +4,7 @@
  * Creates a multi-agent structure using ADK's SequentialAgent and ParallelAgent
  * for coordinated task execution with shared state.
  *
- * @module @ralph/agents/agent-factory
+ * @module @felix/agents/agent-factory
  */
 
 import { type BaseAgent, ParallelAgent, SequentialAgent } from '@google/adk';

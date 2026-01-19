@@ -80,13 +80,13 @@ function copyDirRecursive(src: string, dest: string): void {
 
 export const prdTool: MCPToolDefinition = {
   name: 'krolik_prd',
-  description: `Generate PRD.json for Ralph Loop from a GitHub issue.
+  description: `Generate PRD.json for Krolik Felix from a GitHub issue.
 
 **Workflow:**
 1. Fetch issue details (title, body, labels, checklists)
 2. Inject project context (schema models, routes, memories)
 3. AI-decompose into atomic tasks with acceptance criteria
-4. Output PRD.json ready for Ralph execution
+4. Output PRD.json ready for Felix execution
 
 **Output:**
 - XML format with tasks, dependencies, complexity estimates
@@ -190,7 +190,7 @@ export const prdTool: MCPToolDefinition = {
       const prdFilename = `issue-${issueNumber}.json`;
       output += `\n\n<next-steps>
 To execute this PRD, run:
-  /prd-run .krolik/ralph/prd/${prdFilename}
+  /prd-run .krolik/felix/prd/${prdFilename}
 </next-steps>`;
 
       return output;

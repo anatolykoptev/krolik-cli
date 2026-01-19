@@ -4,7 +4,7 @@
  * Uses the central krolik.db database via @storage/database
  * Tables: ralph_adk_sessions, ralph_adk_events (created in migration 9)
  *
- * @module @ralph/services/sqlite-session
+ * @module @felix/services/sqlite-session
  */
 
 import { randomUUID } from 'node:crypto';

@@ -4,7 +4,7 @@
  * Uses Groq's OpenAI-compatible API for fast, free inference.
  * Supports Llama 3.3 70B, Mixtral, and other models.
  *
- * @module @ralph/models/groq-llm
+ * @module @felix/models/groq-llm
  */
 
 import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';

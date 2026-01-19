@@ -3,7 +3,7 @@
  *
  * Parses Vitest output to extract test results, failures, and coverage.
  *
- * @module @ralph/test-runner/parsers/vitest
+ * @module @felix/test-runner/parsers/vitest
  */
 
 import type { TestFailure, TestResult, TestSuite } from '../../types';

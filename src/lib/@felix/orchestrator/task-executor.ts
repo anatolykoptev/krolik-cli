@@ -4,7 +4,7 @@
  * Handles single task execution logic including agent creation,
  * prompt building, and running tasks through ADK.
  *
- * @module @ralph/orchestrator/task-executor
+ * @module @felix/orchestrator/task-executor
  */
 
 import type { BaseLlm, BasePlugin } from '@google/adk';
@@ -172,7 +172,7 @@ export async function executeTask(
 
   // Create session for this task
   const session = await config.sessionService.createSession({
-    appName: 'ralph-loop',
+    appName: 'krolik-felix',
     userId: 'system',
     state: {
       taskId: task.id,
@@ -183,7 +183,7 @@ export async function executeTask(
   // Create runner with plugins
   const runner = new Runner({
     agent: taskAgent,
-    appName: 'ralph-loop',
+    appName: 'krolik-felix',
     sessionService: config.sessionService,
     plugins: config.plugins,
   });

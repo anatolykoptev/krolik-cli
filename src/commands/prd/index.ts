@@ -1,7 +1,7 @@
 /**
  * PRD Generator Command
  *
- * Generates PRD.json for Ralph Loop from GitHub issues.
+ * Generates PRD.json for Krolik Felix from GitHub issues.
  *
  * @module commands/prd
  */
@@ -258,7 +258,7 @@ function buildPrd(
 }
 
 /**
- * Save PRD to file in .krolik/ralph/prd directory
+ * Save PRD to file in .krolik/felix/prd directory
  */
 function savePrdToFile(projectRoot: string, issueNumber: number, prd: PRD): string {
   const prdDir = join(projectRoot, PRD_OUTPUT_DIR);

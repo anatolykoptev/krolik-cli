@@ -4,7 +4,7 @@
  * Consolidated logic for grouping tasks by dependency levels
  * and analyzing parallelization opportunities.
  *
- * @module @ralph/orchestrator/task-levels
+ * @module @felix/orchestrator/task-levels
  */
 
 import type { PRDTask } from '../schemas/prd.schema.js';

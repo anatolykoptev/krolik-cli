@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/model-tiers
+ * @module lib/@felix/router/model-tiers
  * @description Single Source of Truth for Model Tier Management
  *
  * Centralizes all model tier logic:

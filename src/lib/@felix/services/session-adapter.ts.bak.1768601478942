@@ -4,7 +4,7 @@
  * Bridges legacy executor's ISessionManager interface with ADK's SQLiteSessionService.
  * Consolidates session management into a single system.
  *
- * @module @ralph/services/session-adapter
+ * @module @felix/services/session-adapter
  */
 
 import { randomUUID } from "node:crypto";
@@ -122,7 +122,7 @@ export class SessionAdapter implements ISessionManager {
     // Create session with initial state
     const session = {
       id: sessionId,
-      appName: "ralph-loop",
+      appName: "krolik-felix",
       userId: config.project,
       state: {
         [STATE_KEYS.PROJECT]: config.project,

@@ -7,7 +7,7 @@
  * - ChatGPT subscription
  * - Gemini
  *
- * @module @ralph/models/vibeproxy-llm
+ * @module @felix/models/vibeproxy-llm
  */
 
 import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';

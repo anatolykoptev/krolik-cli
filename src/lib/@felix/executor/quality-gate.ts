@@ -3,7 +3,7 @@
  *
  * Types and interfaces for quality gate configuration and results.
  *
- * @module @ralph/executor/quality-gate
+ * @module @felix/executor/quality-gate
  */
 
 import type { AuditMode } from '@/commands/audit/filters/intent';

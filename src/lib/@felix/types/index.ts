@@ -1,5 +1,5 @@
 /**
- * @ralph - ADK-based multi-agent orchestration for Ralph Loop
+ * @ralph - ADK-based multi-agent orchestration for Krolik Felix
  */
 
 import type { Content, Part } from '@google/genai';
@@ -58,7 +58,7 @@ export interface PRDConfig {
 }
 
 // Session types
-export interface RalphSession {
+export interface FelixSession {
   id: string;
   projectPath: string;
   prdPath: string;

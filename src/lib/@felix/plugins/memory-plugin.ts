@@ -4,7 +4,7 @@
  * Monitors agent output for decisions, patterns, and bugfixes.
  * Automatically saves them to krolik memory for future sessions.
  *
- * @module @ralph/plugins/memory-plugin
+ * @module @felix/plugins/memory-plugin
  */
 
 import type { BaseAgent, CallbackContext, Event } from '@google/adk';

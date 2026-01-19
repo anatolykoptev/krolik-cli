@@ -1,9 +1,9 @@
 /**
- * Ralph Loop Types
+ * Krolik Felix Types
  *
  * Core TypeScript interfaces for the autonomous agent loop.
  *
- * @module @ralph/types
+ * @module @felix/types
  */
 
 import type { QualityGateIssue, QualityGateSummary } from './executor/quality-gate.js';
@@ -237,7 +237,7 @@ export interface FailureContextForRetry {
 }
 
 // ============================================================================
-// Ralph Loop Orchestrator Types
+// Krolik Felix Orchestrator Types
 // ============================================================================
 
 export interface RalphLoopOptions {

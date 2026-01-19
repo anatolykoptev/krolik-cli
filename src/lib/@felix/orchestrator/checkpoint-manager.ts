@@ -4,7 +4,7 @@
  * Uses the central krolik.db database via @storage/database
  * Table: ralph_checkpoints (created in migration 9)
  *
- * @module @ralph/orchestrator/checkpoint-manager
+ * @module @felix/orchestrator/checkpoint-manager
  */
 
 import { createHash } from 'node:crypto';

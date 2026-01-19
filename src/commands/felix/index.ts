@@ -1,6 +1,6 @@
 /**
  * @module commands/felix
- * @description Ralph Loop - Autonomous agent loop for executing PRD tasks
+ * @description Krolik Felix - Autonomous agent loop for executing PRD tasks
  */
 
 import { spawn } from 'node:child_process';
@@ -156,7 +156,7 @@ function loadAndValidatePRD(
 // ============================================================================
 
 /**
- * Get current Ralph status
+ * Get current Felix status
  */
 export function getFelixStatus(projectRoot: string, prdPath?: string): FelixStatus {
   const project = projectRoot.split('/').pop() ?? 'unknown';
@@ -270,7 +270,7 @@ export function validatePrdFile(
 }
 
 /**
- * Options for starting a Ralph session
+ * Options for starting a Felix session
  */
 export interface StartSessionOptions {
   dryRun?: boolean;
@@ -291,7 +291,7 @@ export interface StartSessionOptions {
 }
 
 /**
- * Start a new Ralph session
+ * Start a new Felix session
  *
  * Creates orchestrator and starts it in background.
  * Returns immediately with session ID - poll status to check progress.
@@ -438,7 +438,7 @@ export async function startSession(
 // BACKGROUND SESSION (for MCP)
 // ============================================================================
 
-const RALPH_LOGS_DIR = '.krolik/ralph/logs';
+const RALPH_LOGS_DIR = '.krolik/felix/logs';
 
 /**
  * Start session in background process (for MCP tool)
@@ -494,7 +494,7 @@ export function startSessionBackground(
   if (options?.continueOnFailure) args.push('--continue-on-failure');
 
   // Log start
-  const startMsg = `[${new Date().toISOString()}] Starting Ralph session ${sessionId}\nPRD: ${validation.path}\n\n`;
+  const startMsg = `[${new Date().toISOString()}] Starting Felix session ${sessionId}\nPRD: ${validation.path}\n\n`;
   appendFileSync(logFile, startMsg);
 
   // Find krolik-cli directory - we're running from within krolik-cli package
@@ -625,7 +625,7 @@ export function cancelActiveSession(projectRoot: string): { success: boolean; er
 // ============================================================================
 
 export function formatStatusXML(status: FelixStatus): string {
-  const lines: string[] = ['<ralph-status>'];
+  const lines: string[] = ['<felix-status>'];
 
   // Session info
   if (status.session) {
@@ -669,7 +669,7 @@ export function formatStatusXML(status: FelixStatus): string {
   lines.push(`    <guardrails total="${status.stats.totalGuardrails}"/>`);
   lines.push('  </stats>');
 
-  lines.push('</ralph-status>');
+  lines.push('</felix-status>');
   return lines.join('\n');
 }
 

@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/types
+ * @module lib/@felix/router/types
  * @description Types for Model Router system
  */
 

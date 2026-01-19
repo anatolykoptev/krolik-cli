@@ -1,7 +1,7 @@
 /**
  * Config Resolver - Resolve and validate orchestrator configuration
  *
- * @module @ralph/orchestrator/config-resolver
+ * @module @felix/orchestrator/config-resolver
  */
 
 import { join } from 'node:path';

@@ -4,7 +4,7 @@
  * Pass-through approach: don't hardcode models, let CLI validate.
  * Only maintain provider detection and convenience aliases.
  *
- * @module @ralph/models/model-config
+ * @module @felix/models/model-config
  */
 
 import { spawn } from 'node:child_process';

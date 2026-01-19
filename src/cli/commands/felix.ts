@@ -1,6 +1,6 @@
 /**
  * @module cli/commands/felix
- * @description Ralph Loop CLI command registration
+ * @description Krolik Felix CLI command registration
  */
 
 import { spawn } from 'node:child_process';
@@ -29,11 +29,11 @@ const FELIX_LOGS_DIR = `${FELIX_DIR}/logs`;
 
 /**
  * Extract project root from PRD path
- * PRD paths are typically: /path/to/project/.krolik/ralph/prd/issue-123.json
+ * PRD paths are typically: /path/to/project/.krolik/felix/prd/issue-123.json
  * Returns the project root: /path/to/project
  */
 function extractProjectRootFromPrd(prdPath: string): string {
-  // Check if path contains .krolik/ralph/prd
+  // Check if path contains .krolik/felix/prd
   const krolikPrdPattern = /(.+)\/\.krolik\/ralph\/prd\/.+\.json$/;
   const match = prdPath.match(krolikPrdPattern);
   if (match?.[1]) {
@@ -88,9 +88,9 @@ function tailLogFile(logFile: string): void {
 }
 
 /**
- * Spawn Ralph in background and return immediately
+ * Spawn Felix in background and return immediately
  */
-function spawnRalphBackground(
+function spawnFelixBackground(
   prdPath: string,
   projectRoot: string,
   options: {
@@ -101,7 +101,7 @@ function spawnRalphBackground(
     verbose: boolean;
   },
 ): { sessionId: string; logFile: string } {
-  const sessionId = `ralph-${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const sessionId = `felix-${Date.now()}-${randomUUID().slice(0, 8)}`;
   const logsDir = join(projectRoot, FELIX_LOGS_DIR);
   const logFile = join(logsDir, `${sessionId}.log`);
 
@@ -109,7 +109,7 @@ function spawnRalphBackground(
   mkdirSync(logsDir, { recursive: true });
 
   // Build args for internal _run command
-  const args = ['ralph', '_run', '--prd', prdPath, '--session-id', sessionId];
+  const args = ['felix', '_run', '--prd', prdPath, '--session-id', sessionId];
   if (options.model) args.push('--model', options.model);
   if (options.backend) args.push('--backend', options.backend);
   if (options.maxAttempts) args.push('--max-attempts', options.maxAttempts);
@@ -117,10 +117,10 @@ function spawnRalphBackground(
   if (options.verbose) args.push('--verbose');
 
   // Log start
-  const startMsg = `[${new Date().toISOString()}] Starting Ralph session ${sessionId}\nPRD: ${prdPath}\n\n`;
+  const startMsg = `[${new Date().toISOString()}] Starting Felix session ${sessionId}\nPRD: ${prdPath}\n\n`;
   appendFileSync(logFile, startMsg);
 
-  // Spawn detached process - 'ralph _run' is a subcommand of krolik
+  // Spawn detached process - 'felix _run' is a subcommand of krolik
   // Use the CLI script path to find krolik-cli directory
   // process.argv[1] is the path to the CLI script (e.g., /path/to/krolik-cli/dist/bin/cli.js)
   const cliScriptPath = process.argv[1] ?? '';
@@ -167,8 +167,8 @@ function validatePrdPath(
 Default location: ${PRD_DEFAULT_DIR}/
 
 Examples:
-  krolik ralph start --prd .krolik/prd/feature.prd.json
-  krolik ralph start --prd ./my-task.prd.json`,
+  krolik felix start --prd .krolik/prd/feature.prd.json
+  krolik felix start --prd ./my-task.prd.json`,
     };
   }
 
@@ -187,15 +187,15 @@ Check that the file exists. PRD files are typically stored in ${PRD_DEFAULT_DIR}
 }
 
 /**
- * Register ralph command with subcommands
+ * Register felix command with subcommands
  */
 export function registerFelixCommand(program: Command): void {
-  const ralph = program
-    .command('ralph')
-    .description('Ralph Loop - Autonomous agent loop for executing PRD tasks');
+  const felix = program
+    .command('felix')
+    .description('Krolik Felix - Autonomous agent loop for executing PRD tasks');
 
-  // ralph status
-  const statusCmd = ralph.command('status').description('Get current Ralph session status');
+  // felix status
+  const statusCmd = felix.command('status').description('Get current Felix session status');
   addProjectOption(statusCmd);
   statusCmd
     .option('--prd <path>', 'Path to PRD.json file')
@@ -207,8 +207,8 @@ export function registerFelixCommand(program: Command): void {
       console.log(formatStatusXML(status));
     });
 
-  // ralph watch - watch logs in real-time
-  const watchCmd = ralph.command('watch').description('Watch Ralph session logs in real-time');
+  // felix watch - watch logs in real-time
+  const watchCmd = felix.command('watch').description('Watch Felix session logs in real-time');
   addProjectOption(watchCmd);
   watchCmd
     .option('--session <id>', 'Watch specific session by ID')
@@ -234,7 +234,7 @@ export function registerFelixCommand(program: Command): void {
           console.error(`<felix-error>No session logs found in ${FELIX_LOGS_DIR}/
 
 Start a session first:
-  krolik ralph start --prd .krolik/ralph/prd/your-task.prd.json</felix-error>`);
+  krolik felix start --prd .krolik/felix/prd/your-task.prd.json</felix-error>`);
           process.exitCode = 1;
           return;
         }
@@ -243,8 +243,8 @@ Start a session first:
       tailLogFile(logFile);
     });
 
-  // ralph validate
-  const validateCmd = ralph.command('validate').description('Validate PRD.json file');
+  // felix validate
+  const validateCmd = felix.command('validate').description('Validate PRD.json file');
   addProjectOption(validateCmd);
   validateCmd
     .requiredOption('--prd <path>', 'Path to PRD.json file (required)')
@@ -266,10 +266,10 @@ Start a session first:
       console.log(formatValidationXML(result));
     });
 
-  // ralph start - runs in background by default
-  const startCmd = ralph
+  // felix start - runs in background by default
+  const startCmd = felix
     .command('start')
-    .description('Start a new Ralph session (runs in background)');
+    .description('Start a new Felix session (runs in background)');
   addProjectOption(startCmd);
   startCmd
     .requiredOption('--prd <path>', 'Path to PRD.json file (required)')
@@ -338,7 +338,7 @@ Start a session first:
           sessionOptions,
         );
         if (result.success) {
-          console.log(`<ralph-session action="completed" id="${result.sessionId}"/>`);
+          console.log(`<felix-session action="completed" id="${result.sessionId}"/>`);
         } else {
           console.log(`<felix-error>${result.error}</felix-error>`);
           process.exitCode = 1;
@@ -349,7 +349,7 @@ Start a session first:
       // Default: background mode - spawn and return immediately
       // Extract project root from PRD path to save logs in the correct location
       const targetProjectRoot = extractProjectRootFromPrd(prdValidation.path);
-      const { sessionId, logFile } = spawnRalphBackground(prdValidation.path, targetProjectRoot, {
+      const { sessionId, logFile } = spawnFelixBackground(prdValidation.path, targetProjectRoot, {
         model: options.model as string | undefined,
         backend: options.backend as string | undefined,
         maxAttempts: options.maxAttempts as string | undefined,
@@ -366,16 +366,16 @@ Start a session first:
         return;
       }
 
-      console.log(`<ralph-session action="started" id="${sessionId}" log="${logFile}">
+      console.log(`<felix-session action="started" id="${sessionId}" log="${logFile}">
   Session started in background.
-  Check status: krolik ralph status
-  View logs: krolik ralph watch
+  Check status: krolik felix status
+  View logs: krolik felix watch
 </felix-session>`);
     });
 
-  // ralph _run - internal command for background execution (hidden from help)
+  // felix _run - internal command for background execution (hidden from help)
   // Note: Execution mode (single/multi-agent) is now decided by Router automatically
-  const runCmd = ralph.command('_run', { hidden: true }).description('Internal: run Ralph session');
+  const runCmd = felix.command('_run', { hidden: true }).description('Internal: run Felix session');
   addProjectOption(runCmd);
   runCmd
     .requiredOption('--prd <path>', 'Path to PRD.json file')
@@ -423,8 +423,8 @@ Start a session first:
       }
     });
 
-  // ralph pause
-  const pauseCmd = ralph.command('pause').description('Pause the active session');
+  // felix pause
+  const pauseCmd = felix.command('pause').description('Pause the active session');
   addProjectOption(pauseCmd);
   pauseCmd.action(async (options: CommandOptions) => {
     const { pauseActiveSession } = await import('../../commands/felix');
@@ -432,15 +432,15 @@ Start a session first:
     const ctx = await createContext(program, options);
     const result = pauseActiveSession(ctx.config.projectRoot);
     if (result.success) {
-      console.log('<ralph-session action="paused"/>');
+      console.log('<felix-session action="paused"/>');
     } else {
       console.log(`<felix-error>${result.error}</felix-error>`);
       process.exitCode = 1;
     }
   });
 
-  // ralph resume
-  const resumeCmd = ralph.command('resume').description('Resume a paused session');
+  // felix resume
+  const resumeCmd = felix.command('resume').description('Resume a paused session');
   addProjectOption(resumeCmd);
   resumeCmd.action(async (options: CommandOptions) => {
     const { resumeActiveSession } = await import('../../commands/felix');
@@ -448,15 +448,15 @@ Start a session first:
     const ctx = await createContext(program, options);
     const result = resumeActiveSession(ctx.config.projectRoot);
     if (result.success) {
-      console.log(`<ralph-session action="resumed" id="${result.sessionId}"/>`);
+      console.log(`<felix-session action="resumed" id="${result.sessionId}"/>`);
     } else {
       console.log(`<felix-error>${result.error}</felix-error>`);
       process.exitCode = 1;
     }
   });
 
-  // ralph cancel
-  const cancelCmd = ralph.command('cancel').description('Cancel the active session');
+  // felix cancel
+  const cancelCmd = felix.command('cancel').description('Cancel the active session');
   addProjectOption(cancelCmd);
   cancelCmd.action(async (options: CommandOptions) => {
     const { cancelActiveSession } = await import('../../commands/felix');
@@ -464,15 +464,15 @@ Start a session first:
     const ctx = await createContext(program, options);
     const result = cancelActiveSession(ctx.config.projectRoot);
     if (result.success) {
-      console.log('<ralph-session action="cancelled"/>');
+      console.log('<felix-session action="cancelled"/>');
     } else {
       console.log(`<felix-error>${result.error}</felix-error>`);
       process.exitCode = 1;
     }
   });
 
-  // ralph plan - show model routing plan
-  const planCmd = ralph.command('plan').description('Show model selection for each task');
+  // felix plan - show model routing plan
+  const planCmd = felix.command('plan').description('Show model selection for each task');
   addProjectOption(planCmd);
   planCmd
     .option('--prd <path>', 'Path to PRD.json file')
@@ -495,8 +495,8 @@ Start a session first:
       }
     });
 
-  // ralph estimate - estimate cost before execution
-  const estimateCmd = ralph.command('estimate').description('Estimate cost before execution');
+  // felix estimate - estimate cost before execution
+  const estimateCmd = felix.command('estimate').description('Estimate cost before execution');
   addProjectOption(estimateCmd);
   estimateCmd
     .option('--prd <path>', 'Path to PRD.json file')
@@ -519,8 +519,8 @@ Start a session first:
       }
     });
 
-  // ralph stats - view routing statistics
-  const statsCmd = ralph.command('stats').description('View model routing statistics');
+  // felix stats - view routing statistics
+  const statsCmd = felix.command('stats').description('View model routing statistics');
   addProjectOption(statsCmd);
   statsCmd.action(async (options: CommandOptions) => {
     const { getRouterStats } = await import('../../commands/felix');

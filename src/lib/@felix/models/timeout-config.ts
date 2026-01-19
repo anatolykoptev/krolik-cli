@@ -3,7 +3,7 @@
  *
  * Complexity-based timeout settings shared across different LLM backends.
  *
- * @module @ralph/models/timeout-config
+ * @module @felix/models/timeout-config
  */
 
 /**

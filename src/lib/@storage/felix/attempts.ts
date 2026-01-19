@@ -1,12 +1,12 @@
 /**
- * @module lib/@storage/ralph/attempts
- * @description CRUD operations for Ralph Loop attempts
+ * @module lib/@storage/felix/attempts
+ * @description CRUD operations for Krolik Felix attempts
  *
- * All Ralph data is stored at project level: {project}/.krolik/memory/krolik.db
+ * All Felix data is stored at project level: {project}/.krolik/memory/krolik.db
  */
 
 import { prepareStatement } from '../database';
-import { getRalphDatabase } from './database';
+import { getFelixDatabase } from './database';
 import type {
   FelixAttempt,
   FelixAttemptComplete,
@@ -49,11 +49,11 @@ function rowToAttempt(row: FelixAttemptRow): FelixAttempt {
  * Create a new attempt (start of execution)
  */
 export function createAttempt(options: FelixAttemptCreate & { projectPath?: string }): number {
-  const db = getRalphDatabase(options.projectPath);
+  const db = getFelixDatabase(options.projectPath);
   const now = new Date().toISOString();
 
   const sql = `
-    INSERT INTO ralph_attempts (
+    INSERT INTO felix_attempts (
       task_id, prd_task_id, attempt_number, started_at, model, signature_hash, escalated_from
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
@@ -82,9 +82,9 @@ export function createAttempt(options: FelixAttemptCreate & { projectPath?: stri
  * Get attempt by ID
  */
 export function getAttemptById(id: number): FelixAttempt | undefined {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  const sql = 'SELECT * FROM ralph_attempts WHERE id = ?';
+  const sql = 'SELECT * FROM felix_attempts WHERE id = ?';
   const stmt = prepareStatement<[number], FelixAttemptRow>(db, sql);
   const row = stmt.get(id);
 
@@ -95,9 +95,9 @@ export function getAttemptById(id: number): FelixAttempt | undefined {
  * Get attempts for a task
  */
 export function getAttemptsByTaskId(taskId: number): FelixAttempt[] {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  const sql = 'SELECT * FROM ralph_attempts WHERE task_id = ? ORDER BY attempt_number ASC';
+  const sql = 'SELECT * FROM felix_attempts WHERE task_id = ? ORDER BY attempt_number ASC';
   const stmt = prepareStatement<[number], FelixAttemptRow>(db, sql);
   const rows = stmt.all(taskId);
 
@@ -108,9 +108,9 @@ export function getAttemptsByTaskId(taskId: number): FelixAttempt[] {
  * Get attempts for a PRD task
  */
 export function getAttemptsByPrdTaskId(prdTaskId: string): FelixAttempt[] {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  const sql = 'SELECT * FROM ralph_attempts WHERE prd_task_id = ? ORDER BY attempt_number ASC';
+  const sql = 'SELECT * FROM felix_attempts WHERE prd_task_id = ? ORDER BY attempt_number ASC';
   const stmt = prepareStatement<[string], FelixAttemptRow>(db, sql);
   const rows = stmt.all(prdTaskId);
 
@@ -121,10 +121,10 @@ export function getAttemptsByPrdTaskId(prdTaskId: string): FelixAttempt[] {
  * Get latest attempt for a task
  */
 export function getLatestAttempt(taskId: number): FelixAttempt | undefined {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
   const sql = `
-    SELECT * FROM ralph_attempts 
+    SELECT * FROM felix_attempts 
     WHERE task_id = ? 
     ORDER BY attempt_number DESC 
     LIMIT 1
@@ -139,9 +139,9 @@ export function getLatestAttempt(taskId: number): FelixAttempt | undefined {
  * Get attempt count for a task
  */
 export function getAttemptCount(taskId: number): number {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  const sql = 'SELECT COUNT(*) as count FROM ralph_attempts WHERE task_id = ?';
+  const sql = 'SELECT COUNT(*) as count FROM felix_attempts WHERE task_id = ?';
   const stmt = prepareStatement<[number], { count: number }>(db, sql);
   const row = stmt.get(taskId);
 
@@ -159,11 +159,11 @@ export function completeAttempt(
   id: number,
   result: FelixAttemptComplete & { projectPath?: string },
 ): boolean {
-  const db = getRalphDatabase(result.projectPath);
+  const db = getFelixDatabase(result.projectPath);
   const now = new Date().toISOString();
 
   const sql = `
-    UPDATE ralph_attempts SET
+    UPDATE felix_attempts SET
       ended_at = ?,
       success = ?,
       input_tokens = ?,
@@ -236,7 +236,7 @@ export function getAttemptStats(
   totalCost: number;
   averageAttempts: number;
 } {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
   // Count all attempts in project-level database
   const sql = `
@@ -246,7 +246,7 @@ export function getAttemptStats(
       SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_attempts,
       SUM(input_tokens + output_tokens) as total_tokens,
       SUM(cost_usd) as total_cost
-    FROM ralph_attempts
+    FROM felix_attempts
   `;
 
   const stmt = prepareStatement<
@@ -266,7 +266,7 @@ export function getAttemptStats(
   const avgSql = `
     SELECT AVG(attempt_count) as avg_attempts FROM (
       SELECT COUNT(*) as attempt_count
-      FROM ralph_attempts
+      FROM felix_attempts
       GROUP BY prd_task_id
     )
   `;

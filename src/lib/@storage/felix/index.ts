@@ -1,6 +1,6 @@
 /**
- * @module lib/@storage/ralph
- * @description Ralph Loop storage operations
+ * @module lib/@storage/felix
+ * @description Krolik Felix storage operations
  */
 
 // Attempts
@@ -57,10 +57,10 @@ export type {
   FelixGuardrail,
   FelixGuardrailCreate,
   FelixGuardrailRow,
+  FelixSession,
+  FelixSessionCreate,
+  FelixSessionRow,
+  FelixSessionStatus,
   GuardrailCategory,
   GuardrailSeverity,
-  RalphSession,
-  RalphSessionCreate,
-  RalphSessionRow,
-  RalphSessionStatus,
 } from './types';

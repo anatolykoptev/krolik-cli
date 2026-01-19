@@ -1,6 +1,6 @@
 /**
- * @module lib/@ralph/context/templates
- * @description Prompt templates for Ralph Loop
+ * @module lib/@felix/context/templates
+ * @description Prompt templates for Krolik Felix
  *
  * System and user prompt templates that force krolik tool usage
  * and provide structure for AI execution.
@@ -11,14 +11,14 @@
 // ============================================================================
 
 /**
- * Base system prompt for Ralph Loop
+ * Base system prompt for Krolik Felix
  *
  * This prompt:
  * 1. Explains the context is pre-injected
  * 2. Lists krolik tools for additional context
  * 3. Sets constraints and expectations
  */
-export const RALPH_SYSTEM_PROMPT = `You are executing a task from a PRD (Product Requirements Document) as part of Ralph Loop - an automated task execution system.
+export const FELIX_SYSTEM_PROMPT = `You are executing a task from a PRD (Product Requirements Document) as part of Krolik Felix - an automated task execution system.
 
 ## IMPORTANT: Context is Pre-Injected
 
@@ -80,7 +80,7 @@ Based on previous failures, avoid these patterns:
 - Do not repeat the same mistakes
 - The context has been refreshed with the latest state
 
-${RALPH_SYSTEM_PROMPT}`;
+${FELIX_SYSTEM_PROMPT}`;
 
 // ============================================================================
 // USER PROMPT TEMPLATES

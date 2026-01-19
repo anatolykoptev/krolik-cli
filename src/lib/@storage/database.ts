@@ -576,10 +576,10 @@ function runMigrations(db: Database.Database): void {
     prepareStatement<[number, string]>(db, insertVersionSql).run(6, new Date().toISOString());
   }
 
-  // Migration 7: Ralph Loop tables (attempts, guardrails, sessions)
+  // Migration 7: Krolik Felix tables (attempts, guardrails, sessions)
   if (currentVersion < 7) {
     db.exec(`
-      -- Ralph Loop task attempts (execution history)
+      -- Krolik Felix task attempts (execution history)
       CREATE TABLE IF NOT EXISTS ralph_attempts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id INTEGER NOT NULL,
@@ -605,7 +605,7 @@ function runMigrations(db: Database.Database): void {
       CREATE INDEX IF NOT EXISTS idx_ralph_attempts_prd_task ON ralph_attempts(prd_task_id);
       CREATE INDEX IF NOT EXISTS idx_ralph_attempts_started ON ralph_attempts(started_at DESC);
 
-      -- Ralph Loop guardrails (lessons learned from failures)
+      -- Krolik Felix guardrails (lessons learned from failures)
       CREATE TABLE IF NOT EXISTS ralph_guardrails (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project TEXT NOT NULL,
@@ -665,7 +665,7 @@ function runMigrations(db: Database.Database): void {
                 REPLACE(REPLACE(new.tags, '[', ''), ']', ''));
       END;
 
-      -- Ralph Loop sessions (high-level session tracking)
+      -- Krolik Felix sessions (high-level session tracking)
       CREATE TABLE IF NOT EXISTS ralph_sessions (
         id TEXT PRIMARY KEY,
         project TEXT NOT NULL,
@@ -728,10 +728,10 @@ function runMigrations(db: Database.Database): void {
     ).run(8, new Date().toISOString());
   }
 
-  // Migration 9: Ralph ADK integration tables (consolidate separate DBs)
+  // Migration 9: Felix ADK integration tables (consolidate separate DBs)
   if (currentVersion < 9) {
     db.exec(`
-      -- Ralph ADK sessions (ADK-compatible session storage, replaces ralph-sessions.db)
+      -- Felix ADK sessions (ADK-compatible session storage, replaces felix-sessions.db)
       CREATE TABLE IF NOT EXISTS ralph_adk_sessions (
         id TEXT PRIMARY KEY,
         app_name TEXT NOT NULL,
@@ -743,7 +743,7 @@ function runMigrations(db: Database.Database): void {
 
       CREATE INDEX IF NOT EXISTS idx_ralph_adk_sessions_app_user ON ralph_adk_sessions(app_name, user_id);
 
-      -- Ralph ADK events (conversation history for ADK runner)
+      -- Felix ADK events (conversation history for ADK runner)
       CREATE TABLE IF NOT EXISTS ralph_adk_events (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
@@ -759,7 +759,7 @@ function runMigrations(db: Database.Database): void {
       CREATE INDEX IF NOT EXISTS idx_ralph_adk_events_session ON ralph_adk_events(session_id);
       CREATE INDEX IF NOT EXISTS idx_ralph_adk_events_timestamp ON ralph_adk_events(session_id, timestamp);
 
-      -- Ralph checkpoints (crash recovery, replaces ralph-checkpoints.db)
+      -- Ralph checkpoints (crash recovery, replaces felix-checkpoints.db)
       CREATE TABLE IF NOT EXISTS ralph_checkpoints (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,

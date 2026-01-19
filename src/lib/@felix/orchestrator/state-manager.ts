@@ -1,7 +1,7 @@
 /**
  * State Manager - Orchestrator state management
  *
- * @module @ralph/orchestrator/state-manager
+ * @module @felix/orchestrator/state-manager
  */
 
 import type { CostPlugin } from '../plugins/cost-plugin.js';

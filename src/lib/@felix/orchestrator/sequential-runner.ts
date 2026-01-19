@@ -1,7 +1,7 @@
 /**
  * Sequential Task Runner - Execute tasks one by one
  *
- * @module @ralph/orchestrator/sequential-runner
+ * @module @felix/orchestrator/sequential-runner
  */
 
 import { getTaskExecutionOrder, type PRD, type PRDTask } from '../schemas/prd.schema.js';

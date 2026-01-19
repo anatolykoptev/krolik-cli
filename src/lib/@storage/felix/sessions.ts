@@ -1,32 +1,32 @@
 /**
- * @module lib/@storage/ralph/sessions
- * @description CRUD operations for Ralph Loop sessions
+ * @module lib/@storage/felix/sessions
+ * @description CRUD operations for Krolik Felix sessions
  *
- * All Ralph data is stored at project level: {project}/.krolik/memory/krolik.db
+ * All Felix data is stored at project level: {project}/.krolik/memory/krolik.db
  */
 
 import { randomUUID } from 'node:crypto';
 import { prepareStatement } from '../database';
-import { getRalphDatabase } from './database';
+import { getFelixDatabase } from './database';
 import type {
-  RalphSession,
-  RalphSessionCreate,
-  RalphSessionRow,
-  RalphSessionStatus,
+  FelixSession,
+  FelixSessionCreate,
+  FelixSessionRow,
+  FelixSessionStatus,
 } from './types';
 
 // ============================================================================
 // CONVERTERS
 // ============================================================================
 
-function rowToSession(row: RalphSessionRow): RalphSession {
+function rowToSession(row: FelixSessionRow): FelixSession {
   return {
     id: row.id,
     project: row.project,
     prdPath: row.prd_path,
     startedAt: row.started_at,
     endedAt: row.ended_at ?? undefined,
-    status: row.status as RalphSessionStatus,
+    status: row.status as FelixSessionStatus,
     totalTasks: row.total_tasks,
     completedTasks: row.completed_tasks,
     failedTasks: row.failed_tasks,
@@ -43,16 +43,16 @@ function rowToSession(row: RalphSessionRow): RalphSession {
 // ============================================================================
 
 /**
- * Create a new Ralph session
+ * Create a new Felix session
  * Stores in project-level database: {projectPath}/.krolik/memory/krolik.db
  */
-export function createSession(options: RalphSessionCreate): string {
-  const db = getRalphDatabase(options.projectPath);
+export function createSession(options: FelixSessionCreate): string {
+  const db = getFelixDatabase(options.projectPath);
   const id = randomUUID();
   const now = new Date().toISOString();
 
   const sql = `
-    INSERT INTO ralph_sessions (
+    INSERT INTO felix_sessions (
       id, project, prd_path, started_at, status, total_tasks, config
     ) VALUES (?, ?, ?, ?, 'running', ?, ?)
   `;
@@ -77,11 +77,11 @@ export function createSession(options: RalphSessionCreate): string {
 /**
  * Get session by ID
  */
-export function getSessionById(id: string, projectPath?: string): RalphSession | undefined {
-  const db = getRalphDatabase(projectPath);
+export function getSessionById(id: string, projectPath?: string): FelixSession | undefined {
+  const db = getFelixDatabase(projectPath);
 
-  const sql = 'SELECT * FROM ralph_sessions WHERE id = ?';
-  const stmt = prepareStatement<[string], RalphSessionRow>(db, sql);
+  const sql = 'SELECT * FROM felix_sessions WHERE id = ?';
+  const stmt = prepareStatement<[string], FelixSessionRow>(db, sql);
   const row = stmt.get(id);
 
   return row ? rowToSession(row) : undefined;
@@ -90,15 +90,15 @@ export function getSessionById(id: string, projectPath?: string): RalphSession |
 /**
  * Get active session for a project
  */
-export function getActiveSession(project: string, projectPath?: string): RalphSession | undefined {
-  const db = getRalphDatabase(projectPath);
+export function getActiveSession(project: string, projectPath?: string): FelixSession | undefined {
+  const db = getFelixDatabase(projectPath);
 
   const sql = `
-    SELECT * FROM ralph_sessions
+    SELECT * FROM felix_sessions
     WHERE project = ? AND status IN ('running', 'paused')
     ORDER BY started_at DESC LIMIT 1
   `;
-  const stmt = prepareStatement<[string], RalphSessionRow>(db, sql);
+  const stmt = prepareStatement<[string], FelixSessionRow>(db, sql);
   const row = stmt.get(project);
 
   return row ? rowToSession(row) : undefined;
@@ -109,11 +109,11 @@ export function getActiveSession(project: string, projectPath?: string): RalphSe
  */
 export function getSessionsByProject(
   project: string,
-  options?: { status?: RalphSessionStatus; limit?: number; projectPath?: string },
-): RalphSession[] {
-  const db = getRalphDatabase(options?.projectPath);
+  options?: { status?: FelixSessionStatus; limit?: number; projectPath?: string },
+): FelixSession[] {
+  const db = getFelixDatabase(options?.projectPath);
 
-  let sql = 'SELECT * FROM ralph_sessions WHERE project = ?';
+  let sql = 'SELECT * FROM felix_sessions WHERE project = ?';
   const params: (string | number)[] = [project];
 
   if (options?.status) {
@@ -128,7 +128,7 @@ export function getSessionsByProject(
     params.push(options.limit);
   }
 
-  const stmt = prepareStatement<(string | number)[], RalphSessionRow>(db, sql);
+  const stmt = prepareStatement<(string | number)[], FelixSessionRow>(db, sql);
   const rows = stmt.all(...params);
 
   return rows.map(rowToSession);
@@ -137,7 +137,7 @@ export function getSessionsByProject(
 /**
  * Get latest session for a project
  */
-export function getLatestSession(project: string, projectPath?: string): RalphSession | undefined {
+export function getLatestSession(project: string, projectPath?: string): FelixSession | undefined {
   const options: { limit: number; projectPath?: string } = { limit: 1 };
   if (projectPath) {
     options.projectPath = projectPath;
@@ -155,13 +155,13 @@ export function getLatestSession(project: string, projectPath?: string): RalphSe
  */
 export function updateSessionStatus(
   id: string,
-  status: RalphSessionStatus,
+  status: FelixSessionStatus,
   projectPath?: string,
 ): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
   const now = new Date().toISOString();
 
-  let sql = 'UPDATE ralph_sessions SET status = ?';
+  let sql = 'UPDATE felix_sessions SET status = ?';
   const params: (string | null)[] = [status];
 
   if (status === 'completed' || status === 'failed' || status === 'cancelled') {
@@ -186,9 +186,9 @@ export function updateCurrentTask(
   taskId: string | null,
   projectPath?: string,
 ): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
-  const sql = 'UPDATE ralph_sessions SET current_task_id = ? WHERE id = ?';
+  const sql = 'UPDATE felix_sessions SET current_task_id = ? WHERE id = ?';
   const stmt = prepareStatement<[string | null, string]>(db, sql);
   const result = stmt.run(taskId, id);
 
@@ -199,9 +199,9 @@ export function updateCurrentTask(
  * Increment completed tasks count
  */
 export function incrementCompletedTasks(id: string, projectPath?: string): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
-  const sql = 'UPDATE ralph_sessions SET completed_tasks = completed_tasks + 1 WHERE id = ?';
+  const sql = 'UPDATE felix_sessions SET completed_tasks = completed_tasks + 1 WHERE id = ?';
   const stmt = prepareStatement<[string]>(db, sql);
   const result = stmt.run(id);
 
@@ -212,9 +212,9 @@ export function incrementCompletedTasks(id: string, projectPath?: string): boole
  * Increment failed tasks count
  */
 export function incrementFailedTasks(id: string, projectPath?: string): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
-  const sql = 'UPDATE ralph_sessions SET failed_tasks = failed_tasks + 1 WHERE id = ?';
+  const sql = 'UPDATE felix_sessions SET failed_tasks = failed_tasks + 1 WHERE id = ?';
   const stmt = prepareStatement<[string]>(db, sql);
   const result = stmt.run(id);
 
@@ -225,9 +225,9 @@ export function incrementFailedTasks(id: string, projectPath?: string): boolean 
  * Increment skipped tasks count
  */
 export function incrementSkippedTasks(id: string, projectPath?: string): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
-  const sql = 'UPDATE ralph_sessions SET skipped_tasks = skipped_tasks + 1 WHERE id = ?';
+  const sql = 'UPDATE felix_sessions SET skipped_tasks = skipped_tasks + 1 WHERE id = ?';
   const stmt = prepareStatement<[string]>(db, sql);
   const result = stmt.run(id);
 
@@ -243,10 +243,10 @@ export function addTokensAndCost(
   costUsd: number,
   projectPath?: string,
 ): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
   const sql = `
-    UPDATE ralph_sessions
+    UPDATE felix_sessions
     SET total_tokens = total_tokens + ?, total_cost_usd = total_cost_usd + ?
     WHERE id = ?
   `;
@@ -299,9 +299,9 @@ export function cancelSession(id: string, projectPath?: string): boolean {
  * Delete a session
  */
 export function deleteSession(id: string, projectPath?: string): boolean {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
-  const sql = 'DELETE FROM ralph_sessions WHERE id = ?';
+  const sql = 'DELETE FROM felix_sessions WHERE id = ?';
   const stmt = prepareStatement<[string]>(db, sql);
   const result = stmt.run(id);
 
@@ -326,7 +326,7 @@ export function getSessionStats(
   totalCostUsd: number;
   averageTasksPerSession: number;
 } {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
   const sql = `
     SELECT
@@ -336,7 +336,7 @@ export function getSessionStats(
       SUM(total_tokens) as total_tokens,
       SUM(total_cost_usd) as total_cost,
       AVG(completed_tasks + failed_tasks + skipped_tasks) as avg_tasks
-    FROM ralph_sessions
+    FROM felix_sessions
     WHERE project = ?
   `;
 

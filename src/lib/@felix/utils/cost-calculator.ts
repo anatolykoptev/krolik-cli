@@ -1,11 +1,11 @@
 import type { TokenUsage } from '../types.js';
 
 /**
- * Cost Calculator - Unified cost calculation for Ralph Loop
+ * Cost Calculator - Unified cost calculation for Krolik Felix
  *
  * Consolidates pricing and cost calculation from cost-plugin and executor.
  *
- * @module @ralph/utils/cost-calculator
+ * @module @felix/utils/cost-calculator
  */
 
 // ============================================================================

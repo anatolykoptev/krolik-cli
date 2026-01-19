@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/context/task-analyzer
+ * @module lib/@felix/context/task-analyzer
  * @description Shared task analysis utilities for context building
  */
 

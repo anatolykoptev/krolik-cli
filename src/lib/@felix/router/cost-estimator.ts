@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/cost-estimator
+ * @module lib/@felix/router/cost-estimator
  * @description Pre-execution cost estimation
  *
  * Provides three estimates:

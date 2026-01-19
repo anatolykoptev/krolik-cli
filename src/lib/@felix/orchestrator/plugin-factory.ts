@@ -1,7 +1,7 @@
 /**
  * Plugin Factory - Create and configure ADK plugins
  *
- * @module @ralph/orchestrator/plugin-factory
+ * @module @felix/orchestrator/plugin-factory
  */
 
 import type { BasePlugin } from '@google/adk';

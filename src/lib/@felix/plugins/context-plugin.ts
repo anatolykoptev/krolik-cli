@@ -4,7 +4,7 @@
  * Injects schema, routes, and memories into LLM request.
  * Uses krolik tools to gather relevant context for the task.
  *
- * @module @ralph/plugins/context-plugin
+ * @module @felix/plugins/context-plugin
  */
 
 import type { CallbackContext, LlmRequest, LlmResponse } from '@google/adk';

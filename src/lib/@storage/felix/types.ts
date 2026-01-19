@@ -1,6 +1,6 @@
 /**
- * @module lib/@storage/ralph/types
- * @description Types for Ralph Loop storage
+ * @module lib/@storage/felix/types
+ * @description Types for Krolik Felix storage
  */
 
 import type { MemoryType } from '../memory/types';
@@ -18,7 +18,7 @@ export type GuardrailSeverity =
   | 'info';
 
 // ============================================================================
-// RALPH ATTEMPT TYPES
+// FELIX ATTEMPT TYPES
 // ============================================================================
 
 export interface FelixAttemptRow {
@@ -89,7 +89,7 @@ export interface FelixAttemptComplete {
 }
 
 // ============================================================================
-// RALPH GUARDRAIL TYPES
+// FELIX GUARDRAIL TYPES
 // ============================================================================
 
 export type GuardrailCategory =
@@ -157,12 +157,12 @@ export interface FelixGuardrailCreate {
 }
 
 // ============================================================================
-// RALPH SESSION TYPES
+// FELIX SESSION TYPES
 // ============================================================================
 
-export type RalphSessionStatus = 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export type FelixSessionStatus = 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
-export interface RalphSessionRow {
+export interface FelixSessionRow {
   id: string;
   project: string;
   prd_path: string;
@@ -179,13 +179,13 @@ export interface RalphSessionRow {
   config: string;
 }
 
-export interface RalphSession {
+export interface FelixSession {
   id: string;
   project: string;
   prdPath: string;
   startedAt: string;
   endedAt?: string | undefined;
-  status: RalphSessionStatus;
+  status: FelixSessionStatus;
   totalTasks: number;
   completedTasks: number;
   failedTasks: number;
@@ -196,7 +196,7 @@ export interface RalphSession {
   config: Record<string, unknown>;
 }
 
-export interface RalphSessionCreate {
+export interface FelixSessionCreate {
   /** Project name (for display/identification) */
   project: string;
   /** Full path to project root (for database location) */
@@ -207,6 +207,6 @@ export interface RalphSessionCreate {
 }
 
 /**
- * Alias for RalphSessionCreate (for backward compatibility)
+ * Alias for FelixSessionCreate (for backward compatibility)
  */
-export type CreateSessionConfig = RalphSessionCreate;
+export type CreateSessionConfig = FelixSessionCreate;

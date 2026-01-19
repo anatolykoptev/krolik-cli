@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/router/router
+ * @module lib/@felix/router/router
  * @description Main model router that combines rules, history, and cascade
  */
 

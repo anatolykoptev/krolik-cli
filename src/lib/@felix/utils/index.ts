@@ -1,5 +1,5 @@
 /**
- * @module @ralph/utils
+ * @module @felix/utils
  * @description Utility functions for Ralph orchestrator
  */
 

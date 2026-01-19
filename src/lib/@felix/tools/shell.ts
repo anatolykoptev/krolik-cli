@@ -1,5 +1,5 @@
 /**
- * @module lib/@ralph/tools/shell
+ * @module lib/@felix/tools/shell
  * @description Shell execution tools for Ralph Agent
  */
 

@@ -1,13 +1,13 @@
 /**
- * @module lib/@storage/ralph/guardrails
- * @description CRUD operations for Ralph Loop guardrails
+ * @module lib/@storage/felix/guardrails
+ * @description CRUD operations for Krolik Felix guardrails
  *
- * All Ralph data is stored at project level: {project}/.krolik/memory/krolik.db
+ * All Felix data is stored at project level: {project}/.krolik/memory/krolik.db
  */
 
 import { prepareStatement } from '../database';
 import type { MemoryType } from '../memory/types';
-import { getRalphDatabase } from './database';
+import { getFelixDatabase } from './database';
 import type {
   FelixGuardrail,
   FelixGuardrailCreate,
@@ -49,11 +49,11 @@ function rowToGuardrail(row: FelixGuardrailRow): FelixGuardrail {
  * Create a new guardrail
  */
 export function createGuardrail(options: FelixGuardrailCreate): number {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
   const now = new Date().toISOString();
 
   const sql = `
-    INSERT INTO ralph_guardrails (
+    INSERT INTO felix_guardrails (
       project, type, category, severity, title, problem, solution,
       example, tags, related_tasks, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -102,9 +102,9 @@ export function createGuardrail(options: FelixGuardrailCreate): number {
  * Get guardrail by ID
  */
 export function getGuardrailById(id: number): FelixGuardrail | undefined {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  const sql = 'SELECT * FROM ralph_guardrails WHERE id = ?';
+  const sql = 'SELECT * FROM felix_guardrails WHERE id = ?';
   const stmt = prepareStatement<[number], FelixGuardrailRow>(db, sql);
   const row = stmt.get(id);
 
@@ -122,9 +122,9 @@ export function getGuardrailsByProject(
     includeSuperseded?: boolean;
   },
 ): FelixGuardrail[] {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  let sql = 'SELECT * FROM ralph_guardrails WHERE project = ?';
+  let sql = 'SELECT * FROM felix_guardrails WHERE project = ?';
   const params: (string | number)[] = [project];
 
   if (!options?.includeSuperseded) {
@@ -153,14 +153,14 @@ export function getGuardrailsByProject(
  * Search guardrails using FTS5
  */
 export function searchGuardrails(project: string, query: string, limit = 10): FelixGuardrail[] {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
   const sql = `
-    SELECT g.* FROM ralph_guardrails g
-    JOIN ralph_guardrails_fts fts ON g.id = fts.rowid
-    WHERE g.project = ? AND ralph_guardrails_fts MATCH ?
+    SELECT g.* FROM felix_guardrails g
+    JOIN felix_guardrails_fts fts ON g.id = fts.rowid
+    WHERE g.project = ? AND felix_guardrails_fts MATCH ?
     AND g.superseded_by IS NULL
-    ORDER BY bm25(ralph_guardrails_fts) 
+    ORDER BY bm25(felix_guardrails_fts) 
     LIMIT ?
   `;
 
@@ -182,16 +182,16 @@ export function getRelevantGuardrails(
     return getGuardrailsByProject(project).slice(0, limit);
   }
 
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
   // Search by tags using FTS
   const tagQuery = tags.join(' OR ');
   const sql = `
-    SELECT g.* FROM ralph_guardrails g
-    JOIN ralph_guardrails_fts fts ON g.id = fts.rowid
-    WHERE g.project = ? AND ralph_guardrails_fts MATCH ?
+    SELECT g.* FROM felix_guardrails g
+    JOIN felix_guardrails_fts fts ON g.id = fts.rowid
+    WHERE g.project = ? AND felix_guardrails_fts MATCH ?
     AND g.superseded_by IS NULL
-    ORDER BY bm25(ralph_guardrails_fts), g.usage_count DESC
+    ORDER BY bm25(felix_guardrails_fts), g.usage_count DESC
     LIMIT ?
   `;
 
@@ -209,11 +209,11 @@ export function getRelevantGuardrails(
  * Record guardrail usage
  */
 export function recordGuardrailUsage(id: number): boolean {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
   const now = new Date().toISOString();
 
   const sql = `
-    UPDATE ralph_guardrails 
+    UPDATE felix_guardrails 
     SET usage_count = usage_count + 1, last_used_at = ?, updated_at = ?
     WHERE id = ?
   `;
@@ -228,11 +228,11 @@ export function recordGuardrailUsage(id: number): boolean {
  * Supersede a guardrail with a new one
  */
 export function supersedeGuardrail(oldId: number, newId: number): boolean {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
   const now = new Date().toISOString();
 
   const sql = `
-    UPDATE ralph_guardrails 
+    UPDATE felix_guardrails 
     SET superseded_by = ?, updated_at = ?
     WHERE id = ?
   `;
@@ -251,10 +251,10 @@ export function addRelatedTask(guardrailId: number, taskId: string): boolean {
   if (!guardrail) return false;
 
   const relatedTasks = [...guardrail.relatedTasks, taskId];
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
   const now = new Date().toISOString();
 
-  const sql = 'UPDATE ralph_guardrails SET related_tasks = ?, updated_at = ? WHERE id = ?';
+  const sql = 'UPDATE felix_guardrails SET related_tasks = ?, updated_at = ? WHERE id = ?';
   const stmt = prepareStatement<[string, string, number]>(db, sql);
   const result = stmt.run(JSON.stringify(relatedTasks), now, guardrailId);
 
@@ -269,9 +269,9 @@ export function addRelatedTask(guardrailId: number, taskId: string): boolean {
  * Delete a guardrail
  */
 export function deleteGuardrail(id: number): boolean {
-  const db = getRalphDatabase();
+  const db = getFelixDatabase();
 
-  const sql = 'DELETE FROM ralph_guardrails WHERE id = ?';
+  const sql = 'DELETE FROM felix_guardrails WHERE id = ?';
   const stmt = prepareStatement<[number]>(db, sql);
   const result = stmt.run(id);
 
@@ -294,17 +294,17 @@ export function getGuardrailStats(
   bySeverity: Record<GuardrailSeverity, number>;
   mostUsed: FelixGuardrail[];
 } {
-  const db = getRalphDatabase(projectPath);
+  const db = getFelixDatabase(projectPath);
 
   const totalSql = `
-    SELECT COUNT(*) as count FROM ralph_guardrails
+    SELECT COUNT(*) as count FROM felix_guardrails
     WHERE project = ? AND superseded_by IS NULL
   `;
   const totalStmt = prepareStatement<[string], { count: number }>(db, totalSql);
   const total = totalStmt.get(project)?.count ?? 0;
 
   const categorySql = `
-    SELECT category, COUNT(*) as count FROM ralph_guardrails
+    SELECT category, COUNT(*) as count FROM felix_guardrails
     WHERE project = ? AND superseded_by IS NULL
     GROUP BY category
   `;
@@ -315,7 +315,7 @@ export function getGuardrailStats(
   const categoryRows = categoryStmt.all(project);
 
   const severitySql = `
-    SELECT severity, COUNT(*) as count FROM ralph_guardrails
+    SELECT severity, COUNT(*) as count FROM felix_guardrails
     WHERE project = ? AND superseded_by IS NULL
     GROUP BY severity
   `;
@@ -326,7 +326,7 @@ export function getGuardrailStats(
   const severityRows = severityStmt.all(project);
 
   const mostUsedSql = `
-    SELECT * FROM ralph_guardrails
+    SELECT * FROM felix_guardrails
     WHERE project = ? AND superseded_by IS NULL
     ORDER BY usage_count DESC LIMIT 5
   `;

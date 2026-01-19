@@ -3,7 +3,7 @@
  *
  * Exports quality gate types and functions.
  *
- * @module @ralph/executor
+ * @module @felix/executor
  */
 
 export type {

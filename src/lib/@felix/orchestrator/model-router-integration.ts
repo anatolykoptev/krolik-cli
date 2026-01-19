@@ -4,7 +4,7 @@
  * Bridges the Model Router with the Ralph Orchestrator.
  * Handles per-task model selection and cascade escalation.
  *
- * @module @ralph/orchestrator/model-router-integration
+ * @module @felix/orchestrator/model-router-integration
  */
 
 import type { BaseLlm } from '@google/adk';

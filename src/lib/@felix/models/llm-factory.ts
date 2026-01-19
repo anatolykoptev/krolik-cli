@@ -7,7 +7,7 @@
  * - Instance caching (reuse existing instances)
  * - Proper TypeScript types
  *
- * @module @ralph/models/llm-factory
+ * @module @felix/models/llm-factory
  */
 
 import { type BaseLlm, Gemini } from '@google/adk';

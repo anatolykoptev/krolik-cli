@@ -1,11 +1,11 @@
 /**
- * @module mcp/tools/ralph
- * @description Ralph Loop MCP tool - Autonomous agent loop for PRD task execution
+ * @module mcp/tools/felix
+ * @description Krolik Felix MCP tool - Autonomous agent loop for PRD task execution
  *
  * Actions:
- * - status: Get current Ralph session status and statistics
+ * - status: Get current Felix session status and statistics
  * - validate: Validate PRD.json file and show execution order
- * - start: Start a new Ralph session
+ * - start: Start a new Felix session
  * - pause: Pause the active session
  * - resume: Resume a paused session
  * - cancel: Cancel the active session
@@ -42,16 +42,16 @@ const ACTIONS = [
   'estimate',
   'stats',
 ] as const;
-type RalphAction = (typeof ACTIONS)[number];
+type FelixAction = (typeof ACTIONS)[number];
 
-export const ralphTool: MCPToolDefinition = {
-  name: 'krolik_ralph',
-  description: `Ralph Loop - Autonomous agent loop for executing PRD tasks.
+export const felixTool: MCPToolDefinition = {
+  name: 'krolik_felix',
+  description: `Krolik Felix - Autonomous agent loop for executing PRD tasks.
 
 Actions:
-- status: Get current Ralph session status and statistics
+- status: Get current Felix session status and statistics
 - validate: Validate PRD.json file and show execution order
-- start: Start a new Ralph session
+- start: Start a new Felix session
 - pause: Pause the active session
 - resume: Resume a paused session
 - cancel: Cancel the active session
@@ -60,9 +60,9 @@ Actions:
 - stats: View model routing statistics
 
 Use this tool to:
-- Check Ralph Loop status before starting a session
+- Check Krolik Felix status before starting a session
 - Validate PRD.json files to ensure they're correctly formatted
-- Control Ralph sessions (start, pause, resume, cancel)
+- Control Felix sessions (start, pause, resume, cancel)
 - Plan model routing for cost optimization
 - Estimate execution costs before running
 
@@ -133,12 +133,12 @@ Examples:
 
     if ('error' in resolved) {
       if (resolved.error.includes('not found')) {
-        return `<ralph error="true"><message>Project "${projectArg}" not found.</message></ralph>`;
+        return `<felix error="true"><message>Project "${projectArg}" not found.</message></felix>`;
       }
       return resolved.error;
     }
 
-    const action = (args.action as RalphAction) ?? 'status';
+    const action = (args.action as FelixAction) ?? 'status';
     const prdPath = typeof args.prd === 'string' ? args.prd : undefined;
 
     try {
@@ -193,33 +193,33 @@ Examples:
           // Use background spawn for MCP - runs as detached process
           const result = startSessionBackground(resolved.path, prdPath, options);
           if (result.success) {
-            return `<ralph-session action="started" id="${result.sessionId}" logFile="${result.logFile}"/>`;
+            return `<felix-session action="started" id="${result.sessionId}" logFile="${result.logFile}"/>`;
           }
-          return `<ralph-error>${result.error}</ralph-error>`;
+          return `<felix-error>${result.error}</felix-error>`;
         }
 
         case 'pause': {
           const result = pauseActiveSession(resolved.path);
           if (result.success) {
-            return '<ralph-session action="paused"/>';
+            return '<felix-session action="paused"/>';
           }
-          return `<ralph-error>${result.error}</ralph-error>`;
+          return `<felix-error>${result.error}</felix-error>`;
         }
 
         case 'resume': {
           const result = resumeActiveSession(resolved.path);
           if (result.success) {
-            return `<ralph-session action="resumed" id="${result.sessionId}"/>`;
+            return `<felix-session action="resumed" id="${result.sessionId}"/>`;
           }
-          return `<ralph-error>${result.error}</ralph-error>`;
+          return `<felix-error>${result.error}</felix-error>`;
         }
 
         case 'cancel': {
           const result = cancelActiveSession(resolved.path);
           if (result.success) {
-            return '<ralph-session action="cancelled"/>';
+            return '<felix-session action="cancelled"/>';
           }
-          return `<ralph-error>${result.error}</ralph-error>`;
+          return `<felix-error>${result.error}</felix-error>`;
         }
 
         case 'plan': {
@@ -227,7 +227,7 @@ Examples:
           if (result.success) {
             return result.xml ?? '<routing-plan/>';
           }
-          return `<ralph-error>${result.error}</ralph-error>`;
+          return `<felix-error>${result.error}</felix-error>`;
         }
 
         case 'estimate': {
@@ -235,7 +235,7 @@ Examples:
           if (result.success) {
             return result.xml ?? '<cost-estimate/>';
           }
-          return `<ralph-error>${result.error}</ralph-error>`;
+          return `<felix-error>${result.error}</felix-error>`;
         }
 
         case 'stats': {
@@ -244,7 +244,7 @@ Examples:
         }
 
         default:
-          return `<ralph-error>Unknown action: ${action}. Valid actions: ${ACTIONS.join(', ')}</ralph-error>`;
+          return `<felix-error>Unknown action: ${action}. Valid actions: ${ACTIONS.join(', ')}</felix-error>`;
       }
     } catch (error) {
       return formatError(error);
@@ -252,4 +252,4 @@ Examples:
   },
 };
 
-registerTool(ralphTool);
+registerTool(felixTool);

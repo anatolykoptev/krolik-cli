@@ -3,7 +3,7 @@
  *
  * Type definitions for the orchestrator module.
  *
- * @module @ralph/orchestrator/types
+ * @module @felix/orchestrator/types
  */
 
 import type { BasePlugin } from '@google/adk';

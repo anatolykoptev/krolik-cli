@@ -1,5 +1,5 @@
 /**
- * Ralph Loop Library
+ * Krolik Felix Library
  *
  * Autonomous agent loop for executing PRD tasks.
  *
@@ -10,7 +10,7 @@
  * - PRD.json validation via Zod schemas
  * - Progress/Attempts/Guardrails stored in SQLite (@storage/ralph)
  *
- * @module @ralph
+ * @module @felix
  */
 
 // ============================================================================
@@ -96,7 +96,7 @@ export {
   type ValidationResult as PluginValidationResult,
   type ValidationStep as PluginValidationStep,
 } from './plugins/index.js';
-// Export Ralph session services
+// Export Felix session services
 export {
   createSQLiteSessionService,
   type SessionService,

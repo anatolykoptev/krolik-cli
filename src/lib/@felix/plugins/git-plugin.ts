@@ -3,7 +3,7 @@
  *
  * Auto-commits changes on task success and detects secrets in changes.
  *
- * @module @ralph/plugins/git-plugin
+ * @module @felix/plugins/git-plugin
  */
 
 import { execSync } from 'node:child_process';
