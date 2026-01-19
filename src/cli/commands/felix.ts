@@ -205,6 +205,11 @@ export function registerFelixCommand(program: Command): void {
       const ctx = await createContext(program, options);
       const status = getFelixStatus(ctx.config.projectRoot, options.prd as string | undefined);
       console.log(formatStatusXML(status));
+
+      // Close all database connections and exit immediately
+      const { closeAllDatabases } = await import('../../lib/@storage/database');
+      closeAllDatabases();
+      process.exit(0);
     });
 
   // felix watch - watch logs in real-time
@@ -447,6 +452,11 @@ Start a session first:
       console.log(`<felix-error>${result.error}</felix-error>`);
       process.exitCode = 1;
     }
+
+    // Close all database connections and exit immediately
+    const { closeAllDatabases } = await import('../../lib/@storage/database');
+    closeAllDatabases();
+    process.exit(result.success ? 0 : 1);
   });
 
   // felix resume
@@ -463,6 +473,11 @@ Start a session first:
       console.log(`<felix-error>${result.error}</felix-error>`);
       process.exitCode = 1;
     }
+
+    // Close all database connections and exit immediately
+    const { closeAllDatabases } = await import('../../lib/@storage/database');
+    closeAllDatabases();
+    process.exit(result.success ? 0 : 1);
   });
 
   // felix cancel
@@ -479,6 +494,11 @@ Start a session first:
       console.log(`<felix-error>${result.error}</felix-error>`);
       process.exitCode = 1;
     }
+
+    // Close all database connections and exit immediately
+    const { closeAllDatabases } = await import('../../lib/@storage/database');
+    closeAllDatabases();
+    process.exit(result.success ? 0 : 1);
   });
 
   // felix plan - show model routing plan
@@ -503,6 +523,11 @@ Start a session first:
         console.log(`<felix-error>${result.error}</felix-error>`);
         process.exitCode = 1;
       }
+
+      // Close all database connections and exit immediately
+      const { closeAllDatabases } = await import('../../lib/@storage/database');
+      closeAllDatabases();
+      process.exit(result.success ? 0 : 1);
     });
 
   // felix estimate - estimate cost before execution
@@ -527,6 +552,11 @@ Start a session first:
         console.log(`<felix-error>${result.error}</felix-error>`);
         process.exitCode = 1;
       }
+
+      // Close all database connections and exit immediately
+      const { closeAllDatabases } = await import('../../lib/@storage/database');
+      closeAllDatabases();
+      process.exit(result.success ? 0 : 1);
     });
 
   // felix stats - view routing statistics
@@ -538,5 +568,10 @@ Start a session first:
     const ctx = await createContext(program, options);
     const result = getRouterStats(ctx.config.projectRoot);
     console.log(result.xml);
+
+    // Close all database connections and exit immediately
+    const { closeAllDatabases } = await import('../../lib/@storage/database');
+    closeAllDatabases();
+    process.exit(0);
   });
 }
