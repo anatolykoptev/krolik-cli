@@ -117,7 +117,13 @@ function findPrdPath(projectRoot: string, customPath?: string): string | undefin
   }
 
   // Search for PRD.json in common locations
-  const candidates = ['PRD.json', 'prd.json', '.ralph/PRD.json', 'docs/PRD.json'];
+  const candidates = [
+    'PRD.json',
+    'prd.json',
+    '.krolik/felix/prd/PRD.json',
+    '.krolik/prd/PRD.json',
+    'docs/PRD.json',
+  ];
 
   for (const candidate of candidates) {
     const fullPath = join(projectRoot, candidate);
@@ -438,7 +444,7 @@ export async function startSession(
 // BACKGROUND SESSION (for MCP)
 // ============================================================================
 
-const RALPH_LOGS_DIR = '.krolik/felix/logs';
+const FELIX_LOGS_DIR = '.krolik/felix/logs';
 
 /**
  * Start session in background process (for MCP tool)
@@ -478,8 +484,8 @@ export function startSessionBackground(
   }
 
   // Generate session ID
-  const sessionId = `ralph-${Date.now()}-${randomUUID().slice(0, 8)}`;
-  const logsDir = join(projectRoot, RALPH_LOGS_DIR);
+  const sessionId = `felix-${Date.now()}-${randomUUID().slice(0, 8)}`;
+  const logsDir = join(projectRoot, FELIX_LOGS_DIR);
   const logFile = join(logsDir, `${sessionId}.log`);
 
   // Ensure logs directory exists

@@ -1,0 +1,44 @@
+{
+  "version": "1.0",
+  "project": "krolik-cli",
+  "title": "Test Felix Execution",
+  "description": "Simple test tasks to verify Felix autonomous agent loop works correctly",
+  "config": {
+    "auto_commit": false,
+    "quality_gate": {
+      "enabled": false
+    }
+  },
+  "tasks": [
+    {
+      "id": "task-1-read-readme",
+      "title": "Read and summarize README.md",
+      "description": "Read the README.md file in the project root and create a brief summary of what the project does",
+      "acceptance_criteria": [
+        "README.md file is read successfully",
+        "Summary captures main purpose of krolik-cli",
+        "Summary is concise (2-3 sentences)"
+      ],
+      "files_affected": ["README.md"],
+      "dependencies": [],
+      "priority": "high",
+      "complexity": "trivial",
+      "estimated_tokens": 500
+    },
+    {
+      "id": "task-2-check-package-json",
+      "title": "Verify package.json has correct name",
+      "description": "Read package.json and verify that the 'name' field is set to 'krolik-cli'",
+      "acceptance_criteria": [
+        "package.json is read successfully",
+        "Name field is 'krolik-cli'",
+        "Report verification result"
+      ],
+      "files_affected": ["package.json"],
+      "dependencies": [],
+      "priority": "medium",
+      "complexity": "trivial",
+      "estimated_tokens": 300
+    }
+  ]
+}

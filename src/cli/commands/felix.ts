@@ -257,13 +257,23 @@ Start a session first:
         return;
       }
 
-      // Now do heavy initialization
-      const { validatePrdFile, formatValidationXML } = await import('../../commands/felix');
+      // Import lightweight validation module (no heavy dependencies like orchestrator)
+      const { validatePrdFile, formatValidationXML } = await import(
+        '../../commands/felix/validate'
+      );
       handleProjectOption(options);
-      const ctx = await createContext(program, options);
 
-      const result = validatePrdFile(ctx.config.projectRoot, prdValidation.path);
+      // Get project root from options or use cwd (no config loading needed)
+      const globalOpts = program.opts();
+      const projectRoot = globalOpts.projectRoot || globalOpts.cwd || process.cwd();
+
+      const result = validatePrdFile(projectRoot, prdValidation.path);
       console.log(formatValidationXML(result));
+
+      // Close all database connections and exit immediately
+      const { closeAllDatabases } = await import('../../lib/@storage/database');
+      closeAllDatabases();
+      process.exit(0);
     });
 
   // felix start - runs in background by default
