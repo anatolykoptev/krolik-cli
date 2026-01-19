@@ -62,7 +62,7 @@ export async function fetchAndCacheDocs(
   initializeRegistry();
 
   // Resolve library ID dynamically (with API fallback)
-  const resolution = await resolveLibraryIdDynamic(libraryName);
+  const resolution = await resolveLibraryIdDynamic(libraryName, topic);
 
   if (!resolution) {
     throw new Error(`Library not found: ${libraryName}. Try a different name or Context7 ID.`);
@@ -179,7 +179,7 @@ export async function fetchLibraryWithTopics(
   initializeRegistry();
 
   // Resolve library ID dynamically (with API fallback)
-  const resolution = await resolveLibraryIdDynamic(libraryName);
+  const resolution = await resolveLibraryIdDynamic(libraryName, customTopics?.[0]);
 
   if (!resolution) {
     throw new Error(`Library not found: ${libraryName}. Try a different name or Context7 ID.`);
