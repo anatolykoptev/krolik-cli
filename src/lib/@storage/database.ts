@@ -580,7 +580,7 @@ function runMigrations(db: Database.Database): void {
   if (currentVersion < 7) {
     db.exec(`
       -- Krolik Felix task attempts (execution history)
-      CREATE TABLE IF NOT EXISTS ralph_attempts (
+      CREATE TABLE IF NOT EXISTS felix_attempts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         task_id INTEGER NOT NULL,
         prd_task_id TEXT NOT NULL,
@@ -601,12 +601,12 @@ function runMigrations(db: Database.Database): void {
         validation_output TEXT
       );
 
-      CREATE INDEX IF NOT EXISTS idx_ralph_attempts_task ON ralph_attempts(task_id);
-      CREATE INDEX IF NOT EXISTS idx_ralph_attempts_prd_task ON ralph_attempts(prd_task_id);
-      CREATE INDEX IF NOT EXISTS idx_ralph_attempts_started ON ralph_attempts(started_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_felix_attempts_task ON felix_attempts(task_id);
+      CREATE INDEX IF NOT EXISTS idx_felix_attempts_prd_task ON felix_attempts(prd_task_id);
+      CREATE INDEX IF NOT EXISTS idx_felix_attempts_started ON felix_attempts(started_at DESC);
 
       -- Krolik Felix guardrails (lessons learned from failures)
-      CREATE TABLE IF NOT EXISTS ralph_guardrails (
+      CREATE TABLE IF NOT EXISTS felix_guardrails (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project TEXT NOT NULL,
         category TEXT NOT NULL CHECK(category IN (
@@ -623,50 +623,50 @@ function runMigrations(db: Database.Database): void {
         related_tasks TEXT DEFAULT '[]',
         usage_count INTEGER DEFAULT 0,
         last_used_at TEXT,
-        superseded_by INTEGER REFERENCES ralph_guardrails(id),
+        superseded_by INTEGER REFERENCES felix_guardrails(id),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );
 
-      CREATE INDEX IF NOT EXISTS idx_ralph_guardrails_project ON ralph_guardrails(project);
-      CREATE INDEX IF NOT EXISTS idx_ralph_guardrails_category ON ralph_guardrails(category);
-      CREATE INDEX IF NOT EXISTS idx_ralph_guardrails_severity ON ralph_guardrails(severity);
+      CREATE INDEX IF NOT EXISTS idx_felix_guardrails_project ON felix_guardrails(project);
+      CREATE INDEX IF NOT EXISTS idx_felix_guardrails_category ON felix_guardrails(category);
+      CREATE INDEX IF NOT EXISTS idx_felix_guardrails_severity ON felix_guardrails(severity);
 
       -- FTS5 for guardrails search
-      CREATE VIRTUAL TABLE IF NOT EXISTS ralph_guardrails_fts USING fts5(
+      CREATE VIRTUAL TABLE IF NOT EXISTS felix_guardrails_fts USING fts5(
         title,
         problem,
         solution,
         tags_text,
-        content='ralph_guardrails',
+        content='felix_guardrails',
         content_rowid='id',
         tokenize='porter unicode61'
       );
 
       -- Triggers for guardrails FTS sync
-      CREATE TRIGGER IF NOT EXISTS ralph_guardrails_ai AFTER INSERT ON ralph_guardrails BEGIN
-        INSERT INTO ralph_guardrails_fts(rowid, title, problem, solution, tags_text)
+      CREATE TRIGGER IF NOT EXISTS felix_guardrails_ai AFTER INSERT ON felix_guardrails BEGIN
+        INSERT INTO felix_guardrails_fts(rowid, title, problem, solution, tags_text)
         VALUES (new.id, new.title, new.problem, new.solution,
                 REPLACE(REPLACE(new.tags, '[', ''), ']', ''));
       END;
 
-      CREATE TRIGGER IF NOT EXISTS ralph_guardrails_ad AFTER DELETE ON ralph_guardrails BEGIN
-        INSERT INTO ralph_guardrails_fts(ralph_guardrails_fts, rowid, title, problem, solution, tags_text)
+      CREATE TRIGGER IF NOT EXISTS felix_guardrails_ad AFTER DELETE ON felix_guardrails BEGIN
+        INSERT INTO felix_guardrails_fts(felix_guardrails_fts, rowid, title, problem, solution, tags_text)
         VALUES('delete', old.id, old.title, old.problem, old.solution,
                REPLACE(REPLACE(old.tags, '[', ''), ']', ''));
       END;
 
-      CREATE TRIGGER IF NOT EXISTS ralph_guardrails_au AFTER UPDATE ON ralph_guardrails BEGIN
-        INSERT INTO ralph_guardrails_fts(ralph_guardrails_fts, rowid, title, problem, solution, tags_text)
+      CREATE TRIGGER IF NOT EXISTS felix_guardrails_au AFTER UPDATE ON felix_guardrails BEGIN
+        INSERT INTO felix_guardrails_fts(felix_guardrails_fts, rowid, title, problem, solution, tags_text)
         VALUES('delete', old.id, old.title, old.problem, old.solution,
                REPLACE(REPLACE(old.tags, '[', ''), ']', ''));
-        INSERT INTO ralph_guardrails_fts(rowid, title, problem, solution, tags_text)
+        INSERT INTO felix_guardrails_fts(rowid, title, problem, solution, tags_text)
         VALUES (new.id, new.title, new.problem, new.solution,
                 REPLACE(REPLACE(new.tags, '[', ''), ']', ''));
       END;
 
       -- Krolik Felix sessions (high-level session tracking)
-      CREATE TABLE IF NOT EXISTS ralph_sessions (
+      CREATE TABLE IF NOT EXISTS felix_sessions (
         id TEXT PRIMARY KEY,
         project TEXT NOT NULL,
         prd_path TEXT NOT NULL,
@@ -683,9 +683,9 @@ function runMigrations(db: Database.Database): void {
         config TEXT DEFAULT '{}'
       );
 
-      CREATE INDEX IF NOT EXISTS idx_ralph_sessions_project ON ralph_sessions(project);
-      CREATE INDEX IF NOT EXISTS idx_ralph_sessions_status ON ralph_sessions(status);
-      CREATE INDEX IF NOT EXISTS idx_ralph_sessions_started ON ralph_sessions(started_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_felix_sessions_project ON felix_sessions(project);
+      CREATE INDEX IF NOT EXISTS idx_felix_sessions_status ON felix_sessions(status);
+      CREATE INDEX IF NOT EXISTS idx_felix_sessions_started ON felix_sessions(started_at DESC);
     `);
 
     prepareStatement<[number, string]>(
@@ -785,12 +785,12 @@ function runMigrations(db: Database.Database): void {
   // Migration 10: Model router patterns and attempt routing fields
   if (currentVersion < 10) {
     db.exec(`
-      -- Add routing fields to ralph_attempts
-      ALTER TABLE ralph_attempts ADD COLUMN signature_hash TEXT;
-      ALTER TABLE ralph_attempts ADD COLUMN escalated_from TEXT;
+      -- Add routing fields to felix_attempts
+      ALTER TABLE felix_attempts ADD COLUMN signature_hash TEXT;
+      ALTER TABLE felix_attempts ADD COLUMN escalated_from TEXT;
 
       -- Model routing patterns (learning from history)
-      CREATE TABLE IF NOT EXISTS ralph_routing_patterns (
+      CREATE TABLE IF NOT EXISTS felix_routing_patterns (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         signature_hash TEXT NOT NULL,
         model TEXT NOT NULL,
@@ -801,14 +801,39 @@ function runMigrations(db: Database.Database): void {
         UNIQUE(signature_hash, model)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_routing_patterns_signature ON ralph_routing_patterns(signature_hash);
-      CREATE INDEX IF NOT EXISTS idx_routing_patterns_model ON ralph_routing_patterns(model);
+      CREATE INDEX IF NOT EXISTS idx_routing_patterns_signature ON felix_routing_patterns(signature_hash);
+      CREATE INDEX IF NOT EXISTS idx_routing_patterns_model ON felix_routing_patterns(model);
     `);
 
     prepareStatement<[number, string]>(
       db,
       'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)',
     ).run(10, new Date().toISOString());
+  }
+
+  // Migration 11: Rename ralph_* tables to felix_* for rebrand
+  if (currentVersion < 11) {
+    // Check if ralph tables exist before renaming
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'ralph_%'")
+      .all() as Array<{ name: string }>;
+
+    for (const { name } of tables) {
+      const newName = name.replace('ralph_', 'felix_');
+      try {
+        db.prepare(`ALTER TABLE ${name} RENAME TO ${newName}`).run();
+      } catch (error) {
+        // Table might already be renamed, continue
+        if (process.env.DEBUG) {
+          console.error(`Failed to rename ${name} to ${newName}:`, error);
+        }
+      }
+    }
+
+    prepareStatement<[number, string]>(
+      db,
+      'INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)',
+    ).run(11, new Date().toISOString());
   }
 }
 
