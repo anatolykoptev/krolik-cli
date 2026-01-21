@@ -50,6 +50,7 @@ interface DocsArgs {
   query?: string | undefined;
   library?: string | undefined;
   topic?: string | undefined;
+  documentType?: 'legal' | 'technical' | 'general' | 'personal' | undefined;
   limit?: number | undefined;
   force?: boolean | undefined;
   expired?: boolean | undefined;
@@ -64,6 +65,7 @@ function handleSearch(args: DocsArgs): string {
     query,
     library: args.library,
     topic: args.topic,
+    documentType: args.documentType,
     limit: args.limit ?? 10,
   });
 
@@ -268,6 +270,12 @@ Use this tool to:
 - Refresh outdated documentation
 - Discover project dependencies that have docs available
 
+**Document Classification**:
+- legal: State laws, regulations, compliance requirements
+- technical: Library/framework API documentation (Next.js, React, tRPC)
+- general: General how-to guides, tutorials
+- personal: User's personal notes and documentation
+
 **Context7 Integration**:
 - If CONTEXT7_API_KEY is not set, krolik_docs will suggest using Context7 MCP tools directly
 - Use mcp__context7__resolve-library-id to find library IDs
@@ -275,7 +283,8 @@ Use this tool to:
 - krolik_docs provides instructions for seamless fallback to Context7 MCP
 
 Examples:
-- Search: { action: "search", query: "app router server components" }
+- Search all: { action: "search", query: "app router server components" }
+- Search legal docs only: { action: "search", query: "mini-WARN requirements", documentType: "legal" }
 - List: { action: "list" }
 - Fetch: { action: "fetch", library: "next.js", topic: "app-router" }
 - Detect: { action: "detect" }`,
@@ -300,6 +309,11 @@ Examples:
       topic: {
         type: 'string',
         description: 'Topic to focus on (e.g., "app-router", "transactions")',
+      },
+      documentType: {
+        type: 'string',
+        enum: ['legal', 'technical', 'general', 'personal'],
+        description: 'Filter by document type (for action: search)',
       },
       limit: {
         type: 'number',
@@ -327,19 +341,23 @@ Examples:
     const validationError = validateActionRequirements(action, args, DOCS_ACTIONS);
     if (validationError) return validationError;
 
-    // Resolve project path (needed for detect action)
-    const projectArg = typeof args.project === 'string' ? args.project : undefined;
-    const resolved = resolveProjectPath(workspaceRoot, projectArg);
-    if ('error' in resolved) {
-      return resolved.error;
+    // Resolve project path (only needed for detect action)
+    let projectPath = workspaceRoot;
+    if (action === 'detect') {
+      const projectArg = typeof args.project === 'string' ? args.project : undefined;
+      const resolved = resolveProjectPath(workspaceRoot, projectArg);
+      if ('error' in resolved) {
+        return resolved.error;
+      }
+      projectPath = resolved.path;
     }
-    const projectPath = resolved.path;
 
     // Type-safe args for action handlers
     const docsArgs: DocsArgs = {
       query: args.query as string | undefined,
       library: args.library as string | undefined,
       topic: args.topic as string | undefined,
+      documentType: args.documentType as 'legal' | 'technical' | 'general' | 'personal' | undefined,
       limit: args.limit as number | undefined,
       force: args.force as boolean | undefined,
       expired: args.expired as boolean | undefined,

@@ -4,7 +4,11 @@
  */
 
 import * as path from 'node:path';
+import * as readline from 'node:readline';
 import {
+  getProjects,
+  hybridSearch,
+  isGlobalType,
   type Memory,
   type MemoryImportance,
   type MemorySaveOptions,
@@ -13,9 +17,11 @@ import {
   type MemoryType,
   recent,
   save,
+  saveGlobal,
   search,
   stats,
 } from '@/lib/@storage/memory';
+import { releaseEmbeddingPool } from '@/lib/@storage/memory/embedding-pool';
 import { getCurrentBranch, getRecentCommits } from '../../lib/@vcs';
 import type { CommandContext, OutputFormat } from '../../types/commands/base';
 
@@ -30,6 +36,7 @@ export interface MemSaveOptions {
   tags?: string;
   files?: string;
   features?: string;
+  project?: string;
   format?: OutputFormat;
 }
 
@@ -106,44 +113,150 @@ function formatSearchResultXml(result: MemorySearchResult): string {
 }
 
 /**
+ * Interactive project selection
+ * Shows options: global, existing projects, or create new
+ */
+async function selectProject(currentProject: string): Promise<string> {
+  const existingProjects = getProjects();
+
+  // Build options list
+  const options: string[] = [];
+  options.push('1. Global (shared across all projects)');
+
+  // Add current project if it exists
+  if (currentProject && !existingProjects.includes(currentProject)) {
+    options.push(`2. ${currentProject} (current directory - NEW)`);
+  } else if (currentProject) {
+    options.push(`2. ${currentProject} (current directory)`);
+  }
+
+  // Add existing projects
+  let optionNum = 3;
+  const projectMap = new Map<number, string>();
+  projectMap.set(1, '__global__');
+  projectMap.set(2, currentProject);
+
+  for (const proj of existingProjects) {
+    if (proj !== currentProject && proj !== '__global__') {
+      options.push(`${optionNum}. ${proj}`);
+      projectMap.set(optionNum, proj);
+      optionNum++;
+    }
+  }
+
+  options.push(`${optionNum}. Create new project...`);
+  const createNewOption = optionNum;
+
+  // Display options
+  console.log('\n📁 Select project to save memory:');
+  console.log(options.join('\n'));
+
+  // Read user input
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question('\nEnter option number: ', (answer) => {
+      rl.close();
+      const choice = parseInt(answer.trim(), 10);
+
+      if (choice === 1) {
+        resolve('__global__');
+      } else if (choice === createNewOption) {
+        // Ask for new project name
+        const rl2 = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        rl2.question('Enter new project name: ', (name) => {
+          rl2.close();
+          resolve(name.trim() || currentProject);
+        });
+      } else if (projectMap.has(choice)) {
+        resolve(projectMap.get(choice)!);
+      } else {
+        // Default to current project
+        resolve(currentProject);
+      }
+    });
+  });
+}
+
+/**
  * Run memory save command
  */
 export async function runMemSave(ctx: CommandContext & { options: MemSaveOptions }): Promise<void> {
-  const { config, options } = ctx;
-  const projectName = path.basename(config.projectRoot);
+  try {
+    const { config, options } = ctx;
 
-  // Get git context
-  const branch = getCurrentBranch(config.projectRoot);
-  const commits = getRecentCommits(1, config.projectRoot);
-  const commit = commits[0]?.hash;
+    let memory: Memory;
 
-  const saveOptions: MemorySaveOptions = {
-    type: options.type,
-    title: options.title,
-    description: options.description,
-    importance: options.importance,
-    tags: parseList(options.tags),
-    files: parseList(options.files),
-    features: parseList(options.features),
-  };
+    // Global memory types (pattern, library, snippet, anti-pattern) - use saveGlobal
+    if (isGlobalType(options.type)) {
+      memory = await saveGlobal({
+        type: options.type,
+        title: options.title,
+        description: options.description,
+        importance: options.importance,
+        tags: parseList(options.tags),
+      });
+    } else {
+      // Project memory types (observation, decision, bugfix, feature) - use save
+      const currentProject = path.basename(config.projectRoot);
 
-  const memory = await save(saveOptions, {
-    project: projectName,
-    branch: branch || undefined,
-    commit: commit || undefined,
-  });
+      // Determine target project
+      let projectName: string;
 
-  const format = options.format ?? 'ai';
+      // If --project was explicitly provided, use it
+      if (options.project) {
+        projectName = options.project;
+      } else if (process.stdin.isTTY) {
+        // Interactive mode - ask user to select project
+        projectName = await selectProject(currentProject);
+      } else {
+        // Non-interactive mode - use current project
+        projectName = currentProject;
+      }
 
-  if (format === 'json') {
-    console.log(JSON.stringify(memory, null, 2));
-    return;
-  }
+      // Get git context
+      const branch = getCurrentBranch(config.projectRoot);
+      const commits = getRecentCommits(1, config.projectRoot);
+      const commit = commits[0]?.hash;
 
-  // AI-friendly XML format
-  console.log(`<memory-saved>
+      const saveOptions: MemorySaveOptions = {
+        type: options.type,
+        title: options.title,
+        description: options.description,
+        importance: options.importance,
+        tags: parseList(options.tags),
+        files: parseList(options.files),
+        features: parseList(options.features),
+      };
+
+      memory = await save(saveOptions, {
+        project: projectName,
+        branch: branch || undefined,
+        commit: commit || undefined,
+      });
+    }
+
+    const format = options.format ?? 'ai';
+
+    if (format === 'json') {
+      console.log(JSON.stringify(memory, null, 2));
+      return;
+    }
+
+    // AI-friendly XML format
+    console.log(`<memory-saved>
 ${formatMemoryXml(memory)}
 </memory-saved>`);
+  } finally {
+    // Release embedding worker to prevent hanging
+    await releaseEmbeddingPool();
+  }
 }
 
 /**
@@ -152,39 +265,47 @@ ${formatMemoryXml(memory)}
 export async function runMemSearch(
   ctx: CommandContext & { options: MemSearchOptions },
 ): Promise<void> {
-  const { config, options } = ctx;
-  const projectName = path.basename(config.projectRoot);
+  try {
+    const { config, options } = ctx;
+    const projectName = path.basename(config.projectRoot);
 
-  const searchOptions: MemorySearchOptions = {
-    query: options.query,
-    type: options.type,
-    importance: options.importance,
-    project: options.project ?? projectName,
-    tags: parseList(options.tags),
-    features: parseList(options.features),
-    limit: options.limit ?? 10,
-  };
+    const searchOptions: MemorySearchOptions = {
+      query: options.query,
+      type: options.type,
+      importance: options.importance,
+      project: options.project ?? projectName,
+      tags: parseList(options.tags),
+      features: parseList(options.features),
+      limit: options.limit ?? 10,
+    };
 
-  const results = search(searchOptions);
+    // Use hybrid search (BM25 + semantic) if query provided, fallback to regular search
+    const results = options.query
+      ? await hybridSearch(options.query, searchOptions)
+      : search(searchOptions);
 
-  const format = options.format ?? 'ai';
+    const format = options.format ?? 'ai';
 
-  if (format === 'json') {
-    console.log(JSON.stringify(results, null, 2));
-    return;
-  }
+    if (format === 'json') {
+      console.log(JSON.stringify(results, null, 2));
+      return;
+    }
 
-  if (results.length === 0) {
-    console.log(
-      '<memory-search>\n  <result count="0">No memories found</result>\n</memory-search>',
-    );
-    return;
-  }
+    if (results.length === 0) {
+      console.log(
+        '<memory-search>\n  <result count="0">No memories found</result>\n</memory-search>',
+      );
+      return;
+    }
 
-  const memoriesXml = results.map(formatSearchResultXml).join('\n');
-  console.log(`<memory-search count="${results.length}">
+    const memoriesXml = results.map(formatSearchResultXml).join('\n');
+    console.log(`<memory-search count="${results.length}">
 ${memoriesXml}
 </memory-search>`);
+  } finally {
+    // Release embedding worker to prevent hanging
+    await releaseEmbeddingPool();
+  }
 }
 
 /**
@@ -193,29 +314,34 @@ ${memoriesXml}
 export async function runMemRecent(
   ctx: CommandContext & { options: MemRecentOptions },
 ): Promise<void> {
-  const { config, options } = ctx;
-  const projectName = path.basename(config.projectRoot);
+  try {
+    const { config, options } = ctx;
+    const projectName = path.basename(config.projectRoot);
 
-  const memories = recent(projectName, options.limit ?? 10, options.type);
+    const memories = recent(projectName, options.limit ?? 10, options.type);
 
-  const format = options.format ?? 'ai';
+    const format = options.format ?? 'ai';
 
-  if (format === 'json') {
-    console.log(JSON.stringify(memories, null, 2));
-    return;
-  }
+    if (format === 'json') {
+      console.log(JSON.stringify(memories, null, 2));
+      return;
+    }
 
-  if (memories.length === 0) {
-    console.log(
-      '<memory-recent>\n  <result count="0">No memories found</result>\n</memory-recent>',
-    );
-    return;
-  }
+    if (memories.length === 0) {
+      console.log(
+        '<memory-recent>\n  <result count="0">No memories found</result>\n</memory-recent>',
+      );
+      return;
+    }
 
-  const memoriesXml = memories.map(formatMemoryXml).join('\n');
-  console.log(`<memory-recent count="${memories.length}">
+    const memoriesXml = memories.map(formatMemoryXml).join('\n');
+    console.log(`<memory-recent count="${memories.length}">
 ${memoriesXml}
 </memory-recent>`);
+  } finally {
+    // Release embedding worker to prevent hanging
+    await releaseEmbeddingPool();
+  }
 }
 
 /**

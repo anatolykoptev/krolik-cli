@@ -36,6 +36,7 @@ interface DocsSearchOptions {
   query: string;
   library?: string;
   topic?: string;
+  documentType?: 'legal' | 'technical' | 'general' | 'personal';
   limit?: number;
   format?: OutputFormat;
 }
@@ -269,6 +270,7 @@ export async function runDocsSearch(
       query: options.query,
       library: options.library,
       topic: options.topic,
+      documentType: options.documentType,
       limit: options.limit ?? 10,
     });
 

@@ -60,12 +60,17 @@ export function registerDocsCommand(program: Command): void {
   searchCmd
     .option('--library <name>', 'Filter by library')
     .option('--topic <topic>', 'Filter by topic')
+    .option(
+      '--document-type <type>',
+      'Filter by document type (legal, technical, general, personal)',
+    )
     .option('--limit <n>', 'Maximum results', '10')
     .action(async (query: string, options: CommandOptions) => {
       const { runDocsSearch } = await import('../../commands/docs');
       const ctx = await createContext(program, {
         ...options,
         query,
+        documentType: options.documentType,
         limit: options.limit ? parseInt(String(options.limit), 10) : 10,
         format: options.json ? 'json' : 'ai',
       });
