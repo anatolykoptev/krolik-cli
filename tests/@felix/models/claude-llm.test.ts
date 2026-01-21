@@ -7,13 +7,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ClaudeCliLlm,
   ClaudeLlm,
+  createApiLlm,
   createClaudeLlm,
-  getApiLlm,
-  getCliLlm,
-  getLlm,
-  getModelRegistry,
-  resetModelRegistry,
-} from '@/lib/@felix';
+  createCliLlm,
+  createLlm,
+  getLlmFactory,
+  isValidModelAlias,
+  resetLlmFactory,
+} from '@/lib/@felix/models';
 
 describe('ClaudeLlm', () => {
   it('should extend BaseLlm', () => {
@@ -47,78 +48,67 @@ describe('createClaudeLlm', () => {
   });
 });
 
-describe('ModelRegistry', () => {
+describe('LlmFactory', () => {
+  beforeEach(() => {
+    resetLlmFactory();
+  });
+
   it('should be a singleton', () => {
-    const registry1 = getModelRegistry();
-    const registry2 = getModelRegistry();
-    expect(registry1).toBe(registry2);
+    const factory1 = getLlmFactory();
+    const factory2 = getLlmFactory();
+    expect(factory1).toBe(factory2);
   });
 
-  it('should resolve model aliases via getLlm', () => {
-    const registry = getModelRegistry();
-
-    // Pass-through API: getLlm accepts aliases
-    const sonnetLlm = registry.getLlm('sonnet', 'api');
-    expect(sonnetLlm).toBeInstanceOf(ClaudeLlm);
-
-    const opusLlm = registry.getLlm('opus', 'api');
-    expect(opusLlm).toBeInstanceOf(ClaudeLlm);
-
-    // Gemini alias
-    expect(registry.isSupported('flash')).toBe(true);
-    expect(registry.isSupported('gemini-2.0-flash')).toBe(true);
-  });
-
-  it('should check if model is supported', () => {
-    const registry = getModelRegistry();
-
-    expect(registry.isSupported('sonnet')).toBe(true);
-    expect(registry.isSupported('claude-sonnet-4-20250514')).toBe(true);
-    expect(registry.isSupported('gemini-2.0-flash')).toBe(true);
-    expect(registry.isSupported('unknown-model')).toBe(false);
+  it('should validate model aliases (pass-through)', () => {
+    // Known aliases
+    expect(isValidModelAlias('sonnet')).toBe(true);
+    expect(isValidModelAlias('opus')).toBe(true);
+    expect(isValidModelAlias('haiku')).toBe(true);
+    expect(isValidModelAlias('flash')).toBe(true);
+    expect(isValidModelAlias('pro')).toBe(true);
+    // Unknown models are passed through to CLI for validation
+    expect(isValidModelAlias('unknown-model')).toBe(true);
   });
 
   it('should support both anthropic and google providers', () => {
-    const registry = getModelRegistry();
+    // Anthropic aliases
+    expect(isValidModelAlias('sonnet')).toBe(true);
+    expect(isValidModelAlias('opus')).toBe(true);
+    expect(isValidModelAlias('haiku')).toBe(true);
 
-    // Pass-through API validates providers via isSupported
-    expect(registry.isSupported('sonnet')).toBe(true); // anthropic
-    expect(registry.isSupported('opus')).toBe(true); // anthropic
-    expect(registry.isSupported('haiku')).toBe(true); // anthropic
-    expect(registry.isSupported('flash')).toBe(true); // google
-    expect(registry.isSupported('pro')).toBe(true); // google
-    expect(registry.isSupported('claude-sonnet-4-20250514')).toBe(true); // full model name
-    expect(registry.isSupported('gemini-2.0-flash')).toBe(true); // full model name
+    // Google aliases
+    expect(isValidModelAlias('flash')).toBe(true);
+    expect(isValidModelAlias('pro')).toBe(true);
   });
 });
 
-describe('getLlm', () => {
+describe('createLlm', () => {
   beforeEach(() => {
-    resetModelRegistry();
+    resetLlmFactory();
   });
 
   it('should return ClaudeCliLlm by default (CLI backend)', () => {
-    const llm = getLlm('sonnet');
+    const llm = createLlm('sonnet');
     expect(llm).toBeInstanceOf(ClaudeCliLlm);
   });
 
   it('should return ClaudeLlm when using API backend', () => {
-    const llm = getApiLlm('sonnet');
+    const llm = createApiLlm('sonnet');
     expect(llm).toBeInstanceOf(ClaudeLlm);
   });
 
   it('should return ClaudeCliLlm when using CLI backend', () => {
-    const llm = getCliLlm('sonnet');
+    const llm = createCliLlm('sonnet');
     expect(llm).toBeInstanceOf(ClaudeCliLlm);
   });
 
   it('should cache LLM instances per backend', () => {
-    const llm1 = getLlm('sonnet');
-    const llm2 = getLlm('sonnet');
+    const llm1 = createLlm('sonnet');
+    const llm2 = createLlm('sonnet');
     expect(llm1).toBe(llm2);
 
     // Different backend should create different instance
-    const llmApi = getApiLlm('sonnet');
+    const llmApi = createApiLlm('sonnet');
     expect(llmApi).not.toBe(llm1);
     expect(llmApi).toBeInstanceOf(ClaudeLlm);
   });

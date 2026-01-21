@@ -63,7 +63,7 @@ describe('FelixOrchestrator Integration', () => {
 
         const db = new Database(dbPath);
         db.exec(`
-          CREATE TABLE ralph_adk_sessions (
+          CREATE TABLE felix_adk_sessions (
             id TEXT PRIMARY KEY,
             app_name TEXT NOT NULL,
             user_id TEXT NOT NULL,
@@ -71,7 +71,7 @@ describe('FelixOrchestrator Integration', () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
-          CREATE TABLE ralph_adk_events (
+          CREATE TABLE felix_adk_events (
             id TEXT PRIMARY KEY,
             session_id TEXT NOT NULL,
             invocation_id TEXT NOT NULL,
@@ -80,7 +80,7 @@ describe('FelixOrchestrator Integration', () => {
             actions TEXT NOT NULL,
             branch TEXT,
             timestamp INTEGER NOT NULL,
-            FOREIGN KEY(session_id) REFERENCES ralph_adk_sessions(id) ON DELETE CASCADE
+            FOREIGN KEY(session_id) REFERENCES felix_adk_sessions(id) ON DELETE CASCADE
           );
         `);
 
@@ -123,10 +123,10 @@ describe('FelixOrchestrator Integration', () => {
             applied_at TEXT NOT NULL
           );
           
-          -- Set version to 10 to suppress migrations
-          INSERT INTO schema_versions (version, applied_at) VALUES (10, '${new Date().toISOString()}');
+          -- Set version to 21 to suppress migrations
+          INSERT INTO schema_versions (version, applied_at) VALUES (21, '${new Date().toISOString()}');
 
-          CREATE TABLE IF NOT EXISTS ralph_adk_sessions (
+          CREATE TABLE IF NOT EXISTS felix_adk_sessions (
             id TEXT PRIMARY KEY,
             app_name TEXT NOT NULL,
             user_id TEXT NOT NULL,
@@ -134,7 +134,7 @@ describe('FelixOrchestrator Integration', () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
-          CREATE TABLE IF NOT EXISTS ralph_adk_events (
+          CREATE TABLE IF NOT EXISTS felix_adk_events (
             id TEXT PRIMARY KEY,
             session_id TEXT NOT NULL,
             invocation_id TEXT NOT NULL,
@@ -143,7 +143,7 @@ describe('FelixOrchestrator Integration', () => {
             actions TEXT NOT NULL,
             branch TEXT,
             timestamp INTEGER NOT NULL,
-            FOREIGN KEY(session_id) REFERENCES ralph_adk_sessions(id) ON DELETE CASCADE
+            FOREIGN KEY(session_id) REFERENCES felix_adk_sessions(id) ON DELETE CASCADE
           );
         `);
         db.close();
@@ -165,7 +165,7 @@ describe('FelixOrchestrator Integration', () => {
         const dbPath = join(tempDir, 'test.db');
         const db = new Database(dbPath);
         db.exec(`
-          CREATE TABLE ralph_adk_sessions (
+          CREATE TABLE felix_adk_sessions (
             id TEXT PRIMARY KEY,
             app_name TEXT NOT NULL,
             user_id TEXT NOT NULL,
@@ -173,7 +173,7 @@ describe('FelixOrchestrator Integration', () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
-          CREATE TABLE ralph_adk_events (
+          CREATE TABLE felix_adk_events (
             id TEXT PRIMARY KEY,
             session_id TEXT NOT NULL,
             invocation_id TEXT NOT NULL,
@@ -182,7 +182,7 @@ describe('FelixOrchestrator Integration', () => {
             actions TEXT NOT NULL,
             branch TEXT,
             timestamp INTEGER NOT NULL,
-            FOREIGN KEY(session_id) REFERENCES ralph_adk_sessions(id) ON DELETE CASCADE
+            FOREIGN KEY(session_id) REFERENCES felix_adk_sessions(id) ON DELETE CASCADE
           );
         `);
         const service = new SQLiteSessionService(db);
@@ -245,9 +245,9 @@ describe('FelixOrchestrator Integration', () => {
     });
 
     it('should respect log level from environment', () => {
-      const originalEnv = process.env.RALPH_LOG_LEVEL;
+      const originalEnv = process.env.FELIX_LOG_LEVEL;
 
-      process.env.RALPH_LOG_LEVEL = 'error';
+      process.env.FELIX_LOG_LEVEL = 'error';
       const logger = createFelixLogger();
 
       // Spy on console.error
@@ -262,7 +262,7 @@ describe('FelixOrchestrator Integration', () => {
       expect(spy).toHaveBeenCalledTimes(1);
 
       spy.mockRestore();
-      process.env.RALPH_LOG_LEVEL = originalEnv;
+      process.env.FELIX_LOG_LEVEL = originalEnv;
     });
   });
 });

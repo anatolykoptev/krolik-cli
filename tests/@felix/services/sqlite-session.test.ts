@@ -22,7 +22,7 @@ describe('SQLiteSessionService', () => {
 
     // Create required tables
     db.exec(`
-      CREATE TABLE ralph_adk_sessions (
+      CREATE TABLE felix_adk_sessions (
         id TEXT PRIMARY KEY,
         app_name TEXT NOT NULL,
         user_id TEXT NOT NULL,
@@ -30,7 +30,7 @@ describe('SQLiteSessionService', () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE TABLE ralph_adk_events (
+      CREATE TABLE felix_adk_events (
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
         invocation_id TEXT NOT NULL,
@@ -39,7 +39,7 @@ describe('SQLiteSessionService', () => {
         actions TEXT NOT NULL,
         branch TEXT,
         timestamp INTEGER NOT NULL,
-        FOREIGN KEY(session_id) REFERENCES ralph_adk_sessions(id) ON DELETE CASCADE
+        FOREIGN KEY(session_id) REFERENCES felix_adk_sessions(id) ON DELETE CASCADE
       );
     `);
 
