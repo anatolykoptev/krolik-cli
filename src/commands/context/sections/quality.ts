@@ -22,7 +22,7 @@ export async function addQualityIssues(
 
     // Filter issues to related files only (if we have related files)
     const relatedSet = new Set(relatedFiles.map((f) => path.resolve(projectRoot, f)));
-    const allIssues = report.quickWins.map((qw) => qw.issue);
+    const allIssues = report.quickWins ? report.quickWins.map((qw) => qw.issue) : [];
 
     const filteredIssues =
       relatedSet.size > 0

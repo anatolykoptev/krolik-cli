@@ -93,8 +93,8 @@ function extractReportSummary(report: AIReport, relativePath: string): ReportSum
     high: report.summary.byPriority.high ?? 0,
     medium: report.summary.byPriority.medium ?? 0,
     low: report.summary.byPriority.low ?? 0,
-    hotspotFiles: report.hotspots.slice(0, 5).map((h) => h.file),
-    quickWins: report.quickWins.length,
+    hotspotFiles: report.hotspots ? report.hotspots.slice(0, 5).map((h) => h.file) : [],
+    quickWins: report.quickWins ? report.quickWins.length : 0,
     ...(report.excludedI18nCount !== undefined && { excludedI18nCount: report.excludedI18nCount }),
   };
 }
@@ -132,7 +132,7 @@ function formatDiffLines(fixOp: { oldCode?: string; newCode?: string; action: st
  * Format a single fix preview entry
  */
 function formatFixPreview(
-  issue: AIReport['quickWins'][0]['issue'],
+  issue: EnrichedIssue['issue'],
   fixOp: { oldCode?: string; newCode?: string; action: string },
 ): string[] {
   const relativePath = issue.file.replace(/.*\/krolik-cli\//, '');
@@ -152,7 +152,7 @@ function formatFixPreview(
  * Returns the formatted lines if successful, null otherwise
  */
 async function tryGeneratePreview(
-  issue: AIReport['quickWins'][0]['issue'],
+  issue: EnrichedIssue['issue'],
   registry: FixerRegistry,
 ): Promise<string[] | null> {
   if (!issue.fixerId) {
@@ -221,16 +221,20 @@ function applyIntentFilter(report: AIReport, intent: AuditIntent): AIReport {
     .filter((g): g is IssueGroup => g !== null);
 
   // Filter quick wins
-  const filteredQuickWins = filterEnrichedIssues(report.quickWins);
+  const filteredQuickWins = report.quickWins ? filterEnrichedIssues(report.quickWins) : [];
 
   // Filter hotspots (by file matching)
   const filteredIssueFiles = new Set(
     filteredGroups.flatMap((g) => g.issues.map((i) => i.issue.file)),
   );
-  const filteredHotspots = report.hotspots.filter((h) => filteredIssueFiles.has(h.file));
+  const filteredHotspots = report.hotspots
+    ? report.hotspots.filter((h) => filteredIssueFiles.has(h.file))
+    : [];
 
   // Filter action plan
-  const filteredActionPlan = report.actionPlan.filter((step) => filteredIssueFiles.has(step.file));
+  const filteredActionPlan = report.actionPlan
+    ? report.actionPlan.filter((step) => filteredIssueFiles.has(step.file))
+    : [];
 
   // Recalculate summary
   const totalIssues = filteredGroups.reduce((sum, g) => sum + g.count, 0);
@@ -276,7 +280,7 @@ async function generateFixPreviews(
   report: AIReport,
   _logger: { info: (msg: string) => void },
 ): Promise<string> {
-  if (report.quickWins.length === 0) {
+  if (!report.quickWins || report.quickWins.length === 0) {
     return '';
   }
 

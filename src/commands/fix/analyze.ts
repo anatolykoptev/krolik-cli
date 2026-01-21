@@ -129,6 +129,12 @@ export async function analyzeQuality(
       if (cached && cached.hash === hash) {
         // Reuse cached analysis
         const analysis = cached.result as FileAnalysis;
+
+        // Robustness: ensure issues array exists (fixes crash if cache is malformed)
+        if (!analysis.issues) {
+          analysis.issues = [];
+        }
+
         // Update absolute path in case project moved
         analysis.path = file;
 

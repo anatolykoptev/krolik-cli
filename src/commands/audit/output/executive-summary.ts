@@ -156,7 +156,7 @@ function findBestQuickWin(report: AIReport): QuickWinSuggestion | null {
   }
 
   // Calculate approximate time savings
-  const quickWinCount = report.quickWins.length;
+  const quickWinCount = report.quickWins ? report.quickWins.length : 0;
   const estimatedMinutes = Math.max(2, Math.ceil(quickWinCount / 5));
 
   if (quickWinCount > 0) {
@@ -176,7 +176,7 @@ function findBestQuickWin(report: AIReport): QuickWinSuggestion | null {
  * Find the hottest file to focus on
  */
 function findFocusFile(report: AIReport): FocusFile | null {
-  const hottest = report.hotspots[0];
+  const hottest = report.hotspots?.[0];
   if (!hottest) {
     return null;
   }

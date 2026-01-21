@@ -113,6 +113,9 @@ function collectAllIssues(
 /**
  * Generate plans from issues
  */
+/**
+ * Generate plans from issues
+ */
 async function generatePlansFromIssues(
   allIssues: QualityIssue[],
   fileContents: Map<string, string> | ContentProvider,
@@ -120,94 +123,135 @@ async function generatePlansFromIssues(
 ): Promise<{ plans: FixPlan[]; skipStats: SkipStats }> {
   const plans = new Map<string, FixPlan>();
   const skipStats: SkipStats = {
-    noStrategy: 0, // @deprecated - kept for backward compatibility
+    noStrategy: 0, // @deprecated
     noContent: 0,
-    contextSkipped: 0, // @deprecated - kept for backward compatibility
+    contextSkipped: 0, // @deprecated
     noFix: 0,
     noFixer: 0,
     categories: new Map(),
   };
 
   for (const issue of allIssues) {
-    // Track category
-    const cat = issue.category;
-    skipStats.categories.set(cat, (skipStats.categories.get(cat) || 0) + 1);
-
-    // Filter by difficulty
-    const difficulty = getFixDifficulty(issue);
-    if (options.trivialOnly && difficulty !== 'trivial') {
-      continue;
-    }
-    if (options.safe && difficulty === 'risky') {
-      continue;
-    }
-
-    // Filter by fixer flags (--fix-console, --fix-any, etc.)
-    if (!isFixerEnabled(issue, options)) {
-      continue;
-    }
-
-    // Get file content
-    let content = '';
-    if (fileContents instanceof Map) {
-      content = fileContents.get(issue.file) || '';
-    } else if (typeof fileContents === 'function') {
-      content = fileContents(issue.file) || '';
-    }
-
-    if (!content) {
-      skipStats.noContent++;
-      continue;
-    }
-
-    // Get fixer from registry (Phase 3: fixer-only architecture)
-    let operation: FixOperation | null = null;
-
-    if (!issue.fixerId) {
-      // After Phase 1, all issues should have fixerId
-      // Log warning if missing - indicates incomplete migration
-      skipStats.noFixer++;
-      if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
-        console.warn(
-          `[krolik] Issue missing fixerId: ${issue.category}/${issue.message} at ${issue.file}:${issue.line}`,
-        );
-      }
-      continue;
-    }
-
-    const fixer = registry.get(issue.fixerId);
-    if (!fixer) {
-      // Fixer not found in registry - should not happen
-      skipStats.noFix++;
-      if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
-        console.warn(`[krolik] Fixer not found: ${issue.fixerId}`);
-      }
-      continue;
-    }
-
-    // Check if fixer wants to skip this issue (context-aware filtering)
-    // This applies smart detection like: skip console.error in catch blocks,
-    // skip validation scripts, skip build-time functions, etc.
-    if (fixer.shouldSkip?.(issue, content)) {
-      skipStats.contextSkipped++;
-      continue;
-    }
-
-    operation = await fixer.fix(issue, content);
-
-    if (!operation) {
-      skipStats.noFix++;
-      continue;
-    }
-
-    // Add to plan - all fixes are collected
-    // Conflicts are handled by conflict-detector.ts
-    // Execution order is handled by parallel-executor.ts (bottom-to-top per file)
-    addToPlan(plans, issue, operation, difficulty);
+    await processIssue(issue, options, fileContents, plans, skipStats);
   }
 
-  // Sort fixes within each plan by line number (descending)
-  // This ensures fixes are applied bottom-to-top to preserve line numbers
+  sortPlans(plans);
+
+  return { plans: [...plans.values()], skipStats };
+}
+
+/**
+ * Process a single issue and add to plan if applicable
+ */
+async function processIssue(
+  issue: QualityIssue,
+  options: FixOptions,
+  fileContents: Map<string, string> | ContentProvider,
+  plans: Map<string, FixPlan>,
+  skipStats: SkipStats,
+): Promise<void> {
+  if (shouldSkipIssue(issue, options, skipStats)) {
+    return;
+  }
+
+  const content = getFileContent(issue, fileContents);
+  if (!content) {
+    skipStats.noContent++;
+    return;
+  }
+
+  const fixer = getFixerForIssue(issue, skipStats);
+  if (!fixer) {
+    return;
+  }
+
+  // Check if fixer wants to skip this issue
+  if (fixer.shouldSkip?.(issue, content)) {
+    skipStats.contextSkipped++;
+    return;
+  }
+
+  const operation = await fixer.fix(issue, content);
+  if (!operation) {
+    skipStats.noFix++;
+    return;
+  }
+
+  const difficulty = getFixDifficulty(issue);
+  addToPlan(plans, issue, operation, difficulty);
+}
+
+/**
+ * Check if issue should be skipped based on options and difficulty
+ */
+function shouldSkipIssue(issue: QualityIssue, options: FixOptions, skipStats: SkipStats): boolean {
+  // Track category
+  const cat = issue.category;
+  skipStats.categories.set(cat, (skipStats.categories.get(cat) || 0) + 1);
+
+  // Filter by difficulty
+  const difficulty = getFixDifficulty(issue);
+  if (options.trivialOnly && difficulty !== 'trivial') {
+    return true;
+  }
+  if (options.safe && difficulty === 'risky') {
+    return true;
+  }
+
+  // Filter by fixer flags
+  if (!isFixerEnabled(issue, options)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Get file content from provider or map
+ */
+function getFileContent(
+  issue: QualityIssue,
+  fileContents: Map<string, string> | ContentProvider,
+): string {
+  if (fileContents instanceof Map) {
+    return fileContents.get(issue.file) || '';
+  }
+  if (typeof fileContents === 'function') {
+    return fileContents(issue.file) || '';
+  }
+  return '';
+}
+
+/**
+ * Resolve fixer for issue
+ */
+function getFixerForIssue(issue: QualityIssue, skipStats: SkipStats) {
+  if (!issue.fixerId) {
+    skipStats.noFixer++;
+    if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
+      console.warn(
+        `[krolik] Issue missing fixerId: ${issue.category}/${issue.message} at ${issue.file}:${issue.line}`,
+      );
+    }
+    return null;
+  }
+
+  const fixer = registry.get(issue.fixerId);
+  if (!fixer) {
+    skipStats.noFix++;
+    if (process.env.DEBUG || process.env.KROLIK_DEBUG) {
+      console.warn(`[krolik] Fixer not found: ${issue.fixerId}`);
+    }
+    return null;
+  }
+
+  return fixer;
+}
+
+/**
+ * Sort fixes within plans
+ */
+function sortPlans(plans: Map<string, FixPlan>): void {
   for (const plan of plans.values()) {
     plan.fixes.sort((a, b) => {
       const lineA = a.operation.line ?? 0;
@@ -215,8 +259,6 @@ async function generatePlansFromIssues(
       return lineB - lineA;
     });
   }
-
-  return { plans: [...plans.values()], skipStats };
 }
 
 /**

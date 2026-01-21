@@ -33,6 +33,8 @@ const CATEGORY_MAP: Record<RecommendationCategory, QualityCategory> = {
   architecture: 'circular-dep', // Not auto-fixable, but map for completeness
   naming: 'refine', // Naming issues are structural
   documentation: 'documentation', // Direct mapping
+  'data-integrity': 'lint', // Data validation issues
+  cleanup: 'lint', // Cleanup issues (backup files, dead code)
 };
 
 /**
@@ -46,6 +48,8 @@ const FIXER_MAP: Record<RecommendationCategory, string> = {
   architecture: 'architecture', // Not auto-fixable
   naming: 'refine',
   documentation: 'documentation',
+  'data-integrity': 'data-validation', // Future fixer
+  cleanup: 'cleanup', // Future fixer
 };
 
 /**
@@ -54,6 +58,7 @@ const FIXER_MAP: Record<RecommendationCategory, string> = {
  * Higher effort = more severe issue
  */
 const EFFORT_TO_SEVERITY: Record<string, QualitySeverity> = {
+  trivial: 'info',
   low: 'info',
   medium: 'warning',
   high: 'error',

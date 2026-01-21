@@ -50,6 +50,67 @@ function extractIssueNumberFromUrl(url: string): number | null {
 }
 
 /**
+ * Handle error output based on format
+ */
+function handleError(
+  message: string,
+  format: string,
+  logger: any,
+  details: Record<string, any> = {},
+): void {
+  if (format === 'ai') {
+    const attrs = Object.entries(details)
+      .map(([k, v]) => `${k}="${v}"`)
+      .join(' ');
+    console.log(`<issue-error${attrs ? ` ${attrs}` : ''}>${message}</issue-error>`);
+  } else if (format === 'json') {
+    console.log(JSON.stringify({ error: message, ...details }, null, 2));
+  } else {
+    logger.error(message);
+  }
+}
+
+/**
+ * Resolve issue number from options
+ */
+function resolveIssueNumber(options: IssueOptions): number | null {
+  if (options.number !== undefined) {
+    return sanitizeIssueNumber(options.number);
+  }
+
+  if (options.url) {
+    return extractIssueNumberFromUrl(options.url);
+  }
+
+  return null;
+}
+
+/**
+ * Check if dependencies are satisfied
+ */
+function checkDependencies(format: string, logger: any): boolean {
+  if (!isGhAvailable()) {
+    handleError(
+      'GitHub CLI (gh) is not installed. Install from: https://cli.github.com/',
+      format,
+      logger,
+      { tool: 'gh', status: 'not-installed' },
+    );
+    return false;
+  }
+
+  if (!isGhAuthenticated()) {
+    handleError('Not authenticated with GitHub. Run: gh auth login', format, logger, {
+      tool: 'gh',
+      status: 'not-authenticated',
+    });
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Run issue command
  */
 export async function runIssue(context: CommandContext & { options: IssueOptions }): Promise<void> {
@@ -57,77 +118,36 @@ export async function runIssue(context: CommandContext & { options: IssueOptions
   const projectRoot = config.projectRoot;
   const format = options.format ?? 'ai';
 
-  // Determine issue number from options
-  let issueNumber: number | null = null;
-
-  // Validate issue number from options using sanitizeIssueNumber
-  if (options.number !== undefined) {
-    issueNumber = sanitizeIssueNumber(options.number);
-    if (issueNumber === null) {
-      const errorMsg = `Invalid issue number: ${options.number}. Must be a positive integer less than 1,000,000.`;
-      if (format === 'ai') {
-        console.log(`<issue-error>${errorMsg}</issue-error>`);
-      } else if (format === 'json') {
-        console.log(JSON.stringify({ error: errorMsg }, null, 2));
-      } else {
-        logger.error(errorMsg);
-      }
-      return;
-    }
+  // Validate issue number input (before checking everything else)
+  if (options.number !== undefined && sanitizeIssueNumber(options.number) === null) {
+    handleError(
+      `Invalid issue number: ${options.number}. Must be a positive integer less than 1,000,000.`,
+      format,
+      logger,
+    );
+    return;
   }
 
-  if (issueNumber === null && options.url) {
-    const extracted = extractIssueNumberFromUrl(options.url);
-    if (extracted) {
-      issueNumber = extracted;
-    } else {
-      const errorMsg = 'Could not extract issue number from URL';
-      if (format === 'ai') {
-        console.log(`<issue-error>${errorMsg}</issue-error>`);
-      } else if (format === 'json') {
-        console.log(JSON.stringify({ error: errorMsg }, null, 2));
-      } else {
-        logger.error(errorMsg);
-      }
-      return;
-    }
-  }
+  const issueNumber = resolveIssueNumber(options);
 
   if (issueNumber === null) {
-    const errorMsg = 'Issue number is required. Use: krolik issue 123 or krolik issue --url <url>';
-    if (format === 'ai') {
-      console.log(`<issue-error>${errorMsg}</issue-error>`);
-    } else if (format === 'json') {
-      console.log(JSON.stringify({ error: errorMsg }, null, 2));
-    } else {
-      logger.error(errorMsg);
+    // If URL was provided but failed to parse
+    if (options.url) {
+      handleError('Could not extract issue number from URL', format, logger);
+      return;
     }
+
+    // No number or URL provided
+    handleError(
+      'Issue number is required. Use: krolik issue 123 or krolik issue --url <url>',
+      format,
+      logger,
+    );
     return;
   }
 
-  // Check gh CLI availability
-  if (!isGhAvailable()) {
-    const errorMsg = 'GitHub CLI (gh) is not installed. Install from: https://cli.github.com/';
-    if (format === 'ai') {
-      console.log(`<issue-error tool="gh" status="not-installed">${errorMsg}</issue-error>`);
-    } else if (format === 'json') {
-      console.log(JSON.stringify({ error: errorMsg, tool: 'gh' }, null, 2));
-    } else {
-      logger.error(errorMsg);
-    }
-    return;
-  }
-
-  // Check gh authentication
-  if (!isGhAuthenticated()) {
-    const errorMsg = 'Not authenticated with GitHub. Run: gh auth login';
-    if (format === 'ai') {
-      console.log(`<issue-error tool="gh" status="not-authenticated">${errorMsg}</issue-error>`);
-    } else if (format === 'json') {
-      console.log(JSON.stringify({ error: errorMsg, tool: 'gh' }, null, 2));
-    } else {
-      logger.error(errorMsg);
-    }
+  // Check gh CLI dependencies
+  if (!checkDependencies(format, logger)) {
     return;
   }
 
@@ -135,14 +155,12 @@ export async function runIssue(context: CommandContext & { options: IssueOptions
   const issue = getIssue(issueNumber, projectRoot);
 
   if (!issue) {
-    const errorMsg = `Could not fetch issue #${issueNumber}. Check if the issue exists and you have access.`;
-    if (format === 'ai') {
-      console.log(`<issue-error number="${issueNumber}">${errorMsg}</issue-error>`);
-    } else if (format === 'json') {
-      console.log(JSON.stringify({ error: errorMsg, number: issueNumber }, null, 2));
-    } else {
-      logger.error(errorMsg);
-    }
+    handleError(
+      `Could not fetch issue #${issueNumber}. Check if the issue exists and you have access.`,
+      format,
+      logger,
+      { number: issueNumber },
+    );
     return;
   }
 

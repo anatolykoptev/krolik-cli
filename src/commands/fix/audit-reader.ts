@@ -143,7 +143,7 @@ export function readAuditData(projectRoot: string, quickWinsOnly = false): Audit
 
     if (quickWinsOnly) {
       // Only quick wins (auto-fixable issues)
-      enrichedIssues = report.quickWins;
+      enrichedIssues = report.quickWins ?? [];
     } else {
       // All issues from all groups
       enrichedIssues = report.groups.flatMap((group) => group.issues);

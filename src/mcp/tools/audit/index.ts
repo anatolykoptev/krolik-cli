@@ -94,17 +94,25 @@ async function runLightweightAudit(
     return formatAsXml({
       ...report,
       groups: filteredGroups,
-      quickWins: report.quickWins.filter((qw) =>
-        filteredGroups.some((g) =>
-          g.issues.some((i) => i.issue.file === qw.issue.file && i.issue.line === qw.issue.line),
-        ),
-      ),
-      hotspots: report.hotspots.filter((h) =>
-        filteredGroups.some((g) => g.issues.some((i) => i.issue.file === h.file)),
-      ),
-      actionPlan: report.actionPlan.filter((step) =>
-        filteredGroups.some((g) => g.issues.some((i) => i.issue.file === step.file)),
-      ),
+      quickWins: report.quickWins
+        ? report.quickWins.filter((qw) =>
+            filteredGroups.some((g) =>
+              g.issues.some(
+                (i) => i.issue.file === qw.issue.file && i.issue.line === qw.issue.line,
+              ),
+            ),
+          )
+        : [],
+      hotspots: report.hotspots
+        ? report.hotspots.filter((h) =>
+            filteredGroups.some((g) => g.issues.some((i) => i.issue.file === h.file)),
+          )
+        : [],
+      actionPlan: report.actionPlan
+        ? report.actionPlan.filter((step) =>
+            filteredGroups.some((g) => g.issues.some((i) => i.issue.file === step.file)),
+          )
+        : [],
       summary: {
         ...report.summary,
         totalIssues,

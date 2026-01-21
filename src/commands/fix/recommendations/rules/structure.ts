@@ -60,7 +60,9 @@ export const STRUCTURE_RULES: Recommendation[] = [
     severity: 'recommendation',
     check: (_content, analysis) => {
       // Check if any function has multiple "await" with different purposes
-      return analysis.functions.some((f) => f.lines > 40 && f.complexity > 8);
+      return analysis.functions
+        ? analysis.functions.some((f) => f.lines > 40 && f.complexity > 8)
+        : false;
     },
   },
   {

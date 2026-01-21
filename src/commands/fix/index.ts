@@ -632,6 +632,126 @@ async function runFixFromRefactor(
 // ============================================================================
 
 /**
+ * Initialize fixers (run onStart hooks)
+ */
+async function initializeFixers(projectRoot: string, options: FixOptions): Promise<void> {
+  const allFixers = registry.all();
+  const initContext: FixerContext = {
+    projectRoot,
+    dryRun: options.dryRun ?? false,
+    totalIssues: 0,
+  };
+  for (const fixer of allFixers) {
+    if (fixer.onStart) {
+      await fixer.onStart(initContext);
+    }
+  }
+}
+
+/**
+ * Handle dry run execution
+ */
+async function handleDryRun(plans: FixPlan[], config: any, totalFixes: number): Promise<void> {
+  const fixers = getUsedFixers(plans);
+  const context: FixerContext = {
+    projectRoot: config.projectRoot,
+    dryRun: true,
+    totalIssues: totalFixes,
+  };
+
+  // Call onStart to initialize (e.g., load catalogs)
+  for (const fixer of fixers) {
+    if (fixer.onStart) {
+      await fixer.onStart(context);
+    }
+  }
+
+  // Run fix generation to populate stats (without applying)
+  for (const plan of plans) {
+    for (const { issue } of plan.fixes) {
+      const fixer = issue.fixerId ? registry.get(issue.fixerId) : null;
+      if (fixer) {
+        const content = fileCache.get(plan.file);
+        fixer.fix(issue, content);
+      }
+    }
+  }
+
+  // Call onComplete to show stats
+  for (const fixer of fixers) {
+    if (fixer.onComplete) {
+      await fixer.onComplete(context);
+    }
+  }
+}
+
+/**
+ * Generate execution plan based on source
+ */
+async function generateExecutionPlan(
+  config: any,
+  options: FixOptions,
+  logger: any,
+): Promise<GeneratePlanResult | null> {
+  if (options.fromRefactor) {
+    return runFixFromRefactor(config.projectRoot, options, logger);
+  }
+
+  if (options.fromAudit) {
+    return runFixFromAudit(config.projectRoot, options, logger);
+  }
+
+  // Fresh analysis
+  logger.info('Analyzing code quality...');
+  await initializeFixers(config.projectRoot, options);
+  return generateFixPlan(config.projectRoot, options);
+}
+
+/**
+ * Process the generated plan (print, dry-run, or execute)
+ */
+async function processExecutionPlan(
+  planResult: GeneratePlanResult,
+  config: any,
+  options: FixOptions,
+  logger: any,
+): Promise<void> {
+  const { plans, skipStats, totalIssues, recommendations } = planResult;
+
+  // Show plan
+  const format = options.format ?? 'ai';
+  console.log(
+    format === 'text'
+      ? formatPlan(plans, skipStats, totalIssues, options)
+      : formatPlanForAI(plans, skipStats, totalIssues, recommendations),
+  );
+
+  // Count fixes
+  const totalFixes = plans.reduce((sum, p) => sum + p.fixes.length, 0);
+  if (totalFixes === 0) return;
+
+  // Handle dry run
+  if (options.dryRun) {
+    await handleDryRun(plans, config, totalFixes);
+    return;
+  }
+
+  // Confirm unless --yes
+  if (!options.yes) {
+    console.log('');
+    console.log(chalk.yellow('⚠️  This will modify your files.'));
+    console.log(chalk.dim('Use --dry-run to preview changes without applying.'));
+    console.log(chalk.dim('Use --yes to skip this confirmation.'));
+    console.log('');
+    logger.warn('Pass --yes to apply fixes');
+    return;
+  }
+
+  // Apply fixes
+  await applyFixes(plans, options, config.projectRoot, logger);
+}
+
+/**
  * Run fix command
  */
 export async function runFix(ctx: CommandContext & { options: FixOptions }): Promise<void> {
@@ -650,107 +770,14 @@ export async function runFix(ctx: CommandContext & { options: FixOptions }): Pro
     // Step 1: Biome fixes
     if (await runBiomeStep(config.projectRoot, options, logger)) return;
 
-    // Step 2: Generate fix plan (from cache or fresh analysis)
-    let planResult: GeneratePlanResult;
+    // Step 2: Generate fix plan
+    const planResult = await generateExecutionPlan(config, options, logger);
+    if (!planResult) return;
 
-    if (options.fromRefactor) {
-      // Use cached refactor recommendations
-      const refactorResult = await runFixFromRefactor(config.projectRoot, options, logger);
-      if (!refactorResult) return;
-      planResult = refactorResult;
-    } else if (options.fromAudit) {
-      // Use cached audit data
-      const auditResult = await runFixFromAudit(config.projectRoot, options, logger);
-      if (!auditResult) return;
-      planResult = auditResult;
-    } else {
-      // Fresh analysis
-      logger.info('Analyzing code quality...');
-
-      // Initialize fixers before plan generation (lifecycle: onStart)
-      // This is needed because fix() is called during plan generation
-      // and some fixers (like i18n) need to load catalogs first
-      const allFixers = registry.all();
-      const initContext: FixerContext = {
-        projectRoot: config.projectRoot,
-        dryRun: options.dryRun ?? false,
-        totalIssues: 0, // Will be updated after plan generation
-      };
-      for (const fixer of allFixers) {
-        if (fixer.onStart) {
-          await fixer.onStart(initContext);
-        }
-      }
-
-      planResult = await generateFixPlan(config.projectRoot, options);
-    }
-
-    const { plans, skipStats, totalIssues, recommendations } = planResult;
-
-    // Show plan
-    const format = options.format ?? 'ai';
-    console.log(
-      format === 'text'
-        ? formatPlan(plans, skipStats, totalIssues, options)
-        : formatPlanForAI(plans, skipStats, totalIssues, recommendations),
-    );
-
-    // Count fixes
-    const totalFixes = plans.reduce((sum, p) => sum + p.fixes.length, 0);
-    if (totalFixes === 0) return;
-
-    // Handle dry run - still call lifecycle hooks to show stats
-    if (options.dryRun) {
-      const fixers = getUsedFixers(plans);
-      const context: FixerContext = {
-        projectRoot: config.projectRoot,
-        dryRun: true,
-        totalIssues: totalFixes,
-      };
-
-      // Call onStart to initialize (e.g., load catalogs)
-      for (const fixer of fixers) {
-        if (fixer.onStart) {
-          await fixer.onStart(context);
-        }
-      }
-
-      // Run fix generation to populate stats (without applying)
-      for (const plan of plans) {
-        for (const { issue } of plan.fixes) {
-          const fixer = issue.fixerId ? registry.get(issue.fixerId) : null;
-          if (fixer) {
-            const content = fileCache.get(plan.file);
-            fixer.fix(issue, content);
-          }
-        }
-      }
-
-      // Call onComplete to show stats
-      for (const fixer of fixers) {
-        if (fixer.onComplete) {
-          await fixer.onComplete(context);
-        }
-      }
-
-      return;
-    }
-
-    // Confirm unless --yes
-    if (!options.yes) {
-      console.log('');
-      console.log(chalk.yellow('⚠️  This will modify your files.'));
-      console.log(chalk.dim('Use --dry-run to preview changes without applying.'));
-      console.log(chalk.dim('Use --yes to skip this confirmation.'));
-      console.log('');
-      logger.warn('Pass --yes to apply fixes');
-      return;
-    }
-
-    // Apply fixes
-    await applyFixes(plans, options, config.projectRoot, logger);
+    // Step 3: Process plan
+    await processExecutionPlan(planResult, config, options, logger);
   } finally {
-    // Clear cache and log statistics (for debugging/performance tracking)
+    // Clear cache and log statistics
     const stats = fileCache.getStats();
     logger.debug(formatCacheStats(stats));
     fileCache.clear();

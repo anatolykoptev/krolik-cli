@@ -1,6 +1,6 @@
 /**
  * @module commands/skills
- * @description Agent skills management (Ralph Guardrails wrapper)
+ * @description Agent skills management (Felix Guardrails wrapper)
  */
 
 import path from 'node:path';
