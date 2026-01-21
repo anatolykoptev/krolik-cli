@@ -91,6 +91,8 @@ export const recommendationsAnalyzer: Analyzer<RecommendationsAnalysis> = {
       structure: 0,
       naming: 0,
       documentation: 0,
+      'data-integrity': 0,
+      cleanup: 0,
     };
 
     let autoFixableCount = 0;

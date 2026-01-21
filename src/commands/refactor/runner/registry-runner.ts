@@ -142,11 +142,18 @@ export async function runRegistryAnalysis(
   const projectContextResult = analyzerResults.get('project-context');
   const archResult = analyzerResults.get('architecture');
   const domainsResult = analyzerResults.get('domains');
+  const dataValidationResult = analyzerResults.get('data-validation');
+  const deadCodeResult = analyzerResults.get('dead-code');
+  const fileSystemResult = analyzerResults.get('file-system');
 
   const projectContext =
     projectContextResult?.status === 'success' ? projectContextResult.data : undefined;
   const archHealth = archResult?.status === 'success' ? (archResult.data as ArchHealth) : undefined;
   const domains = domainsResult?.status === 'success' ? domainsResult.data : undefined;
+  const dataIssues =
+    dataValidationResult?.status === 'success' ? dataValidationResult.data : undefined;
+  const deadCode = deadCodeResult?.status === 'success' ? deadCodeResult.data : undefined;
+  const fileSystem = fileSystemResult?.status === 'success' ? fileSystemResult.data : undefined;
 
   // Create enriched context with all extracted data
   const enrichedContext: AnalyzerContext = {
@@ -156,6 +163,9 @@ export async function runRegistryAnalysis(
       projectContext,
       archHealth,
       domains,
+      dataIssues,
+      deadCode,
+      fileSystem,
       ...(archHealth && { dependencyGraph: archHealth.dependencyGraph }),
     },
   };

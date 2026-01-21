@@ -203,12 +203,14 @@ export type RecommendationCategory =
   | 'duplication'
   | 'architecture'
   | 'naming'
-  | 'documentation';
+  | 'documentation'
+  | 'data-integrity'
+  | 'cleanup';
 
 /**
  * Effort level
  */
-export type EffortLevel = 'low' | 'medium' | 'high';
+export type EffortLevel = 'trivial' | 'low' | 'medium' | 'high';
 
 /**
  * Actionable recommendation

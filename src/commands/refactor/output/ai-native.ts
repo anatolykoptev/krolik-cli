@@ -104,6 +104,8 @@ function analysisToSectionContext(
           structure: 0,
           naming: 0,
           documentation: 0,
+          'data-integrity': 0,
+          cleanup: 0,
         };
         let totalExpectedImprovement = 0;
         for (const rec of recs) {

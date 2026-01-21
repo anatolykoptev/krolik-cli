@@ -15,7 +15,10 @@
  * 55  ai-config         (namespace configuration)
  * 60  recommendations   (prioritized recommendations)
  * 65  i18n              (internationalization issues)
- * 68  api               (API analysis)
+ * 66  data-validation   (data integrity issues)
+ * 67  dead-code         (unused imports/variables)
+ * 68  file-system       (backup/temp files)
+ * 69  api               (API analysis)
  * 70  migration         (enhanced migration plan)
  * 80  duplicates        (duplicate functions/types)
  * 85  reusable          (reusable modules)
@@ -30,9 +33,12 @@ import { sectionRegistry } from '../registry';
 import { aiConfigSection } from './ai-config.section';
 import { apiSection } from './api.section';
 import { architectureSection } from './architecture.section';
+import { dataValidationSection } from './data-validation.section';
+import { deadCodeSection } from './dead-code.section';
 import { domainsSection } from './domains.section';
 import { duplicatesSection } from './duplicates.section';
 import { fileSizeSection } from './file-size.section';
+import { fileSystemSection } from './file-system.section';
 import { i18nSection } from './i18n.section';
 import { migrationSection } from './migration.section';
 import { navigationSection } from './navigation.section';
@@ -55,6 +61,9 @@ sectionRegistry.register(domainsSection);
 sectionRegistry.register(aiConfigSection);
 sectionRegistry.register(recommendationsSection);
 sectionRegistry.register(i18nSection);
+sectionRegistry.register(dataValidationSection);
+sectionRegistry.register(deadCodeSection);
+sectionRegistry.register(fileSystemSection);
 sectionRegistry.register(apiSection);
 sectionRegistry.register(migrationSection);
 sectionRegistry.register(duplicatesSection);
@@ -71,9 +80,12 @@ export { sectionRegistry } from '../registry';
 export { aiConfigSection } from './ai-config.section';
 export { apiSection } from './api.section';
 export { architectureSection } from './architecture.section';
+export { dataValidationSection } from './data-validation.section';
+export { deadCodeSection } from './dead-code.section';
 export { domainsSection } from './domains.section';
 export { duplicatesSection } from './duplicates.section';
 export { fileSizeSection } from './file-size.section';
+export { fileSystemSection } from './file-system.section';
 export { i18nSection } from './i18n.section';
 export { migrationSection } from './migration.section';
 export { navigationSection } from './navigation.section';
