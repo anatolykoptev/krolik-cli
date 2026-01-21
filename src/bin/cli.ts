@@ -3,8 +3,17 @@
  * @description KROLIK CLI entry point
  */
 
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { createProgram } from '../cli/program';
 import { createLogger } from '../lib/@core/logger';
+
+// Load .env from krolik-cli directory (not cwd)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const krolikRoot = join(__dirname, '..', '..');
+dotenv.config({ path: join(krolikRoot, '.env') });
 
 /**
  * Main entry point

@@ -90,7 +90,10 @@ export interface StatusResult {
       | 'feature'
       | 'library'
       | 'snippet'
-      | 'anti-pattern';
+      | 'anti-pattern'
+      | 'legal-case'
+      | 'personal-note'
+      | 'agent';
     title: string;
     tags?: string[];
   }>;
