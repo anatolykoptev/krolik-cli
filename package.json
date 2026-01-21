@@ -79,6 +79,7 @@
     "chalk": "^5.4.1",
     "commander": "^13.1.0",
     "cosmiconfig": "^9.0.0",
+    "dotenv": "^17.2.3",
     "glob": "^13.0.0",
     "gpt-tokenizer": "^3.4.0",
     "i18next-cli": "^1.33.5",
