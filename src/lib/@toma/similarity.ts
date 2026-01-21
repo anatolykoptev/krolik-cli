@@ -318,7 +318,13 @@ export function quickSimilarity(seq1: string, seq2: string, threshold = 0.5): nu
  * Jaccard similarity for string sets
  * Useful for comparing interface fields
  */
-export function jaccardSets(set1: Set<string>, set2: Set<string>): number {
+export function jaccardSets(
+  set1: Set<string> | undefined | null,
+  set2: Set<string> | undefined | null,
+): number {
+  // Guard against undefined/null inputs
+  if (!set1 || !set2) return 0;
+
   let intersection = 0;
   for (const item of set1) {
     if (set2.has(item)) intersection++;
@@ -331,7 +337,13 @@ export function jaccardSets(set1: Set<string>, set2: Set<string>): number {
 /**
  * Dice similarity for string sets
  */
-export function diceSets(set1: Set<string>, set2: Set<string>): number {
+export function diceSets(
+  set1: Set<string> | undefined | null,
+  set2: Set<string> | undefined | null,
+): number {
+  // Guard against undefined/null inputs
+  if (!set1 || !set2) return 0;
+
   let intersection = 0;
   for (const item of set1) {
     if (set2.has(item)) intersection++;

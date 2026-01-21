@@ -13,11 +13,21 @@ import { SIMILARITY_THRESHOLDS } from './constants';
  * @param set2 - Second set
  * @returns Similarity score between 0 and 1
  */
-export function jaccardSimilarity<T>(set1: Set<T>, set2: Set<T>): number {
-  if (set1.size === 0 && set2.size === 0) return 1;
+export function jaccardSimilarity<T>(
+  set1: Set<T> | undefined | null,
+  set2: Set<T> | undefined | null,
+): number {
+  // Guard against undefined/null inputs
+  if (!set1 || !set2) return 0;
 
-  const intersection = [...set1].filter((item) => set2.has(item)).length;
-  const union = new Set([...set1, ...set2]).size;
+  // Convert to Set if not already (handles deserialized objects that lost Set prototype)
+  const s1 = set1 instanceof Set ? set1 : Array.isArray(set1) ? new Set(set1) : new Set();
+  const s2 = set2 instanceof Set ? set2 : Array.isArray(set2) ? new Set(set2) : new Set();
+
+  if (s1.size === 0 && s2.size === 0) return 1;
+
+  const intersection = [...s1].filter((item) => s2.has(item)).length;
+  const union = new Set([...s1, ...s2]).size;
 
   return union === 0 ? 0 : intersection / union;
 }
