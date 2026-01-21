@@ -210,7 +210,7 @@ function formatMarkdownDoNot(report: AIReport): string[] {
 }
 
 function formatMarkdownQuickWins(report: AIReport): string[] {
-  if (report.quickWins.length === 0) return [];
+  if (!report.quickWins || report.quickWins.length === 0) return [];
 
   const lines: string[] = [];
   lines.push('---');
@@ -232,7 +232,7 @@ function formatMarkdownQuickWins(report: AIReport): string[] {
 }
 
 function formatMarkdownHotspots(report: AIReport): string[] {
-  if (report.hotspots.length === 0) return [];
+  if (!report.hotspots || report.hotspots.length === 0) return [];
 
   const lines: string[] = [];
   lines.push('---');
@@ -254,7 +254,7 @@ function formatMarkdownHotspots(report: AIReport): string[] {
 }
 
 function formatMarkdownActionPlan(report: AIReport): string[] {
-  if (report.actionPlan.length === 0) return [];
+  if (!report.actionPlan || report.actionPlan.length === 0) return [];
 
   const lines: string[] = [];
   lines.push('---');

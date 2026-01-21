@@ -10,13 +10,11 @@ import { registry } from '../registry';
 import type { SectionRegistry } from '../types';
 import { contextCacheProvider } from './context-cache';
 import { libModulesProvider } from './lib-modules';
-import { recentMemoriesProvider } from './recent-memories';
 import { roadmapProvider } from './roadmap';
 import { sessionStartupProvider } from './session-startup';
 import { subDocsProvider } from './sub-docs';
-import { toolsTableProvider } from './tools-table';
 
-// Export all providers
+// Export all providers (including disabled ones for external use)
 export { contextCacheProvider } from './context-cache';
 export { libModulesProvider } from './lib-modules';
 export { recentMemoriesProvider } from './recent-memories';
@@ -30,12 +28,12 @@ export { toolsTableProvider } from './tools-table';
  */
 export const BUILTIN_PROVIDERS = [
   sessionStartupProvider,
-  recentMemoriesProvider,
+  // recentMemoriesProvider, // Disabled: Claude calls krolik_mem_recent directly via MCP
   contextCacheProvider,
   roadmapProvider,
   subDocsProvider,
   libModulesProvider,
-  toolsTableProvider,
+  // toolsTableProvider, // Disabled: Tools already visible via MCP (descriptions, params)
 ] as const;
 
 /**

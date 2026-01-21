@@ -4,12 +4,12 @@
  */
 
 import {
-  cosineSimilarity,
   generateEmbedding,
   isEmbeddingsAvailable,
   isEmbeddingsLoading,
   preloadEmbeddingPool,
 } from '@/lib/@storage/memory/embeddings';
+import { cosineSimilarity } from '@/lib/@storage/semantic-search';
 import {
   DEFAULT_INIT_TIMEOUT,
   DEFAULT_THRESHOLDS,

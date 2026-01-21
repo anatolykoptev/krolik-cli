@@ -148,7 +148,7 @@ export function formatXmlStepSuggestion(
 }
 
 export function formatXmlRanking(ranking: AIReport['ranking']): string[] {
-  if (!ranking || ranking.hotspots.length === 0) return [];
+  if (!ranking || !ranking.hotspots || ranking.hotspots.length === 0) return [];
 
   const lines: string[] = [];
   lines.push('');
@@ -169,7 +169,7 @@ export function formatXmlRanking(ranking: AIReport['ranking']): string[] {
   }
   lines.push('    </hotspots>');
 
-  if (ranking.safeOrder.length > 0) {
+  if (ranking.safeOrder && ranking.safeOrder.length > 0) {
     lines.push(`    <safe-order phases="${ranking.safeOrder.length}">`);
     for (const phase of ranking.safeOrder.slice(0, 5)) {
       const modules = phase.modules.join(', ');
@@ -180,7 +180,7 @@ export function formatXmlRanking(ranking: AIReport['ranking']): string[] {
     lines.push('    </safe-order>');
   }
 
-  if (ranking.cycles.length > 0) {
+  if (ranking.cycles && ranking.cycles.length > 0) {
     lines.push(`    <cycles count="${ranking.cycles.length}">`);
     for (const cycle of ranking.cycles.slice(0, 3)) {
       lines.push(`      <cycle>${cycle.join(' → ')}</cycle>`);
@@ -188,12 +188,12 @@ export function formatXmlRanking(ranking: AIReport['ranking']): string[] {
     lines.push('    </cycles>');
   }
 
-  if (ranking.leafNodes.length > 0) {
+  if (ranking.leafNodes && ranking.leafNodes.length > 0) {
     lines.push(
       `    <leaf-nodes hint="safe to refactor first">${ranking.leafNodes.slice(0, 5).join(', ')}</leaf-nodes>`,
     );
   }
-  if (ranking.coreNodes.length > 0) {
+  if (ranking.coreNodes && ranking.coreNodes.length > 0) {
     lines.push(`    <core-nodes hint="refactor last">${ranking.coreNodes.join(', ')}</core-nodes>`);
   }
 

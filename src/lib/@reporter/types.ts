@@ -340,11 +340,11 @@ export interface AIReport {
   /** Issues grouped by priority and category */
   groups: IssueGroup[];
   /** Recommended action steps for AI */
-  actionPlan: ActionStep[];
+  actionPlan?: ActionStep[];
   /** Quick wins (trivial fixes that can be done first) */
-  quickWins: EnrichedIssue[];
+  quickWins?: EnrichedIssue[];
   /** Files sorted by issue count (hotspots) */
-  hotspots: Array<{
+  hotspots?: Array<{
     file: string;
     issueCount: number;
     priority: PriorityLevel;
@@ -458,10 +458,17 @@ export interface BackwardsCompatSummary {
  */
 export interface RecommendationSummary {
   priority: number;
-  category: 'architecture' | 'duplication' | 'structure' | 'naming' | 'documentation';
+  category:
+    | 'architecture'
+    | 'duplication'
+    | 'structure'
+    | 'naming'
+    | 'documentation'
+    | 'data-integrity'
+    | 'cleanup';
   title: string;
   description: string;
-  effort: 'low' | 'medium' | 'high';
+  effort: 'trivial' | 'low' | 'medium' | 'high';
   autoFixable: boolean;
   affectedFiles: string[];
 }
