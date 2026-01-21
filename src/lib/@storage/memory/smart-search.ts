@@ -44,9 +44,12 @@ const TYPE_MULTIPLIERS: Record<MemoryType, number> = {
   decision: 1.3, // Decisions are highly relevant
   pattern: 1.2, // Patterns inform architecture
   library: 1.2, // Library knowledge is reusable
+  agent: 1.2, // Agent knowledge is reusable
   bugfix: 1.1, // Bugfixes prevent regressions
   snippet: 1.1, // Snippets are directly usable code
   'anti-pattern': 1.0, // Anti-patterns help avoid mistakes
+  'legal-case': 1.0, // Legal cases are context
+  'personal-note': 1.0, // Personal notes are context
   feature: 1.0, // Features are context
   observation: 0.9, // Observations are background
 };

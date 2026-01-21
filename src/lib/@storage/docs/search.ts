@@ -45,6 +45,11 @@ export function searchDocs(options: DocsSearchOptions): DocSearchResult[] {
     params.push(options.topic);
   }
 
+  if (options.documentType) {
+    conditions.push('l.document_type = ?');
+    params.push(options.documentType);
+  }
+
   const limit = options.limit ?? 10;
   const whereClause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
 
@@ -69,6 +74,12 @@ export function searchDocs(options: DocsSearchOptions): DocSearchResult[] {
 
   params.unshift(ftsQuery);
   params.push(limit);
+
+  // Debug logging
+  if (process.env.DEBUG) {
+    console.error('[DEBUG] SQL:', sql);
+    console.error('[DEBUG] Params:', params);
+  }
 
   try {
     const rows = db.prepare(sql).all(...params) as Array<Record<string, unknown>>;
@@ -108,6 +119,11 @@ function searchDocsWithLike(options: DocsSearchOptions): DocSearchResult[] {
   if (options.topic) {
     conditions.push('s.topic = ?');
     params.push(options.topic);
+  }
+
+  if (options.documentType) {
+    conditions.push('l.document_type = ?');
+    params.push(options.documentType);
   }
 
   if (options.query) {

@@ -3,7 +3,7 @@
  * @description Memory clustering algorithms for pattern detection
  */
 
-import { cosineSimilarity } from './embeddings';
+import { cosineSimilarity } from '../semantic-search';
 import { getEmbedding } from './semantic-search';
 import type { Memory } from './types';
 

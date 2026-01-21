@@ -158,44 +158,6 @@ export async function generateEmbeddings(texts: string[]): Promise<BatchEmbeddin
 // ============================================================================
 
 /**
- * Calculate cosine similarity between two embeddings
- *
- * @param a - First embedding vector
- * @param b - Second embedding vector
- * @returns Similarity score between -1 and 1 (higher = more similar)
- *
- * @example
- * ```typescript
- * const e1 = await generateEmbedding('authentication');
- * const e2 = await generateEmbedding('login security');
- * const similarity = cosineSimilarity(e1.embedding, e2.embedding);
- * console.log(similarity); // ~0.7
- * ```
- */
-export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
-  if (a.length !== b.length) {
-    throw new Error(`Embedding dimension mismatch: ${a.length} vs ${b.length}`);
-  }
-
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    const aVal = a[i] ?? 0;
-    const bVal = b[i] ?? 0;
-    dotProduct += aVal * bVal;
-    normA += aVal * aVal;
-    normB += bVal * bVal;
-  }
-
-  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-  if (magnitude === 0) return 0;
-
-  return dotProduct / magnitude;
-}
-
-/**
  * Preload the embedding model (optional, for faster first query)
  *
  * Call this during app initialization to download the model

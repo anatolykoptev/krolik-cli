@@ -42,8 +42,8 @@ export async function save(options: MemorySaveOptions, context: MemoryContext): 
     INSERT INTO memories (
       type, title, description, importance, project, branch, commit_hash,
       tags, files, features, metadata, created_at, created_at_epoch,
-      scope, source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      scope, source, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -62,13 +62,14 @@ export async function save(options: MemorySaveOptions, context: MemoryContext): 
     now.getTime(),
     scope,
     source,
+    now.toISOString(),
   );
 
   const memoryId = Number(result.lastInsertRowid);
 
-  // Generate embedding asynchronously (fire and forget, don't block save)
+  // Generate embedding (await to ensure it completes before worker release)
   const embeddingText = `${options.title} ${options.description}`;
-  storeEmbedding(memoryId, embeddingText).catch(() => {
+  await storeEmbedding(memoryId, embeddingText).catch(() => {
     // Silently ignore embedding errors - semantic search will work without it
   });
 
@@ -107,8 +108,8 @@ export async function saveGlobal(options: GlobalMemorySaveOptions): Promise<Memo
     INSERT INTO memories (
       type, title, description, importance, project, branch, commit_hash,
       tags, files, features, metadata, created_at, created_at_epoch,
-      scope, source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      scope, source, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -127,13 +128,14 @@ export async function saveGlobal(options: GlobalMemorySaveOptions): Promise<Memo
     now.getTime(),
     'global',
     source,
+    now.toISOString(),
   );
 
   const memoryId = Number(result.lastInsertRowid);
 
-  // Generate embedding asynchronously (fire and forget, don't block save)
+  // Generate embedding (await to ensure it completes before worker release)
   const embeddingText = `${options.title} ${options.description}`;
-  storeEmbedding(memoryId, embeddingText).catch(() => {
+  await storeEmbedding(memoryId, embeddingText).catch(() => {
     // Silently ignore embedding errors - semantic search will work without it
   });
 

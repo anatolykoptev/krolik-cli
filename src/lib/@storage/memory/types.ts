@@ -16,12 +16,18 @@ import type { Priority } from '@/types/severity';
 /**
  * Project-scoped memory types (stored per-project, context-specific)
  */
-export type ProjectMemoryType = 'observation' | 'decision' | 'bugfix' | 'feature';
+export type ProjectMemoryType =
+  | 'observation'
+  | 'decision'
+  | 'bugfix'
+  | 'feature'
+  | 'legal-case'
+  | 'personal-note';
 
 /**
  * Global memory types (stored globally, reusable across projects)
  */
-export type GlobalMemoryType = 'pattern' | 'library' | 'snippet' | 'anti-pattern';
+export type GlobalMemoryType = 'pattern' | 'library' | 'snippet' | 'anti-pattern' | 'agent';
 
 /**
  * All memory types
@@ -190,6 +196,8 @@ export const PROJECT_MEMORY_TYPES: readonly ProjectMemoryType[] = [
   'decision',
   'bugfix',
   'feature',
+  'legal-case',
+  'personal-note',
 ] as const;
 
 /**

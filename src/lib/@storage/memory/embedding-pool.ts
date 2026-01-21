@@ -420,3 +420,14 @@ export function getEmbeddingsStatus(): EmbeddingPoolStatus {
   }
   return poolInstance.getStatus();
 }
+
+/**
+ * Release embedding pool resources
+ * Call this when CLI command completes to prevent hanging
+ */
+export async function releaseEmbeddingPool(): Promise<void> {
+  if (poolInstance) {
+    await poolInstance.release();
+    poolInstance = null;
+  }
+}

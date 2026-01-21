@@ -7,6 +7,11 @@
  */
 
 /**
+ * Document type classification
+ */
+export type DocumentType = 'legal' | 'technical' | 'general' | 'personal';
+
+/**
  * Cached library metadata stored in the local database.
  *
  * Represents a library whose documentation has been fetched from Context7
@@ -22,7 +27,8 @@
  *   fetchedAt: "2025-12-24T10:00:00Z",
  *   expiresAt: "2025-12-31T10:00:00Z",
  *   totalSnippets: 150,
- *   isExpired: false
+ *   isExpired: false,
+ *   documentType: "technical"
  * }
  * ```
  */
@@ -50,6 +56,12 @@ export interface CachedLibrary {
 
   /** Whether the cache has expired and should be refreshed */
   isExpired: boolean;
+
+  /** Document classification (legal vs technical vs general) */
+  documentType?: DocumentType;
+
+  /** Jurisdiction for legal documents (e.g., "US-CA", "US-Federal") */
+  jurisdiction?: string;
 }
 
 /**
@@ -134,6 +146,16 @@ export interface DocSearchResult {
  *   limit: 10
  * }
  * ```
+ *
+ * @example
+ * ```ts
+ * // Search legal documentation only
+ * const legalOptions: DocsSearchOptions = {
+ *   query: "California tax clearance",
+ *   documentType: "legal",
+ *   limit: 5
+ * }
+ * ```
  */
 export interface DocsSearchOptions {
   /** Natural language search query */
@@ -144,6 +166,9 @@ export interface DocsSearchOptions {
 
   /** Optional: limit search to specific topic */
   topic?: string | undefined;
+
+  /** Optional: filter by document type (legal, technical, general, personal) */
+  documentType?: DocumentType | undefined;
 
   /** Maximum number of results to return (defaults to 10) */
   limit?: number | undefined;
@@ -181,4 +206,38 @@ export interface DocsCacheStats {
 
   /** ISO timestamp of the newest cached library, if any */
   newestFetch?: string;
+}
+
+/**
+ * Semantic search result with similarity score
+ */
+export interface SemanticSearchResult {
+  /** Doc section ID */
+  sectionId: number;
+  /** Cosine similarity score (0-1) */
+  similarity: number;
+}
+
+/**
+ * Hybrid search options extending DocsSearchOptions
+ */
+export interface DocsHybridSearchOptions extends Omit<DocsSearchOptions, 'query'> {
+  /** Weight for semantic similarity (0-1, default 0.5) */
+  semanticWeight?: number;
+  /** Weight for BM25 text match (0-1, default 0.5) */
+  bm25Weight?: number;
+  /** Minimum semantic similarity threshold (0-1, default 0.3) */
+  minSimilarity?: number;
+  /** Optional: filter by document type */
+  documentType?: DocumentType;
+}
+
+/**
+ * Embedding storage record
+ */
+export interface DocEmbeddingRow {
+  section_id: number;
+  embedding: Buffer;
+  model: string;
+  created_at: string;
 }

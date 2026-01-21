@@ -1,13 +1,13 @@
 /**
- * @module lib/@storage/memory/migrate-embeddings
- * @description One-time migration to generate embeddings for existing memories
+ * @module lib/@storage/docs/migrate-embeddings
+ * @description One-time migration to generate embeddings for existing doc sections
  *
  * This runs automatically on first semantic search if embeddings are missing.
- * After migration completes, all new memories get embeddings automatically via save().
+ * After migration completes, all new doc sections should get embeddings automatically.
  */
 
 import { getDatabase, prepareStatement } from '../database';
-import { generateEmbedding, isEmbeddingsAvailable } from './embeddings';
+import { generateEmbedding, isEmbeddingsAvailable } from '../memory/embeddings';
 
 // ============================================================================
 // MIGRATION STATE
@@ -19,19 +19,19 @@ let migrationComplete = false;
 /**
  * Check if migration has been completed
  */
-export function isMigrationComplete(): boolean {
+export function isDocMigrationComplete(): boolean {
   return migrationComplete;
 }
 
 /**
- * Get count of memories without embeddings
+ * Get count of doc sections without embeddings
  */
 function getMissingCount(): number {
   const db = getDatabase();
   const sql = `
-    SELECT COUNT(*) as count FROM memories m
-    LEFT JOIN memory_embeddings me ON m.id = me.memory_id
-    WHERE me.memory_id IS NULL
+    SELECT COUNT(*) as count FROM doc_sections s
+    LEFT JOIN doc_embeddings de ON s.id = de.section_id
+    WHERE de.section_id IS NULL
   `;
   const row = prepareStatement<[], { count: number }>(db, sql).get();
   return row?.count ?? 0;
@@ -42,14 +42,14 @@ function getMissingCount(): number {
 // ============================================================================
 
 /**
- * Migrate existing memories to have embeddings
+ * Migrate existing doc sections to have embeddings
  *
  * This is idempotent - safe to call multiple times.
  * Runs in background, doesn't block the caller.
  *
  * @param onProgress - Optional callback for progress updates
  */
-export async function migrateEmbeddings(
+export async function migrateDocEmbeddings(
   onProgress?: (processed: number, total: number) => void,
 ): Promise<{ processed: number; total: number }> {
   // Already migrated
@@ -81,14 +81,14 @@ export async function migrateEmbeddings(
     const batchSize = 50;
 
     while (true) {
-      // Get batch of memories without embeddings
+      // Get batch of doc sections without embeddings
       const sql = `
-        SELECT m.id, m.title, m.description FROM memories m
-        LEFT JOIN memory_embeddings me ON m.id = me.memory_id
-        WHERE me.memory_id IS NULL
+        SELECT s.id, s.title, s.content FROM doc_sections s
+        LEFT JOIN doc_embeddings de ON s.id = de.section_id
+        WHERE de.section_id IS NULL
         LIMIT ?
       `;
-      const rows = prepareStatement<[number], { id: number; title: string; description: string }>(
+      const rows = prepareStatement<[number], { id: number; title: string; content: string }>(
         db,
         sql,
       ).all(batchSize);
@@ -97,13 +97,14 @@ export async function migrateEmbeddings(
 
       for (const row of rows) {
         try {
-          const text = `${row.title} ${row.description}`;
+          // Combine title and content for embedding
+          const text = `${row.title} ${row.content}`;
           const result = await generateEmbedding(text);
 
           // Store embedding
           const buffer = Buffer.from(result.embedding.buffer);
           const insertSql = `
-            INSERT OR REPLACE INTO memory_embeddings (memory_id, embedding, created_at)
+            INSERT OR REPLACE INTO doc_embeddings (section_id, embedding, created_at)
             VALUES (?, ?, datetime('now'))
           `;
           prepareStatement<[number, Buffer]>(db, insertSql).run(row.id, buffer);
@@ -113,7 +114,7 @@ export async function migrateEmbeddings(
             onProgress(processed, total);
           }
         } catch {
-          // Skip this memory, continue with others
+          // Skip this section, continue with others
         }
       }
     }
@@ -126,18 +127,18 @@ export async function migrateEmbeddings(
 }
 
 /**
- * Ensure embeddings migration is started (non-blocking)
+ * Ensure doc embeddings migration is started (non-blocking)
  *
  * Call this at the start of semantic search operations.
  * Starts migration in background, does NOT wait for completion.
  * Search works immediately with whatever embeddings exist.
  */
-export function ensureEmbeddingsMigrated(): void {
+export function ensureDocEmbeddingsMigrated(): void {
   if (migrationComplete) return;
 
   // Start migration in background if not already running (fire and forget)
   if (!migrationPromise) {
-    migrateEmbeddings().catch(() => {
+    migrateDocEmbeddings().catch(() => {
       // Silently ignore migration errors
     });
   }

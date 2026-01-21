@@ -206,7 +206,5 @@ export interface FelixSessionCreate {
   config?: Record<string, unknown>;
 }
 
-/**
- * Alias for FelixSessionCreate (for backward compatibility)
- */
+/** Alias for FelixSessionCreate */
 export type CreateSessionConfig = FelixSessionCreate;

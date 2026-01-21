@@ -19,6 +19,8 @@
  * - stats.ts - Memory statistics
  */
 
+// Cosine similarity (from shared semantic-search)
+export { cosineSimilarity } from '../semantic-search';
 // Auto-tagging
 export {
   type EnrichedMemoryOptions,
@@ -68,7 +70,6 @@ export {
 export type { EmbeddingPoolStatus } from './embedding-pool';
 // Embeddings (worker thread based - non-blocking)
 export {
-  cosineSimilarity,
   EMBEDDING_DIMENSION,
   type EmbeddingResult,
   generateEmbedding,
@@ -101,30 +102,25 @@ export {
   type LinkType,
   type MemoryLink,
 } from './links';
-// Migration (auto-runs on first search)
-export {
-  ensureEmbeddingsMigrated,
-  isMigrationComplete,
-  migrateEmbeddings,
-} from './migrate-embeddings';
 // Query operations
 export { getProjects, recent } from './query';
 // Search operations
 export { search, searchWithLike } from './search';
-// Semantic search (hybrid BM25 + embeddings with automatic fallback)
+// Semantic search (hybrid BM25 + embeddings)
 export {
+  backfillEmbeddings,
   deleteEmbedding,
   getEmbedding,
   getEmbeddingsCount,
-  getMemoriesWithoutEmbeddings,
   getMissingEmbeddingsCount,
   type HybridSearchOptions,
   hasEmbedding,
   hybridSearch,
+  isVec0SearchAvailable,
+  migrateToVec0,
   type SemanticSearchResult,
   semanticSearch,
   storeEmbedding,
-  storeEmbeddings,
 } from './semantic-search';
 // Smart search
 export {

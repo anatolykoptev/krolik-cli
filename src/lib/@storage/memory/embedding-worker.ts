@@ -45,6 +45,15 @@ interface WorkerResponse {
   durationMs?: number;
 }
 
+/** Embedder pipeline from @xenova/transformers */
+interface Embedder {
+  (
+    text: string,
+    options: { pooling: 'none' | 'mean' | 'cls'; normalize: boolean },
+  ): Promise<{ data: Float32Array }>;
+  dispose?: () => void;
+}
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================
@@ -56,8 +65,7 @@ const INIT_TIMEOUT_MS = 60000; // 60 seconds for model download
 // STATE
 // ============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let embedder: any = null;
+let embedder: Embedder | null = null;
 let initPromise: Promise<void> | null = null;
 let initError: Error | null = null;
 let isInitializing = false;

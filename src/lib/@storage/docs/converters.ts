@@ -12,6 +12,8 @@ export function rowToLibrary(row: Record<string, unknown>): CachedLibrary {
   const expiresAtEpoch = Number(row.expires_at_epoch);
   const now = Date.now();
   const version = row.version as string | null;
+  const documentType = row.document_type as 'legal' | 'technical' | 'general' | null;
+  const jurisdiction = row.jurisdiction as string | null;
 
   return {
     id: Number(row.id),
@@ -22,6 +24,8 @@ export function rowToLibrary(row: Record<string, unknown>): CachedLibrary {
     expiresAt: new Date(expiresAtEpoch).toISOString(),
     totalSnippets: Number(row.total_snippets ?? 0),
     isExpired: expiresAtEpoch < now,
+    ...(documentType ? { documentType } : {}),
+    ...(jurisdiction ? { jurisdiction } : {}),
   };
 }
 

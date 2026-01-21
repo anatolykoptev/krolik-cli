@@ -56,6 +56,9 @@ export function stats(project?: string): MemoryStats {
     library: 0,
     snippet: 0,
     'anti-pattern': 0,
+    'legal-case': 0,
+    'personal-note': 0,
+    agent: 0,
   };
   for (const row of typeRows) {
     byType[row.type as MemoryType] = row.count;

@@ -1,23 +1,27 @@
 /**
  * @module lib/@storage/memory/semantic-search
- * @description Semantic search using embeddings and cosine similarity
+ * @description Semantic search using sqlite-vec for k-NN
  *
- * Provides:
- * - Store embeddings for memories
- * - Semantic search with cosine similarity
- * - Hybrid search combining BM25 + semantic
- *
- * Falls back gracefully if embeddings are unavailable.
+ * Architecture:
+ * - BLOB storage (memory_embeddings): stores raw embeddings
+ * - vec0 index (memory_vec): k-NN search O(log n)
  */
 
-import { getDatabase, prepareStatement } from '../database';
+import { logger } from '../../@core/logger';
+import { getDatabase } from '../database';
+import type {
+  EmbeddingStorage,
+  HybridSearchOptions as SharedHybridOptions,
+} from '../semantic-search';
 import {
+  bufferToEmbedding,
   cosineSimilarity,
-  EMBEDDING_DIMENSION,
-  generateEmbedding,
-  isEmbeddingsAvailable,
-} from './embeddings';
-import { ensureEmbeddingsMigrated } from './migrate-embeddings';
+  createEmbeddingStorage,
+  createMigrationRunner,
+  createVec0Storage,
+  hybridSearch as sharedHybridSearch,
+} from '../semantic-search';
+import { EMBEDDING_DIMENSION, generateEmbedding, isEmbeddingsAvailable } from './embeddings';
 import { search } from './search';
 import type { Memory, MemorySearchOptions, MemorySearchResult } from './types';
 
@@ -25,250 +29,210 @@ import type { Memory, MemorySearchOptions, MemorySearchResult } from './types';
 // TYPES
 // ============================================================================
 
-/**
- * Semantic search result with similarity score
- */
 export interface SemanticSearchResult {
   memoryId: number;
   similarity: number;
 }
 
-/**
- * Hybrid search options
- */
 export interface HybridSearchOptions extends MemorySearchOptions {
-  /** Weight for semantic similarity (0-1, default 0.5) */
   semanticWeight?: number;
-  /** Weight for BM25 text match (0-1, default 0.5) */
   bm25Weight?: number;
-  /** Minimum semantic similarity threshold (0-1, default 0.3) */
   minSimilarity?: number;
 }
 
-/**
- * Embedding storage record
- */
-interface EmbeddingRow {
-  memory_id: number;
-  embedding: Buffer;
+// ============================================================================
+// STORAGE INSTANCES (lazy initialization)
+// ============================================================================
+
+type MemoryEntity = { id: number; title: string; description: string };
+
+let _embeddingStorage: EmbeddingStorage<number> | null = null;
+let _vec0Storage: ReturnType<typeof createVec0Storage> | null = null;
+let _migrationRunner: ReturnType<typeof createMigrationRunner<number, MemoryEntity>> | null = null;
+
+function getEmbeddingStorage() {
+  if (!_embeddingStorage) {
+    _embeddingStorage = createEmbeddingStorage<number>({
+      db: getDatabase(),
+      tableName: 'memory_embeddings',
+      entityIdColumn: 'memory_id',
+      getAllQuery: (filter) =>
+        filter?.project
+          ? {
+              sql: `SELECT me.memory_id as entity_id, me.embedding, me.created_at
+                  FROM memory_embeddings me
+                  JOIN memories m ON me.memory_id = m.id
+                  WHERE m.project = ?`,
+              params: [filter.project],
+            }
+          : {
+              sql: 'SELECT memory_id as entity_id, embedding, created_at FROM memory_embeddings',
+              params: [],
+            },
+    });
+  }
+  return _embeddingStorage!;
+}
+
+function getVec0Storage() {
+  if (!_vec0Storage) {
+    _vec0Storage = createVec0Storage({
+      db: getDatabase(),
+      vecTableName: 'memory_vec',
+      mapTableName: 'memory_vec_map',
+      entityIdColumn: 'memory_id',
+      dimension: EMBEDDING_DIMENSION,
+    });
+  }
+  return _vec0Storage!;
+}
+
+function getMigrationRunner() {
+  if (!_migrationRunner) {
+    _migrationRunner = createMigrationRunner<number, MemoryEntity>({
+      db: getDatabase(),
+      storage: getEmbeddingStorage(),
+      getMissingCountQuery: `
+        SELECT COUNT(*) as count FROM memories m
+        LEFT JOIN memory_embeddings me ON m.id = me.memory_id
+        WHERE me.memory_id IS NULL
+      `,
+      getWithoutEmbeddingsQuery: `
+        SELECT m.id FROM memories m
+        LEFT JOIN memory_embeddings me ON m.id = me.memory_id
+        WHERE me.memory_id IS NULL
+        LIMIT ?
+      `,
+      getEntityQuery: 'SELECT id, title, description FROM memories WHERE id = ?',
+      extractText: (m) => `${m.title} ${m.description}`,
+      extractId: (m) => m.id,
+    });
+  }
+  return _migrationRunner!;
 }
 
 // ============================================================================
-// EMBEDDING STORAGE
+// EMBEDDING CRUD
 // ============================================================================
 
-/**
- * Store embedding for a memory
- *
- * @param memoryId - ID of the memory
- * @param text - Text to embed (typically title + description)
- * @returns true if successful, false if embeddings unavailable
- *
- * @example
- * ```typescript
- * const saved = await storeEmbedding(123, 'Authentication with JWT tokens');
- * console.log(saved); // true
- * ```
- */
 export async function storeEmbedding(memoryId: number, text: string): Promise<boolean> {
-  if (!isEmbeddingsAvailable()) {
-    return false;
+  const stored = await getEmbeddingStorage().store(memoryId, text);
+  if (stored) {
+    const embedding = getEmbeddingStorage().get(memoryId);
+    if (embedding) {
+      getVec0Storage().store(memoryId, embedding);
+    }
   }
-
-  try {
-    const db = getDatabase();
-    const result = await generateEmbedding(text);
-
-    // Convert Float32Array to Buffer for SQLite storage
-    const buffer = Buffer.from(result.embedding.buffer);
-
-    const sql = `
-      INSERT OR REPLACE INTO memory_embeddings (memory_id, embedding, created_at)
-      VALUES (?, ?, datetime('now'))
-    `;
-
-    prepareStatement<[number, Buffer]>(db, sql).run(memoryId, buffer);
-    return true;
-  } catch {
-    return false;
-  }
+  return stored;
 }
 
-/**
- * Store embeddings for multiple memories (batch)
- *
- * @param items - Array of {memoryId, text} pairs
- * @returns Number of successfully stored embeddings
- */
-export async function storeEmbeddings(
-  items: Array<{ memoryId: number; text: string }>,
-): Promise<number> {
-  let count = 0;
-  for (const item of items) {
-    const success = await storeEmbedding(item.memoryId, item.text);
-    if (success) count++;
-  }
-  return count;
-}
-
-/**
- * Delete embedding for a memory
- *
- * @param memoryId - ID of the memory
- */
 export function deleteEmbedding(memoryId: number): void {
-  const db = getDatabase();
-  const sql = 'DELETE FROM memory_embeddings WHERE memory_id = ?';
-  prepareStatement<[number]>(db, sql).run(memoryId);
+  getEmbeddingStorage().delete(memoryId);
+  getVec0Storage().delete(memoryId);
 }
 
-/**
- * Check if a memory has an embedding
- *
- * @param memoryId - ID of the memory
- */
 export function hasEmbedding(memoryId: number): boolean {
-  const db = getDatabase();
-  const sql = 'SELECT 1 FROM memory_embeddings WHERE memory_id = ? LIMIT 1';
-  const row = prepareStatement<[number], { 1: number }>(db, sql).get(memoryId);
-  return row !== undefined;
+  return getEmbeddingStorage().has(memoryId);
 }
 
-/**
- * Get embedding for a memory
- *
- * @param memoryId - ID of the memory
- * @returns Float32Array embedding or null if not found
- */
 export function getEmbedding(memoryId: number): Float32Array | null {
-  const db = getDatabase();
-  const sql = 'SELECT embedding FROM memory_embeddings WHERE memory_id = ?';
-  const row = prepareStatement<[number], { embedding: Buffer }>(db, sql).get(memoryId);
-
-  if (!row) return null;
-
-  return new Float32Array(
-    row.embedding.buffer.slice(
-      row.embedding.byteOffset,
-      row.embedding.byteOffset + row.embedding.byteLength,
-    ),
-  );
+  return getEmbeddingStorage().get(memoryId);
 }
 
 // ============================================================================
 // SEMANTIC SEARCH
 // ============================================================================
 
-/**
- * Semantic search using cosine similarity
- *
- * Compares query embedding against all stored embeddings.
- * Falls back to empty results if embeddings unavailable.
- *
- * @param query - Natural language query
- * @param options - Search options
- * @returns Array of memory IDs with similarity scores
- *
- * @example
- * ```typescript
- * const results = await semanticSearch('how do we handle user sessions', {
- *   limit: 10,
- *   minSimilarity: 0.5,
- * });
- * ```
- */
 export async function semanticSearch(
   query: string,
-  options: {
-    limit?: number | undefined;
-    minSimilarity?: number | undefined;
-    project?: string | undefined;
-  } = {},
+  options: { limit?: number; minSimilarity?: number; project?: string | undefined } = {},
 ): Promise<SemanticSearchResult[]> {
-  if (!isEmbeddingsAvailable()) {
-    return [];
-  }
+  if (!isEmbeddingsAvailable()) return [];
 
   const { limit = 10, minSimilarity = 0.3, project } = options;
 
   try {
-    const db = getDatabase();
+    const { embedding: queryEmbedding } = await generateEmbedding(query);
 
-    // Generate query embedding
-    const queryResult = await generateEmbedding(query);
-    const queryEmbedding = queryResult.embedding;
+    // vec0 k-NN search (O(log n))
+    if (getVec0Storage().isAvailable()) {
+      const results = project
+        ? vec0SearchWithProject(queryEmbedding, limit, minSimilarity, project)
+        : getVec0Storage()
+            .search(queryEmbedding, { limit, minSimilarity })
+            .map((r) => ({ memoryId: r.entityId, similarity: r.similarity }));
 
-    // Get all embeddings (optionally filtered by project)
-    const sql = project
-      ? `SELECT me.memory_id, me.embedding
-         FROM memory_embeddings me
-         JOIN memories m ON me.memory_id = m.id
-         WHERE m.project = ?`
-      : 'SELECT memory_id, embedding FROM memory_embeddings';
-
-    const params = project ? [project] : [];
-    const rows = db.prepare(sql).all(...params) as EmbeddingRow[];
-
-    // Calculate similarity for each
-    const results: SemanticSearchResult[] = [];
-
-    for (const row of rows) {
-      const embedding = new Float32Array(
-        row.embedding.buffer.slice(
-          row.embedding.byteOffset,
-          row.embedding.byteOffset + row.embedding.byteLength,
-        ),
-      );
-
-      // Skip if dimension mismatch
-      if (embedding.length !== EMBEDDING_DIMENSION) continue;
-
-      const similarity = cosineSimilarity(queryEmbedding, embedding);
-
-      if (similarity >= minSimilarity) {
-        results.push({
-          memoryId: row.memory_id,
-          similarity,
-        });
-      }
+      if (results.length > 0) return results;
     }
 
-    // Sort by similarity descending and limit
-    return results.sort((a, b) => b.similarity - a.similarity).slice(0, limit);
+    // Fallback: BLOB cosine similarity (O(n))
+    return blobSearch(queryEmbedding, limit, minSimilarity, project);
   } catch {
     return [];
   }
+}
+
+function vec0SearchWithProject(
+  queryEmbedding: Float32Array,
+  limit: number,
+  minSimilarity: number,
+  project: string,
+): SemanticSearchResult[] {
+  try {
+    const db = getDatabase();
+    const vectorJson = JSON.stringify(Array.from(queryEmbedding));
+
+    const rows = db
+      .prepare(`
+      SELECT mv.distance, mvm.memory_id
+      FROM memory_vec mv
+      JOIN memory_vec_map mvm ON mv.rowid = mvm.vec_rowid
+      JOIN memories m ON mvm.memory_id = m.id
+      WHERE mv.embedding MATCH ? AND m.project = ?
+      ORDER BY mv.distance
+      LIMIT ?
+    `)
+      .all(vectorJson, project, limit * 2) as Array<{ distance: number; memory_id: number }>;
+
+    return rows
+      .map((row) => ({
+        memoryId: row.memory_id,
+        similarity: Math.max(0, 1 - (row.distance * row.distance) / 2),
+      }))
+      .filter((r) => r.similarity >= minSimilarity)
+      .slice(0, limit);
+  } catch (error) {
+    logger.debug(`vec0 project search failed: ${error}`);
+    return [];
+  }
+}
+
+function blobSearch(
+  queryEmbedding: Float32Array,
+  limit: number,
+  minSimilarity: number,
+  project?: string,
+): SemanticSearchResult[] {
+  const rows = getEmbeddingStorage().getAll(project ? { project } : undefined);
+
+  return rows
+    .map((row) => {
+      const embedding = bufferToEmbedding(row.embedding);
+      if (embedding.length !== EMBEDDING_DIMENSION) return null;
+      return {
+        memoryId: row.entity_id,
+        similarity: cosineSimilarity(queryEmbedding, embedding),
+      };
+    })
+    .filter((r): r is SemanticSearchResult => r !== null && r.similarity >= minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
 }
 
 // ============================================================================
 // HYBRID SEARCH
 // ============================================================================
 
-/**
- * Hybrid search combining BM25 text match + semantic similarity
- *
- * Uses weighted combination of:
- * - BM25 (keyword match, precision)
- * - Semantic (meaning match, recall)
- *
- * Automatically:
- * - Migrates existing memories to have embeddings (one-time)
- * - Falls back to BM25-only if embeddings unavailable
- *
- * @param query - Search query
- * @param options - Hybrid search options
- * @returns Combined and re-ranked search results
- *
- * @example
- * ```typescript
- * const results = await hybridSearch('authentication tokens', {
- *   project: 'my-project',
- *   semanticWeight: 0.6,
- *   bm25Weight: 0.4,
- *   limit: 10,
- * });
- * ```
- */
 export async function hybridSearch(
   query: string,
   options: HybridSearchOptions = {},
@@ -281,163 +245,87 @@ export async function hybridSearch(
     ...searchOptions
   } = options;
 
-  // Get BM25 results first (always works)
-  const bm25Results = search({
-    ...searchOptions,
-    query,
-    limit: limit * 2, // Fetch more to allow for merging
-  });
+  const bm25Results = search({ ...searchOptions, query, limit: limit * 2 });
 
-  // If embeddings unavailable, return BM25 only
   if (!isEmbeddingsAvailable()) {
     return bm25Results.slice(0, limit);
   }
 
-  // Start background migration for existing memories (non-blocking)
-  ensureEmbeddingsMigrated();
+  getMigrationRunner().ensureMigrated();
 
-  // Get semantic results
   const semanticResults = await semanticSearch(query, {
     limit: limit * 2,
     minSimilarity,
     project: searchOptions.project,
   });
 
-  // If no semantic results, return BM25 only
-  if (semanticResults.length === 0) {
-    return bm25Results.slice(0, limit);
-  }
+  const combined = sharedHybridSearch(
+    query,
+    bm25Results.map((r) => ({
+      entity: { ...r.memory, id: Number.parseInt(r.memory.id, 10) },
+      relevance: r.relevance,
+    })),
+    semanticResults.map((r) => ({ entityId: r.memoryId, similarity: r.similarity })),
+    { semanticWeight, bm25Weight, minSimilarity, limit } as SharedHybridOptions,
+  );
 
-  // Build score map
-  const scoreMap = new Map<number, { memory: Memory; bm25: number; semantic: number }>();
-
-  // Add BM25 scores (normalize to 0-1)
-  const maxBm25 = Math.max(...bm25Results.map((r) => r.relevance), 1);
-  for (const result of bm25Results) {
-    const id = Number.parseInt(result.memory.id, 10);
-    scoreMap.set(id, {
-      memory: result.memory,
-      bm25: result.relevance / maxBm25,
-      semantic: 0,
-    });
-  }
-
-  // Add semantic scores
-  for (const result of semanticResults) {
-    const existing = scoreMap.get(result.memoryId);
-    if (existing) {
-      existing.semantic = result.similarity;
-    } else {
-      // Need to fetch memory for semantic-only results
-      const memoryFromBm25 = bm25Results.find(
-        (r) => Number.parseInt(r.memory.id, 10) === result.memoryId,
-      );
-      if (memoryFromBm25) {
-        scoreMap.set(result.memoryId, {
-          memory: memoryFromBm25.memory,
-          bm25: 0,
-          semantic: result.similarity,
-        });
-      }
-    }
-  }
-
-  // Calculate combined scores and sort
-  const combined = Array.from(scoreMap.values())
-    .map((item) => ({
-      memory: item.memory,
-      relevance: (item.bm25 * bm25Weight + item.semantic * semanticWeight) * 100,
-    }))
-    .sort((a, b) => b.relevance - a.relevance)
-    .slice(0, limit);
-
-  return combined;
+  return combined.map((r) => ({
+    memory: { ...r.entity, id: String(r.entity.id) } as Memory,
+    relevance: r.relevance,
+  }));
 }
 
 // ============================================================================
 // MAINTENANCE
 // ============================================================================
 
-/**
- * Get count of memories with embeddings
- */
-export function getEmbeddingsCount(): number {
-  const db = getDatabase();
-  const sql = 'SELECT COUNT(*) as count FROM memory_embeddings';
-  const row = prepareStatement<[], { count: number }>(db, sql).get();
-  return row?.count ?? 0;
-}
+export const getEmbeddingsCount = () => getEmbeddingStorage().count();
+export const getMissingEmbeddingsCount = () => getMigrationRunner().getMissingCount();
+export const isVec0SearchAvailable = () => getVec0Storage().isAvailable();
 
-/**
- * Get count of memories without embeddings
- */
-export function getMissingEmbeddingsCount(): number {
-  const db = getDatabase();
-  const sql = `
-    SELECT COUNT(*) as count FROM memories m
-    LEFT JOIN memory_embeddings me ON m.id = me.memory_id
-    WHERE me.memory_id IS NULL
-  `;
-  const row = prepareStatement<[], { count: number }>(db, sql).get();
-  return row?.count ?? 0;
-}
-
-/**
- * Get IDs of memories without embeddings
- */
-export function getMemoriesWithoutEmbeddings(limit = 100): number[] {
-  const db = getDatabase();
-  const sql = `
-    SELECT m.id FROM memories m
-    LEFT JOIN memory_embeddings me ON m.id = me.memory_id
-    WHERE me.memory_id IS NULL
-    LIMIT ?
-  `;
-  const rows = prepareStatement<[number], { id: number }>(db, sql).all(limit);
-  return rows.map((r) => r.id);
-}
-
-/**
- * Backfill embeddings for existing memories
- *
- * @param batchSize - Number of memories to process per batch
- * @param onProgress - Callback for progress updates
- * @returns Total number of embeddings created
- */
 export async function backfillEmbeddings(
-  batchSize = 50,
+  _batchSize = 50,
   onProgress?: (processed: number, total: number) => void,
 ): Promise<number> {
-  if (!isEmbeddingsAvailable()) {
+  if (!isEmbeddingsAvailable()) return 0;
+  const result = await getMigrationRunner().migrate(onProgress);
+  return result.processed;
+}
+
+export function migrateToVec0(onProgress?: (processed: number, total: number) => void): number {
+  const vec0 = getVec0Storage();
+  if (!vec0.isAvailable()) {
+    logger.warn('vec0 not available');
     return 0;
   }
 
-  const db = getDatabase();
-  let totalProcessed = 0;
-  const totalMissing = getMissingEmbeddingsCount();
+  const rows = getDatabase()
+    .prepare(`
+    SELECT me.memory_id, me.embedding
+    FROM memory_embeddings me
+    LEFT JOIN memory_vec_map mvm ON me.memory_id = mvm.memory_id
+    WHERE mvm.memory_id IS NULL
+  `)
+    .all() as Array<{ memory_id: number; embedding: Buffer }>;
 
-  while (true) {
-    const memoryIds = getMemoriesWithoutEmbeddings(batchSize);
-    if (memoryIds.length === 0) break;
+  if (rows.length === 0) return 0;
 
-    for (const id of memoryIds) {
-      // Get memory title and description
-      const sql = 'SELECT title, description FROM memories WHERE id = ?';
-      const row = prepareStatement<[number], { title: string; description: string }>(db, sql).get(
-        id,
-      );
-
-      if (row) {
-        const text = `${row.title} ${row.description}`;
-        await storeEmbedding(id, text);
-        totalProcessed++;
-
-        if (onProgress) {
-          onProgress(totalProcessed, totalMissing);
-        }
+  let processed = 0;
+  for (const row of rows) {
+    try {
+      const embedding = bufferToEmbedding(row.embedding);
+      if (embedding.length === EMBEDDING_DIMENSION && vec0.store(row.memory_id, embedding)) {
+        processed++;
       }
+    } catch {
+      /* skip */
+    }
+
+    if (onProgress && processed % 10 === 0) {
+      onProgress(processed, rows.length);
     }
   }
 
-  return totalProcessed;
+  logger.info(`Migrated ${processed}/${rows.length} to vec0`);
+  return processed;
 }

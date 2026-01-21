@@ -6,12 +6,18 @@
 import { getDatabase } from '../database';
 import { getExpirationEpoch } from './constants';
 import { rowToLibrary } from './converters';
-import type { CachedLibrary } from './types';
+import type { CachedLibrary, DocumentType } from './types';
 
 /**
  * Save library metadata with 7-day TTL
  */
-export function saveLibrary(libraryId: string, name: string, version?: string): CachedLibrary {
+export function saveLibrary(
+  libraryId: string,
+  name: string,
+  version?: string,
+  documentType?: DocumentType,
+  jurisdiction?: string,
+): CachedLibrary {
   const db = getDatabase();
   const now = new Date();
   const nowEpoch = now.getTime();
@@ -26,9 +32,19 @@ export function saveLibrary(libraryId: string, name: string, version?: string): 
     // Update existing library and refresh expiration
     db.prepare(
       `UPDATE library_docs
-       SET library_name = ?, version = ?, fetched_at = ?, fetched_at_epoch = ?, expires_at_epoch = ?
+       SET library_name = ?, version = ?, fetched_at = ?, fetched_at_epoch = ?, expires_at_epoch = ?,
+           document_type = ?, jurisdiction = ?
        WHERE library_id = ?`,
-    ).run(name, version ?? null, now.toISOString(), nowEpoch, expiresAtEpoch, libraryId);
+    ).run(
+      name,
+      version ?? null,
+      now.toISOString(),
+      nowEpoch,
+      expiresAtEpoch,
+      documentType ?? null,
+      jurisdiction ?? null,
+      libraryId,
+    );
 
     // Get updated total snippets
     const totalRow = db
@@ -44,13 +60,15 @@ export function saveLibrary(libraryId: string, name: string, version?: string): 
       expiresAt: new Date(expiresAtEpoch).toISOString(),
       totalSnippets: totalRow.count,
       isExpired: false,
+      ...(documentType ? { documentType } : {}),
+      ...(jurisdiction ? { jurisdiction } : {}),
     };
   }
 
   // Insert new library
   const stmt = db.prepare(`
-    INSERT INTO library_docs (library_id, library_name, version, fetched_at, fetched_at_epoch, expires_at_epoch, total_snippets)
-    VALUES (?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO library_docs (library_id, library_name, version, fetched_at, fetched_at_epoch, expires_at_epoch, total_snippets, document_type, jurisdiction)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
   `);
 
   const result = stmt.run(
@@ -60,6 +78,8 @@ export function saveLibrary(libraryId: string, name: string, version?: string): 
     now.toISOString(),
     nowEpoch,
     expiresAtEpoch,
+    documentType ?? null,
+    jurisdiction ?? null,
   );
 
   return {
@@ -71,6 +91,8 @@ export function saveLibrary(libraryId: string, name: string, version?: string): 
     expiresAt: new Date(expiresAtEpoch).toISOString(),
     totalSnippets: 0,
     isExpired: false,
+    ...(documentType ? { documentType } : {}),
+    ...(jurisdiction ? { jurisdiction } : {}),
   };
 }
 

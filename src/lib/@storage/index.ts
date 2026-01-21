@@ -5,13 +5,43 @@
  * This module provides persistent storage for:
  * - Memory system (AI context, decisions, patterns, bugfixes)
  * - Documentation cache (Context7 library docs with FTS5 search)
+ * - Agent storage (agents with hybrid search)
  *
  * Structure:
  * - database.ts - Shared SQLite database with migrations
  * - memory/ - Memory storage operations
  * - docs/ - Documentation cache operations
+ * - agents/ - Agent storage with hybrid search
  */
 
+// Agent storage with hybrid search
+export {
+  // Types
+  type AgentRow,
+  type AgentScoreBreakdown,
+  type AgentSearchOptions,
+  type AgentSearchResult,
+  type AgentSyncResult,
+  type AgentUsage,
+  type AgentWithEmbedding,
+  // Search operations
+  backfillAgentEmbeddings,
+  // Sync operations
+  clearAllAgents,
+  getAgentByName,
+  getAgentCount,
+  getAgentEmbeddingCount,
+  getAgentsByCategory,
+  getAllAgents,
+  isSemanticSearchAvailable as isAgentSemanticSearchAvailable,
+  isSyncNeeded,
+  recordAgentUsage,
+  type StoredAgent,
+  searchAgents,
+  storeAgentEmbedding,
+  syncAgentsIfNeeded,
+  syncAgentsToDatabase,
+} from './agents';
 // Audit history storage
 export {
   // Types
@@ -102,6 +132,22 @@ export {
   stats,
   update,
 } from './memory';
+// Memory semantic search with vec0
+export {
+  backfillEmbeddings,
+  deleteEmbedding,
+  getEmbedding,
+  getEmbeddingsCount,
+  getMissingEmbeddingsCount,
+  type HybridSearchOptions,
+  hasEmbedding,
+  hybridSearch,
+  isVec0SearchAvailable,
+  migrateToVec0,
+  type SemanticSearchResult,
+  semanticSearch,
+  storeEmbedding,
+} from './memory/semantic-search';
 // Progress tracking (tasks, epics, sessions)
 export {
   // Sessions
