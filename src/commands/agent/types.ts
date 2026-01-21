@@ -11,10 +11,12 @@
 
 import type { FelixGuardrail } from '@/lib/@storage/felix/types';
 import type { Memory } from '@/lib/@storage/memory';
+import type { StoredSkill } from '@/lib/@storage/skills';
 import type { OutputFormat } from '../../types/commands/base';
 
 export type { FelixGuardrail } from '@/lib/@storage/felix/types';
 export type { Memory } from '@/lib/@storage/memory';
+export type { StoredSkill } from '@/lib/@storage/skills';
 // Re-export shared types from lib
 export type { RepoStats } from '../../lib/@agents';
 export type { VersionInfo } from '../../lib/@vcs';
@@ -89,6 +91,8 @@ export interface AgentOptions {
   // LLM options
   model?: string | undefined;
   backend?: 'cli' | 'api' | undefined;
+  // Plugin skills (loaded by plugin name)
+  pluginSkills?: StoredSkill[] | undefined;
 }
 
 /**
@@ -115,6 +119,7 @@ export interface AgentContext {
   libraryDocs?: LibraryDocSnippet[];
   memories?: Memory[];
   skills?: FelixGuardrail[];
+  pluginSkills?: StoredSkill[]; // Skills from agent's plugin
 }
 
 /**

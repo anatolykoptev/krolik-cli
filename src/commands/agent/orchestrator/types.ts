@@ -19,6 +19,7 @@ export type TaskType =
   | 'refactoring'
   | 'feature-implementation'
   | 'multi-domain'
+  | 'agent-creation'
   | 'unknown';
 
 /**
@@ -90,6 +91,8 @@ export interface OrchestrateOptions {
   preferParallel?: boolean | undefined;
   /** Include project context */
   includeContext?: boolean | undefined;
+  /** Include full prompts in output (for immediate execution) */
+  includePrompts?: boolean | undefined;
   /** Target file for analysis */
   file?: string | undefined;
   /** Feature/domain to focus on */
@@ -106,6 +109,28 @@ export interface OrchestrateOptions {
 }
 
 /**
+ * Recommendation to use Agent Architect for ad-hoc agent generation
+ */
+export interface ConsiliumRecommendation {
+  /** Whether consilium is recommended */
+  recommended: boolean;
+  /** Reason for recommendation */
+  reason: ConsiliumReason;
+  /** Suggested focus areas based on task analysis */
+  suggestedFocusAreas: string[];
+}
+
+/**
+ * Reasons why consilium might be recommended
+ */
+export type ConsiliumReason =
+  | 'no_agents_found'
+  | 'low_confidence'
+  | 'novel_domain'
+  | 'multi_domain_complex'
+  | 'not_needed';
+
+/**
  * Orchestration result
  */
 export interface OrchestrationResult {
@@ -113,6 +138,10 @@ export interface OrchestrationResult {
   plan: ExecutionPlan;
   context?: import('../types').AgentContext | undefined;
   durationMs: number;
+  /** Recommendation for using Agent Architect */
+  consilium?: ConsiliumRecommendation;
+  /** Whether to include full prompts in output */
+  includePrompts?: boolean;
 }
 
 /**

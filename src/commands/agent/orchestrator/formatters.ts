@@ -7,16 +7,35 @@
  */
 
 import { escapeXml } from '../../../lib/@format';
+import { buildGenerationPrompt } from '../adhoc';
 import { TRUNCATION } from '../constants';
 import { formatContextForPrompt } from '../context';
 import type { ScoredAgent } from '../selection';
 import type { OrchestrationResult } from './types';
 
 /**
+ * Format consilium reason as human-readable text
+ */
+function formatConsiliumReason(reason: string): string {
+  switch (reason) {
+    case 'no_agents_found':
+      return 'No suitable agents found in the database for this task';
+    case 'low_confidence':
+      return 'Low confidence in existing agents - task may require specialized expertise';
+    case 'multi_domain_complex':
+      return 'Complex multi-domain task with insufficient agent coverage';
+    case 'novel_domain':
+      return 'Novel domain not covered by existing agents';
+    default:
+      return 'Agent generation may improve results';
+  }
+}
+
+/**
  * Format orchestration result as XML for Claude
  */
 export function formatOrchestrationXML(result: OrchestrationResult): string {
-  const { analysis, plan, context, durationMs } = result;
+  const { analysis, plan, context, consilium, includePrompts, durationMs } = result;
 
   let xml = `<agent-orchestration>
   <task-analysis>
@@ -47,13 +66,76 @@ export function formatOrchestrationXML(result: OrchestrationResult): string {
   }
 
   xml += `  </execution-plan>
+`;
 
-  <instructions>
-    Execute agents according to the plan above:
-    1. For parallel phases, use Task tool with multiple agents simultaneously
-    2. For sequential phases, run agents one by one
-    3. Aggregate results and present unified findings
-    4. Prioritize critical issues across all agent outputs
+  // Add agent prompts (without context - context is shared below)
+  if (includePrompts && plan.totalAgents > 0) {
+    xml += `
+  <agent-prompts task="${escapeXml(analysis.task)}">
+`;
+    for (const phase of plan.phases) {
+      for (const rec of phase.agents) {
+        // Only agent content, no context duplication
+        xml += `    <agent-prompt name="${escapeXml(rec.agent.name)}" model="${rec.agent.model ?? 'sonnet'}">
+${escapeXml(rec.agent.content)}
+    </agent-prompt>
+`;
+      }
+    }
+    xml += `  </agent-prompts>
+`;
+  }
+
+  // Add Agent Architect prompt when consilium is recommended
+  if (consilium?.recommended) {
+    // Generate the actual Agent Architect prompt for this task
+    const architectPrompt = buildGenerationPrompt({
+      task: analysis.task,
+      focusAreas: consilium.suggestedFocusAreas,
+      maxAgents: 5,
+    });
+
+    xml += `
+  <agent-architect>
+    <reason>${formatConsiliumReason(consilium.reason)}</reason>
+    <instructions>
+      Execute the prompt below to generate specialized agents.
+      Parse the JSON response and run each agent via Task tool (subagent_type="general-purpose").
+      Synthesize all results into unified analysis.
+    </instructions>
+    <generation-prompt>
+${escapeXml(architectPrompt)}
+    </generation-prompt>
+  </agent-architect>
+`;
+  }
+
+  xml += `
+  <instructions>`;
+
+  if (plan.totalAgents > 0 && !consilium?.recommended) {
+    // Standard case: agents found
+    if (includePrompts) {
+      xml += `
+    Agent prompts are in <agent-prompts>, shared context is in <project-context> below.
+    Execute all agents in parallel using Task tool:
+    - subagent_type: "general-purpose"
+    - model: use the model attribute from each agent-prompt
+    - prompt: combine agent-prompt content + project-context + "Task: {original-task}"
+    Synthesize results into unified analysis.`;
+    } else {
+      xml += `
+    Execute agents using krolik_agent name="..." for each agent.
+    Or use Task tool with agent prompts.`;
+    }
+  } else if (consilium?.recommended) {
+    // Agent Architect recommended
+    xml += `
+    RECOMMENDED: Use Agent Architect prompt above to generate specialized agents.
+    ${plan.totalAgents > 0 ? `Existing ${plan.totalAgents} agent(s) may supplement the analysis.` : 'No suitable existing agents.'}`;
+  }
+
+  xml += `
   </instructions>
 
   <duration-ms>${durationMs}</duration-ms>

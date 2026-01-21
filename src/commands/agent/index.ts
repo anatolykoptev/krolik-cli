@@ -21,6 +21,7 @@ import {
   loadAllAgents,
   updateAgentsRepo,
 } from './loader';
+import { prepareConsilium } from './orchestrator';
 import { formatAgentListAI, formatAgentListText } from './output';
 import { runOrchestration, runSingleAgent } from './runners';
 import type { AgentCategory, AgentOptions } from './types';
@@ -34,9 +35,11 @@ export interface AgentCommandOptions extends AgentOptions {
   update?: boolean;
   // Orchestration options
   orchestrate?: boolean;
+  consilium?: boolean;
   task?: string;
   maxAgents?: number;
   preferParallel?: boolean;
+  focusAreas?: string[];
 }
 
 /**
@@ -125,6 +128,48 @@ function handleAgentNotFound(
 }
 
 /**
+ * Run consilium mode - dynamic agent generation via Agent Architect
+ */
+async function runConsilium(
+  projectRoot: string,
+  task: string,
+  options: AgentCommandOptions,
+  logger: CommandContext['logger'],
+): Promise<void> {
+  const format = options.format ?? 'ai';
+
+  const result = await prepareConsilium(projectRoot, {
+    task,
+    ...(options.focusAreas && { focusAreas: options.focusAreas }),
+    maxAgents: options.maxAgents ?? 5,
+    preferParallel: options.preferParallel ?? true,
+    format: format === 'text' ? 'text' : format === 'json' ? 'json' : 'xml',
+    includeProjectContext: true,
+    ...(options.dryRun !== undefined && { dryRun: options.dryRun }),
+    ...(options.file && { file: options.file }),
+    ...(options.feature && { feature: options.feature }),
+    ...(options.includeSchema !== undefined && { includeSchema: options.includeSchema }),
+    ...(options.includeRoutes !== undefined && { includeRoutes: options.includeRoutes }),
+    ...(options.includeGit !== undefined && { includeGit: options.includeGit }),
+  });
+
+  // Output the generation prompt for Claude to process
+  console.log(`<consilium-generation task="${task}">`);
+  console.log('  <instructions>');
+  console.log('    1. Send the prompt below to generate specialized agents');
+  console.log('    2. Parse the JSON response');
+  console.log('    3. Execute each agent as described');
+  console.log('    4. Synthesize results');
+  console.log('  </instructions>');
+  console.log('  <generation-prompt>');
+  console.log(result.generationPrompt);
+  console.log('  </generation-prompt>');
+  console.log('</consilium-generation>');
+
+  logger.info('Consilium prompt generated. Claude should process this to create ad-hoc agents.');
+}
+
+/**
  * Run agent command
  */
 export async function runAgent(
@@ -157,6 +202,12 @@ export async function runAgent(
   if (options.orchestrate) {
     const task = options.task || options.agentName || 'analyze the project';
     await runOrchestration(projectRoot, task, options);
+    return;
+  }
+
+  if (options.consilium) {
+    const task = options.task || options.agentName || 'analyze the project';
+    await runConsilium(projectRoot, task, options, logger);
     return;
   }
 
@@ -247,20 +298,32 @@ async function runCategoryAgents(
 export { AGENT_CATEGORIES, resolveCategory } from './categories';
 export {
   findAgentsPath,
+  findWorkspaceAgentsPath,
   getRepoStats,
   loadAgentByName,
   loadAgentsByCategory,
   loadAllAgents,
+  loadAllAgentsWithWorkspace,
+  loadWorkspaceAgents,
 } from './loader';
 // Re-export orchestration
 export {
+  // Ad-hoc exports
+  type AdHocAgent,
+  type AdHocGenerationRequest,
+  type AdHocGenerationResponse,
   type AgentRecommendation,
   analyzeTask,
   BUILTIN_AGENTS,
+  // Consilium exports
+  type ConsiliumOptions,
+  type ConsiliumPrepareResult,
   createExecutionPlan,
   type ExecutionPhase,
   type ExecutionPlan,
   type ExecutionStrategy,
+  formatConsiliumExecution,
+  formatConsiliumRecommendation,
   formatOrchestrationJSON,
   formatOrchestrationText,
   formatOrchestrationXML,
@@ -269,6 +332,12 @@ export {
   type OrchestrateOptions,
   type OrchestrationResult,
   orchestrate,
+  prepareAdHocGeneration,
+  prepareConsilium,
+  SAVE_QUALITY_THRESHOLD,
+  saveAdHocAgent,
+  shouldRecommendConsilium,
+  shouldRecommendSave,
   TASK_ROUTER_AGENT,
   type TaskAnalysis,
   type TaskType,

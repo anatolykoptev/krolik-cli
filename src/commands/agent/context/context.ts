@@ -29,7 +29,13 @@ export async function buildAgentContext(
   enrichWithTargetFile(context, projectRoot, options.file);
   enrichWithFeature(context, projectRoot, options.feature);
   enrichWithMemories(context, projectRoot, options.feature, options.includeMemory);
-  enrichWithSkills(context, projectRoot, options.includeSkills !== false);
+
+  // Use plugin skills if provided, otherwise fall back to Felix guardrails
+  if (options.pluginSkills && options.pluginSkills.length > 0) {
+    context.pluginSkills = options.pluginSkills;
+  } else {
+    enrichWithSkills(context, projectRoot, options.includeSkills !== false);
+  }
 
   return context;
 }
@@ -125,6 +131,26 @@ ${sections.join('\n')}
 }
 
 /**
+ * Format plugin skills section (skills from agent's plugin)
+ */
+function formatPluginSkillsSection(context: AgentContext): string | null {
+  if (!context.pluginSkills || context.pluginSkills.length === 0) return null;
+
+  const sections: string[] = [];
+
+  for (const skill of context.pluginSkills) {
+    sections.push(`  <skill name="${skill.name}" plugin="${skill.plugin}">`);
+    sections.push(`    <description>${skill.description}</description>`);
+    sections.push(`    <content><![CDATA[${skill.content}]]></content>`);
+    sections.push(`  </skill>`);
+  }
+
+  return `<plugin-skills>
+${sections.join('\n')}
+</plugin-skills>`;
+}
+
+/**
  * Format context for agent prompt
  */
 export function formatContextForPrompt(context: AgentContext): string {
@@ -169,8 +195,14 @@ ${context.gitDiff}
   const memories = formatMemoriesSection(context);
   if (memories) sections.push(memories);
 
-  const skills = formatSkillsSection(context);
-  if (skills) sections.push(skills);
+  // Plugin skills take priority over Felix guardrails
+  const pluginSkills = formatPluginSkillsSection(context);
+  if (pluginSkills) {
+    sections.push(pluginSkills);
+  } else {
+    const skills = formatSkillsSection(context);
+    if (skills) sections.push(skills);
+  }
 
   return `<project-context>
 ${sections.join('\n\n')}

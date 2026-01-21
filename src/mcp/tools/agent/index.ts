@@ -11,18 +11,17 @@
  * 2. Orchestration mode: Analyze task and coordinate multiple agents
  */
 
-import {
-  findAgentsPath,
-  formatOrchestrationXML,
-  loadAgentByName,
-  loadAgentsByCategory,
-  loadAllAgents,
-  type OrchestrateOptions,
-  orchestrate,
-} from '@/commands/agent';
+import { formatOrchestrationXML, type OrchestrateOptions, orchestrate } from '@/commands/agent';
 import { buildAgentContext, formatContextForPrompt } from '@/commands/agent/context';
 import { saveAgentExecution } from '@/commands/agent/memory';
 import { escapeXml } from '@/lib/@format';
+import {
+  getAgentByName,
+  getAgentsByCategory,
+  getAllAgents,
+  syncAgentsIfNeeded,
+} from '@/lib/@storage/agents/sync';
+import { getSkillsByPlugin, selectRelevantSkills, syncSkillsIfNeeded } from '@/lib/@storage/skills';
 import { type MCPToolDefinition, PROJECT_PROPERTY, registerTool } from '../core';
 import { formatError } from '../core/errors';
 import { resolveProjectPath } from '../core/projects';
@@ -41,7 +40,7 @@ const inputSchema: Record<string, SchemaProperty> = {
   orchestrate: {
     type: 'boolean',
     description:
-      'Enable orchestration mode. Analyzes the task and coordinates multiple specialized agents. Use when user says "use multi-agents" or "мультиагенты".',
+      'Enable orchestration mode. Analyzes the task and coordinates multiple specialized agents. Automatically recommends Agent Architect when no suitable agents found.',
   },
   task: {
     type: 'string',
@@ -84,21 +83,23 @@ const inputSchema: Record<string, SchemaProperty> = {
 // ============================================================================
 
 /**
- * Handle list action - list all available agents
+ * Handle list action - list all available agents from SQLite database
+ * Does not require project - agents are global
  */
-function handleList(projectPath: string, category?: string): string {
-  const agentsPath = findAgentsPath(projectPath);
-  if (!agentsPath) {
-    return '<agent-list error="true"><message>Agents not found. Run: krolik setup agents</message></agent-list>';
+function handleList(projectPath?: string, category?: string): string {
+  // Sync agents if project path provided (for workspace agents)
+  if (projectPath) {
+    syncAgentsIfNeeded(projectPath);
   }
+  // Sync global skills (no project needed)
+  syncSkillsIfNeeded();
 
-  const agents = category
-    ? loadAgentsByCategory(agentsPath, category as Parameters<typeof loadAgentsByCategory>[1])
-    : loadAllAgents(agentsPath);
+  // Get agents from database
+  const agents = category ? getAgentsByCategory(category) : getAllAgents();
 
   if (agents.length === 0) {
     const filter = category ? ` in category "${category}"` : '';
-    return `<agent-list count="0"><message>No agents found${filter}.</message></agent-list>`;
+    return `<agent-list count="0"><message>No agents found${filter}. Run: krolik setup agents</message></agent-list>`;
   }
 
   const lines: string[] = [`<agent-list count="${agents.length}">`];
@@ -124,17 +125,28 @@ async function handleSingleAgent(
   agentName: string,
   options: { file?: string; feature?: string },
 ): Promise<string> {
-  const agentsPath = findAgentsPath(projectPath);
-  if (!agentsPath) {
-    return '<agent-execution error="true"><message>Agents not found. Run: krolik setup agents</message></agent-execution>';
-  }
+  // Sync agents and skills if needed (lazy sync)
+  syncAgentsIfNeeded(projectPath);
+  syncSkillsIfNeeded();
 
-  const agent = loadAgentByName(agentsPath, agentName);
+  // Get agent from database
+  const agent = getAgentByName(agentName);
+
   if (!agent) {
     return `<agent-execution error="true"><message>Agent "${agentName}" not found.</message></agent-execution>`;
   }
 
   const startTime = Date.now();
+
+  // Get all skills for this agent's plugin
+  const allPluginSkills = getSkillsByPlugin(agent.plugin);
+
+  // Select relevant skills based on task (agent name + feature)
+  // This mimics Claude CLI's automatic skill selection by description
+  const taskDescription = [agent.name, agent.description, options.feature, options.file]
+    .filter(Boolean)
+    .join(' ');
+  const pluginSkills = selectRelevantSkills(taskDescription, allPluginSkills, 5);
 
   // Build context
   const context = await buildAgentContext(projectPath, {
@@ -143,6 +155,7 @@ async function handleSingleAgent(
     includeSchema: true,
     includeRoutes: true,
     includeGit: true,
+    pluginSkills, // Pass selected skills (not all)
   });
 
   const contextPrompt = formatContextForPrompt(context);
@@ -168,6 +181,11 @@ async function handleSingleAgent(
   lines.push(escapeXml(fullPrompt));
   lines.push('  </prompt>');
   lines.push(`  <context-duration-ms>${durationMs}</context-duration-ms>`);
+  lines.push('  <instruction>');
+  lines.push('    IMPORTANT: You must now execute this agent. Follow the prompt above and provide');
+  lines.push("    a structured analysis according to the agent's methodology. Do NOT just show");
+  lines.push('    this prompt to the user - actually perform the analysis and return findings.');
+  lines.push('  </instruction>');
   lines.push('</agent-execution>');
 
   return lines.join('\n');
@@ -190,8 +208,9 @@ async function handleOrchestration(
   const orchestrateOptions: OrchestrateOptions = {
     maxAgents: options.maxAgents,
     preferParallel: options.parallel,
-    // Context not needed for orchestration plan - agents will load their own context
-    includeContext: false,
+    // Include context and prompts for immediate execution
+    includeContext: true,
+    includePrompts: true,
     file: options.file,
     feature: options.feature,
     dryRun: options.dryRun,
@@ -221,8 +240,24 @@ async function handleOrchestration(
 
 export const agentTool: MCPToolDefinition = {
   name: 'krolik_agent',
-  description:
-    'Run specialized AI agents with project context. Supports orchestration mode for multi-agent coordination.\n\nORCHESTRATION MODE (orchestrate=true):\nWhen user says "use multi-agents", "мультиагенты", or needs multiple expert analyses:\n1. Set orchestrate=true and provide task description\n2. The orchestrator analyzes the task and identifies needed agents\n3. Creates execution plan (parallel/sequential)\n4. Returns XML for Claude to execute with Task tool\n\nDIRECT MODE (default):\nRun a specific agent by name or category.\n\nExamples:\n- { "name": "security-auditor" } → Run security agent\n- { "category": "quality" } → Run all quality agents\n- { "orchestrate": true, "task": "analyze security and performance" } → Multi-agent orchestration\n- { "list": true } → List all available agents',
+  description: `Run specialized AI agents with project context. Supports orchestration mode for multi-agent coordination.
+
+ORCHESTRATION MODE (orchestrate=true):
+When user says "use multi-agents", "мультиагенты", or needs multiple expert analyses:
+1. Set orchestrate=true and provide task description
+2. The orchestrator analyzes the task and identifies needed agents
+3. Creates execution plan (parallel/sequential)
+4. If no suitable agents found, automatically recommends Agent Architect
+5. Returns XML for Claude to execute with Task tool
+
+DIRECT MODE (default):
+Run a specific agent by name or category.
+
+Examples:
+- { "name": "security-auditor" } → Run security agent
+- { "category": "quality" } → Run all quality agents
+- { "orchestrate": true, "task": "analyze security and performance" } → Multi-agent orchestration
+- { "list": true } → List all available agents`,
 
   inputSchema: {
     type: 'object',
@@ -233,22 +268,29 @@ export const agentTool: MCPToolDefinition = {
 
   handler: async (args, workspaceRoot) => {
     const projectArg = typeof args.project === 'string' ? args.project : undefined;
-    const resolved = resolveProjectPath(workspaceRoot, projectArg);
-
-    if ('error' in resolved) {
-      if (resolved.error.includes('not found')) {
-        return `<agent error="true"><message>Project "${projectArg}" not found.</message></agent>`;
-      }
-      return resolved.error;
-    }
-
-    const projectPath = resolved.path;
 
     try {
-      // Handle list action
-      if (args.list === true) {
+      // Handle list action - does not require project (agents are global)
+      if (args.list === true || (args.category && !args.name && !args.orchestrate)) {
+        // Try to resolve project for workspace agents, but don't fail if not found
+        let projectPath: string | undefined;
+        const resolved = resolveProjectPath(workspaceRoot, projectArg);
+        if (!('error' in resolved)) {
+          projectPath = resolved.path;
+        }
         return handleList(projectPath, args.category as string | undefined);
       }
+
+      // For other actions, project is required
+      const resolved = resolveProjectPath(workspaceRoot, projectArg);
+      if ('error' in resolved) {
+        if (resolved.error.includes('not found')) {
+          return `<agent error="true"><message>Project "${projectArg}" not found.</message></agent>`;
+        }
+        return resolved.error;
+      }
+
+      const projectPath = resolved.path;
 
       // Handle orchestration mode
       if (args.orchestrate === true) {
@@ -277,11 +319,6 @@ export const agentTool: MCPToolDefinition = {
         if (typeof args.file === 'string') agentOpts.file = args.file;
         if (typeof args.feature === 'string') agentOpts.feature = args.feature;
         return await handleSingleAgent(projectPath, args.name as string, agentOpts);
-      }
-
-      // Handle category filter (list agents in category)
-      if (args.category) {
-        return handleList(projectPath, args.category as string);
       }
 
       return '<agent error="true"><message>Please specify an agent name, category, or use orchestrate mode.</message></agent>';

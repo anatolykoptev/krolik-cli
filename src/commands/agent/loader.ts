@@ -1,8 +1,11 @@
 /**
  * @module commands/agent/loader
- * @description Agent loader for wshobson/agents marketplace
+ * @description Agent loader for wshobson/agents marketplace and workspace agents
  *
- * Loads agents, commands, and skills from the repository.
+ * Loads agents from:
+ * 1. wshobson/agents marketplace (plugins/)
+ * 2. Workspace .agent/agents/ folder (flat structure)
+ *
  * See types.ts for terminology definitions.
  */
 
@@ -122,8 +125,154 @@ function loadAgentsFromPlugin(agentsPath: string, pluginName: string): AgentDefi
   return agents;
 }
 
+// ============================================================================
+// WORKSPACE AGENTS (.agent/agents/ folder)
+// ============================================================================
+
 /**
- * Load all agents from repository
+ * Category keywords for inferring category from agent name/description
+ */
+const CATEGORY_KEYWORDS: Record<AgentCategory, string[]> = {
+  security: ['security', 'audit', 'vulnerability', 'penetration', 'owasp', 'secure'],
+  performance: ['performance', 'optimization', 'speed', 'latency', 'benchmark', 'profil'],
+  architecture: ['architecture', 'design', 'pattern', 'structure', 'system', 'planner'],
+  quality: ['quality', 'review', 'refactor', 'clean', 'lint'],
+  debugging: ['debug', 'error', 'bug', 'issue', 'fix', 'troubleshoot'],
+  docs: ['documentation', 'readme', 'api doc', 'swagger', 'comment', 'writer'],
+  frontend: ['frontend', 'ui', 'ux', 'component', 'css', 'react', 'vue'],
+  backend: ['backend', 'api', 'endpoint', 'server', 'specialist'],
+  database: ['database', 'schema', 'query', 'migration', 'sql', 'postgres'],
+  devops: ['devops', 'deploy', 'ci', 'docker', 'kubernetes', 'infrastructure'],
+  testing: ['test', 'tdd', 'unit', 'integration', 'e2e'],
+  other: [],
+};
+
+/**
+ * Infer category from agent name and description
+ */
+function inferCategory(name: string, description: string): AgentCategory {
+  const text = `${name} ${description}`.toLowerCase();
+
+  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (category === 'other') continue;
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) {
+        return category as AgentCategory;
+      }
+    }
+  }
+
+  return 'other';
+}
+
+/**
+ * Find workspace agents path (.agent/agents/)
+ */
+export function findWorkspaceAgentsPath(projectRoot: string): string | null {
+  // Look for .agent/agents/ in workspace root
+  const workspaceAgentsPath = path.resolve(projectRoot, '.agent', 'agents');
+  if (fs.existsSync(workspaceAgentsPath)) {
+    return workspaceAgentsPath;
+  }
+
+  // Try parent directory (for monorepos)
+  const parentAgentsPath = path.resolve(projectRoot, '..', '.agent', 'agents');
+  if (fs.existsSync(parentAgentsPath)) {
+    return parentAgentsPath;
+  }
+
+  return null;
+}
+
+/**
+ * Parse workspace agent frontmatter (different format from plugins)
+ * Workspace agents have: name, description, skills, tools, model
+ */
+function parseWorkspaceAgentFrontmatter(content: string): {
+  name: string;
+  description: string;
+  model: string | undefined;
+  skills: string[];
+  tools: string[];
+  body: string;
+} {
+  const result = parseMarkdownFrontmatter(content);
+
+  // Parse skills as comma-separated or array
+  let skills: string[] = [];
+  if (typeof result.data.skills === 'string') {
+    skills = result.data.skills.split(',').map((s: string) => s.trim());
+  } else if (Array.isArray(result.data.skills)) {
+    skills = result.data.skills;
+  }
+
+  // Parse tools as comma-separated or array
+  let tools: string[] = [];
+  if (typeof result.data.tools === 'string') {
+    tools = result.data.tools.split(',').map((s: string) => s.trim());
+  } else if (Array.isArray(result.data.tools)) {
+    tools = result.data.tools;
+  }
+
+  return {
+    name: (result.data.name as string) ?? 'unknown',
+    description: (result.data.description as string) ?? '',
+    model: result.data.model as string | undefined,
+    skills,
+    tools,
+    body: result.body.trim(),
+  };
+}
+
+/**
+ * Parse a workspace agent file
+ */
+function parseWorkspaceAgentFile(filePath: string): AgentDefinition | null {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const parsed = parseWorkspaceAgentFrontmatter(content);
+
+  // Infer category from name/description
+  const category = inferCategory(parsed.name, parsed.description);
+
+  const agentDef: AgentDefinition = {
+    name: parsed.name,
+    description: parsed.description,
+    content: parsed.body,
+    category,
+    plugin: 'workspace', // Special plugin name for workspace agents
+    filePath,
+    componentType: 'agent',
+  };
+
+  if (parsed.model && ['sonnet', 'opus', 'haiku', 'inherit'].includes(parsed.model)) {
+    agentDef.model = parsed.model as 'sonnet' | 'opus' | 'haiku' | 'inherit';
+  }
+
+  return agentDef;
+}
+
+/**
+ * Load agents from workspace .agent/agents/ folder
+ */
+export function loadWorkspaceAgents(workspaceAgentsPath: string): AgentDefinition[] {
+  if (!fs.existsSync(workspaceAgentsPath)) return [];
+
+  const agentFiles = fs.readdirSync(workspaceAgentsPath, { withFileTypes: true });
+  const agents: AgentDefinition[] = [];
+
+  for (const file of agentFiles) {
+    if (!file.isFile() || !file.name.endsWith('.md')) continue;
+
+    const filePath = path.join(workspaceAgentsPath, file.name);
+    const agent = parseWorkspaceAgentFile(filePath);
+    if (agent) agents.push(agent);
+  }
+
+  return agents;
+}
+
+/**
+ * Load all agents from repository (plugins only, not workspace)
  */
 export function loadAllAgents(agentsPath: string): AgentDefinition[] {
   if (!fs.existsSync(agentsPath)) return [];
@@ -134,6 +283,31 @@ export function loadAllAgents(agentsPath: string): AgentDefinition[] {
   for (const plugin of plugins) {
     if (!plugin.isDirectory()) continue;
     agents.push(...loadAgentsFromPlugin(agentsPath, plugin.name));
+  }
+
+  return agents;
+}
+
+/**
+ * Load all agents from both marketplace and workspace
+ *
+ * @param agentsPath - Path to wshobson/agents plugins
+ * @param projectRoot - Project root for finding workspace agents
+ * @returns Combined list of all agents
+ */
+export function loadAllAgentsWithWorkspace(
+  agentsPath: string,
+  projectRoot: string,
+): AgentDefinition[] {
+  const agents: AgentDefinition[] = [];
+
+  // Load marketplace agents
+  agents.push(...loadAllAgents(agentsPath));
+
+  // Load workspace agents
+  const workspaceAgentsPath = findWorkspaceAgentsPath(projectRoot);
+  if (workspaceAgentsPath) {
+    agents.push(...loadWorkspaceAgents(workspaceAgentsPath));
   }
 
   return agents;

@@ -1,18 +1,33 @@
 /**
  * @module commands/agent/context/enrichers
  * @description Context enrichment functions for agents
+ *
+ * Uses shared cached modules:
+ * - @/lib/@vcs for git operations (cached with 5s TTL)
+ * - @/lib/@context for schema/routes (mtime-based invalidation)
  */
 
-import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { clearRoutesCache, clearSchemaCache, getPrismaSchema, getTrpcRoutes } from '@/lib/@context';
 import { loadContextMemories } from '@/lib/@context/memory';
 import { logger } from '@/lib/@core/logger/logger';
 import { detectLibraries } from '@/lib/@integrations/context7';
 import { searchDocs } from '@/lib/@storage/docs';
 import { getGuardrailsByProject } from '@/lib/@storage/felix';
-import { LIMITS, TIMEOUTS, TRUNCATION } from '../constants';
+import { clearGitCache, getDiff, getStatus, isGitRepo } from '@/lib/@vcs';
+import { LIMITS, TRUNCATION } from '../constants';
 import type { AgentContext, LibraryDocSnippet } from '../types';
+
+/**
+ * Clear all caches (useful for testing)
+ */
+export function clearContextCache(): void {
+  clearSchemaCache();
+  clearRoutesCache();
+  clearGitCache();
+  logger.debug('[agent/context] All caches cleared');
+}
 
 // ============================================================================
 // ENRICHMENT FUNCTIONS
@@ -20,6 +35,7 @@ import type { AgentContext, LibraryDocSnippet } from '../types';
 
 /**
  * Enrich context with schema if enabled
+ * Uses @/lib/@context/schema (cached with mtime invalidation)
  */
 export function enrichWithSchema(
   context: AgentContext,
@@ -27,12 +43,13 @@ export function enrichWithSchema(
   include: boolean,
 ): void {
   if (include === false) return;
-  const schema = getSchema(projectRoot);
+  const schema = getPrismaSchema(projectRoot);
   if (schema) context.schema = schema;
 }
 
 /**
  * Enrich context with routes if enabled
+ * Uses @/lib/@context/routes (cached with mtime invalidation)
  */
 export function enrichWithRoutes(
   context: AgentContext,
@@ -40,12 +57,13 @@ export function enrichWithRoutes(
   include: boolean,
 ): void {
   if (include === false) return;
-  const routes = getRoutes(projectRoot);
+  const routes = getTrpcRoutes(projectRoot);
   if (routes) context.routes = routes;
 }
 
 /**
  * Enrich context with git info if enabled
+ * Uses @/lib/@vcs which has built-in 5s TTL caching
  */
 export function enrichWithGitInfo(
   context: AgentContext,
@@ -53,10 +71,26 @@ export function enrichWithGitInfo(
   include: boolean,
 ): void {
   if (include === false) return;
-  const gitStatus = getGitStatus(projectRoot);
-  const gitDiff = getGitDiff(projectRoot);
-  if (gitStatus) context.gitStatus = gitStatus;
-  if (gitDiff) context.gitDiff = gitDiff;
+  if (!isGitRepo(projectRoot)) return;
+
+  // Get status from @/lib/@vcs (cached)
+  const status = getStatus(projectRoot);
+  if (status.hasChanges) {
+    const lines: string[] = [];
+    for (const file of status.staged) lines.push(`A  ${file}`);
+    for (const file of status.modified) lines.push(` M ${file}`);
+    for (const file of status.untracked) lines.push(`?? ${file}`);
+    context.gitStatus = lines.join('\n');
+  }
+
+  // Get diff from @/lib/@vcs (cached)
+  const diff = getDiff({ cwd: projectRoot });
+  if (diff) {
+    context.gitDiff =
+      diff.length > TRUNCATION.GIT_DIFF
+        ? `${diff.slice(0, TRUNCATION.GIT_DIFF)}\n... (truncated)`
+        : diff;
+  }
 }
 
 /**
@@ -160,95 +194,5 @@ function enrichWithLibraryDocs(task: string, projectRoot: string): LibraryDocSni
       `[agent/context] Library docs enrichment failed: ${error instanceof Error ? error.message : 'unknown'}`,
     );
     return [];
-  }
-}
-
-/**
- * Get Prisma schema summary
- */
-function getSchema(projectRoot: string): string | undefined {
-  const candidates = [
-    path.join(projectRoot, 'packages', 'db', 'prisma'),
-    path.join(projectRoot, 'prisma'),
-  ];
-
-  for (const schemaDir of candidates) {
-    const schemaFile = path.join(schemaDir, 'schema.prisma');
-    if (fs.existsSync(schemaFile)) {
-      return fs.readFileSync(schemaFile, 'utf-8');
-    }
-
-    const modelsDir = path.join(schemaDir, 'models');
-    if (fs.existsSync(modelsDir)) {
-      const files = fs.readdirSync(modelsDir).filter((f) => f.endsWith('.prisma'));
-      const contents = files.map((f) => fs.readFileSync(path.join(modelsDir, f), 'utf-8'));
-      return contents.join('\n\n');
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Get tRPC routes summary
- */
-function getRoutes(projectRoot: string): string | undefined {
-  const candidates = [
-    path.join(projectRoot, 'packages', 'api', 'src', 'routers'),
-    path.join(projectRoot, 'src', 'server', 'routers'),
-    path.join(projectRoot, 'src', 'routers'),
-  ];
-
-  for (const routersDir of candidates) {
-    if (fs.existsSync(routersDir)) {
-      const files = fs.readdirSync(routersDir).filter((f) => f.endsWith('.ts'));
-      if (files.length > 0) {
-        return `Available routers:\n${files.map((f) => `- ${f.replace('.ts', '')}`).join('\n')}`;
-      }
-    }
-  }
-
-  return undefined;
-}
-
-/**
- * Get git status
- */
-function getGitStatus(projectRoot: string): string | undefined {
-  try {
-    return execSync('git status --short', {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-      timeout: TIMEOUTS.GIT_STATUS,
-    }).trim();
-  } catch (error) {
-    logger.debug(
-      `[agent/context] Git status failed: ${error instanceof Error ? error.message : 'unknown'}`,
-    );
-    return undefined;
-  }
-}
-
-/**
- * Get git diff
- */
-function getGitDiff(projectRoot: string): string | undefined {
-  try {
-    const diff = execSync('git diff --stat HEAD~5..HEAD', {
-      cwd: projectRoot,
-      encoding: 'utf-8',
-      timeout: TIMEOUTS.GIT_DIFF,
-    }).trim();
-
-    if (diff.length > TRUNCATION.GIT_DIFF) {
-      return `${diff.slice(0, TRUNCATION.GIT_DIFF)}\n... (truncated)`;
-    }
-
-    return diff;
-  } catch (error) {
-    logger.debug(
-      `[agent/context] Git diff failed: ${error instanceof Error ? error.message : 'unknown'}`,
-    );
-    return undefined;
   }
 }

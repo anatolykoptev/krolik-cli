@@ -58,9 +58,17 @@ export function registerAgentCommand(program: Command): void {
       '--orchestrate',
       'Enable orchestration mode: analyze task and coordinate multiple agents',
     )
-    .option('--task <description>', 'Task description for orchestration (what to analyze)')
-    .option('--max-agents <n>', 'Maximum agents to run in orchestration (default: 5)', parseInt)
+    .option(
+      '--consilium',
+      'Enable consilium mode: dynamically generate specialized agents using Agent Architect',
+    )
+    .option(
+      '--task <description>',
+      'Task description for orchestration/consilium (what to analyze)',
+    )
+    .option('--max-agents <n>', 'Maximum agents to run (default: 5)', parseInt)
     .option('--parallel', 'Prefer parallel execution of agents')
+    .option('--focus <areas>', 'Focus areas for consilium (comma-separated)')
     // LLM options
     .option('--model <name>', 'LLM model to use (gemini-2.0-flash, opus, sonnet)')
     .option('--backend <type>', 'LLM backend type (cli, api)')
@@ -79,9 +87,13 @@ export function registerAgentCommand(program: Command): void {
         includeGit: options.git !== false,
         // Orchestration options
         orchestrate: options.orchestrate,
+        consilium: options.consilium,
         task: options.task,
         maxAgents: options.maxAgents,
         preferParallel: options.parallel,
+        focusAreas: options.focus
+          ? (options.focus as string).split(',').map((s: string) => s.trim())
+          : undefined,
         model: options.model,
         backend: options.backend,
       });

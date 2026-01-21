@@ -13,12 +13,12 @@
 
 import { logger } from '@/lib/@core/logger';
 import {
-  cosineSimilarity,
   generateEmbedding,
   isEmbeddingsAvailable,
   isEmbeddingsLoading,
   preloadEmbeddingPool,
 } from '@/lib/@storage/memory/embeddings';
+import { cosineSimilarity } from '@/lib/@storage/semantic-search';
 
 // ============================================================================
 // CACHE

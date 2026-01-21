@@ -5,12 +5,16 @@
  * Supports two selection modes:
  * - Legacy: Hardcoded primaryAgents lists (default)
  * - Smart: Context-aware scoring with history (--smart-selection flag)
+ *
+ * When no suitable agents are found or task requires agent creation,
+ * recommends Agent Architect to design a new specialized agent.
  */
 
 import { AGENT_CATEGORIES } from '../categories';
 import { LIMITS } from '../constants';
-import { loadAgentsByCategory } from '../loader';
+import { loadAgentByName, loadAgentsByCategory } from '../loader';
 import { type ScoredAgent, selectAgents } from '../selection';
+import type { AgentDefinition } from '../types';
 import type {
   AgentRecommendation,
   ExecutionPhase,
@@ -19,6 +23,84 @@ import type {
   OrchestrateOptions,
   TaskAnalysis,
 } from './types';
+
+/**
+ * Agent Architect configuration
+ * Used when no suitable agents found or when task explicitly requests agent creation
+ */
+const AGENT_ARCHITECT_CONFIG: AgentDefinition = {
+  name: 'agent-architect',
+  description:
+    'Meta-agent that designs and generates production-ready AI agents with skills and tools. Use when you need to create a new specialized agent for any domain.',
+  content: '',
+  category: 'architecture',
+  plugin: 'agent-architect',
+  filePath: '~/.krolik/agents/plugins/agent-architect/agents/architect.md',
+  componentType: 'agent',
+  model: 'inherit',
+};
+
+/**
+ * Confidence threshold below which we suggest Agent Architect
+ */
+const LOW_CONFIDENCE_THRESHOLD = 0.3;
+
+/**
+ * Minimum agents required before suggesting architect
+ */
+const MIN_AGENTS_THRESHOLD = 1;
+
+/**
+ * Create Agent Architect recommendation
+ */
+function createAgentArchitectRecommendation(
+  reason: string,
+  priority: number = 1,
+): AgentRecommendation {
+  return {
+    agent: AGENT_ARCHITECT_CONFIG,
+    priority,
+    reason,
+    parallel: false, // Agent creation should be interactive
+  };
+}
+
+/**
+ * Determine if we should suggest Agent Architect
+ */
+function shouldSuggestAgentArchitect(
+  analysis: TaskAnalysis,
+  existingRecommendations: AgentRecommendation[],
+): { suggest: boolean; reason: string } {
+  // Case 1: Explicit agent creation request
+  if (analysis.taskType === 'agent-creation') {
+    return {
+      suggest: true,
+      reason: 'Task requires creating a new agent',
+    };
+  }
+
+  // Case 2: No agents found
+  if (existingRecommendations.length === 0) {
+    return {
+      suggest: true,
+      reason: `No existing agents match task "${analysis.task.slice(0, 50)}...". Create a specialized agent?`,
+    };
+  }
+
+  // Case 3: Low confidence in matches
+  if (
+    analysis.confidence < LOW_CONFIDENCE_THRESHOLD &&
+    existingRecommendations.length < MIN_AGENTS_THRESHOLD
+  ) {
+    return {
+      suggest: true,
+      reason: `Low confidence (${Math.round(analysis.confidence * 100)}%) in available agents. Consider creating a specialized agent?`,
+    };
+  }
+
+  return { suggest: false, reason: '' };
+}
 
 /**
  * Get agent recommendations for a task
@@ -30,6 +112,15 @@ export function getAgentRecommendations(
 ): AgentRecommendation[] {
   const recommendations: AgentRecommendation[] = [];
   const maxAgents = options.maxAgents ?? 5;
+
+  // Check if task explicitly requests agent creation
+  if (analysis.taskType === 'agent-creation') {
+    const architectRec = createAgentArchitectRecommendation(
+      'Task requires creating a new agent',
+      1,
+    );
+    return [architectRec];
+  }
 
   // Get categories to search
   let categoriesToSearch = analysis.categories;
@@ -65,6 +156,14 @@ export function getAgentRecommendations(
     }
   }
 
+  // Check if we should suggest Agent Architect
+  const { suggest, reason } = shouldSuggestAgentArchitect(analysis, recommendations);
+  if (suggest && recommendations.length < maxAgents) {
+    // Add architect as last recommendation (can create better agent for task)
+    const architectRec = createAgentArchitectRecommendation(reason, recommendations.length + 1);
+    recommendations.push(architectRec);
+  }
+
   return recommendations;
 }
 
@@ -75,6 +174,11 @@ export function getAgentRecommendations(
  * 1. Keyword pre-filtering
  * 2. Context boosting (project profile)
  * 3. History boosting (memory)
+ *
+ * Also suggests Agent Architect when:
+ * - Task explicitly requests agent creation
+ * - No suitable agents found
+ * - Low confidence in matches
  */
 export async function getSmartAgentRecommendations(
   analysis: TaskAnalysis,
@@ -84,6 +188,15 @@ export async function getSmartAgentRecommendations(
 ): Promise<{ recommendations: AgentRecommendation[]; scoredAgents: ScoredAgent[] }> {
   const maxAgents = options.maxAgents ?? 5;
 
+  // Check if task explicitly requests agent creation
+  if (analysis.taskType === 'agent-creation') {
+    const architectRec = createAgentArchitectRecommendation(
+      'Task requires creating a new agent',
+      1,
+    );
+    return { recommendations: [architectRec], scoredAgents: [] };
+  }
+
   // Use smart selection
   const result = await selectAgents(analysis.task, projectRoot, agentsPath, {
     currentFeature: options.feature,
@@ -92,21 +205,36 @@ export async function getSmartAgentRecommendations(
   });
 
   // Convert scored agents to recommendations
-  const recommendations: AgentRecommendation[] = result.agents.map((scored, index) => ({
-    agent: {
-      name: scored.agent.name,
-      description: scored.agent.description,
-      content: '', // Not needed for recommendations
-      category: scored.agent.category,
-      plugin: scored.agent.plugin,
-      filePath: scored.agent.filePath,
-      componentType: 'agent' as const,
-      model: scored.agent.model,
-    },
-    priority: index + 1,
-    reason: formatSmartReason(scored),
-    parallel: options.preferParallel ?? true,
-  }));
+  // Load full agent definitions to get content for prompts
+  const recommendations: AgentRecommendation[] = result.agents.map((scored, index) => {
+    // Load full agent to get content (capabilities index doesn't store it)
+    const fullAgent = loadAgentByName(agentsPath, scored.agent.name);
+    const content = fullAgent?.content ?? '';
+
+    return {
+      agent: {
+        name: scored.agent.name,
+        description: scored.agent.description,
+        content, // Full agent prompt content
+        category: scored.agent.category,
+        plugin: scored.agent.plugin,
+        filePath: scored.agent.filePath,
+        componentType: 'agent' as const,
+        model: scored.agent.model,
+      },
+      priority: index + 1,
+      reason: formatSmartReason(scored),
+      parallel: options.preferParallel ?? true,
+    };
+  });
+
+  // Check if we should suggest Agent Architect
+  const { suggest, reason } = shouldSuggestAgentArchitect(analysis, recommendations);
+  if (suggest && recommendations.length < maxAgents) {
+    // Add architect as last recommendation
+    const architectRec = createAgentArchitectRecommendation(reason, recommendations.length + 1);
+    recommendations.push(architectRec);
+  }
 
   return { recommendations, scoredAgents: result.agents };
 }
