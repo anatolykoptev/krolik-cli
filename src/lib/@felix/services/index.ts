@@ -1,5 +1,5 @@
 /**
- * @ralph/services - Session and storage services
+ * @felix/services - Session and storage services
  */
 
 export {

@@ -7,7 +7,7 @@
  */
 
 import type { PRDTask } from '../schemas/prd.schema.js';
-import type { RalphLoopState, TaskExecutionResult } from '../types.js';
+import type { FelixLoopState, TaskExecutionResult } from '../types.js';
 import { groupTasksByLevel } from './task-levels.js';
 
 // Re-export for backward compatibility
@@ -33,7 +33,7 @@ export interface ParallelExecutionConfig {
  */
 export function filterRunnableTasks(
   tasks: PRDTask[],
-  state: RalphLoopState,
+  state: FelixLoopState,
 ): { runnableTasks: PRDTask[]; skippedTasks: string[] } {
   const runnableTasks: PRDTask[] = [];
   const skippedTasks: string[] = [];
@@ -97,7 +97,7 @@ export async function executeTasksInParallel(
  */
 export function processTaskResults(
   results: TaskExecutionResult[],
-  state: RalphLoopState,
+  state: FelixLoopState,
   continueOnFailure: boolean,
 ): { shouldBreak: boolean } {
   let shouldBreak = false;

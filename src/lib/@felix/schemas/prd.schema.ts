@@ -123,7 +123,7 @@ export type PRDTask = z.infer<typeof PRDTaskSchema>;
 /**
  * Krolik Felix configuration
  */
-export const RalphConfigSchema = z.object({
+export const FelixConfigSchema = z.object({
   /** Max retry attempts per task */
   maxAttempts: z.number().min(1).max(10).default(3),
   /** Total token budget (optional) */
@@ -143,7 +143,7 @@ export const RalphConfigSchema = z.object({
   /** Custom test command */
   testCommand: z.string().optional(),
 });
-export type RalphConfig = z.infer<typeof RalphConfigSchema>;
+export type FelixConfig = z.infer<typeof FelixConfigSchema>;
 
 /**
  * Full PRD document schema
@@ -162,7 +162,7 @@ export const PRDSchema = z.object({
   /** Last update timestamp */
   updatedAt: z.string().datetime().optional(),
   /** Configuration options */
-  config: RalphConfigSchema.optional(),
+  config: FelixConfigSchema.optional(),
   /** List of tasks to implement */
   tasks: z.array(PRDTaskSchema).min(1, 'At least one task is required'),
   /** Optional metadata */

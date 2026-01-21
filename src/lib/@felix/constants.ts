@@ -1,5 +1,5 @@
 /**
- * Ralph Module Constants
+ * Felix Module Constants
  *
  * Centralized configuration values to prevent magic numbers
  * and enable easy tuning of timeouts/limits.

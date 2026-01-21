@@ -34,13 +34,13 @@ export {
 export { detectTaskType, type TaskType } from './task-analyzer';
 // Templates
 export {
+  FELIX_RETRY_SYSTEM_PROMPT,
   FELIX_SYSTEM_PROMPT,
   fillTemplate,
   formatAcceptanceCriteria,
   formatContextFiles,
   formatGuardrails,
   formatHints,
-  RALPH_RETRY_SYSTEM_PROMPT,
   RETRY_PROMPT_TEMPLATE,
   TASK_PROMPT_TEMPLATE,
 } from './templates';

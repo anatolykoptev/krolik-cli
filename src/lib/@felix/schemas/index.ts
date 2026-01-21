@@ -2,7 +2,7 @@
  * Krolik Felix Schemas
  *
  * Zod validation schemas for PRD.json input.
- * Progress and Guardrails are stored in SQLite (see @storage/ralph).
+ * Progress and Guardrails are stored in SQLite (see @storage/felix).
  *
  * @module @felix/schemas
  */

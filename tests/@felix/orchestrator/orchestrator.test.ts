@@ -49,7 +49,7 @@ describe('FelixOrchestrator Integration', () => {
       });
 
       it('should accept valid project paths', () => {
-        const service = createSQLiteSessionService(tempDir);
+        const service = createSQLiteSessionService(tempDir, { autoCleanup: false });
         expect(service).toBeDefined();
         closeDatabase({ scope: 'project', projectPath: tempDir });
       });
@@ -110,13 +110,23 @@ describe('FelixOrchestrator Integration', () => {
       });
 
       it('should respect autoCleanup=false option', async () => {
-        // Create initial service and add a session
-        const dbPath = join(tempDir, '.krolik', 'ralph-sessions.db');
-        mkdirSync(join(tempDir, '.krolik'), { recursive: true });
+        // Setup shared DB with tables
+        const dbPath = join(tempDir, '.krolik', 'memory', 'krolik.db');
+        mkdirSync(join(tempDir, '.krolik', 'memory'), { recursive: true });
 
         const db = new Database(dbPath);
+        // Create full schema directly to bypass migration issues
         db.exec(`
-          CREATE TABLE ralph_adk_sessions (
+          CREATE TABLE IF NOT EXISTS schema_versions (
+            id INTEGER PRIMARY KEY,
+            version INTEGER UNIQUE NOT NULL,
+            applied_at TEXT NOT NULL
+          );
+          
+          -- Set version to 10 to suppress migrations
+          INSERT INTO schema_versions (version, applied_at) VALUES (10, '${new Date().toISOString()}');
+
+          CREATE TABLE IF NOT EXISTS ralph_adk_sessions (
             id TEXT PRIMARY KEY,
             app_name TEXT NOT NULL,
             user_id TEXT NOT NULL,
@@ -124,7 +134,7 @@ describe('FelixOrchestrator Integration', () => {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
-          CREATE TABLE ralph_adk_events (
+          CREATE TABLE IF NOT EXISTS ralph_adk_events (
             id TEXT PRIMARY KEY,
             session_id TEXT NOT NULL,
             invocation_id TEXT NOT NULL,
@@ -136,42 +146,10 @@ describe('FelixOrchestrator Integration', () => {
             FOREIGN KEY(session_id) REFERENCES ralph_adk_sessions(id) ON DELETE CASCADE
           );
         `);
+        db.close();
 
-        const initialService = new SQLiteSessionService(db);
-        await initialService.createSession({
-          appName: 'test-app',
-          userId: 'user-1',
-        });
-        initialService.close();
-
-        // Create new service with autoCleanup disabled (via factory which uses getProjectDatabase)
-        // Note: createSQLiteSessionService uses getProjectDatabase which looks for .krolik/krolik.db
-        // To mock this correctly in integration test, we might need to mock getProjectDatabase or set up .krolik/krolik.db
-        // But here we are testing logic, maybe we should manually create service again?
-
-        // Let's manually create service to avoid factory dependency issues in test environment
-        const db2 = new Database(dbPath);
-        const service = new SQLiteSessionService(db2);
-        // We can't easily test constructor autoCleanup logic without factory wrapper or modifying constructor
-        // But the test was 'should respect autoCleanup=false option' which is a factory option.
-        // So we MUST use the factory.
-
-        // The factory uses getProjectDatabase(tempDir). This creates .krolik/krolik.db
-        // And it likely runs migrations.
-        // So we should rely on factory for this test.
-
-        const serviceViaFactory = createSQLiteSessionService(tempDir, {
-          sessionTtlDays: 0,
-          autoCleanup: false,
-        });
-
-        // But we need to make sure the session we created earlier (in ralph-sessions.db) is visible?
-        // No, factory uses krolik.db.
-        // So we should create the initial session utilizing the factory as well (or same DB).
-        closeDatabase({ scope: 'project', projectPath: tempDir });
-
-        // Re-write test to be cohesive using factory
-        const service1 = createSQLiteSessionService(tempDir);
+        // Create initial service (will use the DB we just prepared)
+        const service1 = createSQLiteSessionService(tempDir, { autoCleanup: false });
         await service1.createSession({ appName: 'test-app', userId: 'user-1' });
         closeDatabase({ scope: 'project', projectPath: tempDir });
 

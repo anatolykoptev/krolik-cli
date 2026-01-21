@@ -15,7 +15,7 @@ import type { CostTracking } from '../plugins/cost-plugin.js';
 import type { QualityGateMode } from '../plugins/quality-gate-plugin.js';
 import type { RateLimitPluginConfig } from '../plugins/rate-limit-plugin.js';
 import type { ValidationStep } from '../plugins/validation-plugin.js';
-import type { RalphLoopEvent, RalphLoopState, TaskExecutionResult } from '../types.js';
+import type { FelixLoopEvent, FelixLoopState, TaskExecutionResult } from '../types.js';
 
 /**
  * Orchestrator configuration
@@ -38,7 +38,7 @@ export interface FelixOrchestratorConfig {
   /** Continue to next task on failure */
   continueOnFailure?: boolean;
   /** Event handler for progress updates */
-  onEvent?: (event: RalphLoopEvent) => void;
+  onEvent?: (event: FelixLoopEvent) => void;
   /** Cost update callback */
   onCostUpdate?: (tracking: CostTracking) => void;
   /** Custom plugins to add */
@@ -73,6 +73,8 @@ export interface FelixOrchestratorConfig {
    * The Router analyzes PRD complexity and chooses single/multi-agent mode.
    */
   useMultiAgentMode?: boolean;
+  /** Automatically move PRD files to .krolik/felix/prd/ if found in wrong location (default: true) */
+  autoMovePrdFiles?: boolean;
 }
 
 /**
@@ -91,7 +93,8 @@ type DefaultedConfigKeys =
   | 'enableParallelExecution'
   | 'maxParallelTasks'
   | 'enableCheckpoints'
-  | 'useMultiAgentMode';
+  | 'useMultiAgentMode'
+  | 'autoMovePrdFiles';
 
 /**
  * Resolved config with defaults applied
@@ -108,7 +111,7 @@ export type ResolvedConfig = Required<
  */
 export interface OrchestratorResult {
   success: boolean;
-  state: RalphLoopState;
+  state: FelixLoopState;
   taskResults: TaskExecutionResult[];
   totalCost: number;
   totalTokens: number;

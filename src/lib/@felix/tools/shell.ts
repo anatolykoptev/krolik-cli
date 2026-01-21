@@ -1,6 +1,6 @@
 /**
  * @module lib/@felix/tools/shell
- * @description Shell execution tools for Ralph Agent
+ * @description Shell execution tools for Felix Agent
  */
 
 import { exec } from 'node:child_process';
@@ -10,7 +10,7 @@ import { logger } from '@/lib/@core/logger/logger';
  * Run shell command
  */
 export function runCommand(projectRoot: string, command: string): Promise<string> {
-  logger.info(`[ralph:shell] Executing: ${command}`);
+  logger.info(`[felix:shell] Executing: ${command}`);
 
   return new Promise((resolve) => {
     exec(command, { cwd: projectRoot, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {

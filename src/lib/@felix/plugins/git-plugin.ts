@@ -51,7 +51,7 @@ export class GitPlugin extends BasePlugin {
     super('git');
     this.config = {
       autoCommit: false,
-      commitPrefix: '[ralph]',
+      commitPrefix: '[felix]',
       detectSecrets: true,
       secretPatterns: DEFAULT_SECRET_PATTERNS,
       ...config,

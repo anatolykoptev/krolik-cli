@@ -7,7 +7,7 @@
  */
 
 import type { Event } from '@google/adk';
-import type { RalphLoopEvent, RalphLoopEventHandler } from '../types.js';
+import type { FelixLoopEvent, FelixLoopEventHandler } from '../types.js';
 import { createComponentLogger } from '../utils/logger.js';
 import type { CostState, RetryState, ValidationState } from './types.js';
 
@@ -17,15 +17,15 @@ const logger = createComponentLogger('event-handler');
  * Event handler configuration
  */
 export interface EventHandlerConfig {
-  onEvent: (event: RalphLoopEvent) => void;
-  eventHandlers: Set<RalphLoopEventHandler>;
+  onEvent: (event: FelixLoopEvent) => void;
+  eventHandlers: Set<FelixLoopEventHandler>;
   now: () => string;
 }
 
 /**
  * Emit event to all handlers
  */
-export function emitEvent(event: RalphLoopEvent, config: EventHandlerConfig): void {
+export function emitEvent(event: FelixLoopEvent, config: EventHandlerConfig): void {
   // Call config handler
   config.onEvent(event);
 
@@ -45,8 +45,8 @@ export function emitEvent(event: RalphLoopEvent, config: EventHandlerConfig): vo
 /**
  * Create an emit function bound to config
  */
-export function createEmitter(config: EventHandlerConfig): (event: RalphLoopEvent) => void {
-  return (event: RalphLoopEvent) => emitEvent(event, config);
+export function createEmitter(config: EventHandlerConfig): (event: FelixLoopEvent) => void {
+  return (event: FelixLoopEvent) => emitEvent(event, config);
 }
 
 /**

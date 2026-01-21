@@ -74,7 +74,7 @@ export function getRoutingPatterns(signatureHash: string, projectPath: string): 
   const db = getProjectDatabase(projectPath);
 
   const sql = `
-    SELECT * FROM ralph_routing_patterns
+    SELECT * FROM felix_routing_patterns
     WHERE signature_hash = ?
     ORDER BY success_count DESC
   `;
@@ -107,7 +107,7 @@ export function updateRoutingPattern(
 
   // Try to update existing pattern
   const updateSql = `
-    UPDATE ralph_routing_patterns SET
+    UPDATE felix_routing_patterns SET
       success_count = success_count + ?,
       fail_count = fail_count + ?,
       avg_cost = (avg_cost * (success_count + fail_count) + ?) / (success_count + fail_count + 1),
@@ -124,7 +124,7 @@ export function updateRoutingPattern(
   // If no row was updated, insert new one
   if (result.changes === 0) {
     const insertSql = `
-      INSERT INTO ralph_routing_patterns (signature_hash, model, success_count, fail_count, avg_cost, last_updated)
+      INSERT INTO felix_routing_patterns (signature_hash, model, success_count, fail_count, avg_cost, last_updated)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
     const insertStmt = prepareStatement<[string, string, number, number, number, string]>(
@@ -260,14 +260,14 @@ export function getRoutingStats(projectPath: string): {
   const db = getProjectDatabase(projectPath);
 
   // Total patterns
-  const totalSql = 'SELECT COUNT(*) as count FROM ralph_routing_patterns';
+  const totalSql = 'SELECT COUNT(*) as count FROM felix_routing_patterns';
   const totalStmt = prepareStatement<[], { count: number }>(db, totalSql);
   const totalRow = totalStmt.get();
   const totalPatterns = totalRow?.count ?? 0;
 
   // Patterns with sufficient data
   const sufficientSql = `
-    SELECT COUNT(*) as count FROM ralph_routing_patterns
+    SELECT COUNT(*) as count FROM felix_routing_patterns
     WHERE success_count + fail_count >= ?
   `;
   const sufficientStmt = prepareStatement<[number], { count: number }>(db, sufficientSql);
@@ -277,7 +277,7 @@ export function getRoutingStats(projectPath: string): {
   // Model distribution
   const distSql = `
     SELECT model, SUM(success_count) as success, SUM(fail_count) as fail
-    FROM ralph_routing_patterns
+    FROM felix_routing_patterns
     GROUP BY model
   `;
   const distStmt = prepareStatement<[], { model: string; success: number; fail: number }>(
@@ -302,7 +302,7 @@ export function getRoutingStats(projectPath: string): {
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN escalated_from IS NOT NULL THEN 1 ELSE 0 END) as escalated
-    FROM ralph_attempts
+    FROM felix_attempts
   `;
   const escalationStmt = prepareStatement<[], { total: number; escalated: number }>(
     db,

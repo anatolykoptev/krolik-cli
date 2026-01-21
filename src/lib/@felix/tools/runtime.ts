@@ -1,6 +1,6 @@
 /**
  * @module lib/@felix/tools/runtime
- * @description Runtime environment for Ralph Actions with telemetry, safety, and observation
+ * @description Runtime environment for Felix Actions with telemetry, safety, and observation
  */
 
 import { discoverContextFiles } from '@/lib/@context/discovery';

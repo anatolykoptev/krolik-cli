@@ -12,13 +12,13 @@ import type { InjectedContext } from './injector';
 import { formatInjectedContext, type InjectContextOptions, injectContext } from './injector';
 import { detectTaskType } from './task-analyzer';
 import {
+  FELIX_RETRY_SYSTEM_PROMPT,
   FELIX_SYSTEM_PROMPT,
   fillTemplate,
   formatAcceptanceCriteria,
   formatContextFiles,
   formatGuardrails,
   formatHints,
-  RALPH_RETRY_SYSTEM_PROMPT,
   RETRY_PROMPT_TEMPLATE,
   TASK_PROMPT_TEMPLATE,
 } from './templates';
@@ -122,7 +122,7 @@ export async function buildPrompt(
  * Build system prompt for retry
  */
 function buildRetrySystemPrompt(failureReason?: string, guardrails?: FelixGuardrail[]): string {
-  return fillTemplate(RALPH_RETRY_SYSTEM_PROMPT, {
+  return fillTemplate(FELIX_RETRY_SYSTEM_PROMPT, {
     FAILURE_REASON: failureReason ?? 'Unknown failure',
     GUARDRAILS: formatGuardrails(
       guardrails?.map((g) => ({ problem: g.problem, solution: g.solution })) ?? [],

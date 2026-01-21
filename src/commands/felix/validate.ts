@@ -6,6 +6,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { escapeXml } from '../../lib/@core/xml';
+import { resolveConfig, resolvePrdPath } from '../../lib/@felix/orchestrator/config-resolver';
+import type { FelixOrchestratorConfig } from '../../lib/@felix/orchestrator/types';
 import { getTaskExecutionOrder, type PRD, validatePRD } from '../../lib/@felix/schemas/prd.schema';
 
 /**
@@ -83,10 +85,27 @@ export function validatePrdFile(
     };
   }
 
-  const { prd, errors } = loadAndValidatePRD(foundPath);
+  // Auto-move PRD file to correct location if needed
+  let resolvedPath = foundPath;
+  try {
+    const config: FelixOrchestratorConfig = { projectRoot, prdPath: foundPath };
+    const resolved = resolveConfig(config);
+    resolvedPath = resolvePrdPath(resolved);
+  } catch (error) {
+    // If resolvePrdPath fails (e.g., file in wrong location and user declined move),
+    // continue with foundPath to show validation errors
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      valid: false,
+      path: foundPath,
+      errors: [message],
+    };
+  }
+
+  const { prd, errors } = loadAndValidatePRD(resolvedPath);
 
   if (!prd) {
-    return { valid: false, path: foundPath, errors };
+    return { valid: false, path: resolvedPath, errors };
   }
 
   const orderedTasks = getTaskExecutionOrder(prd.tasks);
@@ -94,7 +113,7 @@ export function validatePrdFile(
 
   return {
     valid: true,
-    path: foundPath,
+    path: resolvedPath,
     taskCount: prd.tasks.length,
     executionOrder,
     errors: [],

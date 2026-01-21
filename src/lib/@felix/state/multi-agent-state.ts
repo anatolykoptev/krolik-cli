@@ -21,7 +21,7 @@ interface SessionState {
 /**
  * Multi-Agent State Manager
  *
- * Wraps ADK session state with typed accessors for Ralph
+ * Wraps ADK session state with typed accessors for Felix
  */
 export class MultiAgentState {
   constructor(private readonly state: SessionState) {}

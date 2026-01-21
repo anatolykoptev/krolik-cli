@@ -1,5 +1,5 @@
 /**
- * Quality Gate Types for Ralph Executor
+ * Quality Gate Types for Felix Executor
  *
  * Types and interfaces for quality gate configuration and results.
  *
@@ -115,7 +115,7 @@ export async function runQualityGate(
     // Collect all issues from the quality report
     const allIssues = qualityResult.report.files.flatMap((file) => file.issues);
 
-    // Filter issues by audit mode (pre-commit, release, etc.) - Ralph's good idea
+    // Filter issues by audit mode (pre-commit, release, etc.) - Felix's good idea
     const filteredIssues = filterByIntent(allIssues, { mode: auditMode });
 
     // Parse issues and count by severity

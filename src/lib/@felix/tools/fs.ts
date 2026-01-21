@@ -1,6 +1,6 @@
 /**
  * @module lib/@felix/tools/fs
- * @description File system tools for Ralph Agent
+ * @description File system tools for Felix Agent
  */
 
 import * as fs from 'node:fs';
@@ -41,7 +41,7 @@ export function writeFile(projectRoot: string, filePath: string, content: string
   }
 
   fs.writeFileSync(fullPath, content, 'utf-8');
-  logger.info(`[ralph:fs] Wrote file: ${filePath}`);
+  logger.info(`[felix:fs] Wrote file: ${filePath}`);
 }
 
 /**
@@ -59,7 +59,7 @@ export function replaceInFile(
   }
   const newContent = content.replace(search, replace);
   writeFile(projectRoot, filePath, newContent);
-  logger.info(`[ralph:fs] Replaced content in: ${filePath}`);
+  logger.info(`[felix:fs] Replaced content in: ${filePath}`);
 }
 
 /**

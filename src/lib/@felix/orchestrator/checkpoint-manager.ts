@@ -2,7 +2,7 @@
  * CheckpointManager - Crash recovery with SQLite checkpoints
  *
  * Uses the central krolik.db database via @storage/database
- * Table: ralph_checkpoints (created in migration 9)
+ * Table: felix_checkpoints (created in migration 9, renamed in migration 11)
  *
  * @module @felix/orchestrator/checkpoint-manager
  */
@@ -11,8 +11,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { normalize, resolve as resolvePath } from 'node:path';
 import type Database from 'better-sqlite3';
-import { getProjectDatabase } from '../../@storage/database.js';
-import type { RalphLoopState, TaskExecutionResult } from '../types.js';
+import { getProjectDatabase } from '../../@storage/database/index.js';
+import type { FelixLoopState, TaskExecutionResult } from '../types.js';
 import type { FelixOrchestratorConfig } from './types.js';
 
 /**
@@ -63,7 +63,7 @@ export interface Checkpoint {
   sessionId: string;
   prdPath: string;
   prdHash: string;
-  state: RalphLoopState;
+  state: FelixLoopState;
   taskResults: TaskExecutionResult[];
   config: Partial<FelixOrchestratorConfig>;
   createdAt: string;
@@ -96,7 +96,7 @@ type SerializableConfig = Omit<
 /**
  * CheckpointManager - Manages crash recovery checkpoints using central krolik.db
  *
- * Table used (from migration 9): ralph_checkpoints
+ * Table used (from migration 9, renamed in migration 11): felix_checkpoints
  */
 export class CheckpointManager {
   private db: Database.Database;
@@ -117,7 +117,7 @@ export class CheckpointManager {
 
     this.db
       .prepare(
-        `INSERT INTO ralph_checkpoints (id, session_id, prd_path, prd_hash, state, task_results, config, created_at, updated_at)
+        `INSERT INTO felix_checkpoints (id, session_id, prd_path, prd_hash, state, task_results, config, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            state = excluded.state,
@@ -144,7 +144,7 @@ export class CheckpointManager {
   loadCheckpoint(prdPath: string): Checkpoint | null {
     const row = this.db
       .prepare(
-        `SELECT * FROM ralph_checkpoints
+        `SELECT * FROM felix_checkpoints
          WHERE prd_path = ?
          ORDER BY updated_at DESC
          LIMIT 1`,
@@ -162,7 +162,7 @@ export class CheckpointManager {
   loadCheckpointBySession(sessionId: string): Checkpoint | null {
     const row = this.db
       .prepare(
-        `SELECT * FROM ralph_checkpoints
+        `SELECT * FROM felix_checkpoints
          WHERE session_id = ?
          ORDER BY updated_at DESC
          LIMIT 1`,
@@ -185,14 +185,14 @@ export class CheckpointManager {
    * Clear checkpoint after successful completion
    */
   clearCheckpoint(sessionId: string): void {
-    this.db.prepare(`DELETE FROM ralph_checkpoints WHERE session_id = ?`).run(sessionId);
+    this.db.prepare(`DELETE FROM felix_checkpoints WHERE session_id = ?`).run(sessionId);
   }
 
   /**
    * Clear checkpoint by PRD path
    */
   clearCheckpointByPrd(prdPath: string): void {
-    this.db.prepare(`DELETE FROM ralph_checkpoints WHERE prd_path = ?`).run(prdPath);
+    this.db.prepare(`DELETE FROM felix_checkpoints WHERE prd_path = ?`).run(prdPath);
   }
 
   /**
@@ -200,7 +200,7 @@ export class CheckpointManager {
    */
   listCheckpoints(): Checkpoint[] {
     const rows = this.db
-      .prepare(`SELECT * FROM ralph_checkpoints ORDER BY updated_at DESC`)
+      .prepare(`SELECT * FROM felix_checkpoints ORDER BY updated_at DESC`)
       .all() as CheckpointRow[];
 
     return rows.map((row) => this.rowToCheckpoint(row));
@@ -235,7 +235,7 @@ export class CheckpointManager {
       sessionId: row.session_id,
       prdPath: row.prd_path,
       prdHash: row.prd_hash,
-      state: JSON.parse(row.state) as RalphLoopState,
+      state: JSON.parse(row.state) as FelixLoopState,
       taskResults: JSON.parse(row.task_results) as TaskExecutionResult[],
       config: JSON.parse(row.config) as Partial<FelixOrchestratorConfig>,
       createdAt: row.created_at,
@@ -273,7 +273,7 @@ export class CheckpointManager {
 
     const result = this.db
       .prepare(
-        `DELETE FROM ralph_checkpoints
+        `DELETE FROM felix_checkpoints
          WHERE updated_at < datetime('now', '-' || ? || ' days')`,
       )
       .run(maxAgeDays);

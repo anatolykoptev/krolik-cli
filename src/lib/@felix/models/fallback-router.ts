@@ -12,8 +12,8 @@
 
 import type { BaseLlm } from '@google/adk';
 import { getHealthMonitor, type HealthMonitor } from './health-monitor.js';
+import type { BackendType, LlmFactory } from './llm-factory.js';
 import { detectProvider, type ModelProvider, PROVIDERS } from './model-config.js';
-import type { BackendType, ModelRegistry } from './registry.js';
 
 // ============================================================================
 // TYPES
@@ -46,8 +46,8 @@ interface FallbackAttempt {
  *
  * @example
  * ```typescript
- * const registry = getModelRegistry();
- * const router = new FallbackRouter(registry);
+ * const factory = getLlmFactory();
+ * const router = new FallbackRouter(factory);
  *
  * // Get LLM with automatic fallback
  * const llm = await router.getLlmWithFallback('sonnet');
@@ -66,7 +66,7 @@ export class FallbackRouter {
   private healthMonitor: HealthMonitor;
 
   constructor(
-    private registry: ModelRegistry,
+    private factory: LlmFactory,
     healthMonitor?: HealthMonitor,
   ) {
     this.healthMonitor = healthMonitor ?? getHealthMonitor();
@@ -169,7 +169,7 @@ export class FallbackRouter {
       throw new Error(`Cannot detect provider for model: ${model}`);
     }
 
-    const defaultBackend = this.registry.getDefaultBackend();
+    const defaultBackend = this.factory.getDefaultBackend();
     const alternateBackend: BackendType = defaultBackend === 'cli' ? 'api' : 'cli';
 
     // Get alternate provider (first available provider that's not the current one)
@@ -214,7 +214,7 @@ export class FallbackRouter {
     try {
       // Check if provider is available for CLI backend
       if (backend === 'cli') {
-        const isAvailable = await this.registry.isCliAvailable(model);
+        const isAvailable = await this.factory.isCliAvailable(model);
         if (!isAvailable) {
           return {
             success: false,
@@ -223,7 +223,13 @@ export class FallbackRouter {
         }
       }
 
-      const llm = this.registry.getLlm(model, backend);
+      // Use provider-specific LLM creation
+      const llm = this.factory.createForProvider(
+        model,
+        provider,
+        backend,
+        this.factory.getWorkingDirectory(),
+      );
 
       // Verify LLM is actually usable (basic check)
       if (!llm) {

@@ -240,7 +240,7 @@ export interface FailureContextForRetry {
 // Krolik Felix Orchestrator Types
 // ============================================================================
 
-export interface RalphLoopOptions {
+export interface FelixLoopOptions {
   projectRoot: string;
   prdPath?: string;
   progressPath?: string;
@@ -251,7 +251,7 @@ export interface RalphLoopOptions {
   continueOnFailure?: boolean;
 }
 
-export interface RalphLoopState {
+export interface FelixLoopState {
   status: 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
   sessionId?: string;
   currentTaskId?: string;
@@ -282,9 +282,9 @@ export interface TaskExecutionResult {
 
 export type CircuitBreakerState = 'closed' | 'open' | 'half_open';
 
-export type RalphLoopEvent =
+export type FelixLoopEvent =
   | { type: 'loop_started'; timestamp: string }
-  | { type: 'loop_completed'; timestamp: string; state: RalphLoopState }
+  | { type: 'loop_completed'; timestamp: string; state: FelixLoopState }
   | { type: 'loop_failed'; timestamp: string; error: string }
   | { type: 'loop_cancelled'; timestamp: string }
   | { type: 'task_started'; timestamp: string; taskId: string }
@@ -316,9 +316,9 @@ export type RalphLoopEvent =
       summary: QualityGateSummary;
     };
 
-export type RalphLoopEventHandler = (event: RalphLoopEvent) => void;
+export type FelixLoopEventHandler = (event: FelixLoopEvent) => void;
 
 /**
- * Event emitter function type (alias for RalphLoopEventHandler)
+ * Event emitter function type (alias for FelixLoopEventHandler)
  */
-export type EventEmitter = (event: RalphLoopEvent) => void;
+export type EventEmitter = (event: FelixLoopEvent) => void;

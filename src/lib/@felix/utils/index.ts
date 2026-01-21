@@ -1,13 +1,13 @@
 /**
  * @module @felix/utils
- * @description Utility functions for Ralph orchestrator
+ * @description Utility functions for Felix orchestrator
  */
 
 export {
   createComponentLogger,
   createFelixLogger,
-  type RalphLogContext,
-  type RalphLogger,
-  type RalphLogLevel,
-  ralphLogger,
+  type FelixLogContext,
+  type FelixLogger,
+  type FelixLogLevel,
+  felixLogger,
 } from './logger';

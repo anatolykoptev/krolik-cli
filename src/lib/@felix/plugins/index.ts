@@ -1,5 +1,5 @@
 /**
- * @ralph/plugins - ADK plugins for Ralph orchestration
+ * @felix/plugins - ADK plugins for Felix orchestration
  */
 
 export {

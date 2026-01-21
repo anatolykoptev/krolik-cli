@@ -59,7 +59,7 @@ function buildOrchestratorInstruction(prd: PRD): string {
   parts.push('');
 
   parts.push('## Progress Tracking');
-  parts.push('Task results are stored in session state with keys like `task:{id}:result`');
+  parts.push('Task results are stored in session state with keys like `task:[taskId]:result`');
   parts.push('Use the tools provided to check status, retry, or skip tasks.');
 
   return parts.join('\n');

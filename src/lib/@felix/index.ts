@@ -8,7 +8,7 @@
  * - Multi-LLM support: Claude (Anthropic) + Gemini (Google)
  * - Plugin system: Validation, Retry, Cost, Context, Quality Gate
  * - PRD.json validation via Zod schemas
- * - Progress/Attempts/Guardrails stored in SQLite (@storage/ralph)
+ * - Progress/Attempts/Guardrails stored in SQLite (@storage/felix)
  *
  * @module @felix
  */
@@ -41,7 +41,7 @@ export {
   type Session,
 } from '@google/adk';
 
-// Export Ralph LLM implementations
+// Export Felix LLM implementations
 export {
   type BackendType as LlmBackendType,
   // CLI-based LLMs
@@ -57,20 +57,14 @@ export {
   FallbackRouter,
   GeminiCliLlm,
   type GeminiCliLlmParams,
-  getApiLlm,
-  getCliLlm,
   getHealthMonitor,
-  getLlm,
-  getModelRegistry,
+  getLlmFactory,
   // Health & Fallback
   HealthMonitor,
+  type LlmFactory,
   LruCache,
-  // Model Registry
-  ModelRegistry,
-  type RegistryConfig,
-  resetModelRegistry,
 } from './models/index.js';
-// Export Ralph orchestrator
+// Export Felix orchestrator
 export {
   createOrchestrator,
   FelixOrchestrator,
@@ -78,7 +72,7 @@ export {
   type OrchestratorResult,
 } from './orchestrator/index.js';
 
-// Export Ralph plugins
+// Export Felix plugins
 export {
   CostPlugin,
   type CostPluginConfig,
@@ -104,7 +98,7 @@ export {
 } from './services/index.js';
 
 // ============================================================================
-// Core Ralph Components
+// Core Felix Components
 // ============================================================================
 
 // Context Injection (exports from ./context module)

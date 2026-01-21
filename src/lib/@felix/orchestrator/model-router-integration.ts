@@ -1,14 +1,14 @@
 /**
  * Model Router Integration
  *
- * Bridges the Model Router with the Ralph Orchestrator.
+ * Bridges the Model Router with the Felix Orchestrator.
  * Handles per-task model selection and cascade escalation.
  *
  * @module @felix/orchestrator/model-router-integration
  */
 
 import type { BaseLlm } from '@google/adk';
-import type { ModelRegistry } from '../models/registry.js';
+import type { LlmFactory } from '../models/llm-factory.js';
 import { getModelTier } from '../router/model-tiers.js';
 import { type PRDRoutingPlan, routePRD, routeTask } from '../router/router.js';
 import type {
@@ -42,7 +42,7 @@ export interface ModelRouterIntegration {
 }
 
 export interface ModelRouterConfig {
-  registry: ModelRegistry;
+  factory: LlmFactory;
   projectPath: string;
   backend: 'cli' | 'api';
   defaultModel?: ModelName;
@@ -77,7 +77,7 @@ export function prdTaskToAttributes(task: PRDTask): TaskAttributes {
  * Create model router integration for the orchestrator
  */
 export function createModelRouterIntegration(config: ModelRouterConfig): ModelRouterIntegration {
-  const { registry, projectPath, backend, enableCascade = true, verbose = false } = config;
+  const { factory, projectPath, backend, enableCascade = true, verbose = false } = config;
 
   return {
     routePRD(prd: PRD): PRDRoutingPlan {
@@ -137,9 +137,9 @@ export function createModelRouterIntegration(config: ModelRouterConfig): ModelRo
         this.logDecision(decision);
       }
 
-      // Get LLM from registry
+      // Get LLM from factory
       const modelName = decision.selectedModel;
-      const llm = registry.getLlm(modelName, backend);
+      const llm = factory.create(modelName, { backend });
 
       logger.info(`Routed task to ${modelName}`, {
         taskId: task.id,
@@ -155,7 +155,7 @@ export function createModelRouterIntegration(config: ModelRouterConfig): ModelRo
     },
 
     getLlmForDecision(decision: RoutingDecision): BaseLlm {
-      return registry.getLlm(decision.selectedModel, backend);
+      return factory.create(decision.selectedModel, { backend });
     },
 
     getEscalatedLlm(
@@ -189,7 +189,7 @@ export function createModelRouterIntegration(config: ModelRouterConfig): ModelRo
         execution: decision.execution, // Preserve execution plan
       };
 
-      const llm = registry.getLlm(nextModel, backend);
+      const llm = factory.create(nextModel, { backend });
 
       logger.info(`Escalating task from ${decision.selectedModel} to ${nextModel}`, {
         taskId: decision.taskId,

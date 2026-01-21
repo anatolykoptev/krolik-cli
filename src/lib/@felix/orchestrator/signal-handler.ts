@@ -7,7 +7,7 @@
  */
 
 import type { SQLiteSessionService } from '../services/sqlite-session.js';
-import type { RalphLoopEvent, RalphLoopState } from '../types.js';
+import type { FelixLoopEvent, FelixLoopState } from '../types.js';
 
 /**
  * Signal handler state
@@ -21,10 +21,10 @@ export interface SignalHandlerState {
  * Signal handler configuration
  */
 export interface SignalHandlerConfig {
-  getState: () => RalphLoopState;
-  setState: (status: RalphLoopState['status']) => void;
+  getState: () => FelixLoopState;
+  setState: (status: FelixLoopState['status']) => void;
   cancel: () => void;
-  emit: (event: RalphLoopEvent) => void;
+  emit: (event: FelixLoopEvent) => void;
   now: () => string;
 }
 

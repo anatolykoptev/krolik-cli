@@ -14,10 +14,12 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import type { BaseLlm, BasePlugin } from '@google/adk';
 import {
+  detectProvider,
   FallbackRouter,
   getHealthMonitor,
-  getModelRegistry,
-  type ModelRegistry,
+  getLlmFactory,
+  type LlmFactory,
+  preloadVibeProxyModels,
 } from '../models/index.js';
 import type { PRDRoutingPlan } from '../router/router.js';
 import { createComponentLogger } from '../utils/logger.js';
@@ -26,7 +28,7 @@ import {
   type ModelRouterIntegration,
 } from './model-router-integration.js';
 
-const logger = createComponentLogger('ralph-orchestrator');
+const logger = createComponentLogger('felix-orchestrator');
 
 import { InMemorySessionService, Runner } from '@google/adk';
 import type { Content } from '@google/genai';
@@ -41,9 +43,9 @@ import {
   type SQLiteSessionService,
 } from '../services/sqlite-session.js';
 import type {
-  RalphLoopEvent,
-  RalphLoopEventHandler,
-  RalphLoopState,
+  FelixLoopEvent,
+  FelixLoopEventHandler,
+  FelixLoopState,
   TaskExecutionResult,
 } from '../types.js';
 import { type CheckpointManager, createCheckpointManager } from './checkpoint-manager.js';
@@ -84,16 +86,16 @@ export type { FelixOrchestratorConfig, OrchestratorResult } from './types.js';
 export class FelixOrchestrator {
   private config: ResolvedConfig;
   private llm: BaseLlm | null = null;
-  private registry: ModelRegistry;
+  private factory: LlmFactory;
   private fallbackRouter: FallbackRouter;
   private modelRouter: ModelRouterIntegration | null = null;
   private sessionService: SQLiteSessionService;
   private corePlugins: CorePlugins;
   private plugins: BasePlugin[];
-  private state: RalphLoopState;
+  private state: FelixLoopState;
   private taskResults: TaskExecutionResult[] = [];
   private startTime = 0;
-  private eventHandlers: Set<RalphLoopEventHandler> = new Set();
+  private eventHandlers: Set<FelixLoopEventHandler> = new Set();
   private abortController: AbortController | null = null;
   private prd: PRD | null = null;
   private routingPlan: PRDRoutingPlan | null = null;
@@ -102,13 +104,13 @@ export class FelixOrchestrator {
 
   constructor(config: FelixOrchestratorConfig) {
     this.config = resolveConfig(config);
-    // Initialize FallbackRouter for automatic provider fallback
-    this.registry = getModelRegistry({ workingDirectory: this.config.projectRoot });
-    this.fallbackRouter = new FallbackRouter(this.registry, getHealthMonitor());
+    // Initialize LLM Factory and FallbackRouter for automatic provider fallback
+    this.factory = getLlmFactory({ workingDirectory: this.config.projectRoot });
+    this.fallbackRouter = new FallbackRouter(this.factory, getHealthMonitor());
 
     // Initialize Model Router for per-task model selection
     this.modelRouter = createModelRouterIntegration({
-      registry: this.registry,
+      factory: this.factory,
       projectPath: this.config.projectRoot,
       backend: this.config.backend,
       enableCascade: true,
@@ -127,7 +129,7 @@ export class FelixOrchestrator {
 
     const pluginDeps = {
       config: this.config,
-      emit: (e: RalphLoopEvent) => this.emit(e),
+      emit: (e: FelixLoopEvent) => this.emit(e),
       now: () => this.now(),
     };
     this.corePlugins = {
@@ -143,11 +145,11 @@ export class FelixOrchestrator {
   // PUBLIC METHODS
   // ==========================================================================
 
-  getState(): RalphLoopState {
+  getState(): FelixLoopState {
     return { ...this.state };
   }
 
-  on(handler: RalphLoopEventHandler): () => void {
+  on(handler: FelixLoopEventHandler): () => void {
     this.eventHandlers.add(handler);
     return () => this.eventHandlers.delete(handler);
   }
@@ -160,15 +162,33 @@ export class FelixOrchestrator {
     this.abortController = new AbortController();
     this.state.status = 'running';
     this.state.startedAt = this.now();
-    this.state.sessionId = `ralph-${Date.now()}`;
+    this.state.sessionId = `felix-${Date.now()}`;
 
     // Initialize LLM with automatic fallback
-    logger.info(`Initializing LLM with fallback: ${this.config.model} (${this.config.backend})`);
+    // Use model router's default provider detection, with VibeProxy as ultimate fallback
+    const modelProvider = this.modelRouter
+      ? 'vibeproxy' // Model router handles per-task routing, use free VibeProxy for orchestrator
+      : (detectProvider(this.config.model) ?? 'vibeproxy');
+
+    logger.info(
+      `Initializing LLM with fallback: ${this.config.model} (${this.config.backend}, provider: ${modelProvider})`,
+    );
     this.llm = await this.fallbackRouter.getLlmWithFallback(this.config.model, {
       primary: {
-        provider: this.config.backend === 'cli' ? 'anthropic' : 'anthropic',
-        backend: this.config.backend,
+        provider: modelProvider,
+        backend: modelProvider === 'vibeproxy' ? 'api' : this.config.backend,
       },
+      fallbacks: [
+        // Try VibeProxy (free, always available if server running)
+        { provider: 'vibeproxy', backend: 'api' },
+        // Try Google CLI
+        { provider: 'google', backend: 'cli' },
+        // Try Anthropic API
+        { provider: 'anthropic', backend: 'api' },
+        // Try Google API
+        { provider: 'google', backend: 'api' },
+      ],
+      maxRetries: 4,
     });
     logger.info(`LLM initialized successfully`);
 
@@ -218,6 +238,19 @@ export class FelixOrchestrator {
 
     if (this.config.verbose) {
       logger.info(`Starting run with ${prd.tasks.length} tasks`);
+    }
+
+    // Preload VibeProxy model cache for dynamic alias resolution
+    try {
+      await preloadVibeProxyModels();
+      if (this.config.verbose) {
+        logger.info('VibeProxy model cache preloaded');
+      }
+    } catch {
+      // Non-fatal: static aliases will be used as fallback
+      if (this.config.verbose) {
+        logger.warn('Failed to preload VibeProxy models, using static aliases');
+      }
     }
 
     try {
@@ -291,7 +324,7 @@ export class FelixOrchestrator {
             timestamp: this.now(),
             issues: qualityGateResult.issues,
             summary: qualityGateResult.summary,
-          } as RalphLoopEvent);
+          } as FelixLoopEvent);
         } else {
           logger.info('Quality gate passed', {
             duration: qualityGateResult.summary.duration,
@@ -435,14 +468,14 @@ export class FelixOrchestrator {
     // Create runner with orchestrator agent
     const runner = new Runner({
       agent: orchestratorAgent,
-      appName: 'ralph-multi-agent',
+      appName: 'felix-multi-agent',
       sessionService: multiAgentSessionService,
       plugins: this.plugins,
     });
 
     // Create session
     const session = await multiAgentSessionService.createSession({
-      appName: 'ralph-multi-agent',
+      appName: 'felix-multi-agent',
       userId: 'system',
     });
 
@@ -671,7 +704,7 @@ Report progress and handle any failures appropriately.`,
     return new Date().toISOString();
   }
 
-  private emit(event: RalphLoopEvent): void {
+  private emit(event: FelixLoopEvent): void {
     this.config.onEvent(event);
     for (const handler of this.eventHandlers) {
       try {
@@ -710,11 +743,11 @@ Report progress and handle any failures appropriately.`,
   private createSignalHandlerConfig() {
     return {
       getState: () => this.state,
-      setState: (status: RalphLoopState['status']) => {
+      setState: (status: FelixLoopState['status']) => {
         this.state.status = status;
       },
       cancel: () => this.cancel(),
-      emit: (event: RalphLoopEvent) => this.emit(event),
+      emit: (event: FelixLoopEvent) => this.emit(event),
       now: () => this.now(),
     };
   }

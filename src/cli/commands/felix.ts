@@ -34,7 +34,7 @@ const FELIX_LOGS_DIR = `${FELIX_DIR}/logs`;
  */
 function extractProjectRootFromPrd(prdPath: string): string {
   // Check if path contains .krolik/felix/prd
-  const krolikPrdPattern = /(.+)\/\.krolik\/ralph\/prd\/.+\.json$/;
+  const krolikPrdPattern = /(.+)\/\.krolik\/felix\/prd\/.+\.json$/;
   const match = prdPath.match(krolikPrdPattern);
   if (match?.[1]) {
     return match[1];

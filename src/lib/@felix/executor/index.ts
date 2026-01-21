@@ -1,5 +1,5 @@
 /**
- * Ralph Executor Module
+ * Felix Executor Module
  *
  * Exports quality gate types and functions.
  *

@@ -2,7 +2,7 @@
  * SQLiteSessionService - Persistent session storage for ADK
  *
  * Uses the central krolik.db database via @storage/database
- * Tables: ralph_adk_sessions, ralph_adk_events (created in migration 9)
+ * Tables: felix_adk_sessions, felix_adk_events (created in migration 9, renamed in migration 11)
  *
  * @module @felix/services/sqlite-session
  */
@@ -27,7 +27,7 @@ import type {
   Session,
 } from '@google/adk';
 import type { Content } from '@google/genai';
-import { getProjectDatabase } from '../../@storage/database.js';
+import { getProjectDatabase } from '../../@storage/database/index.js';
 
 // ============================================================================
 // Zod Schemas for Safe JSON Parsing
@@ -163,9 +163,9 @@ function safeParseContent(json: string): Content | undefined {
 /**
  * SQLiteSessionService - ADK session service using central krolik.db
  *
- * Tables used (from migration 9):
- * - ralph_adk_sessions: Session metadata
- * - ralph_adk_events: Conversation events
+ * Tables used (from migration 9, renamed in migration 11):
+ * - felix_adk_sessions: Session metadata
+ * - felix_adk_events: Conversation events
  */
 export class SQLiteSessionService extends BaseSessionService {
   private db: Database.Database;
@@ -185,7 +185,7 @@ export class SQLiteSessionService extends BaseSessionService {
 
     this.db
       .prepare(
-        `INSERT INTO ralph_adk_sessions (id, app_name, user_id, state)
+        `INSERT INTO felix_adk_sessions (id, app_name, user_id, state)
          VALUES (?, ?, ?, ?)`,
       )
       .run(id, request.appName, request.userId, JSON.stringify(state));
@@ -203,14 +203,14 @@ export class SQLiteSessionService extends BaseSessionService {
   async getSession(request: GetSessionRequest): Promise<Session | undefined> {
     const row = this.db
       .prepare(
-        `SELECT * FROM ralph_adk_sessions
+        `SELECT * FROM felix_adk_sessions
          WHERE id = ? AND app_name = ? AND user_id = ?`,
       )
       .get(request.sessionId, request.appName, request.userId) as SessionRow | undefined;
 
     if (!row) return undefined;
 
-    let eventsQuery = `SELECT * FROM ralph_adk_events WHERE session_id = ?`;
+    let eventsQuery = `SELECT * FROM felix_adk_events WHERE session_id = ?`;
     const params: (string | number)[] = [request.sessionId];
 
     if (request.config?.afterTimestamp) {
@@ -259,7 +259,7 @@ export class SQLiteSessionService extends BaseSessionService {
     const rows = this.db
       .prepare(
         `SELECT id, app_name, user_id, state, updated_at
-         FROM ralph_adk_sessions
+         FROM felix_adk_sessions
          WHERE app_name = ? AND user_id = ?
          ORDER BY updated_at DESC`,
       )
@@ -280,7 +280,7 @@ export class SQLiteSessionService extends BaseSessionService {
   async deleteSession(request: DeleteSessionRequest): Promise<void> {
     this.db
       .prepare(
-        `DELETE FROM ralph_adk_sessions
+        `DELETE FROM felix_adk_sessions
          WHERE id = ? AND app_name = ? AND user_id = ?`,
       )
       .run(request.sessionId, request.appName, request.userId);
@@ -295,7 +295,7 @@ export class SQLiteSessionService extends BaseSessionService {
 
     this.db
       .prepare(
-        `INSERT INTO ralph_adk_events (id, session_id, invocation_id, author, content, actions, branch, timestamp)
+        `INSERT INTO felix_adk_events (id, session_id, invocation_id, author, content, actions, branch, timestamp)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
@@ -311,7 +311,7 @@ export class SQLiteSessionService extends BaseSessionService {
 
     this.db
       .prepare(
-        `UPDATE ralph_adk_sessions
+        `UPDATE felix_adk_sessions
          SET state = ?, updated_at = datetime('now')
          WHERE id = ?`,
       )
@@ -342,7 +342,7 @@ export class SQLiteSessionService extends BaseSessionService {
     const rows = this.db
       .prepare(
         `SELECT id, app_name, user_id, state, updated_at
-         FROM ralph_adk_sessions
+         FROM felix_adk_sessions
          WHERE app_name = ?
          ORDER BY updated_at DESC`,
       )
@@ -370,7 +370,7 @@ export class SQLiteSessionService extends BaseSessionService {
 
     const result = this.db
       .prepare(
-        `DELETE FROM ralph_adk_sessions
+        `DELETE FROM felix_adk_sessions
          WHERE app_name = ?
          AND updated_at < datetime('now', '-' || ? || ' days')`,
       )
@@ -390,7 +390,7 @@ export class SQLiteSessionService extends BaseSessionService {
 
     const result = this.db
       .prepare(
-        `DELETE FROM ralph_adk_sessions
+        `DELETE FROM felix_adk_sessions
          WHERE updated_at < datetime('now', '-' || ? || ' days')`,
       )
       .run(maxAgeDays);
@@ -400,15 +400,15 @@ export class SQLiteSessionService extends BaseSessionService {
 
   getStats(): { totalSessions: number; totalEvents: number; oldestSession: string | null } {
     const sessionCount = this.db
-      .prepare(`SELECT COUNT(*) as count FROM ralph_adk_sessions`)
+      .prepare(`SELECT COUNT(*) as count FROM felix_adk_sessions`)
       .get() as { count: number };
 
-    const eventCount = this.db.prepare(`SELECT COUNT(*) as count FROM ralph_adk_events`).get() as {
+    const eventCount = this.db.prepare(`SELECT COUNT(*) as count FROM felix_adk_events`).get() as {
       count: number;
     };
 
     const oldest = this.db
-      .prepare(`SELECT MIN(created_at) as oldest FROM ralph_adk_sessions`)
+      .prepare(`SELECT MIN(created_at) as oldest FROM felix_adk_sessions`)
       .get() as { oldest: string | null };
 
     return {

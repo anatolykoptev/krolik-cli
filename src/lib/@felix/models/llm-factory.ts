@@ -11,11 +11,13 @@
  */
 
 import { type BaseLlm, Gemini } from '@google/adk';
-import { ClaudeCliLlm } from './claude-cli-llm.js';
+import type { ClaudeCliLlm } from './claude-cli-llm.js';
+import { ClaudeCliLlm as ClaudeCliLlmImpl } from './claude-cli-llm.js';
 import { ClaudeLlm } from './claude-llm.js';
-import { GeminiCliLlm } from './gemini-cli-llm.js';
+import type { GeminiCliLlm } from './gemini-cli-llm.js';
+import { GeminiCliLlm as GeminiCliLlmImpl } from './gemini-cli-llm.js';
 import { GroqLlm } from './groq-llm.js';
-import { detectProvider, type ModelProvider } from './model-config.js';
+import { detectProvider, discoverProviders, type ModelProvider } from './model-config.js';
 import { getLlmClass, registerProvider } from './provider-registry.js';
 import { VibeProxyLlm } from './vibeproxy-llm.js';
 
@@ -187,6 +189,37 @@ export class LlmFactory {
     return this.create(modelOrAlias, { backend: 'api' });
   }
 
+  /**
+   * Create LLM for a specific provider (bypasses auto-detection)
+   *
+   * This is used when you want to force a specific provider regardless of model name.
+   * For example, to use VibeProxy for model "sonnet" instead of Anthropic.
+   *
+   * @param model - Model name (passed to the provider as-is)
+   * @param provider - Provider to use (vibeproxy, anthropic, google, etc.)
+   * @param backend - Backend type (api or cli)
+   * @param workingDirectory - Working directory for CLI backends
+   */
+  createForProvider(
+    model: string,
+    provider: ModelProvider,
+    backend: BackendType,
+    workingDirectory: string,
+  ): BaseLlm {
+    const cacheKey = this.buildCacheKey(`${provider}:${model}`, backend, workingDirectory);
+
+    // Return cached instance if available
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    // Create instance for specific provider
+    const llm = this.createInstance(provider, model, backend, { workingDirectory });
+
+    // Cache and return
+    this.cacheInstance(cacheKey, llm);
+    return llm;
+  }
+
   // ==========================================================================
   // CONFIGURATION METHODS
   // ==========================================================================
@@ -268,6 +301,34 @@ export class LlmFactory {
     return detectProvider(modelOrAlias);
   }
 
+  /**
+   * Check if CLI backend is available for a model
+   *
+   * Tries to create a CLI LLM instance and checks if it's available.
+   * Moved from ModelRegistry to consolidate all LLM logic in Factory.
+   */
+  async isCliAvailable(modelOrAlias: string): Promise<boolean> {
+    try {
+      const llm = this.createCliLlm(modelOrAlias, this.config.workingDirectory);
+      if ('isAvailable' in llm && typeof llm.isAvailable === 'function') {
+        return await (llm as ClaudeCliLlm | GeminiCliLlm).isAvailable();
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Discover available CLI providers and their versions
+   *
+   * Delegates to model-config's discoverProviders().
+   * Moved from ModelRegistry to consolidate all provider discovery in Factory.
+   */
+  async discoverAvailable(): Promise<Map<ModelProvider, { available: boolean; version?: string }>> {
+    return discoverProviders();
+  }
+
   // ==========================================================================
   // PRIVATE METHODS
   // ==========================================================================
@@ -318,13 +379,13 @@ export class LlmFactory {
   ): BaseLlm {
     switch (provider) {
       case 'anthropic':
-        return new ClaudeCliLlm({
+        return new ClaudeCliLlmImpl({
           model,
           workingDirectory: options.workingDirectory,
           skipValidation: options.skipValidation ?? true,
         });
       case 'google':
-        return new GeminiCliLlm({
+        return new GeminiCliLlmImpl({
           model,
           workingDirectory: options.workingDirectory,
           skipValidation: options.skipValidation ?? true,

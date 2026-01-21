@@ -1,5 +1,5 @@
 /**
- * @ralph - ADK-based multi-agent orchestration for Krolik Felix
+ * @felix - ADK-based multi-agent orchestration for Krolik Felix
  */
 
 import type { Content, Part } from '@google/genai';

@@ -19,12 +19,12 @@ import { QualityGatePlugin } from '../plugins/quality-gate-plugin.js';
 import { RateLimitPlugin } from '../plugins/rate-limit-plugin.js';
 import { RetryPlugin } from '../plugins/retry-plugin.js';
 import { ValidationPlugin } from '../plugins/validation-plugin.js';
-import type { RalphLoopEvent } from '../types.js';
+import type { FelixLoopEvent } from '../types.js';
 import type { ResolvedConfig } from './types.js';
 
 export interface PluginFactoryDeps {
   config: ResolvedConfig;
-  emit: (event: RalphLoopEvent) => void;
+  emit: (event: FelixLoopEvent) => void;
   now: () => string;
 }
 
@@ -105,7 +105,7 @@ export function buildPluginList(corePlugins: CorePlugins, deps: PluginFactoryDep
     );
   }
 
-  // Always enable ActionPlugin (Ralph Actions)
+  // Always enable ActionPlugin (Felix Actions)
   allPlugins.push(
     new ActionPlugin({
       projectRoot: config.projectRoot,
@@ -129,7 +129,7 @@ export function buildPluginList(corePlugins: CorePlugins, deps: PluginFactoryDep
           timestamp: now(),
           state,
           failures,
-        } as RalphLoopEvent);
+        } as FelixLoopEvent);
         config.onCircuitBreakerTrip?.(state, failures);
       },
     };

@@ -7,6 +7,10 @@
  * - ChatGPT subscription
  * - Gemini
  *
+ * Model resolution:
+ * 1. Static MODEL_ALIASES for synchronous constructor usage
+ * 2. Dynamic discovery via vibeproxy-discovery.ts for async usage
+ *
  * @module @felix/models/vibeproxy-llm
  */
 
@@ -14,6 +18,7 @@ import type { BaseLlmConnection, LlmRequest, LlmResponse } from '@google/adk';
 import { BaseLlm } from '@google/adk';
 import type { Content, Part } from '@google/genai';
 import { FinishReason } from '@google/genai';
+import { getVibeProxyDiscovery, resolveVibeProxyAliasSync } from './vibeproxy-discovery.js';
 
 // ============================================================================
 // TYPES
@@ -30,6 +35,21 @@ export interface VibeProxyLlmParams {
   maxTokens?: number;
   /** Temperature (0-2) */
   temperature?: number;
+}
+
+/**
+ * Resolve model alias using dynamic discovery (cached) or static fallback.
+ * Priority: 1) Dynamic cache 2) Static MODEL_ALIASES 3) Pass-through
+ */
+function resolveModelAlias(inputModel: string): string {
+  // Try dynamic cache first (instant if preloaded)
+  const dynamicResolved = resolveVibeProxyAliasSync(inputModel);
+  if (dynamicResolved) {
+    return dynamicResolved;
+  }
+
+  // Fall back to static aliases
+  return MODEL_ALIASES[inputModel] ?? inputModel;
 }
 
 interface VibeProxyMessage {
@@ -80,15 +100,32 @@ const DEFAULT_MAX_TOKENS = 8192;
 const DEFAULT_TEMPERATURE = 0.7;
 
 /**
- * Model ID mapping: alias -> VibeProxy model ID
+ * Static model aliases for synchronous constructor usage.
+ * These are used as fallback when dynamic discovery is not available.
+ * Dynamic aliases are fetched from VibeProxy /v1/models endpoint.
  */
 const MODEL_ALIASES: Record<string, string> = {
+  // Standard aliases
   'vibe-opus': 'gemini-claude-opus-4-5-thinking',
   'vibe-sonnet': 'gemini-claude-sonnet-4-5-thinking',
   'vibe-sonnet-fast': 'gemini-claude-sonnet-4-5',
   'antigravity-opus': 'gemini-claude-opus-4-5-thinking',
   'antigravity-sonnet': 'gemini-claude-sonnet-4-5-thinking',
   'gemini-3-pro': 'gemini-3-pro-image-preview',
+  // Common aliases for CLI compatibility
+  sonnet: 'gemini-claude-sonnet-4-5-thinking',
+  opus: 'gemini-claude-opus-4-5-thinking',
+  'claude-3-5-sonnet': 'gemini-claude-sonnet-4-5-thinking',
+  'claude-3-5-opus': 'gemini-claude-opus-4-5-thinking',
+  'claude-sonnet-4': 'gemini-claude-sonnet-4-5-thinking',
+  'claude-opus-4': 'gemini-claude-opus-4-5-thinking',
+  // Gemini aliases
+  flash: 'gemini-2.0-flash-exp',
+  pro: 'gemini-2.0-pro-exp',
+  'gemini-flash': 'gemini-2.0-flash-exp',
+  'gemini-pro': 'gemini-2.0-pro-exp',
+  'gemini-2.0-flash': 'gemini-2.0-flash-exp',
+  'gemini-2.0-pro': 'gemini-2.0-pro-exp',
 };
 
 // ============================================================================
@@ -119,7 +156,7 @@ export class VibeProxyLlm extends BaseLlm {
 
   constructor(params: VibeProxyLlmParams = {}) {
     const inputModel = params.model ?? DEFAULT_MODEL;
-    const actualModel = MODEL_ALIASES[inputModel] ?? inputModel;
+    const actualModel = resolveModelAlias(inputModel);
 
     super({ model: actualModel });
     this.actualModel = actualModel;
@@ -277,7 +314,45 @@ export class VibeProxyLlm extends BaseLlm {
 // ============================================================================
 
 /**
- * Create a VibeProxy LLM instance
+ * Resolve model alias to full VibeProxy model ID
+ * Uses dynamic discovery if available, falls back to static aliases
+ */
+export async function resolveVibeProxyModel(aliasOrId: string): Promise<string> {
+  // Try dynamic discovery first
+  try {
+    const discovery = getVibeProxyDiscovery();
+    const resolved = await discovery.resolveAlias(aliasOrId);
+    if (resolved) {
+      return resolved;
+    }
+  } catch {
+    // Fall through to static aliases
+  }
+
+  // Fall back to static aliases
+  return MODEL_ALIASES[aliasOrId] ?? aliasOrId;
+}
+
+/**
+ * Create a VibeProxy LLM instance with dynamic model resolution
+ * Resolves aliases via VibeProxy /v1/models endpoint
+ */
+export async function createVibeProxyLlmAsync(
+  model = DEFAULT_MODEL,
+  apiKey?: string,
+  baseUrl?: string,
+): Promise<VibeProxyLlm> {
+  const resolvedModel = await resolveVibeProxyModel(model);
+
+  return new VibeProxyLlm({
+    model: resolvedModel,
+    apiKey: apiKey ?? process.env.VIBEPROXY_API_KEY ?? DEFAULT_API_KEY,
+    baseUrl: baseUrl ?? process.env.VIBEPROXY_BASE_URL ?? DEFAULT_BASE_URL,
+  });
+}
+
+/**
+ * Create a VibeProxy LLM instance (synchronous, uses static aliases)
  */
 export function createVibeProxyLlm(
   model = DEFAULT_MODEL,

@@ -9,6 +9,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 // ADK-based FelixOrchestrator
 import { FelixOrchestrator } from '../../lib/@felix/orchestrator';
+import { resolveConfig, resolvePrdPath } from '../../lib/@felix/orchestrator/config-resolver';
+import type { FelixOrchestratorConfig } from '../../lib/@felix/orchestrator/types';
 // Model Router
 import {
   estimateTotalCost,
@@ -65,7 +67,7 @@ function removeOrchestrator(project: string): void {
 // TYPES
 // ============================================================================
 
-export interface RalphOptions {
+export interface FelixOptions {
   prd?: string;
   action?: 'status' | 'start' | 'resume' | 'pause' | 'cancel' | 'validate';
   dryRun?: boolean;
@@ -257,10 +259,27 @@ export function validatePrdFile(
     };
   }
 
-  const { prd, errors } = loadAndValidatePRD(foundPath);
+  // Auto-move PRD file to correct location if needed
+  let resolvedPath = foundPath;
+  try {
+    const config: FelixOrchestratorConfig = { projectRoot, prdPath: foundPath };
+    const resolved = resolveConfig(config);
+    resolvedPath = resolvePrdPath(resolved);
+  } catch (error) {
+    // If resolvePrdPath fails (e.g., file in wrong location and auto-move disabled),
+    // continue with foundPath to show validation errors
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      valid: false,
+      path: foundPath,
+      errors: [message],
+    };
+  }
+
+  const { prd, errors } = loadAndValidatePRD(resolvedPath);
 
   if (!prd) {
-    return { valid: false, path: foundPath, errors };
+    return { valid: false, path: resolvedPath, errors };
   }
 
   const orderedTasks = getTaskExecutionOrder(prd.tasks);
@@ -268,7 +287,7 @@ export function validatePrdFile(
 
   return {
     valid: true,
-    path: foundPath,
+    path: resolvedPath,
     taskCount: prd.tasks.length,
     executionOrder,
     errors: [],
@@ -389,13 +408,13 @@ export async function startSession(
   // Store orchestrator for pause/resume/cancel
   setOrchestrator(project, orchestrator);
 
-  console.error(`[ralph] Starting orchestrator for ${project}...`);
+  console.error(`[felix] Starting orchestrator for ${project}...`);
 
   // Blocking mode for CLI
   if (options?.wait) {
     try {
       await orchestrator.start();
-      console.error(`[ralph] Orchestrator completed for ${project}`);
+      console.error(`[felix] Orchestrator completed for ${project}`);
       const state = orchestrator.getState();
       removeOrchestrator(project);
       const success = state.status === 'completed';
@@ -408,7 +427,7 @@ export async function startSession(
       }
       return result;
     } catch (error) {
-      console.error(`[ralph] Orchestrator failed for ${project}:`, error);
+      console.error(`[felix] Orchestrator failed for ${project}:`, error);
       const state = orchestrator.getState();
       removeOrchestrator(project);
       const result: { success: boolean; sessionId?: string; error: string } = {
@@ -424,10 +443,10 @@ export async function startSession(
   orchestrator
     .start()
     .then(() => {
-      console.error(`[ralph] Orchestrator completed for ${project}`);
+      console.error(`[felix] Orchestrator completed for ${project}`);
     })
     .catch((error) => {
-      console.error(`[ralph] Orchestrator failed for ${project}:`, error);
+      console.error(`[felix] Orchestrator failed for ${project}:`, error);
       removeOrchestrator(project);
     });
 
@@ -493,7 +512,7 @@ export function startSessionBackground(
 
   // Build args for internal _run command
   // Note: useMultiAgentMode is deprecated - Router decides execution mode automatically
-  const args = ['ralph', '_run', '--prd', validation.path, '--session-id', sessionId];
+  const args = ['felix', '_run', '--prd', validation.path, '--session-id', sessionId];
   if (options?.model) args.push('--model', options.model);
   if (options?.backend) args.push('--backend', options.backend);
   if (options?.maxAttempts !== undefined) args.push('--max-attempts', String(options.maxAttempts));
@@ -592,7 +611,7 @@ export function resumeActiveSession(projectRoot: string): {
   }
 
   orchestrator.resume().catch((error) => {
-    console.error(`[ralph] Resume failed for ${project}:`, error);
+    console.error(`[felix] Resume failed for ${project}:`, error);
     removeOrchestrator(project);
   });
 

@@ -5,7 +5,7 @@
  */
 
 import { getTaskExecutionOrder, type PRD, type PRDTask } from '../schemas/prd.schema.js';
-import type { RalphLoopState, TaskExecutionResult } from '../types.js';
+import type { FelixLoopState, TaskExecutionResult } from '../types.js';
 import { createComponentLogger } from '../utils/logger.js';
 import { shouldSkipTask, updateStateAfterTask } from './state-manager.js';
 
@@ -27,7 +27,7 @@ export type TaskExecutor = (
  */
 export async function runSequential(
   prd: PRD,
-  state: RalphLoopState,
+  state: FelixLoopState,
   executeTask: TaskExecutor,
   config: SequentialRunnerConfig,
 ): Promise<TaskExecutionResult[]> {

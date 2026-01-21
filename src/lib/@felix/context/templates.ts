@@ -61,7 +61,7 @@ If tests fail, you may be asked to fix issues and try again.`;
 /**
  * System prompt for retry attempts
  */
-export const RALPH_RETRY_SYSTEM_PROMPT = `You are retrying a task that previously failed.
+export const FELIX_RETRY_SYSTEM_PROMPT = `You are retrying a task that previously failed.
 
 ## Previous Attempt Information
 

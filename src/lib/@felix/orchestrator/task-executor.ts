@@ -295,7 +295,7 @@ export async function executeTask(
 
     logger.info('Success determination', { taskId: task.id, success, failureReason });
 
-    // Note: Quality gate now runs once at the END of PRD execution in ralph-orchestrator.ts
+    // Note: Quality gate now runs once at the END of PRD execution in felix-orchestrator.ts
     // (not after each individual task)
 
     logger.info('Task execution complete', { taskId: task.id, success, failureReason });

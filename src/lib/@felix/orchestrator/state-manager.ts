@@ -5,13 +5,13 @@
  */
 
 import type { CostPlugin } from '../plugins/cost-plugin.js';
-import type { RalphLoopState, TaskExecutionResult } from '../types.js';
+import type { FelixLoopState, TaskExecutionResult } from '../types.js';
 import type { OrchestratorResult } from './types.js';
 
 /**
  * Create initial orchestrator state
  */
-export function createInitialState(): RalphLoopState {
+export function createInitialState(): FelixLoopState {
   return {
     status: 'idle',
     completedTasks: [],
@@ -26,9 +26,9 @@ export function createInitialState(): RalphLoopState {
  * Determine final status based on state and abort signal
  */
 export function determineFinalStatus(
-  state: RalphLoopState,
+  state: FelixLoopState,
   abortController: AbortController | null,
-): RalphLoopState['status'] {
+): FelixLoopState['status'] {
   if (abortController?.signal.aborted) {
     return 'cancelled';
   }
@@ -40,7 +40,7 @@ export function determineFinalStatus(
  */
 export function createResult(
   success: boolean,
-  state: RalphLoopState,
+  state: FelixLoopState,
   taskResults: TaskExecutionResult[],
   costPlugin: CostPlugin,
   startTime: number,
@@ -58,7 +58,7 @@ export function createResult(
 /**
  * Update state after task completion
  */
-export function updateStateAfterTask(state: RalphLoopState, result: TaskExecutionResult): void {
+export function updateStateAfterTask(state: FelixLoopState, result: TaskExecutionResult): void {
   if (result.success) {
     state.completedTasks.push(result.taskId);
   } else {
@@ -74,7 +74,7 @@ export function updateStateAfterTask(state: RalphLoopState, result: TaskExecutio
 export function shouldSkipTask(
   taskId: string,
   dependencies: string[],
-  state: RalphLoopState,
+  state: FelixLoopState,
 ): { skip: boolean; reason?: string } {
   // Already processed
   if (state.completedTasks.includes(taskId) || state.failedTasks.includes(taskId)) {

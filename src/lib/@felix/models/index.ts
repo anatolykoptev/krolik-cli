@@ -1,5 +1,5 @@
 /**
- * @ralph/models - LLM implementations and registry
+ * @felix/models - LLM implementations and registry
  *
  * Pass-through approach: model names are passed directly to CLI.
  * No hardcoded model lists - CLI validates model availability.
@@ -57,7 +57,9 @@ export {
   resetHealthMonitor,
 } from './health-monitor.js';
 // LLM Factory (unified LLM creation - single entry point)
+// BackendType re-export (for compatibility)
 export {
+  type BackendType,
   createApiLlm,
   createCliLlm,
   createLlm,
@@ -95,17 +97,6 @@ export {
   providerRegistry,
   registerProvider,
 } from './provider-registry.js';
-// Model Registry (unified access to all LLMs - wraps factory + discovery)
-export {
-  type BackendType,
-  getApiLlm,
-  getCliLlm,
-  getLlm,
-  getModelRegistry,
-  ModelRegistry,
-  type RegistryConfig,
-  resetModelRegistry,
-} from './registry.js';
 // Timeout configuration
 export {
   DEFAULT_TIMEOUT_MS,
@@ -113,9 +104,26 @@ export {
   getTimeoutForComplexity,
   TIMEOUT_BY_COMPLEXITY,
 } from './timeout-config.js';
+// VibeProxy Model Discovery (dynamic model fetching)
+export {
+  createVibeProxyDiscovery,
+  getVibeProxyDiscovery,
+  getVibeProxyModels,
+  isVibeProxyAvailable,
+  isVibeProxyCacheWarmed,
+  MODEL_OWNERS,
+  preloadVibeProxyModels,
+  resetVibeProxyDiscovery,
+  resolveVibeProxyAlias,
+  resolveVibeProxyAliasSync,
+  VibeProxyDiscovery,
+  type VibeProxyModel,
+} from './vibeproxy-discovery.js';
 // VibeProxy API LLM (Antigravity + multi-provider via VibeProxy)
 export {
   createVibeProxyLlm,
+  createVibeProxyLlmAsync,
+  resolveVibeProxyModel,
   VibeProxyLlm,
   type VibeProxyLlmParams,
 } from './vibeproxy-llm.js';
