@@ -1,3 +1,10 @@
+> [!WARNING]
+> **This repository is archived.** `krolik-cli` has been sunset.
+> All functionality is now available at **[krolik.tools](https://krolik.tools)** — the unified Krolik platform.
+> No further updates will be made to this package.
+
+---
+
 <div align="center">
 
 ```
